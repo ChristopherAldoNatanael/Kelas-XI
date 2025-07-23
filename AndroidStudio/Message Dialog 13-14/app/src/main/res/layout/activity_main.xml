@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:onClick="btnToast"
+    android:orientation="vertical"
+    tools:context=".MainActivity">
+
+    <!-- Tambahkan konten di sini -->
+
+    <Button
+        android:id="@+id/btnToast"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:onClick="btnToast"
+        android:text="Toast" />
+
+    <Button
+        android:id="@+id/btnAlert"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:onClick="btnAlert"
+        android:text="Alert Dialog" />
+
+    <Button
+        android:id="@+id/btnAlertDialogButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:onClick="btnAlertDialogButton"
+        android:text="Alert Dialog Button" />
+
+    <Button
+        android:id="@+id/btnCustomToast"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="20dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginRight="20dp"
+        android:onClick="btnCustomToast"
+        android:text="Custom Toast dengan Icon" />
+</LinearLayout>
