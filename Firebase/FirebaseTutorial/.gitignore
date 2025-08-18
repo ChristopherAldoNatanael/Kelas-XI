@@ -1,15 +1,60 @@
+# Android Studio/IntelliJ
 *.iml
-.gradle
+.gradle/
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+
+# Firebase secrets
+app/google-services.json
+
+# Crashlytics/Analytics generated files
+app/crashlytics-build.properties
+app/analytics.properties
+
+# Misc
+*.log
+*.tmp
+
+# Exclude APKs and AABs
+*.apk
+*.aab
+
+# Exclude test results
+/test-output/
+
+# Exclude generated files
+app/generated/
+
+# Exclude keystore files
+*.jks
+*.keystore
+
+# Exclude NDK build artifacts
+obj/
+
+# Exclude local config
 local.properties
+
+# Exclude IDE settings
+.idea/
+
+# Exclude unnecessary files
+*.swp
+*.swo
+
+# Exclude macOS files
+.DS_Store
+
+# Exclude Windows files
+Thumbs.db
+
+# Exclude system files
+$RECYCLE.BIN/
+
+# Exclude gradle wrapper logs
+.gradle/
