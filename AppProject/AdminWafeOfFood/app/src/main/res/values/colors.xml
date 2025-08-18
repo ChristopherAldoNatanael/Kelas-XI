@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors (Brand Green) -->
+    <color name="primary_green">#22C55E</color>
+    <color name="primary_green_light">#34D399</color>
+    <color name="primary_green_dark">#16A34A</color>
+    
+    <!-- Background Colors -->
+    <color name="background_light">#FFFFFF</color>
+    <color name="background_dark">#1A1A1A</color>
+    <color name="surface_light">#F9FAFB</color>
+    <color name="surface_dark">#111827</color>
+    
+    <!-- Text Colors -->
+    <color name="text_primary_light">#1A1A1A</color>
+    <color name="text_primary_dark">#FFFFFF</color>
+    <color name="text_secondary_light">#6B7280</color>
+    <color name="text_secondary_dark">#9CA3AF</color>
+    
+    <!-- Neutral Colors -->
+    <color name="border_light">#E5E7EB</color>
+    <color name="border_dark">#374151</color>
+    <color name="placeholder">#9CA3AF</color>
+    
+    <!-- Status Colors -->
+    <color name="success">#10B981</color>
+    <color name="success_green">#4ADE80</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- Google Sign In Button Colors -->
+    <color name="button_google_border">#DADCE0</color>
+    <color name="button_google_pressed">#F8F9FA</color>
+    <color name="divider_color">#E5E7EB</color>
+    
+    <!-- Social Login Colors -->
+    <color name="social_facebook">#1877F2</color>
+    <color name="social_google">#DB4437</color>
+    
+    <!-- Accent Colors -->
+    <color name="accent_mint">#A7F3D0</color>
+    <color name="accent_blue">#DBEAFE</color>
+    
+    <!-- Legacy Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Main Theme Colors -->
+    <color name="colorPrimary">#FF6B35</color>
+    <color name="colorPrimaryDark">#E55A2B</color>
+    <color name="colorAccent">#FFC107</color>
+    
+    <!-- Background colors -->
+    <color name="background_color">#F5F5F5</color>
+    <color name="card_background">#FFFFFF</color>
+    
+    <!-- Text colors -->
+    <color name="text_primary">#212121</color>
+    <color name="text_secondary">#757575</color>
+    <color name="text_hint">#BDBDBD</color>
+
+    <!-- Status colors -->
+    <color name="success_color">#4CAF50</color>
+    <color name="error_color">#F44336</color>
+    <color name="warning_color">#FF9800</color>
+    
+    <!-- Common colors -->
+    <color name="transparent">#00000000</color>
+
+    <!-- Additional Colors -->
+    <color name="primary_color">#FF6B35</color>
+    <color name="primary_light">#FFAB91</color>
+    <color name="gray">#757575</color>
+    <color name="light_gray">#F5F5F5</color>
+</resources>

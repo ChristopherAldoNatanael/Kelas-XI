@@ -1,0 +1,42 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Android build dan konfigurasi pribadi
+/app/build/
+/app/google-services.json
+/app/firebase-realtime-database-dependency.txt
+# Keystore & secrets
+*.jks
+*.keystore
+# Log & crash
+*.log
+crashlytics/
+# Personal/secret config
+FIREBASE_AUTH_INTEGRATION_COMPLETE.md
+FIREBASE_DEBUGGING_GUIDE.md
+FIREBASE_MENU_STRUCTURE.md
+FIREBASE_TESTING_GUIDE.md
+PERBAIKAN_ERROR_DOCUMENTATION.md
+FINAL_ERROR_FIXES_DOCUMENTATION.md
+BUILD_SUCCESS_DOCUMENTATION.md
+UI_IMPROVEMENTS_DOCUMENTATION.md
+# VSCode
+.vscode/
+# OS files
+Thumbs.db
+# Others
+*.swp
+*.swo

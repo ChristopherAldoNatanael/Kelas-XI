@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Navigation Graph untuk mengatur alur navigasi antar fragment -->
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/splashFragment">
+
+    <!-- Splash Fragment - Fragment pertama yang muncul -->
+    <fragment
+        android:id="@+id/splashFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.splash.SplashFragment"
+        android:label="Splash"
+        tools:layout="@layout/fragment_splash">
+        
+        <!-- Action untuk navigasi ke onboarding -->
+        <action
+            android:id="@+id/action_splashFragment_to_onboardingFragment"
+            app:destination="@id/onboardingFragment"
+            app:popUpTo="@id/splashFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right" />
+    </fragment>
+
+    <!-- Onboarding Fragment - Fragment untuk onboarding screen -->
+    <fragment
+        android:id="@+id/onboardingFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.onboarding.OnboardingFragment"
+        android:label="Onboarding"
+        tools:layout="@layout/fragment_onboarding">
+        
+        <!-- Action untuk navigasi ke login -->
+        <action
+            android:id="@+id/action_onboardingFragment_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right" />
+    </fragment>    <!-- Login Fragment - Fragment untuk login screen -->
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.login.LoginFragment"
+        android:label="Login"
+        tools:layout="@layout/fragment_login">
+        
+        <!-- Action untuk navigasi ke register -->
+        <action
+            android:id="@+id/action_loginFragment_to_registerFragment"
+            app:destination="@id/registerFragment"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right" />        <!-- Action untuk navigasi ke main screen setelah login -->
+        <action
+            android:id="@+id/action_loginFragment_to_mainFragment"
+            app:destination="@id/mainFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Register Fragment - Fragment untuk register screen -->
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.register.RegisterFragment"
+        android:label="Register"
+        tools:layout="@layout/fragment_register">
+        
+        <!-- Action untuk kembali ke login -->
+        <action
+            android:id="@+id/action_registerFragment_to_loginFragment"
+            app:destination="@id/loginFragment"
+            app:enterAnim="@android:anim/slide_in_left"
+            app:exitAnim="@android:anim/slide_out_right" />        <!-- Action untuk navigasi ke main screen setelah register -->
+        <action
+            android:id="@+id/action_registerFragment_to_mainFragment"
+            app:destination="@id/mainFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- Main Fragment - Fragment utama dengan bottom navigation -->
+    <fragment
+        android:id="@+id/mainFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.main.MainFragment"
+        android:label="Main"
+        tools:layout="@layout/fragment_main" />
+
+</navigation>

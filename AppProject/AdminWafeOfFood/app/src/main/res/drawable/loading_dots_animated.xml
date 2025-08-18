@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/loading_dots">
+    
+    <!-- Animation for dot 1 -->
+    <target
+        android:name="dot1_path"
+        android:animation="@anim/dot_animation_1" />
+    
+    <!-- Animation for dot 2 -->
+    <target
+        android:name="dot2_path"
+        android:animation="@anim/dot_animation_2" />
+    
+    <!-- Animation for dot 3 -->
+    <target
+        android:name="dot3_path"
+        android:animation="@anim/dot_animation_3" />
+    
+</animated-vector>

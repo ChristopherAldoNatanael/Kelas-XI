@@ -1,0 +1,235 @@
+{
+  "ORD001_1706200000000": {
+    "id": "ORD001_1706200000000",
+    "customerId": "CUST001",
+    "customerName": "Budi Santoso",
+    "customerEmail": "budi.santoso@email.com",
+    "customerPhone": "081234567890",
+    "customerAddress": "Jl. Merdeka No. 123, Jakarta Pusat",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 2,
+        "notes": "Pedas level 3",
+        "subtotal": 50000
+      },
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 1,
+        "notes": "Dengan saus mayo",
+        "subtotal": 15000
+      }
+    ],
+    "totalAmount": 65000,
+    "status": "INCOMING",
+    "paymentMethod": "Cash",
+    "paymentStatus": "PENDING",
+    "notes": "Antar ke depan gedung ya",
+    "estimatedTime": 1800000,
+    "createdAt": 1706200000000,
+    "updatedAt": 1706200000000
+  },
+  "ORD002_1706201000000": {
+    "id": "ORD002_1706201000000",
+    "customerId": "CUST002",
+    "customerName": "Siti Rahayu",
+    "customerPhone": "081987654321",
+    "customerAddress": "Jl. Sudirman No. 456, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 1,
+        "notes": "Tanpa keju tambahan",
+        "subtotal": 25000
+      },
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 2,
+        "notes": "Extra crispy",
+        "subtotal": 30000
+      }
+    ],
+    "totalAmount": 55000,
+    "status": "CONFIRMED",
+    "paymentMethod": "QRIS",
+    "paymentStatus": "PAID",
+    "notes": "Terima kasih",
+    "estimatedTime": 2100000,
+    "createdAt": 1706201000000,
+    "updatedAt": 1706201500000
+  },
+  "ORD003_1706202000000": {
+    "id": "ORD003_1706202000000",
+    "customerId": "CUST003",
+    "customerName": "Andi Wijaya",
+    "customerPhone": "081555666777",
+    "customerAddress": "Jl. Thamrin No. 789, Jakarta Pusat",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 3,
+        "notes": "Untuk kantor",
+        "subtotal": 75000
+      }
+    ],
+    "totalAmount": 75000,
+    "status": "IN_PROGRESS",
+    "paymentMethod": "Transfer Bank",
+    "paymentStatus": "PAID",
+    "notes": "Segera ya, lagi lapar",
+    "estimatedTime": 1500000,
+    "createdAt": 1706202000000,
+    "updatedAt": 1706202300000
+  },
+  "ORD004_1706203000000": {
+    "id": "ORD004_1706203000000",
+    "customerId": "CUST004",
+    "customerName": "Maya Sari",
+    "customerPhone": "081333444555",
+    "customerAddress": "Jl. Gatot Subroto No. 321, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 2,
+        "notes": "Saus tomat",
+        "subtotal": 30000
+      }
+    ],
+    "totalAmount": 30000,
+    "status": "READY",
+    "paymentMethod": "Cash",
+    "paymentStatus": "PENDING",
+    "notes": "Tunggu di lobby",
+    "estimatedTime": 0,
+    "createdAt": 1706203000000,
+    "updatedAt": 1706203600000
+  },
+  "ORD005_1706204000000": {
+    "id": "ORD005_1706204000000",
+    "customerId": "CUST005",
+    "customerName": "Dedi Kurniawan",
+    "customerPhone": "081777888999",
+    "customerAddress": "Jl. Rasuna Said No. 654, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 2,
+        "notes": "Double cheese",
+        "subtotal": 50000
+      },
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 2,
+        "notes": "Large portion",
+        "subtotal": 30000
+      }
+    ],
+    "totalAmount": 80000,
+    "status": "COMPLETED",
+    "paymentMethod": "E-Wallet",
+    "paymentStatus": "PAID",
+    "notes": "Makanan enak sekali!",
+    "estimatedTime": 0,
+    "createdAt": 1706204000000,
+    "updatedAt": 1706204800000
+  },
+  "ORD006_1706205000000": {
+    "id": "ORD006_1706205000000",
+    "customerId": "CUST006",
+    "customerName": "Lina Permata",
+    "customerPhone": "081111222333",
+    "customerAddress": "Jl. HR Rasuna Said No. 888, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 1,
+        "notes": "Medium well",
+        "subtotal": 25000
+      }
+    ],
+    "totalAmount": 25000,
+    "status": "CANCELLED",
+    "paymentMethod": "Cash",
+    "paymentStatus": "REFUNDED",
+    "notes": "Customer membatalkan pesanan",
+    "estimatedTime": 0,
+    "createdAt": 1706205000000,
+    "updatedAt": 1706205200000
+  },
+  "ORD007_1706206000000": {
+    "id": "ORD007_1706206000000",
+    "customerId": "CUST007",
+    "customerName": "Rudi Hartono",
+    "customerPhone": "081222333444",
+    "customerAddress": "Jl. Kuningan No. 999, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHFuFfF78oqTY-Yvkm",
+        "menuName": "Cheeseburger",
+        "menuPrice": 25000,
+        "quantity": 4,
+        "notes": "Family order",
+        "subtotal": 100000
+      },
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 3,
+        "notes": "Sharing portion",
+        "subtotal": 45000
+      }
+    ],
+    "totalAmount": 145000,
+    "status": "INCOMING",
+    "paymentMethod": "QRIS",
+    "paymentStatus": "PENDING",
+    "notes": "Pesanan untuk keluarga",
+    "estimatedTime": 2400000,
+    "createdAt": 1706206000000,
+    "updatedAt": 1706206000000
+  },
+  "ORD008_1706207000000": {
+    "id": "ORD008_1706207000000",
+    "customerId": "CUST008",
+    "customerName": "Dewi Sartika",
+    "customerPhone": "081666777888",
+    "customerAddress": "Jl. Kemang No. 456, Jakarta Selatan",
+    "items": [
+      {
+        "menuId": "-OXHGAshBmtXK8LSBvu_",
+        "menuName": "French Fries",
+        "menuPrice": 15000,
+        "quantity": 1,
+        "notes": "Crispy please",
+        "subtotal": 15000
+      }
+    ],
+    "totalAmount": 15000,
+    "status": "CONFIRMED",
+    "paymentMethod": "Cash",
+    "paymentStatus": "PENDING",
+    "notes": "Snack sore",
+    "estimatedTime": 900000,
+    "createdAt": 1706207000000,
+    "updatedAt": 1706207300000
+  }
+}

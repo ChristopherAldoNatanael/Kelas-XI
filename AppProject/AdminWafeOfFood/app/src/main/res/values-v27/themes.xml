@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Light Theme -->
+    <style name="Theme.AdminWafeOfFood" parent="Theme.Material3.Light.NoActionBar">
+        <!-- Navigation Bar for API 27+ -->
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+</resources>

@@ -1,0 +1,60 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    
+    <!-- Background Circle -->
+    <path
+        android:pathData="M50,50m-45,0a45,45 0,1 1,90 0a45,45 0,1 1,-90 0"
+        android:fillColor="@color/colorPrimary"/>
+    
+    <!-- Top Bun (Roti Atas) -->
+    <path
+        android:pathData="M25,40 Q25,30 50,30 Q75,30 75,40 Q75,45 50,45 Q25,45 25,40 Z"
+        android:fillColor="#D4A574"/>
+    
+    <!-- Sesame Seeds on top bun -->
+    <path
+        android:pathData="M40,35 L42,35 L42,37 L40,37 Z"
+        android:fillColor="@color/white"/>
+    <path
+        android:pathData="M48,33 L50,33 L50,35 L48,35 Z"
+        android:fillColor="@color/white"/>
+    <path
+        android:pathData="M58,36 L60,36 L60,38 L58,38 Z"
+        android:fillColor="@color/white"/>
+    
+    <!-- Lettuce (Selada) -->
+    <path
+        android:pathData="M28,45 Q30,42 35,45 Q40,48 45,45 Q50,42 55,45 Q60,48 65,45 Q70,42 72,45 L72,48 L28,48 Z"
+        android:fillColor="#4CAF50"/>
+    
+    <!-- Tomato (Tomat) -->
+    <path
+        android:pathData="M30,48 L70,48 L70,52 L30,52 Z"
+        android:fillColor="#E53935"/>
+    
+    <!-- Cheese (Keju) -->
+    <path
+        android:pathData="M32,52 L68,52 L65,56 L35,56 Z"
+        android:fillColor="#FFC107"/>
+    
+    <!-- Meat Patty (Daging) -->
+    <path
+        android:pathData="M28,56 Q28,54 50,54 Q72,54 72,56 Q72,62 50,62 Q28,62 28,56 Z"
+        android:fillColor="#8D4E2A"/>
+    
+    <!-- Bottom Bun (Roti Bawah) -->
+    <path
+        android:pathData="M25,62 Q25,67 50,67 Q75,67 75,62 L75,65 Q75,70 50,70 Q25,70 25,65 Z"
+        android:fillColor="#D4A574"/>
+    
+    <!-- Highlight on top bun -->
+    <path
+        android:pathData="M30,32 Q35,28 45,32 Q50,35 55,32"
+        android:strokeColor="@color/white"
+        android:strokeWidth="1.5"
+        android:fillColor="@android:color/transparent"/>
+
+</vector>

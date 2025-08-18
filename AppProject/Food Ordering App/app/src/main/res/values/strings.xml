@@ -1,0 +1,61 @@
+<resources>
+    <string name="app_name">Waves Of Food</string>
+    
+    <!-- Splash Screen -->
+    <string name="splash_tagline">Deliver Favorite Food</string>
+    <string name="design_by">Design By</string>
+    <string name="designer_name">NeatRoots</string>
+    
+    <!-- Onboarding Screen -->
+    <string name="onboarding_title">Enjoy Restaurant Quality Meals</string>
+    <string name="onboarding_subtitle">at Home</string>
+    <string name="next_button">Next</string>
+    <string name="page_indicator" formatted="false">%d / %d</string>
+    
+    <!-- Login Screen -->
+    <string name="login_title">Login To Your Account</string>
+    <string name="email_hint">Email or Phone Number</string>
+    <string name="password_hint">Password</string>
+    <string name="login_button">Login</string>
+    <string name="continue_with">Continue With</string>
+    <string name="facebook">Facebook</string>
+    <string name="google">Google</string>
+    <string name="dont_have_account">Don\'t Have Account?</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="or">Or</string>
+    
+    <!-- Register Screen -->
+    <string name="register_title">Create New Account</string>
+    <string name="full_name_hint">Full Name</string>
+    <string name="confirm_password_hint">Confirm Password</string>
+    <string name="register_button">Create Account</string>
+    <string name="already_have_account">Already Have Account? <u>Login</u></string>
+    <string name="terms_and_privacy">By creating an account, you agree to our\n<u>Terms of Service</u> and <u>Privacy Policy</u></string>
+    
+    <!-- Accessibility -->
+    <string name="logo_description">Logo aplikasi Waves Of Food</string>
+    <string name="onboarding_image_description">Ilustrasi makanan berkualitas restoran</string>
+    <string name="facebook_icon_description">Icon Facebook</string>
+    <string name="google_icon_description">Icon Google</string>
+    
+    <!-- Navigation -->
+    <string name="previous_page">Previous page</string>
+    <string name="next_page">Next page</string>
+
+    <!-- Firebase Authentication Messages -->
+    <string name="auth_success_login">Login successful! Welcome back</string>
+    <string name="auth_success_register">Registration successful! Welcome</string>
+    <string name="auth_error_network">Network error. Please check your connection</string>
+    <string name="auth_error_invalid_email">Please enter a valid email address</string>
+    <string name="auth_error_weak_password">Password must be at least 6 characters</string>
+    <string name="auth_error_user_not_found">No account found with this email</string>
+    <string name="auth_error_wrong_password">Incorrect password. Please try again</string>
+    <string name="auth_error_email_already_in_use">An account with this email already exists</string>
+    <string name="auth_google_signin_error">Google Sign-In failed. Please try again</string>
+    <string name="auth_logout_success">Logged out successfully</string>
+
+    <!-- Loading Messages -->
+    <string name="auth_loading_login">Logging in...</string>
+    <string name="auth_loading_register">Creating account...</string>
+    <string name="auth_loading_google">Signing in with Google...</string>
+</resources>

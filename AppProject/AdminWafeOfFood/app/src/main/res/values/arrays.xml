@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="cities_array">
+        <item>Pilih Kota</item>
+        <item>Jakarta</item>
+        <item>Jaipur</item>
+        <item>Surabaya</item>
+        <item>Bandung</item>
+        <item>Medan</item>
+        <item>Semarang</item>
+        <item>Makassar</item>
+        <item>Palembang</item>
+        <item>Tangerang</item>
+        <item>Depok</item>
+        <item>Bekasi</item>
+        <item>Bogor</item>
+        <item>Batam</item>
+        <item>Pekanbaru</item>
+        <item>Bandar Lampung</item>
+        <item>Malang</item>
+        <item>Padang</item>
+        <item>Denpasar</item>
+        <item>Samarinda</item>
+        <item>Tasikmalaya</item>
+        <item>Pontianak</item>
+        <item>Cimahi</item>
+        <item>Balikpapan</item>
+        <item>Jambi</item>
+        <item>Sukabumi</item>
+        <item>Cirebon</item>
+        <item>Mataram</item>
+        <item>Manado</item>
+        <item>Bengkulu</item>
+        <item>Yogyakarta</item>
+    </string-array>
+</resources>

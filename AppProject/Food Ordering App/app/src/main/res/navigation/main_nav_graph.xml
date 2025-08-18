@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Navigation Graph untuk Main Screens dengan Bottom Navigation -->
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/main_nav_graph"
+    app:startDestination="@id/navigation_home">
+
+    <!-- Home Fragment -->
+    <fragment
+        android:id="@+id/navigation_home"
+        android:name="com.christopheraldoo.wavesoffood.ui.home.HomeFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_home" />
+
+    <!-- Cart Fragment -->
+    <fragment
+        android:id="@+id/navigation_cart"
+        android:name="com.christopheraldoo.wavesoffood.ui.cart.CartFragment"
+        android:label="Cart"
+        tools:layout="@layout/fragment_cart" />
+
+    <!-- Search Fragment -->
+    <fragment
+        android:id="@+id/navigation_search"
+        android:name="com.christopheraldoo.wavesoffood.ui.search.SearchFragment"
+        android:label="Search"
+        tools:layout="@layout/fragment_search" />
+
+    <!-- Menu Fragment -->
+    <fragment
+        android:id="@+id/navigation_menu"
+        android:name="com.christopheraldoo.wavesoffood.ui.menu.MenuFragment"
+        android:label="Menu"
+        tools:layout="@layout/fragment_menu" />
+
+    <!-- Profile Fragment -->
+    <fragment
+        android:id="@+id/navigation_profile"
+        android:name="com.christopheraldoo.wavesoffood.ui.profile.ProfileFragment"
+        android:label="Profile"
+        tools:layout="@layout/fragment_profile" />
+
+    <!-- Menu Detail Fragment -->
+    <fragment
+        android:id="@+id/menuDetailFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.menu.MenuDetailFragment"
+        android:label="Menu Detail"
+        tools:layout="@layout/fragment_menu_detail">
+        
+        <argument
+            android:name="menuId"
+            app:argType="string" />
+            
+        <argument
+            android:name="menuName"
+            app:argType="string" />
+            
+        <argument
+            android:name="menuDescription"
+            app:argType="string" />
+            
+        <argument
+            android:name="menuPrice"
+            app:argType="integer" />
+            
+        <argument
+            android:name="menuImageUrl"
+            app:argType="string" />
+            
+        <argument
+            android:name="menuCategory"
+            app:argType="string" />
+    </fragment>
+
+    <!-- Navigation Actions -->
+    <action
+        android:id="@+id/action_menuFragment_to_menuDetailFragment"
+        app:destination="@id/menuDetailFragment"
+        app:enterAnim="@anim/slide_in_right"
+        app:exitAnim="@anim/slide_out_left"
+        app:popEnterAnim="@anim/slide_in_left"
+        app:popExitAnim="@anim/slide_out_right" />
+
+</navigation>

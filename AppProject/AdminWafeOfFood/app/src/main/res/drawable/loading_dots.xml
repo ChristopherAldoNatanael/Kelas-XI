@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="20dp"
+    android:viewportWidth="60"
+    android:viewportHeight="20">
+    
+    <!-- Dot 1 -->
+    <group android:name="dot1">
+        <path
+            android:name="dot1_path"
+            android:pathData="M10,10m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"
+            android:fillColor="@color/primary_green"/>
+    </group>
+    
+    <!-- Dot 2 -->
+    <group android:name="dot2">
+        <path
+            android:name="dot2_path"
+            android:pathData="M30,10m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"
+            android:fillColor="@color/accent_mint"/>
+    </group>
+    
+    <!-- Dot 3 -->
+    <group android:name="dot3">
+        <path
+            android:name="dot3_path"
+            android:pathData="M50,10m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0"
+            android:fillColor="@color/primary_green"/>
+    </group>
+    
+</vector>

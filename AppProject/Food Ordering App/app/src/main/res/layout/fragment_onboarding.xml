@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Layout untuk Onboarding Screen -->
+<!-- Menampilkan ilustrasi makanan, judul, dan tombol Next -->
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_white"
+    android:padding="24dp"
+    tools:context=".ui.onboarding.OnboardingFragment">
+
+    <!-- Container untuk ilustrasi makanan -->
+    <FrameLayout
+        android:id="@+id/illustrationContainer"
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:background="@color/primary_green_50"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.25">
+
+        <!-- Placeholder untuk ilustrasi burger -->
+        <!-- Dalam implementasi nyata, bisa diganti dengan ImageView dan gambar asli -->
+        <View
+            android:layout_width="200dp"
+            android:layout_height="200dp"
+            android:layout_gravity="center"
+            android:background="@drawable/bg_logo_circle"
+            android:alpha="0.3" />
+
+        <!-- Icon burger sebagai placeholder -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="🍔"
+            android:textSize="80sp"
+            android:contentDescription="@string/onboarding_image_description" />
+
+    </FrameLayout>
+
+    <!-- Container untuk teks judul dan subtitle -->
+    <LinearLayout
+        android:id="@+id/titleContainer"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="48dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/illustrationContainer"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Judul utama -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/onboarding_title"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:lineSpacingExtra="4dp" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/onboarding_subtitle"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary_green"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center" />
+
+    </LinearLayout>    <!-- Tombol Next -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnNext"
+        android:layout_width="200dp"
+        android:layout_height="56dp"
+        android:layout_marginBottom="80dp"
+        android:text="@string/next_button"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        android:background="@drawable/bg_button_primary"
+        android:elevation="8dp"
+        app:backgroundTint="@null"
+        app:cornerRadius="28dp"
+        app:layout_constraintBottom_toTopOf="@id/footerCredit"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Footer credit -->
+    <LinearLayout
+        android:id="@+id/footerCredit"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <!-- Text "Design By" -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/design_by"
+            android:textSize="12sp"
+            android:textColor="@color/text_hint"
+            android:fontFamily="sans-serif" />
+
+        <!-- Nama designer -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/designer_name"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_green"
+            android:fontFamily="sans-serif-medium" />
+
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

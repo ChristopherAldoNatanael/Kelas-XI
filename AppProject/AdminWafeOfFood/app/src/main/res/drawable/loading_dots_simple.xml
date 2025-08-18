@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="60dp"
+    android:height="20dp"
+    android:viewportWidth="60"
+    android:viewportHeight="20">
+    
+    <!-- Simple 3 dots loading -->
+    <path
+        android:fillColor="@color/primary_green"
+        android:pathData="M10,10m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    
+    <path
+        android:fillColor="@color/accent_mint"
+        android:pathData="M30,10m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    
+    <path
+        android:fillColor="@color/primary_green"
+        android:pathData="M50,10m-3,0a3,3 0,1 1,6 0a3,3 0,1 1,-6 0"/>
+    
+</vector>

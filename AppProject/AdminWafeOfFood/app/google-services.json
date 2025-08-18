@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "83276019460",
+    "project_id": "waves-of-food-9af5f",
+    "storage_bucket": "waves-of-food-9af5f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:83276019460:android:8b4b4fecd31dee78adc251",
+        "android_client_info": {
+          "package_name": "com.christopheraldoo.adminwafeoffood"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "83276019460-92up6igo4eg54nm7e4l56gthmcl51v5i.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.christopheraldoo.adminwafeoffood",
+            "certificate_hash": "3cff248cfae5e734820452428066b00782af7192"
+          }
+        },
+        {
+          "client_id": "83276019460-mrgdaljata2t7pkr1j8e28v7st6p9ap7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCJiijT1sXdoaetcVIwUzXkPgEFqL6FMq8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "83276019460-mrgdaljata2t7pkr1j8e28v7st6p9ap7.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Base Spacing -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">16dp</dimen>
+    <dimen name="spacing_lg">24dp</dimen>
+    <dimen name="spacing_xl">32dp</dimen>
+    <dimen name="spacing_2xl">40dp</dimen>
+    <dimen name="spacing_3xl">48dp</dimen>
+    <dimen name="spacing_xxl">48dp</dimen>
+    
+    <!-- Margins & Padding -->
+    <dimen name="margin_horizontal">20dp</dimen>
+    <dimen name="margin_vertical">16dp</dimen>
+    <dimen name="padding_card">16dp</dimen>
+    <dimen name="padding_button">16dp</dimen>
+    
+    <!-- Border Radius -->
+    <dimen name="radius_sm">8dp</dimen>
+    <dimen name="radius_md">12dp</dimen>
+    <dimen name="radius_lg">16dp</dimen>
+    <dimen name="radius_xl">24dp</dimen>
+    <dimen name="radius_full">999dp</dimen>
+    
+    <!-- Typography -->
+    <dimen name="text_xs">12sp</dimen>
+    <dimen name="text_sm">14sp</dimen>
+    <dimen name="text_base">16sp</dimen>
+    <dimen name="text_lg">18sp</dimen>
+    <dimen name="text_xl">20sp</dimen>
+    <dimen name="text_2xl">24sp</dimen>
+    <dimen name="text_3xl">30sp</dimen>
+    <dimen name="text_4xl">36sp</dimen>
+      <!-- Components -->
+    <dimen name="button_height">56dp</dimen>
+    <dimen name="button_radius">12dp</dimen>
+    <dimen name="input_height">56dp</dimen>
+    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="bottom_nav_height">80dp</dimen>
+    <dimen name="toolbar_height">64dp</dimen>
+    
+    <!-- Icon Sizes -->
+    <dimen name="icon_xs">16dp</dimen>
+    <dimen name="icon_sm">20dp</dimen>
+    <dimen name="icon_md">24dp</dimen>
+    <dimen name="icon_lg">32dp</dimen>
+    <dimen name="icon_xl">48dp</dimen>
+    
+    <!-- Avatar & Image Sizes -->
+    <dimen name="avatar_sm">32dp</dimen>
+    <dimen name="avatar_md">48dp</dimen>
+    <dimen name="avatar_lg">64dp</dimen>
+    <dimen name="image_thumbnail">80dp</dimen>
+    <dimen name="image_card">120dp</dimen>
+    
+    <!-- Logo Size -->
+    <dimen name="logo_size">120dp</dimen>
+    <dimen name="logo_size_small">64dp</dimen>
+    
+    <!-- Compatibility aliases untuk layout -->
+    <dimen name="text_md">@dimen/text_base</dimen>
+    <dimen name="card_radius">@dimen/radius_md</dimen>
+</resources>

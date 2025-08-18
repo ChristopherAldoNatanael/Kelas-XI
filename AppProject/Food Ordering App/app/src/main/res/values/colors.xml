@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Warna dasar -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Warna utama aplikasi (hijau sesuai design) -->
+    <color name="primary">#FF6B35</color>
+    <color name="colorPrimary">#FF6B35</color>
+    <color name="primary_green">#4ADE80</color>
+    <color name="primary_green_dark">#22C55E</color>
+    <color name="primary_green_light">#86EFAC</color>
+    <color name="primary_green_50">#F0FDF4</color>
+    
+    <!-- Warna background -->
+    <color name="background_white">#FFFFFF</color>
+    <color name="background_gray">#F8F9FA</color>
+    <color name="background_light_gray">#F3F4F6</color>
+    
+    <!-- Warna teks -->
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_hint">#9CA3AF</color>
+    <color name="text_green">#059669</color>
+    
+    <!-- Warna tombol social media -->
+    <color name="facebook_blue">#1877F2</color>
+    <color name="google_red">#DB4437</color>
+    
+    <!-- Warna untuk status dan feedback -->
+    <color name="success_green">#10B981</color>
+    <color name="error_red">#EF4444</color>
+    <color name="warning_yellow">#F59E0B</color>
+    
+    <!-- Warna tambahan yang dibutuhkan -->
+    <color name="text_secondary_light">#9CA3AF</color>
+    <color name="divider_color">#E5E7EB</color>
+    <color name="shadow_color">#000000</color>
+    
+    <!-- Warna untuk category badges -->
+    <color name="category_main_course">#FF6B35</color>
+    <color name="category_appetizer">#4ECDC4</color>
+    <color name="category_dessert">#FFE66D</color>
+    <color name="category_beverage">#45B7D1</color>
+    <color name="category_snack">#96CEB4</color>
+    <color name="category_breakfast">#FFB6C1</color>
+    <color name="category_lunch">#DDA0DD</color>
+    <color name="category_dinner">#F0E68C</color>
+</resources>

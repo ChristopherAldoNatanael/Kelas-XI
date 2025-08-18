@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- State selector untuk search icon dengan efek pressed -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Pressed/Selected state -->
+    <item android:state_selected="true">
+        <vector
+            android:width="28dp"
+            android:height="28dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <!-- Highlighted background -->
+            <path
+                android:fillColor="#FF6B35"
+                android:pathData="M12,12m-12,0a12,12 0,1 1,24 0a12,12 0,1 1,-24 0"
+                android:fillAlpha="0.2"/>
+            <!-- Search icon dengan warna orange -->
+            <path
+                android:fillColor="#FF6B35"
+                android:pathData="M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z"/>
+        </vector>
+    </item>
+    
+    <!-- Pressed state -->
+    <item android:state_pressed="true">
+        <vector
+            android:width="28dp"
+            android:height="28dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <!-- Pressed background -->
+            <path
+                android:fillColor="#FF6B35"
+                android:pathData="M12,12m-12,0a12,12 0,1 1,24 0a12,12 0,1 1,-24 0"
+                android:fillAlpha="0.3"/>
+            <!-- Search icon dengan warna orange lebih pekat -->
+            <path
+                android:fillColor="#E55A2B"
+                android:pathData="M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z"/>
+        </vector>
+    </item>
+    
+    <!-- Default state -->
+    <item>
+        <vector
+            android:width="26dp"
+            android:height="26dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <!-- Default background dengan transparansi rendah -->
+            <path
+                android:fillColor="#FF6B35"
+                android:pathData="M12,12m-10,0a10,10 0,1 1,20 0a10,10 0,1 1,-20 0"
+                android:fillAlpha="0.1"/>
+            <!-- Search icon dengan warna orange lembut -->
+            <path
+                android:fillColor="#FF6B35"
+                android:pathData="M15.5,14h-0.79l-0.28,-0.27C15.41,12.59 16,11.11 16,9.5 16,5.91 13.09,3 9.5,3S3,5.91 3,9.5 5.91,16 9.5,16c1.61,0 3.09,-0.59 4.23,-1.57l0.27,0.28v0.79l5,4.99L20.49,19l-4.99,-5zM9.5,14C7.01,14 5,11.99 5,9.5S7.01,5 9.5,5 14,7.01 14,9.5 11.99,14 9.5,14z"/>
+        </vector>
+    </item>
+</selector>

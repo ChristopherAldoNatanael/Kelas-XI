@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected/Pressed state dengan warna orange -->
+    <item android:color="#FF6B35" android:state_selected="true" />
+    <item android:color="#FF6B35" android:state_pressed="true" />
+    <item android:color="#FF6B35" android:state_checked="true" />
+    
+    <!-- Default state dengan warna abu-abu -->
+    <item android:color="#9E9E9E" />
+</selector>
