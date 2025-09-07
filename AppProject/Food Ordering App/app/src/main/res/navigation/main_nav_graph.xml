@@ -11,35 +11,62 @@
         android:id="@+id/navigation_home"
         android:name="com.christopheraldoo.wavesoffood.ui.home.HomeFragment"
         android:label="Home"
-        tools:layout="@layout/fragment_home" />
-
-    <!-- Cart Fragment -->
+        tools:layout="@layout/fragment_home" />    <!-- Cart Fragment -->
     <fragment
         android:id="@+id/navigation_cart"
         android:name="com.christopheraldoo.wavesoffood.ui.cart.CartFragment"
         android:label="Cart"
-        tools:layout="@layout/fragment_cart" />
-
-    <!-- Search Fragment -->
-    <fragment
-        android:id="@+id/navigation_search"
-        android:name="com.christopheraldoo.wavesoffood.ui.search.SearchFragment"
-        android:label="Search"
-        tools:layout="@layout/fragment_search" />
+        tools:layout="@layout/fragment_cart">
+        <action
+            android:id="@+id/action_cartFragment_to_checkoutFragment"
+            app:destination="@id/checkoutFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
 
     <!-- Menu Fragment -->
     <fragment
         android:id="@+id/navigation_menu"
         android:name="com.christopheraldoo.wavesoffood.ui.menu.MenuFragment"
         android:label="Menu"
-        tools:layout="@layout/fragment_menu" />
-
-    <!-- Profile Fragment -->
+        tools:layout="@layout/fragment_menu" /><!-- Profile Fragment -->
     <fragment
         android:id="@+id/navigation_profile"
         android:name="com.christopheraldoo.wavesoffood.ui.profile.ProfileFragment"
         android:label="Profile"
-        tools:layout="@layout/fragment_profile" />
+        tools:layout="@layout/fragment_profile">
+        <action
+            android:id="@+id/action_profileFragment_to_ordersFragment"
+            app:destination="@id/navigation_orders"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+    
+    <!-- Orders Fragment -->
+    <fragment
+        android:id="@+id/navigation_orders"
+        android:name="com.christopheraldoo.wavesoffood.ui.orders.OrdersFragment"
+        android:label="Orders"
+        tools:layout="@layout/fragment_orders">
+        <action
+            android:id="@+id/action_ordersFragment_to_orderDetailFragment"
+            app:destination="@id/orderDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_ordersFragment_to_orderTrackingFragment"
+            app:destination="@id/orderTrackingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
 
     <!-- Menu Detail Fragment -->
     <fragment
@@ -71,6 +98,57 @@
         <argument
             android:name="menuCategory"
             app:argType="string" />
+    </fragment>
+
+    <!-- Checkout Fragment -->
+    <fragment
+        android:id="@+id/checkoutFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.checkout.CheckoutFragment"
+        android:label="Checkout"
+        tools:layout="@layout/fragment_checkout">
+        <action
+            android:id="@+id/action_checkoutFragment_to_orderTrackingFragment"
+            app:destination="@id/orderTrackingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+    
+    <!-- Order Detail Fragment -->
+    <fragment
+        android:id="@+id/orderDetailFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.orders.OrderDetailFragment"
+        android:label="Order Detail"
+        tools:layout="@layout/fragment_order_detail">
+        <argument
+            android:name="orderId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_orderDetailFragment_to_orderTrackingFragment"
+            app:destination="@id/orderTrackingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+    
+    <!-- Order Tracking Fragment -->
+    <fragment
+        android:id="@+id/orderTrackingFragment"
+        android:name="com.christopheraldoo.wavesoffood.ui.orders.OrderTrackingFragment"
+        android:label="Track Order"
+        tools:layout="@layout/fragment_order_tracking">
+        <argument
+            android:name="orderId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_orderTrackingFragment_to_orderDetailFragment"
+            app:destination="@id/orderDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
     </fragment>
 
     <!-- Navigation Actions -->

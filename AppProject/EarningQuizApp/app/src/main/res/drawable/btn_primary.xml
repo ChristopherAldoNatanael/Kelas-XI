@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- btn_primary.xml -->
+<!-- A reusable drawable for primary action buttons. -->
+<!-- This shape provides a consistent look and feel for buttons across the app. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Sets the background color of the button. -->
+    <!-- It uses the primary color defined in colors.xml. -->
+    <solid android:color="@color/colorPrimary" />
+
+    <!-- Defines the corner radius to create rounded corners. -->
+    <!-- A larger radius makes the corners more rounded. -->
+    <corners android:radius="12dp" />
+
+</shape>

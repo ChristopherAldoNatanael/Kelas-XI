@@ -1,0 +1,41 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="@color/weather_uv">
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M12,7c-2.76,0 -5,2.24 -5,5s2.24,5 5,5s5,-2.24 5,-5s-2.24,-5 -5,-5zM12,15c-1.66,0 -3,-1.34 -3,-3s1.34,-3 3,-3s3,1.34 3,3s-1.34,3 -3,3z"/>
+  <!-- Sun rays -->
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M11,1h2v3h-2z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M11,20h2v3h-2z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M20,11v2h3v-2z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M1,11v2h3v-2z"/>
+  <!-- Diagonal rays -->
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M17.66,6.34l1.41,-1.41l2.12,2.12l-1.41,1.41z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M4.22,4.93l1.41,-1.41l2.12,2.12l-1.41,1.41z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M18.36,17.64l1.41,1.41l-2.12,2.12l-1.41,-1.41z"/>
+  <path
+      android:fillColor="@android:color/white"
+      android:pathData="M5.64,18.36l-1.41,1.41l-2.12,-2.12l1.41,-1.41z"/>
+  <!-- UV indicator -->  <circle
+      cx="12"
+      cy="12"
+      r="2"
+      android:fillColor="#FFFF6347"/>
+</vector>

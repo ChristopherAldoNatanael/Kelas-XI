@@ -19,17 +19,15 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:navGraph="@navigation/main_nav_graph"
-        app:defaultNavHost="false" />    <!-- Bottom Navigation dengan styling khusus -->
+        app:defaultNavHost="false" />    <!-- Simple Bottom Navigation dengan icon keren -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNavigation"
         android:layout_width="0dp"
-        android:layout_height="64dp"
+        android:layout_height="70dp"
         android:background="@color/white"
         android:elevation="8dp"
-        app:itemIconTint="@color/bottom_nav_color"
-        app:itemTextColor="@color/bottom_nav_color"
-        app:itemRippleColor="#33FF6B35"
-        app:itemActiveIndicatorStyle="@null"
+        app:itemIconSize="24dp"
+        app:itemTextColor="@color/bottom_nav_color_selector"
         app:labelVisibilityMode="labeled"
         app:menu="@menu/bottom_navigation_menu"
         app:layout_constraintBottom_toBottomOf="parent"

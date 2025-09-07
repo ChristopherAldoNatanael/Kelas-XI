@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Spacing -->
+    <dimen name="spacing_xs">4dp</dimen>
+    <dimen name="spacing_sm">8dp</dimen>
+    <dimen name="spacing_md">12dp</dimen>
+    <dimen name="spacing_lg">16dp</dimen>
+    <dimen name="spacing_xl">20dp</dimen>
+    <dimen name="spacing_xxl">24dp</dimen>
+    <dimen name="spacing_xxxl">32dp</dimen>
+    
+    <!-- Card Dimensions -->
+    <dimen name="card_corner_radius">12dp</dimen>
+    <dimen name="card_corner_radius_lg">16dp</dimen>
+    <dimen name="card_corner_radius_xl">20dp</dimen>
+    <dimen name="card_elevation">4dp</dimen>
+    <dimen name="card_elevation_lg">8dp</dimen>
+    
+    <!-- Icon Sizes -->
+    <dimen name="icon_size_xs">16dp</dimen>
+    <dimen name="icon_size_sm">20dp</dimen>
+    <dimen name="icon_size_md">24dp</dimen>
+    <dimen name="icon_size_lg">32dp</dimen>
+    <dimen name="icon_size_xl">48dp</dimen>
+    <dimen name="icon_size_xxl">64dp</dimen>
+    <dimen name="icon_size_xxxl">80dp</dimen>
+    
+    <!-- Weather Card Dimensions -->
+    <dimen name="weather_card_height">200dp</dimen>
+    <dimen name="weather_card_min_height">150dp</dimen>
+    <dimen name="weather_icon_size">96dp</dimen>
+    <dimen name="weather_icon_size_sm">64dp</dimen>
+    <dimen name="weather_icon_size_lg">128dp</dimen>
+    
+    <!-- Temperature Text Sizes -->
+    <dimen name="temp_main_size">72sp</dimen>
+    <dimen name="temp_secondary_size">24sp</dimen>
+    <dimen name="temp_small_size">16sp</dimen>
+    
+    <!-- Button Dimensions -->
+    <dimen name="button_height">48dp</dimen>
+    <dimen name="button_height_sm">36dp</dimen>
+    <dimen name="button_corner_radius">8dp</dimen>
+    <dimen name="button_corner_radius_round">24dp</dimen>
+    
+    <!-- App Bar -->
+    <dimen name="app_bar_height">56dp</dimen>
+    <dimen name="app_bar_elevation">4dp</dimen>
+    
+    <!-- Bottom Navigation -->
+    <dimen name="bottom_nav_height">64dp</dimen>
+    <dimen name="bottom_nav_icon_size">24dp</dimen>
+    
+    <!-- Search -->
+    <dimen name="search_field_height">56dp</dimen>
+    <dimen name="search_results_max_height">400dp</dimen>
+    
+    <!-- Loading Indicators -->
+    <dimen name="loading_indicator_size">24dp</dimen>
+    <dimen name="loading_indicator_size_lg">48dp</dimen>
+    
+    <!-- Dividers -->
+    <dimen name="divider_height">1dp</dimen>
+    <dimen name="divider_height_thick">2dp</dimen>
+</resources>

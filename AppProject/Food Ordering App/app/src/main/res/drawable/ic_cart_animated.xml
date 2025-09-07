@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Animated cart icon with bouncing effect when selected -->
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            
+            <!-- Cart body -->
+            <group android:name="cartBody">
+                <path
+                    android:name="cartPath"
+                    android:pathData="M7,18c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2zM1,2v2h2l3.6,7.59 -1.35,2.45c-0.16,0.28 -0.25,0.61 -0.25,0.96 0,1.1 0.9,2 2,2h12v-2L7.42,15c-0.14,0 -0.25,-0.11 -0.25,-0.25l0.03,-0.12L8.1,13h7.45c0.75,0 1.41,-0.41 1.75,-1.03L21.7,4H5.21l-0.94,-2H1zM17,18c-1.1,0 -2,0.9 -2,2s0.9,2 2,2 2,-0.9 2,-2 -0.9,-2 -2,-2z"
+                    android:fillColor="#FF6B35"/>
+            </group>
+            
+            <!-- Cart items -->
+            <group android:name="cartItems">
+                <path
+                    android:name="itemsPath"
+                    android:pathData="M9,11h2v2h-2zM12,11h2v2h-2z"
+                    android:fillColor="#FFE0B2"/>
+            </group>
+            
+        </vector>
+    </aapt:attr>
+    
+    <!-- Bounce animation on selection -->
+    <target android:name="cartBody">
+        <aapt:attr name="android:animation">
+            <set android:ordering="sequentially">
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:duration="150"
+                    android:valueFrom="1.0"
+                    android:valueTo="1.2"
+                    android:interpolator="@android:interpolator/overshoot"/>
+                <objectAnimator
+                    android:propertyName="scaleX"
+                    android:duration="150"
+                    android:valueFrom="1.2"
+                    android:valueTo="1.0"
+                    android:interpolator="@android:interpolator/overshoot"/>
+            </set>
+        </aapt:attr>
+    </target>
+    
+    <target android:name="cartBody">
+        <aapt:attr name="android:animation">
+            <set android:ordering="sequentially">
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:duration="150"
+                    android:valueFrom="1.0"
+                    android:valueTo="1.2"
+                    android:interpolator="@android:interpolator/overshoot"/>
+                <objectAnimator
+                    android:propertyName="scaleY"
+                    android:duration="150"
+                    android:valueFrom="1.2"
+                    android:valueTo="1.0"
+                    android:interpolator="@android:interpolator/overshoot"/>
+            </set>
+        </aapt:attr>
+    </target>
+    
+</animated-vector>

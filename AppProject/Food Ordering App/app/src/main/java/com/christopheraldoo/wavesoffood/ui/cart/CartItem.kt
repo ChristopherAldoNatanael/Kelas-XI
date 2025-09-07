@@ -1,8 +1,12 @@
 package com.christopheraldoo.wavesoffood.ui.cart
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
 /**
  * Data class untuk representasi item dalam keranjang
  */
+@Parcelize
 data class CartItem(
     val id: String = "",
     val menuId: String = "",
@@ -15,7 +19,7 @@ data class CartItem(
     val category: String = "",
     val addedAt: Long = System.currentTimeMillis(),
     val isAvailable: Boolean = true
-) {
+) : Parcelable {
     /**
      * Hitung total harga berdasarkan quantity
      */
@@ -54,4 +58,4 @@ data class CartItem(
             else -> "Tersedia"
         }
     }
-} 
+}

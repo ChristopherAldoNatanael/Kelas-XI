@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group android:name="profile_selected">
+                <!-- Selected state with filled design -->
+                <circle
+                    android:fillColor="?attr/colorPrimary"
+                    android:cx="12"
+                    android:cy="12"
+                    android:r="11"/>
+                <!-- User head highlighted -->
+                <circle
+                    android:fillColor="#FFFFFF"
+                    android:cx="12"
+                    android:cy="8"
+                    android:r="3"/>
+                <!-- User body highlighted -->
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M12,14c-4,0 -7,2 -7,4v3h14v-3C19,16 16,14 12,14z"/>
+                <!-- Glow effect -->
+                <circle
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="#FFFFFF"
+                    android:strokeWidth="1"
+                    android:cx="12"
+                    android:cy="12"
+                    android:r="10"/>
+            </group>
+        </vector>
+    </item>
+    <item>
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group android:name="profile_normal">
+                <!-- Normal state with outline design -->
+                <circle
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="?attr/colorOnSurfaceVariant"
+                    android:strokeWidth="1.5"
+                    android:cx="12"
+                    android:cy="12"
+                    android:r="10"/>
+                <!-- User head outline -->
+                <circle
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="?attr/colorOnSurfaceVariant"
+                    android:strokeWidth="1.5"
+                    android:cx="12"
+                    android:cy="8"
+                    android:r="2.5"/>
+                <!-- User body outline -->
+                <path
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="?attr/colorOnSurfaceVariant"
+                    android:strokeWidth="1.5"
+                    android:pathData="M12,14c-3.5,0 -6,1.5 -6,3.5V20h12v-2.5C18,15.5 15.5,14 12,14z"/>
+            </group>
+        </vector>
+    </item>
+</selector>

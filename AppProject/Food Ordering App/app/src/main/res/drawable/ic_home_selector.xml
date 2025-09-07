@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group android:name="home_selected">
+                <!-- Selected state with filled design -->
+                <path
+                    android:fillColor="?attr/colorPrimary"
+                    android:pathData="M12,3L2,12h3v8c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2v-8h3L12,3z"/>
+                <!-- Highlight effect -->
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M10,14h4v6h-4z"/>
+                <!-- Window glow -->
+                <circle
+                    android:fillColor="#FFFFFF"
+                    android:cx="9.5"
+                    android:cy="16.5"
+                    android:r="0.5"/>
+                <circle
+                    android:fillColor="#FFFFFF"
+                    android:cx="14.5"
+                    android:cy="16.5"
+                    android:r="0.5"/>
+            </group>
+        </vector>
+    </item>
+    <item>
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group android:name="home_normal">
+                <!-- Normal state with outline design -->
+                <path
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="?attr/colorOnSurfaceVariant"
+                    android:strokeWidth="1.5"
+                    android:pathData="M12,3L2,12h3v8c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2v-8h3L12,3zM12,7.69l6,5.4V20h-2v-6c0,-1.1 -0.9,-2 -2,-2h-4c-1.1,0 -2,0.9 -2,2v6H6v-6.91L12,7.69z"/>
+                <!-- Door outline -->
+                <path
+                    android:fillColor="@android:color/transparent"
+                    android:strokeColor="?attr/colorOnSurfaceVariant"
+                    android:strokeWidth="1"
+                    android:pathData="M10,14h4v6h-4z"/>
+            </group>
+        </vector>
+    </item>
+</selector>

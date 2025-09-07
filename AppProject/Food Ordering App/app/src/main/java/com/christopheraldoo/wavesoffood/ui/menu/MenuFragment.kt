@@ -37,14 +37,12 @@ class MenuFragment : Fragment() {
         Log.d(TAG, "onCreateView called")
         _binding = FragmentMenuBinding.inflate(inflater, container, false)
         return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    }    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         Log.d(TAG, "onViewCreated called")
 
         setupClickListeners()
-        setupSearchFunctionality()
+        // Search functionality removed - use dedicated Search tab
         setupRecyclerView()
         setupObservers()
         
@@ -88,36 +86,136 @@ class MenuFragment : Fragment() {
             Log.e(TAG, "Error navigating to menu detail", e)
             showToast("Error membuka detail menu")
         }
-    }
-
-    private fun setupClickListeners() {
+    }    private fun setupClickListeners() {
         Log.d(TAG, "setupClickListeners called")
-        binding.searchContainer.setOnClickListener {
-            binding.etMenuSearch.requestFocus()
-            showToast("Search in menu... 🔍")
-        }
-    }
-
-    private fun setupSearchFunctionality() {
-        Log.d(TAG, "setupSearchFunctionality called")
-        binding.searchContainer.setOnClickListener {
-            try {
-                findNavController().navigate(R.id.navigation_search)
-                showToast("🔍 Opening dedicated Search page!")
-            } catch (e: Exception) {
-                showToast("🔍 Use Search tab for better search experience!")
+        
+        // Check if we need to show search results from Home navigation
+        arguments?.getString("searchQuery")?.let { query ->
+            if (query.isNotEmpty()) {
+                showSearchResults(query)
             }
         }
-
-        binding.etMenuSearch.setOnClickListener {
-            try {
-                findNavController().navigate(R.id.navigation_search)
-                showToast("🔍 Redirected to Search page for better experience!")
-            } catch (e: Exception) {
-                showToast("🔍 Use Search tab for better search experience!")
+        
+        // Clear Search button
+        binding.btnClearSearch.setOnClickListener {
+            clearSearchResults()
+        }
+        
+        // Category Filter Chips
+        binding.chipGroupFilters.setOnCheckedStateChangeListener { _, checkedIds ->
+            if (checkedIds.isNotEmpty()) {
+                when (checkedIds[0]) {
+                    R.id.chipAll -> filterByCategory("All")
+                    R.id.chipMainCourse -> filterByCategory("Main Course")
+                    R.id.chipAppetizer -> filterByCategory("Appetizer")
+                    R.id.chipDessert -> filterByCategory("Dessert")
+                    R.id.chipBeverage -> filterByCategory("Beverage")
+                }
             }
         }
+        
+        // Sort/Filter FAB
+        binding.fabSortFilter.setOnClickListener {
+            showSortFilterDialog()
+        }
     }
+      /**
+     * Show search results when navigated from Home search
+     */
+    private fun showSearchResults(query: String) {
+        Log.d(TAG, "Showing search results for: $query")
+        
+        // Update the title to show search results
+        binding.tvMenuTitle.text = "Menu Search"
+        
+        // Show search info card
+        binding.cardSearchInfo.visibility = View.VISIBLE
+        binding.tvSearchQuery.text = "Searching for: \"$query\""
+        binding.tvSearchResultCount.text = "Loading results..."
+        
+        // Filter menu items based on search query using the correct method name
+        viewModel.searchMenus(query)
+        
+        // Show toast for user feedback
+        showToast("🔍 Searching for '$query' in menu...")
+    }
+    
+    /**
+     * Clear search results and show all menu items
+     */
+    private fun clearSearchResults() {
+        Log.d(TAG, "Clearing search results")
+        
+        // Reset title
+        binding.tvMenuTitle.text = "Our Menu"
+        
+        // Hide search info card
+        binding.cardSearchInfo.visibility = View.GONE
+        
+        // Reset chip selection to "All"
+        binding.chipAll.isChecked = true
+        
+        // Load all menus
+        viewModel.loadAllMenus()
+        
+        showToast("Search cleared")
+    }
+    
+    /**
+     * Filter menu by category
+     */
+    private fun filterByCategory(category: String) {
+        Log.d(TAG, "Filtering by category: $category")
+        
+        if (category == "All") {
+            viewModel.loadAllMenus()
+        } else {
+            // You can implement category filtering in MenuViewModel
+            // For now, we'll show a toast
+            showToast("Filtering by $category...")
+        }
+    }
+    
+    /**
+     * Show sort/filter dialog
+     */
+    private fun showSortFilterDialog() {
+        val options = arrayOf("Price: Low to High", "Price: High to Low", "Name: A to Z", "Name: Z to A", "Rating: Highest First")
+        
+        android.app.AlertDialog.Builder(requireContext())
+            .setTitle("Sort Menu")
+            .setItems(options) { _, which ->
+                when (which) {
+                    0 -> sortMenu("price_asc")
+                    1 -> sortMenu("price_desc") 
+                    2 -> sortMenu("name_asc")
+                    3 -> sortMenu("name_desc")
+                    4 -> sortMenu("rating_desc")
+                }
+            }
+            .show()
+    }
+      /**
+     * Sort menu by specified criteria
+     */
+    private fun sortMenu(sortType: String) {
+        Log.d(TAG, "Sorting menu by: $sortType")
+        
+        val currentMenus = menuAdapter.getCurrentMenus()
+        val sortedMenus = when (sortType) {
+            "price_asc" -> currentMenus.sortedBy { it.price }
+            "price_desc" -> currentMenus.sortedByDescending { it.price }
+            "name_asc" -> currentMenus.sortedBy { it.getDisplayName() }
+            "name_desc" -> currentMenus.sortedByDescending { it.getDisplayName() }
+            "rating_desc" -> currentMenus.sortedByDescending { it.price } // Use price as fallback since rating doesn't exist
+            else -> currentMenus
+        }
+        
+        menuAdapter.updateMenus(sortedMenus)
+        showToast("Menu sorted by ${sortType.replace("_", " ")}")
+    }
+
+    // setupSearchFunctionality method removed - functionality moved to dedicated Search tab
 
     private fun setupObservers() {
         Log.d(TAG, "setupObservers called")
@@ -143,15 +241,17 @@ class MenuFragment : Fragment() {
                     showEmptyState("Error: ${state.message}")
                 }
             }
-        }
-
-        // Observe menu list changes
-        viewModel.menuList.observe(viewLifecycleOwner) { menus ->
+        }        // Observe menu list changes
+        viewModel.menuList.observe(viewLifecycleOwner) { menus -> 
             Log.d(TAG, "Menu list updated with ${menus.size} items")
             if (menus.isNotEmpty()) {
                 Log.d(TAG, "Menu names: ${menus.map { it.getDisplayName() }}")
             }
             menuAdapter.updateMenus(menus)
+              // Update search result count if search info card is visible
+            if (binding.cardSearchInfo.visibility == View.VISIBLE) {
+                binding.tvSearchResultCount.text = "${menus.size} items found"
+            }
         }
     }
 
@@ -174,25 +274,27 @@ class MenuFragment : Fragment() {
 
     private fun showLoadingState() {
         Log.d(TAG, "showLoadingState called")
-        binding.menuProgressBar.isVisible = true
-        binding.tvMenuStatus.text = "Memuat menu..."
-        binding.tvMenuStatus.isVisible = true
+        binding.stateContainer.isVisible = true
+        binding.loadingLayout.isVisible = true
+        binding.emptyLayout.isVisible = false
         binding.rvMenuList.isVisible = false
     }
 
     private fun showEmptyState(message: String) {
         Log.d(TAG, "showEmptyState called with message: $message")
-        binding.rvMenuList.isVisible = false
-        binding.tvMenuStatus.isVisible = true
+        binding.stateContainer.isVisible = true
+        binding.loadingLayout.isVisible = false
+        binding.emptyLayout.isVisible = true
         binding.tvMenuStatus.text = message
-        binding.menuProgressBar.isVisible = false
+        binding.rvMenuList.isVisible = false
     }
 
     private fun showData() {
         Log.d(TAG, "showData called")
+        binding.stateContainer.isVisible = false
+        binding.loadingLayout.isVisible = false
+        binding.emptyLayout.isVisible = false
         binding.rvMenuList.isVisible = true
-        binding.tvMenuStatus.isVisible = false
-        binding.menuProgressBar.isVisible = false
     }
 
     override fun onDestroyView() {
@@ -226,6 +328,10 @@ class MenuAdapter(
         Log.d(TAG, "updateMenus called with ${newMenus.size} items")
         items = newMenus
         notifyDataSetChanged()
+    }
+    
+    fun getCurrentMenus(): List<MenuItem> {
+        return items
     }
 
     inner class MenuViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -282,11 +388,11 @@ class MenuAdapter(
         if (menu.imageUrl.isNotEmpty()) {
             Glide.with(holder.itemView.context)
                 .load(menu.imageUrl)
-                .placeholder(R.drawable.ic_food_placeholder)
-                .error(R.drawable.ic_food_placeholder)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .error(android.R.drawable.ic_menu_gallery)
                 .into(holder.ivMenuImage)
         } else {
-            holder.ivMenuImage.setImageResource(R.drawable.ic_food_placeholder)
+            holder.ivMenuImage.setImageResource(android.R.drawable.ic_menu_gallery)
         }
 
         // Set click listener

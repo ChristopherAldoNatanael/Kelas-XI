@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Background gradient circle -->
+    <path android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10s10,-4.48 10,-10S17.52,2 12,2z">
+        <aapt:attr name="android:fillColor" xmlns:aapt="http://schemas.android.com/aapt">
+            <gradient 
+                android:startColor="?attr/colorPrimary"
+                android:endColor="?attr/colorSecondary"
+                android:angle="135" />
+        </aapt:attr>
+    </path>
+    
+    <!-- Modern house icon -->
+    <group android:translateX="12" android:translateY="12">
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-7,-9l7,-4 7,4v8c0,0.55 -0.45,1 -1,1h-12c-0.55,0 -1,-0.45 -1,-1v-8z"/>
+        <!-- Door -->
+        <path
+            android:fillColor="?attr/colorPrimary"
+            android:pathData="M-2,-1h4v6h-4z"/>
+        <!-- Windows -->
+        <circle android:fillColor="#FFD700" android:cx="-4" android:cy="1" android:r="0.8"/>
+        <circle android:fillColor="#FFD700" android:cx="4" android:cy="1" android:r="0.8"/>
+        <!-- Roof decoration -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-6,-7l6,-3 6,3l-1,-1l-5,-2l-5,2z"/>
+    </group>
+</vector>

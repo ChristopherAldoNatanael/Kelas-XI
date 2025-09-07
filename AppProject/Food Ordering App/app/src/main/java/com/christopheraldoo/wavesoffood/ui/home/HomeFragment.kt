@@ -16,6 +16,8 @@ import androidx.recyclerview.widget.RecyclerView
 import androidx.viewpager2.widget.ViewPager2
 import com.christopheraldoo.wavesoffood.R
 import com.christopheraldoo.wavesoffood.databinding.FragmentHomeBinding
+import android.content.Context
+import android.view.inputmethod.InputMethodManager
 
 class HomeFragment : Fragment() {
 
@@ -35,32 +37,32 @@ class HomeFragment : Fragment() {
             discount = "30% OFF",
             description = "On your first order",
             buttonText = "Claim Now",
-            backgroundDrawable = R.drawable.gradient_banner_1,
-            iconDrawable = R.drawable.ic_food_placeholder
+            backgroundDrawable = R.color.colorPrimary,
+            iconDrawable = android.R.drawable.ic_menu_gallery
         ),
         BannerItem(
             title = "Weekend Deal",
             discount = "FREE DELIVERY",
             description = "Orders above $25",
             buttonText = "Order Now",
-            backgroundDrawable = R.drawable.gradient_banner_2,
-            iconDrawable = R.drawable.ic_food_placeholder
+            backgroundDrawable = R.color.colorPrimary,
+            iconDrawable = android.R.drawable.ic_menu_gallery
         ),
         BannerItem(
             title = "Happy Hour",
             discount = "BUY 1 GET 1",
             description = "Between 3-6 PM",
             buttonText = "Get Deal",
-            backgroundDrawable = R.drawable.gradient_banner_3,
-            iconDrawable = R.drawable.ic_food_placeholder
+            backgroundDrawable = R.color.colorPrimary,
+            iconDrawable = android.R.drawable.ic_menu_gallery
         ),
         BannerItem(
             title = "New Customer",
             discount = "50% OFF",
             description = "Your second order",
             buttonText = "Explore",
-            backgroundDrawable = R.drawable.gradient_banner_4,
-            iconDrawable = R.drawable.ic_food_placeholder
+            backgroundDrawable = R.color.colorPrimary,
+            iconDrawable = android.R.drawable.ic_menu_gallery
         )
     )
 
@@ -71,7 +73,9 @@ class HomeFragment : Fragment() {
     ): View {
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
         return binding.root
-    }    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    }
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         try {
             setupBannerCarousel()
@@ -118,7 +122,7 @@ class HomeFragment : Fragment() {
             indicators[i] = ImageView(requireContext())
             indicators[i]?.let {
                 it.setImageDrawable(
-                    ContextCompat.getDrawable(requireContext(), R.drawable.indicator_inactive)
+                    ContextCompat.getDrawable(requireContext(), android.R.color.darker_gray)
                 )
                 it.layoutParams = layoutParams
                 it.layoutParams.width = 24
@@ -134,12 +138,12 @@ class HomeFragment : Fragment() {
             val imageView = binding.layoutIndicators.getChildAt(i) as ImageView
             if (i == position) {
                 imageView.setImageDrawable(
-                    ContextCompat.getDrawable(requireContext(), R.drawable.indicator_active)
+                    ContextCompat.getDrawable(requireContext(), R.color.colorPrimary)
                 )
                 imageView.layoutParams.width = 32
             } else {
                 imageView.setImageDrawable(
-                    ContextCompat.getDrawable(requireContext(), R.drawable.indicator_inactive)
+                    ContextCompat.getDrawable(requireContext(), android.R.color.darker_gray)
                 )
                 imageView.layoutParams.width = 24
             }
@@ -176,15 +180,31 @@ class HomeFragment : Fragment() {
         binding.ivNotifications.setOnClickListener {
             showToast("Notifications clicked! 🔔")
         }
-        
-        // Search bar - Now functional for better UX
-        binding.etSearch.setOnClickListener {
-            try {
-                findNavController().navigate(R.id.navigation_search)
-            } catch (e: Exception) {
-                showToast("🔍 Use Search tab at the bottom for better search experience!")
+          // Enable search functionality with proper search flow
+        binding.etSearch.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH) {
+                val query = binding.etSearch.text.toString().trim()
+                if (query.isNotEmpty()) {
+                    // Hide keyboard
+                    hideKeyboard()
+                    navigateToMenuWithSearch(query)
+                } else {
+                    showToast("Please enter a search term")
+                }
+                true
+            } else {
+                false
             }
         }
+        
+        // Remove auto-navigation on click/focus - let user type first
+        binding.etSearch.setOnClickListener { 
+            // Just focus the EditText, don't navigate
+            binding.etSearch.requestFocus()
+        }
+        
+        // Remove auto-navigation on focus change
+        // binding.etSearch.setOnFocusChangeListener - removed to allow typing
         
         // View Menu button
         binding.tvViewMenu.setOnClickListener {
@@ -216,13 +236,36 @@ class HomeFragment : Fragment() {
         binding.btnViewCart.setOnClickListener {
             navigateToCart()
         }
-    }private fun addToCart(itemName: String, price: String) {
+    }
+
+    private fun addToCart(itemName: String, price: String) {
         showToast("✅ $itemName ($price) added to cart!")
     }
 
     private fun navigateToMenu() {
         try {
             findNavController().navigate(R.id.navigation_menu)
+        } catch (e: Exception) {
+            showToast("📋 Menu feature is available! Navigate using bottom menu.")
+        }
+    }    private fun navigateToMenuWithSearch(searchQuery: String) {
+        try {
+            // Create bundle with search query
+            val bundle = Bundle().apply {
+                if (searchQuery.isNotEmpty()) {
+                    putString("searchQuery", searchQuery)
+                }
+            }
+            
+            // Navigate to Menu tab with search query
+            findNavController().navigate(R.id.navigation_menu, bundle)
+            
+            // User feedback
+            if (searchQuery.isNotEmpty()) {
+                showToast("🔍 Searching for '$searchQuery' in menu...")
+            } else {
+                showToast("🔍 Opening menu for search...")
+            }
         } catch (e: Exception) {
             showToast("📋 Menu feature is available! Navigate using bottom menu.")
         }
@@ -234,7 +277,9 @@ class HomeFragment : Fragment() {
         } catch (e: Exception) {
             showToast("🛒 Cart feature is available! Navigate using bottom menu.")
         }
-    }    private fun showToast(message: String) {
+    }
+
+    private fun showToast(message: String) {
         try {
             if (isAdded && context != null) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
@@ -242,7 +287,18 @@ class HomeFragment : Fragment() {
         } catch (e: Exception) {
             // Ignore toast errors safely
         }
-    }    override fun onResume() {
+    }
+
+    private fun hideKeyboard() {
+        try {
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(binding.etSearch.windowToken, 0)
+        } catch (e: Exception) {
+            // Ignore keyboard hide errors
+        }
+    }
+
+    override fun onResume() {
         super.onResume()
         if (::autoSlideHandler.isInitialized) {
             startAutoSlide()

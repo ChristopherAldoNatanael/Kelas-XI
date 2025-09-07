@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:name="profile_icon">
+        <!-- Modern user avatar with background circle -->
+        <circle
+            android:fillColor="?attr/colorPrimaryContainer"
+            android:cx="12"
+            android:cy="12"
+            android:r="11"/>
+        <!-- User head -->
+        <circle
+            android:fillColor="?attr/colorPrimary"
+            android:cx="12"
+            android:cy="8"
+            android:r="3"/>
+        <!-- User body/shoulders -->
+        <path
+            android:fillColor="?attr/colorPrimary"
+            android:pathData="M12,14c-4,0 -7,2 -7,4v3h14v-3C19,16 16,14 12,14z"/>
+        <!-- Decorative elements -->
+        <circle
+            android:fillColor="?attr/colorOnPrimaryContainer"
+            android:cx="12"
+            android:cy="12"
+            android:r="10"
+            android:strokeWidth="1"
+            android:fillType="nonZero"
+            android:strokeColor="?attr/colorOutline"/>
+        <!-- Inner glow effect -->
+        <circle
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="?attr/colorPrimary"
+            android:strokeWidth="0.5"
+            android:cx="12"
+            android:cy="12"
+            android:r="9"/>
+    </group>
+</vector>

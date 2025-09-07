@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_primary"
+    tools:context=".ui.ReplyFragment">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <!-- Original Post -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cv_original_post"
+                style="@style/CardStyle.Post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_small">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="@dimen/padding_medium">
+
+                    <!-- Profile Image -->
+                    <ImageView
+                        android:id="@+id/iv_profile_image"
+                        style="@style/ImageStyle.ProfileSmall"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        android:contentDescription="@string/cd_profile_image"
+                        tools:src="@drawable/profile_placeholder_background" />
+
+                    <!-- User Info Container -->
+                    <LinearLayout
+                        android:id="@+id/ll_user_info"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/margin_small"
+                        android:orientation="horizontal"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@+id/iv_profile_image"
+                        app:layout_constraintTop_toTopOf="@+id/iv_profile_image">
+
+                        <!-- Display Name -->
+                        <TextView
+                            android:id="@+id/tv_display_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="@dimen/margin_small"
+                            style="@style/TextStyle.DisplayName"
+                            tools:text="John Doe" />
+
+                        <!-- Username -->
+                        <TextView
+                            android:id="@+id/tv_username"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginEnd="@dimen/margin_small"
+                            style="@style/TextStyle.Username"
+                            android:ellipsize="end"
+                            android:maxLines="1"
+                            tools:text="@john_doe" />
+
+                        <!-- Timestamp -->
+                        <TextView
+                            android:id="@+id/tv_timestamp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            style="@style/TextStyle.TimeStamp"
+                            tools:text="2h" />
+
+                    </LinearLayout>
+
+                    <!-- Post Content -->
+                    <TextView
+                        android:id="@+id/tv_content"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/margin_small"
+                        android:layout_marginTop="@dimen/margin_small"
+                        style="@style/TextStyle.PostContent"
+                        android:autoLink="web"
+                        android:linksClickable="true"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@+id/iv_profile_image"
+                        app:layout_constraintTop_toBottomOf="@+id/ll_user_info"
+                        tools:text="This is the original post content that is being replied to." />
+
+                    <!-- Action Buttons (simplified for original post in reply view) -->
+                    <LinearLayout
+                        android:id="@+id/ll_actions"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="@dimen/margin_small"
+                        android:layout_marginTop="@dimen/margin_small"
+                        android:orientation="horizontal"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toEndOf="@+id/iv_profile_image"
+                        app:layout_constraintTop_toBottomOf="@+id/tv_content">
+
+                        <!-- Reply Count -->
+                        <TextView
+                            android:id="@+id/tv_reply_count"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="@dimen/margin_medium"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            tools:text="8 replies" />
+
+                        <!-- Like Button -->
+                        <LinearLayout
+                            android:id="@+id/ll_like"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:background="?android:attr/selectableItemBackgroundBorderless"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:padding="@dimen/padding_small">
+
+                            <ImageView
+                                android:id="@+id/iv_like"
+                                android:layout_width="18dp"
+                                android:layout_height="18dp"
+                                android:contentDescription="@string/cd_like_button"
+                                android:src="@drawable/ic_like" />
+
+                            <TextView
+                                android:id="@+id/tv_like_count"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginStart="4dp"
+                                style="@style/TextStyle.ActionCount"
+                                tools:text="45" />
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Reply Input -->
+            <com.google.android.material.card.MaterialCardView
+                style="@style/CardStyle.Post"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="@dimen/margin_small">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="@dimen/padding_medium">
+
+                    <!-- Current user profile image -->
+                    <ImageView
+                        android:id="@+id/iv_current_user_profile"
+                        style="@style/ImageStyle.ProfileSmall"
+                        android:contentDescription="@string/cd_profile_image"
+                        android:src="@drawable/profile_placeholder_background" />
+
+                    <!-- Reply input container -->
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:layout_marginStart="@dimen/margin_small"
+                        android:orientation="vertical">
+
+                        <!-- Reply EditText -->
+                        <EditText
+                            android:id="@+id/et_reply_content"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@android:color/transparent"
+                            android:hint="@string/placeholder_reply"
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:maxLines="5"
+                            android:minLines="2"
+                            android:padding="@dimen/padding_small"
+                            android:textColor="@color/text_primary"
+                            android:textColorHint="@color/text_secondary"
+                            android:textSize="16sp" />
+
+                        <!-- Reply button -->
+                        <Button
+                            android:id="@+id/btn_reply"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="end"
+                            android:layout_marginTop="@dimen/margin_small"
+                            android:enabled="false"
+                            android:text="@string/reply"
+                            style="@style/ButtonStyle.Primary" />
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Divider -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/divider_height"
+                android:background="@drawable/divider" />
+
+            <!-- Replies List -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rv_replies"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_reply" />
+
+            <!-- Loading indicator for replies -->
+            <ProgressBar
+                android:id="@+id/progress_bar_replies"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_margin="@dimen/margin_large"
+                android:visibility="gone" />
+
+            <!-- Empty replies state -->
+            <TextView
+                android:id="@+id/tv_no_replies"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:padding="@dimen/padding_large"
+                android:text="@string/no_replies"
+                android:textColor="@color/text_secondary"
+                android:textSize="16sp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

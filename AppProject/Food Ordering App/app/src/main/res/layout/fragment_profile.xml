@@ -39,7 +39,7 @@
                     android:id="@+id/ivProfilePicture"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:background="@drawable/bg_promo_banner"
+                    android:background="@color/colorPrimary"
                     android:scaleType="centerCrop"
                     android:contentDescription="Profile picture" />
 
@@ -51,7 +51,7 @@
                     android:layout_gravity="bottom|end"
                     android:text="✏️"
                     android:textSize="14sp"
-                    android:background="@drawable/bg_button_primary"
+                    android:background="@color/colorPrimary"
                     android:gravity="center"
                     android:clickable="true"
                     android:focusable="true" />
@@ -99,7 +99,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:background="@drawable/bg_food_card"
+            android:background="@android:color/white"
             android:orientation="vertical"
             android:padding="16dp"
             app:layout_constraintTop_toBottomOf="@id/profileHeader"
@@ -138,27 +138,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="12dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Phone"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="sans-serif" />
-
-                <TextView
-                    android:id="@+id/tvUserPhone"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="+62 812-3456-7890"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="sans-serif-medium" />
-
-            </LinearLayout>
+                android:layout_marginBottom="12dp"/>
 
             <!-- Profile Completion -->
             <LinearLayout
@@ -212,33 +192,33 @@
 
             <!-- Orders Stats -->
             <LinearLayout
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_food_card"
-                android:orientation="vertical"
+                android:layout_weight="1"
+                android:background="@android:color/white"
                 android:gravity="center"
+                android:orientation="vertical"
                 android:padding="16dp">
 
                 <TextView
                     android:id="@+id/tvOrderCount"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="15"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_green"
+                    android:layout_marginBottom="4dp"
                     android:fontFamily="sans-serif-medium"
-                    android:layout_marginBottom="4dp" />
+                    android:text="15"
+                    android:textColor="@color/primary_green"
+                    android:textSize="24sp"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif"
                     android:text="Orders"
-                    android:textSize="12sp"
                     android:textColor="@color/text_secondary"
-                    android:fontFamily="sans-serif" />
+                    android:textSize="12sp" />
 
             </LinearLayout>
 
@@ -248,31 +228,10 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/bg_food_card"
+                android:background="@android:color/white"
                 android:orientation="vertical"
                 android:gravity="center"
-                android:padding="16dp">
-
-                <TextView
-                    android:id="@+id/tvFavoriteCount"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="8"
-                    android:textSize="24sp"
-                    android:textStyle="bold"
-                    android:textColor="@color/primary_green"
-                    android:fontFamily="sans-serif-medium"
-                    android:layout_marginBottom="4dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Favorites"
-                    android:textSize="12sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="sans-serif" />
-
-            </LinearLayout>
+                android:padding="16dp"/>
 
         </LinearLayout>
 
@@ -298,8 +257,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:layout_marginBottom="12dp" />
 
-            <!-- Order History -->
-            <LinearLayout
+            <!-- Order History -->            <LinearLayout
                 android:id="@+id/menuOrderHistory"
                 android:layout_width="match_parent"
                 android:layout_height="56dp"
@@ -308,6 +266,7 @@
                 android:background="?attr/selectableItemBackground"
                 android:clickable="true"
                 android:focusable="true"
+                android:enabled="true"
                 android:paddingStart="16dp"
                 android:paddingEnd="16dp">
 
@@ -338,82 +297,8 @@
             </LinearLayout>
 
             <!-- Favorites -->
-            <LinearLayout
-                android:id="@+id/menuFavorites"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
-
-                <TextView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:text="❤️"
-                    android:textSize="18sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="16dp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Favorite Foods"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="sans-serif" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=">"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary" />
-
-            </LinearLayout>
 
             <!-- Payment Methods -->
-            <LinearLayout
-                android:id="@+id/menuPayment"
-                android:layout_width="match_parent"
-                android:layout_height="56dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true"
-                android:paddingStart="16dp"
-                android:paddingEnd="16dp">
-
-                <TextView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
-                    android:text="💳"
-                    android:textSize="18sp"
-                    android:gravity="center"
-                    android:layout_marginEnd="16dp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Payment Methods"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="sans-serif" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text=">"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary" />
-
-            </LinearLayout>
 
             <!-- Delivery Address -->
             <LinearLayout
@@ -647,7 +532,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/error_red"
-            android:background="@drawable/bg_input_field"
+            android:background="@android:color/white"
             android:gravity="center"
             android:clickable="true"
             android:focusable="true"

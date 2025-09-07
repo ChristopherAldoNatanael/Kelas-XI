@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Button backgrounds -->
+    <dimen name="button_corner_radius">20dp</dimen>
+    <dimen name="card_corner_radius">8dp</dimen>
+    
+    <!-- Spacing -->
+    <dimen name="margin_small">8dp</dimen>
+    <dimen name="margin_medium">16dp</dimen>
+    <dimen name="margin_large">24dp</dimen>
+    <dimen name="margin_extra_large">32dp</dimen>
+    
+    <!-- Padding -->
+    <dimen name="padding_small">8dp</dimen>
+    <dimen name="padding_medium">16dp</dimen>
+    <dimen name="padding_large">24dp</dimen>
+    
+    <!-- Profile Images -->
+    <dimen name="profile_image_small">40dp</dimen>
+    <dimen name="profile_image_medium">60dp</dimen>
+    <dimen name="profile_image_large">80dp</dimen>
+    
+    <!-- Touch targets -->
+    <dimen name="touch_target_size">48dp</dimen>
+    <dimen name="button_min_height">44dp</dimen>
+    
+    <!-- Dividers -->
+    <dimen name="divider_height">1dp</dimen>
+    
+    <!-- Elevation -->
+    <dimen name="elevation_small">2dp</dimen>
+    <dimen name="elevation_medium">4dp</dimen>
+    <dimen name="elevation_large">8dp</dimen>
+</resources>

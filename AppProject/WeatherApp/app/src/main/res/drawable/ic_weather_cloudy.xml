@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Main Cloud -->
+    <path
+        android:fillColor="@color/cloud_gray"
+        android:pathData="M60,120 C40,120 25,105 25,85 C25,65 40,50 60,50 C65,35 80,25 100,25 C120,25 135,35 140,50 C160,50 175,65 175,85 C175,105 160,120 140,120 Z"/>
+    
+    <!-- Cloud Shadow -->
+    <path
+        android:fillColor="@color/cloud_shadow"
+        android:pathData="M65,125 C45,125 30,110 30,90 C30,70 45,55 65,55 C70,40 85,30 105,30 C125,30 140,40 145,55 C165,55 180,70 180,90 C180,110 165,125 145,125 Z"/>
+</vector>

@@ -1,0 +1,137 @@
+# Android/IntelliJ
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+*.iml
+*.hprof
+*.log
+*.keystore
+*.jks
+*.pem
+*.key
+*.crt
+*.der
+*.p12
+*.pfx
+*.bak
+*.swp
+*.swo
+*.tmp
+*.orig
+*.rej
+*.class
+*.apk
+*.ap_ 
+*.dex
+*.jar
+*.war
+*.ear
+*.db
+*.sqlite
+*.sublime-workspace
+*.sublime-project
+*.vscode/
+# User-specific
+*.user
+*.userprefs
+*.suo
+*.ntvs_analysis.dat
+*.njsproj
+*.sln
+*.swp
+*.swo
+*.tmp
+*.orig
+*.rej
+*.class
+*.apk
+*.ap_ 
+*.dex
+*.jar
+*.war
+*.ear
+*.db
+*.sqlite
+*.sublime-workspace
+*.sublime-project
+*.vscode/
+# Keystore and signing
+*.jks
+*.keystore
+*.pem
+*.key
+*.crt
+*.der
+*.p12
+*.pfx
+# OS generated
+.DS_Store
+Thumbs.db
+# Crashlytics
+crashlytics-build.properties
+fabric.properties
+# Google Services
+/google-services.json
+/app/google-services.json
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/
+fastlane/test_output/
+# NDK
+obj/
+# VS Code
+.vscode/
+# Test results
+/test-results/
+# Misc
+*.log
+*.bak
+*.swp
+*.swo
+*.tmp
+*.orig
+*.rej
+*.class
+*.apk
+*.ap_ 
+*.dex
+*.jar
+*.war
+*.ear
+*.db
+*.sqlite
+*.sublime-workspace
+*.sublime-project
+*.vscode/
+# Local configuration
+local.properties
+# Sensitive files
+*.env
+.env.*
+# Android Studio Navigation Editor temp files
+.navigation/
+# Jetpack Compose
+.compose/
+# Firebase
+firebase/
+# Build output
+/app/build/
+# Kotlin
+*.kotlin_module
+# Misc
+.idea/
+# Ignore user data
+*.user
+*.userprefs
+*.suo
+*.ntvs_analysis.dat
+*.njsproj
+*.sln
+# Ignore gradle wrapper jar
+/gradle/wrapper/gradle-wrapper.jar

@@ -21,10 +21,10 @@
             android:layout_width="80dp"
             android:layout_height="80dp"
             android:scaleType="centerCrop"
-            android:src="@drawable/ic_food_placeholder"
-            android:background="@drawable/bg_image_rounded"
+            android:src="@android:drawable/ic_menu_gallery"
+            android:background="@android:color/white"
             android:contentDescription="Menu Image"
-            tools:src="@drawable/ic_food_placeholder" />
+            tools:src="@android:drawable/ic_menu_gallery" />
 
         <!-- Menu Content -->
         <LinearLayout
@@ -65,7 +65,7 @@
                     android:textSize="10sp"
                     android:textStyle="bold"
                     android:textColor="@android:color/white"
-                    android:background="@drawable/bg_category_badge"
+                    android:background="@color/colorPrimary"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     tools:text="Main Course" />
@@ -114,7 +114,7 @@
                     android:textSize="12sp"
                     android:textStyle="bold"
                     android:textColor="@color/text_green"
-                    android:background="@drawable/bg_status_badge"
+                    android:background="@color/colorAccent"
                     android:paddingHorizontal="8dp"
                     android:paddingVertical="4dp"
                     tools:text="Tersedia" />

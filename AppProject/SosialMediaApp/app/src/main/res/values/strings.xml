@@ -1,0 +1,136 @@
+<resources>
+    <string name="app_name">Social Media</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_notifications">Notifications</string>
+    <string name="nav_messages">Messages</string>
+    <string name="nav_profile">Profile</string>
+    <string name="nav_settings">Settings</string>
+    <string name="nav_logout">Logout</string>
+    <string name="nav_drawer_open">Open navigation drawer</string>
+    <string name="nav_drawer_close">Close navigation drawer</string>
+    
+    <!-- Post Actions -->
+    <string name="action_reply">Reply</string>
+    <string name="action_retweet">Retweet</string>
+    <string name="action_like">Like</string>
+    <string name="action_share">Share</string>
+    <string name="action_follow">Follow</string>
+    <string name="action_unfollow">Unfollow</string>
+    <string name="action_following">Following</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_profile_image">Profile image</string>
+    <string name="cd_back_button">Back</string>
+    <string name="cd_menu_button">Menu</string>
+    <string name="cd_reply_button">Reply to post</string>
+    <string name="cd_retweet_button">Retweet post</string>
+    <string name="cd_like_button">Like post</string>
+    <string name="cd_share_button">Share post</string>
+    
+    <!-- Profile -->
+    <string name="profile_followers">Followers</string>
+    <string name="profile_following">Following</string>
+    <string name="profile_posts">Posts</string>
+    
+    <!-- Placeholder Text -->
+    <string name="placeholder_bio">No bio available</string>
+    <string name="placeholder_post">What\'s happening?</string>
+    <string name="placeholder_reply">Post your reply</string>
+    
+    <!-- Error Messages -->
+    <string name="error_loading_posts">Failed to load posts</string>
+    <string name="error_loading_profile">Failed to load profile</string>
+    <string name="error_network">Network error. Please try again.</string>
+    
+    <!-- Loading -->
+    <string name="loading">Loading...</string>
+    <string name="refresh">Refresh</string>
+    
+    <!-- Time formats -->
+    <string name="time_now">now</string>
+    <string name="time_minutes">%dm</string>
+    <string name="time_hours">%dh</string>
+    <string name="time_days">%dd</string>
+    
+    <!-- Common -->
+    <string name="retry">Retry</string>
+    <string name="cancel">Cancel</string>
+    <string name="ok">OK</string>
+    <string name="post">Post</string>
+    <string name="reply">Reply</string>
+    <string name="save">Save</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Delete</string>
+    <string name="share">Share</string>
+    
+    <!-- Missing strings -->
+    <string name="no_posts">No posts to show</string>
+    <string name="no_replies">No replies yet</string>
+    <string name="tv_no_replies">No replies</string>
+    <string name="profile_edit">Edit Profile</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_notifications">Notifications</string>
+    <string name="settings_push_notifications">Push Notifications</string>
+    <string name="settings_privacy">Privacy &amp; Security</string>
+    <string name="settings_about">About</string>
+    <string name="settings_account">Account</string>
+    
+    <!-- Theme Options -->
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="theme_system">Follow System</string>
+    <string name="select_theme">Select Theme</string>
+    
+    <!-- Language Options -->
+    <string name="language_english">English</string>
+    <string name="language_indonesian">Bahasa Indonesia</string>
+    <string name="select_language">Select Language</string>
+    
+    <!-- Language Change Dialog -->
+    <string name="language_changed_title">Language Changed</string>
+    <string name="language_changed_message">The app needs to restart to apply the new language. Restart now?</string>
+    <string name="restart">Restart</string>
+    <string name="later">Later</string>
+    
+    <!-- Search -->
+    <string name="search_hint">Search Twitter</string>
+    <string name="trending_for_you">Trending for you</string>
+    <string name="whats_happening_title">What\'s happening</string>
+    
+    <!-- Messages -->
+    <string name="messages_search_hint">Search for people and groups</string>
+    <string name="no_messages">Welcome to your inbox!</string>
+    <string name="no_messages_desc">Drop a line, share posts and more with private conversations between you and others on X.</string>
+    
+    <!-- Notifications -->
+    <string name="notifications_all">All</string>
+    <string name="notifications_mentions">Mentions</string>
+    <string name="no_notifications">Nothing to see here — yet</string>
+    <string name="no_notifications_desc">Likes, replies, and other notifications will show up here.</string>
+    
+    <!-- General -->
+    <string name="error">An error occurred</string>
+    
+    <!-- Time -->
+    <string name="now">now</string>
+    <string name="minutes_ago">%d minutes ago</string>
+    <string name="hours_ago">%d hours ago</string>
+    <string name="days_ago">%d days ago</string>
+    
+    <!-- Settings saved -->
+    <string name="settings_saved">Settings saved</string>
+    <string name="restart_required">App restart required</string>
+    
+    <!-- About -->
+    <string name="about_version">Version %s</string>
+    <string name="about_description">Social media app built with MVVM architecture using Kotlin and XML.</string>
+    <string name="about_developer">Developed by Christopher Aldo</string>
+</resources>

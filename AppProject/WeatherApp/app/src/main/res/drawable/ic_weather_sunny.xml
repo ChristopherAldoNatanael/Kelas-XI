@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="200dp"
+    android:height="200dp"
+    android:viewportWidth="200"
+    android:viewportHeight="200">
+    
+    <!-- Sun Circle -->
+    <path
+        android:fillColor="@color/sunny_yellow"
+        android:pathData="M100,100 m-30,0 a30,30 0,1,1 60,0 a30,30 0,1,1 -60,0"/>
+    
+    <!-- Sun Rays -->
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M100,30 L100,10"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M100,190 L100,170"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M30,100 L10,100"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M190,100 L170,100"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M44.5,44.5 L30.2,30.2"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M155.5,155.5 L169.8,169.8"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M155.5,44.5 L169.8,30.2"/>
+    <path
+        android:strokeColor="@color/sunny_yellow"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M44.5,155.5 L30.2,169.8"/>
+</vector>

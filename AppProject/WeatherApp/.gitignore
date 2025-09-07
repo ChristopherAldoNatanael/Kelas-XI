@@ -1,0 +1,39 @@
+# Android/IDE
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Data pribadi atau sensitif
+/app/src/main/assets/private_data.json
+/app/src/main/assets/secret.txt
+*.bak
+*.tmp
+*.log
+.env
+
+# Folder backup/manual
+backup/
+
+# Lain-lain
+Thumbs.db
+
+# Dokumentasi internal/proyek
+*.md
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+PROJECT_SUMMARY.md

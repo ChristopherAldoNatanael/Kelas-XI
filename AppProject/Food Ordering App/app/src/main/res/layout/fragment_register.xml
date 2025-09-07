@@ -244,7 +244,7 @@
             android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/white"
-            android:background="@drawable/bg_button_primary"
+            android:background="@color/colorPrimary"
             android:elevation="8dp"
             app:backgroundTint="@null"
             app:cornerRadius="28dp"
@@ -339,7 +339,7 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_button_facebook"
+                android:background="@color/colorAccent"
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:clickable="true"
@@ -351,7 +351,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginEnd="8dp"
-                    android:src="@drawable/ic_facebook"
+                    android:src="@android:drawable/ic_menu_share"
                     android:contentDescription="@string/facebook_icon_description" />
 
                 <!-- Text Facebook -->
@@ -373,7 +373,7 @@
                 android:layout_height="48dp"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                android:background="@drawable/bg_button_google"
+                android:background="@color/colorAccent"
                 android:orientation="horizontal"
                 android:gravity="center"
                 android:clickable="true"
@@ -385,7 +385,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_marginEnd="8dp"
-                    android:src="@drawable/ic_google"
+                    android:src="@android:drawable/ic_menu_search"
                     android:contentDescription="@string/google_icon_description" />
 
                 <!-- Text Google -->

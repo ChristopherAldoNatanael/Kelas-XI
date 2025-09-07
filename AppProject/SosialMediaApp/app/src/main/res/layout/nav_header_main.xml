@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="176dp"
+    android:background="@color/primary_blue"
+    android:gravity="bottom"
+    android:orientation="vertical"
+    android:padding="@dimen/padding_medium"
+    android:theme="@style/ThemeOverlay.AppCompat.Dark">
+
+    <!-- Profile Image -->
+    <ImageView
+        android:id="@+id/iv_nav_profile"
+        style="@style/ImageStyle.ProfileLarge"
+        android:layout_marginBottom="@dimen/margin_small"
+        android:contentDescription="@string/cd_profile_image"
+        android:src="@drawable/profile_placeholder_background" />
+
+    <!-- Display Name -->
+    <TextView
+        android:id="@+id/tv_nav_display_name"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="4dp"
+        android:textAppearance="@style/TextStyle.DisplayName"
+        android:textColor="@color/text_white"
+        android:text="John Doe" />
+
+    <!-- Username -->
+    <TextView
+        android:id="@+id/tv_nav_username"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textAppearance="@style/TextStyle.Username"
+        android:textColor="@color/text_white"
+        android:text="\@john_doe" />
+
+    <!-- Followers/Following -->
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/margin_small"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/tv_nav_following_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:textColor="@color/text_white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:text="320" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/margin_medium"
+            android:textColor="@color/text_white"
+            android:textSize="14sp"
+            android:text="@string/profile_following" />
+
+        <TextView
+            android:id="@+id/tv_nav_followers_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="4dp"
+            android:textColor="@color/text_white"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:text="1.2K" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textColor="@color/text_white"
+            android:textSize="14sp"
+            android:text="@string/profile_followers" />
+
+    </LinearLayout>
+
+</LinearLayout>

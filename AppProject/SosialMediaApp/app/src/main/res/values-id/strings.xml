@@ -1,0 +1,125 @@
+<resources>
+    <string name="app_name">Media Sosial</string>
+    
+    <!-- Navigation -->
+    <string name="nav_home">Beranda</string>
+    <string name="nav_search">Cari</string>
+    <string name="nav_notifications">Notifikasi</string>
+    <string name="nav_messages">Pesan</string>
+    <string name="nav_profile">Profil</string>
+    <string name="nav_settings">Pengaturan</string>
+    <string name="nav_logout">Keluar</string>
+    <string name="nav_drawer_open">Buka menu navigasi</string>
+    <string name="nav_drawer_close">Tutup menu navigasi</string>
+    
+    <!-- Post Actions -->
+    <string name="action_reply">Balas</string>
+    <string name="action_retweet">Retweet</string>
+    <string name="action_like">Suka</string>
+    <string name="action_share">Bagikan</string>
+    <string name="action_follow">Ikuti</string>
+    <string name="action_unfollow">Berhenti Mengikuti</string>
+    <string name="action_following">Mengikuti</string>
+    
+    <!-- Content Descriptions -->
+    <string name="cd_profile_image">Gambar profil</string>
+    <string name="cd_back_button">Kembali</string>
+    <string name="cd_menu_button">Menu</string>
+    <string name="cd_reply_button">Balas post</string>
+    <string name="cd_retweet_button">Retweet post</string>
+    <string name="cd_like_button">Suka post</string>
+    <string name="cd_share_button">Bagikan post</string>
+    
+    <!-- Profile -->
+    <string name="profile_followers">Pengikut</string>
+    <string name="profile_following">Mengikuti</string>
+    <string name="profile_posts">Postingan</string>
+    <string name="profile_joined">Bergabung</string>
+    <string name="profile_bio">Bio</string>
+    <string name="placeholder_bio">Bio belum diisi</string>
+    
+    <!-- Feed -->
+    <string name="whats_happening">Apa yang terjadi?</string>
+    <string name="compose_post">Tulis postingan</string>
+    <string name="post_button">Posting</string>
+    <string name="character_count">%d karakter tersisa</string>
+    
+    <!-- Reply -->
+    <string name="reply_to">Membalas kepada %s</string>
+    <string name="write_reply">Tulis balasan</string>
+    <string name="reply_button">Balas</string>
+    
+    <!-- Settings -->
+    <string name="settings_title">Pengaturan</string>
+    <string name="settings_appearance">Tampilan</string>
+    <string name="settings_theme">Tema</string>
+    <string name="settings_language">Bahasa</string>
+    <string name="settings_notifications">Notifikasi</string>
+    <string name="settings_push_notifications">Notifikasi Push</string>
+    <string name="settings_privacy">Privasi &amp; Keamanan</string>
+    <string name="settings_about">Tentang</string>
+    <string name="settings_account">Akun</string>
+    
+    <!-- Theme Options -->
+    <string name="theme_light">Terang</string>
+    <string name="theme_dark">Gelap</string>
+    <string name="theme_system">Ikuti Sistem</string>
+    <string name="select_theme">Pilih Tema</string>
+    
+    <!-- Language Options -->
+    <string name="language_english">English</string>
+    <string name="language_indonesian">Bahasa Indonesia</string>
+    <string name="select_language">Pilih Bahasa</string>
+    
+    <!-- Language Change Dialog -->
+    <string name="language_changed_title">Bahasa Diubah</string>
+    <string name="language_changed_message">Aplikasi perlu direstart untuk menerapkan bahasa baru. Restart sekarang?</string>
+    <string name="restart">Restart</string>
+    <string name="later">Nanti</string>
+    
+    <!-- Search -->
+    <string name="search_hint">Cari Twitter</string>
+    <string name="trending_for_you">Trending untuk Anda</string>
+    <string name="whats_happening_title">Apa yang sedang terjadi</string>
+    
+    <!-- Messages -->
+    <string name="messages_search_hint">Cari orang dan grup</string>
+    <string name="no_messages">Selamat datang di kotak masuk!</string>
+    <string name="no_messages_desc">Kirim pesan, bagikan postingan dan lainnya dengan percakapan pribadi antara Anda dan orang lain di X.</string>
+    
+    <!-- Notifications -->
+    <string name="notifications_all">Semua</string>
+    <string name="notifications_mentions">Sebutan</string>
+    <string name="no_notifications">Belum ada yang terlihat — untuk saat ini</string>
+    <string name="no_notifications_desc">Suka, balasan, dan notifikasi lainnya akan muncul di sini.</string>
+    
+    <!-- General -->
+    <string name="loading">Memuat…</string>
+    <string name="error">Terjadi kesalahan</string>
+    <string name="retry">Coba lagi</string>
+    <string name="cancel">Batal</string>
+    <string name="ok">OK</string>
+    <string name="save">Simpan</string>
+    <string name="edit">Edit</string>
+    <string name="delete">Hapus</string>
+    <string name="share">Bagikan</string>
+    
+    <!-- Time -->
+    <string name="now">sekarang</string>
+    <string name="minutes_ago">%d menit lalu</string>
+    <string name="hours_ago">%d jam lalu</string>
+    <string name="days_ago">%d hari lalu</string>
+    
+    <!-- Logout -->
+    <string name="logout_title">Keluar dari Akun</string>
+    <string name="logout_message">Apakah Anda yakin ingin keluar?</string>
+    
+    <!-- About -->
+    <string name="about_version">Versi %s</string>
+    <string name="about_description">Aplikasi media sosial yang dibuat dengan arsitektur MVVM menggunakan Kotlin dan XML.</string>
+    <string name="about_developer">Dikembangkan oleh Christopher Aldo</string>
+    
+    <!-- Settings saved -->
+    <string name="settings_saved">Pengaturan disimpan</string>
+    <string name="restart_required">Memerlukan restart aplikasi</string>
+</resources>

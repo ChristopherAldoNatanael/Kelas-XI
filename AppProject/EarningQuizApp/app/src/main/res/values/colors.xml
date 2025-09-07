@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Primary Colors -->
+    <color name="colorPrimary">#4CAF50</color> <!-- Green - for success, nature, and learning -->
+    <color name="colorPrimaryDark">#388E3C</color> <!-- Darker Green -->
+    <color name="colorPrimaryLight">#C8E6C9</color> <!-- Lighter Green -->
+
+    <!-- Secondary Colors -->
+    <color name="colorSecondary">#FFC107</color> <!-- Amber - for rewards and attention -->
+    <color name="colorSecondaryDark">#FFA000</color> <!-- Darker Amber -->
+
+    <!-- Text Colors -->
+    <color name="textColorPrimary">#212121</color> <!-- Dark Gray for primary text -->
+    <color name="textColorSecondary">#757575</color> <!-- Medium Gray for secondary text -->
+    <color name="textColorOnPrimary">#FFFFFF</color> <!-- White text on primary color -->
+
+    <!-- Standard Colors -->
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+    <color name="transparent">#00000000</color>
+
+    <!-- Feedback Colors -->
+    <color name="colorSuccess">#4CAF50</color> <!-- Green for correct answers -->
+    <color name="colorError">#F44336</color>   <!-- Red for incorrect answers -->
+    <color name="colorWarning">#FF9800</color> <!-- Orange for warnings -->
+
+    <!-- Background Colors -->
+    <color name="backgroundColor">#F5F5F5</color> <!-- Light Gray for app background -->
+    <color name="surfaceColor">#FFFFFF</color> <!-- White for cards and surfaces -->
+
+    <!-- Category Colors -->
+    <color name="colorMath">#E91E63</color> <!-- Pink for Mathematics -->
+    <color name="colorScience">#2196F3</color> <!-- Blue for Science -->
+    <color name="colorHistory">#FF5722</color> <!-- Deep Orange for History -->
+    <color name="colorGeography">#4CAF50</color> <!-- Green for Geography -->
+    <color name="colorEnglish">#9C27B0</color> <!-- Purple for English -->
+    <color name="colorBiology">#8BC34A</color> <!-- Light Green for Biology -->
+    <color name="colorPhysics">#607D8B</color> <!-- Blue Gray for Physics -->
+    <color name="colorChemistry">#FF9800</color> <!-- Orange for Chemistry -->
+
+    <!-- Bottom Navigation Colors -->
+    <color name="bottomNavSelected">#4CAF50</color>
+    <color name="bottomNavUnselected">#9E9E9E</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradientStart">#4CAF50</color>
+    <color name="gradientEnd">#2E7D32</color>
+
+    <!-- Quiz Colors -->
+    <color name="correctAnswer">#4CAF50</color>
+    <color name="incorrectAnswer">#F44336</color>
+    <color name="selectedAnswer">#2196F3</color>
+
+</resources>

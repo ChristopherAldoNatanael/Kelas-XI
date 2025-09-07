@@ -26,7 +26,14 @@ class CartRepository {
      * Mendapatkan user ID yang sedang login
      */
     private fun getCurrentUserId(): String? {
-        return auth.currentUser?.uid
+        return try {
+            // Replace with actual user authentication logic
+            // For now, using a dummy user ID
+            "user_dummy_id"
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting current user ID", e)
+            null
+        }
     }
     
     /**
@@ -199,14 +206,12 @@ class CartRepository {
         }
         
         Log.d(TAG, "Removing cart item: $cartItemId")
-        
         return try {
             database.child(userId).child(cartItemId).removeValue().await()
-            Log.d(TAG, "Removed cart item: $cartItemId")
+            Log.d(TAG, "Successfully removed cart item: $cartItemId")
             Result.success(true)
-            
         } catch (e: Exception) {
-            Log.e(TAG, "Error removing cart item", e)
+            Log.e(TAG, "Error removing cart item: $cartItemId", e)
             Result.failure(e)
         }
     }
@@ -220,19 +225,65 @@ class CartRepository {
             return Result.failure(Exception("User not logged in"))
         }
         
+        Log.d(TAG, "Clearing user cart for: $userId")
+        return try {
+            database.child(userId).removeValue().await()
+            Log.d(TAG, "Successfully cleared cart for user: $userId")
+            Result.success(true)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing cart for user: $userId", e)
+            Result.failure(e)
+        }
+    }
+    
+    /**
+     * Clear all items in user cart
+     */
+    suspend fun clearCart(): Result<Boolean> {
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            return Result.failure(Exception("User not logged in"))
+        }
+        
         Log.d(TAG, "Clearing cart for user: $userId")
         
         return try {
             database.child(userId).removeValue().await()
-            Log.d(TAG, "Cleared cart for user: $userId")
+            Log.d(TAG, "Cart cleared successfully")
             Result.success(true)
-            
         } catch (e: Exception) {
             Log.e(TAG, "Error clearing cart", e)
             Result.failure(e)
         }
     }
-    
+
+    /**
+     * Get cart item count
+     */
+    suspend fun getCartItemCount(): Result<Int> {
+        val userId = getCurrentUserId()
+        if (userId == null) {
+            return Result.failure(Exception("User not logged in"))
+        }
+        
+        return try {
+            val snapshot = database.child(userId).get().await()
+            var count = 0
+            if (snapshot.exists()) {
+                for (itemSnapshot in snapshot.children) {
+                    val cartItem = itemSnapshot.getValue(CartItem::class.java)
+                    if (cartItem != null) {
+                        count += cartItem.quantity
+                    }
+                }
+            }
+            Result.success(count)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting cart item count", e)
+            Result.failure(e)
+        }
+    }
+
     /**
      * Mendapatkan item keranjang berdasarkan menu ID
      */
@@ -296,4 +347,4 @@ class CartRepository {
             }
         }
     }
-} 
+}

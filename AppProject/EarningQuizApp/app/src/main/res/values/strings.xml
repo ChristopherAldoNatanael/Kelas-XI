@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App-wide -->
+    <string name="app_name">EarningQuizApp</string>
+
+    <!-- Common Actions -->
+    <string name="action_login">Login</string>
+    <string name="action_register">Register</string>
+    <string name="action_submit">Submit</string>
+    <string name="action_next">Next</string>
+    <string name="action_finish">Finish</string>
+    <string name="action_save">Save</string>
+    <string name="action_logout">Logout</string>
+
+    <!-- Placeholders and Labels -->
+    <string name="label_email">Email</string>
+    <string name="label_password">Password</string>
+    <string name="label_confirm_password">Confirm Password</string>
+    <string name="label_full_name">Full Name</string>
+    <string name="label_home">Home</string>
+    <string name="label_leaderboard">Leaderboard</string>
+    <string name="label_profile">Profile</string>
+    <string name="label_earnings">Earnings</string>
+
+    <!-- Hints -->
+    <string name="hint_email">Enter your email</string>
+    <string name="hint_password">Enter your password</string>
+    <string name="hint_confirm_password">Confirm your password</string>
+    <string name="hint_full_name">Enter your full name</string>
+
+    <!-- Messages -->
+    <string name="message_welcome">Welcome back!</string>
+    <string name="message_loading">Loading...</string>
+    <string name="message_error">An unexpected error occurred.</string>
+    <string name="message_signup_success">Account created successfully!</string>
+    <string name="message_login_success">Login successful!</string>
+
+    <!-- Categories -->
+    <string name="category_mathematics">Mathematics</string>
+    <string name="category_science">Science</string>
+    <string name="category_history">History</string>
+    <string name="category_geography">Geography</string>
+    <string name="category_english">English</string>
+    <string name="category_biology">Biology</string>
+    <string name="category_physics">Physics</string>
+    <string name="category_chemistry">Chemistry</string>
+
+    <!-- Category Descriptions -->
+    <string name="category_math_desc">Numbers, equations, and problem solving</string>
+    <string name="category_science_desc">General science and discoveries</string>
+    <string name="category_history_desc">Historical events and figures</string>
+    <string name="category_geography_desc">Countries, capitals, and landmarks</string>
+    <string name="category_english_desc">Grammar, vocabulary, and literature</string>
+    <string name="category_biology_desc">Living organisms and life processes</string>
+    <string name="category_physics_desc">Matter, energy, and physical laws</string>
+    <string name="category_chemistry_desc">Elements, compounds, and reactions</string>
+
+    <!-- Spin Activity -->
+    <string name="spin_instruction">Tap the spin button to win points!</string>
+    <string name="spin_spinning">Spinning...</string>
+    <string name="spin_result">Congratulations! You won %d points!</string>
+    <string name="spin_success">Amazing! You earned %d bonus points!</string>
+    <string name="spin_completed_today">Already Spun Today</string>
+    <string name="spin_come_back_tomorrow">Come back tomorrow for another spin!</string>
+    <string name="action_spin">SPIN NOW</string>
+
+    <!-- Withdrawal -->
+    <string name="minimum_withdrawal">Minimum withdrawal: %d points</string>
+    <string name="current_points">Current Points: %d</string>
+    <string name="withdrawal_success">Withdrawal of %d points to %s is being processed!</string>
+    <string name="error_minimum_withdrawal">Minimum withdrawal is %d points</string>
+    <string name="error_insufficient_balance">Insufficient balance</string>
+    <string name="error_select_payment_method">Please select a payment method</string>
+
+    <!-- Payment Method Hints -->
+    <string name="hint_paypal_email">Enter your PayPal email</string>
+    <string name="hint_bank_account">Enter your bank account number</string>
+    <string name="hint_gopay_number">Enter your GoPay phone number</string>
+    <string name="hint_ovo_number">Enter your OVO phone number</string>
+    <string name="hint_dana_number">Enter your DANA phone number</string>
+    <string name="hint_shopee_number">Enter your ShopeePay phone number</string>
+    <string name="hint_select_payment_method">Select payment method first</string>
+
+    <!-- Profile -->
+    <string name="points_format">%d Points</string>
+    <string name="percentage_format">%d%%</string>
+    <string name="logout_confirmation_title">Logout</string>
+    <string name="logout_confirmation_message">Are you sure you want to logout?</string>
+    <string name="action_cancel">Cancel</string>
+
+    <!-- Validation Errors -->
+    <string name="error_field_required">This field is required</string>
+    <string name="error_invalid_email">Please enter a valid email address</string>
+    <string name="error_weak_password">Password must be at least 6 characters</string>
+    <string name="error_password_mismatch">Passwords do not match</string>
+    <string name="error_invalid_amount">Please enter a valid amount</string>
+    <string name="error_user_not_found">User not found</string>
+
+    <!-- Common Formats -->
+    <string name="question_count_format">%d Questions</string>
+
+</resources>

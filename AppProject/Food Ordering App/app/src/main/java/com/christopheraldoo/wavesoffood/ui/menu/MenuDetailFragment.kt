@@ -118,11 +118,11 @@ class MenuDetailFragment : Fragment() {
             if (menuImageUrl.isNotEmpty()) {
                 Glide.with(requireContext())
                     .load(menuImageUrl)
-                    .placeholder(R.drawable.ic_food_placeholder)
-                    .error(R.drawable.ic_food_placeholder)
+                    .placeholder(android.R.drawable.ic_menu_gallery)
+                    .error(android.R.drawable.ic_menu_gallery)
                     .into(binding.ivMenuDetailImage)
             } else {
-                binding.ivMenuDetailImage.setImageResource(R.drawable.ic_food_placeholder)
+                binding.ivMenuDetailImage.setImageResource(android.R.drawable.ic_menu_gallery)
             }
             
             // Store current price for calculations

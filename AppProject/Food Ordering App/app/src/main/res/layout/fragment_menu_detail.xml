@@ -25,7 +25,7 @@
                 android:id="@+id/btnBack"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@drawable/ic_back"
+                android:src="@android:drawable/ic_menu_revert"
                 android:background="?attr/selectableItemBackgroundBorderless"
                 android:contentDescription="Back"
                 android:scaleType="centerInside" />
@@ -58,9 +58,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:scaleType="centerCrop"
-                android:src="@drawable/ic_food_placeholder"
+                android:src="@android:drawable/ic_menu_gallery"
                 android:contentDescription="Menu Image"
-                tools:src="@drawable/ic_food_placeholder" />
+                tools:src="@android:drawable/ic_menu_gallery" />
 
             <!-- Category Badge Overlay -->
             <TextView
@@ -73,7 +73,7 @@
                 android:textSize="12sp"
                 android:textStyle="bold"
                 android:textColor="@android:color/white"
-                android:background="@drawable/bg_category_badge_overlay"
+                android:background="@color/colorPrimary"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="6dp"
                 tools:text="Main Course" />
@@ -169,8 +169,8 @@
                         android:id="@+id/btnMinus"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:src="@drawable/ic_minus"
-                        android:background="@drawable/bg_quantity_button"
+                        android:src="@android:drawable/ic_menu_delete"
+                        android:background="@android:color/darker_gray"
                         android:contentDescription="Decrease Quantity"
                         android:scaleType="centerInside" />
 
@@ -184,7 +184,7 @@
                         android:textStyle="bold"
                         android:textColor="@color/text_primary"
                         android:gravity="center"
-                        android:background="@drawable/bg_quantity_display"
+                        android:background="@android:color/white"
                         android:layout_marginHorizontal="16dp" />
 
                     <!-- Plus Button -->
@@ -192,8 +192,8 @@
                         android:id="@+id/btnPlus"
                         android:layout_width="48dp"
                         android:layout_height="48dp"
-                        android:src="@drawable/ic_plus"
-                        android:background="@drawable/bg_quantity_button"
+                        android:src="@android:drawable/ic_menu_add"
+                        android:background="@android:color/darker_gray"
                         android:contentDescription="Increase Quantity"
                         android:scaleType="centerInside" />
 
@@ -209,7 +209,7 @@
                 android:orientation="horizontal"
                 android:gravity="center_vertical"
                 android:padding="16dp"
-                android:background="@drawable/bg_total_price"
+                android:background="@color/colorPrimary"
                 android:elevation="2dp">
 
                 <TextView
@@ -244,7 +244,7 @@
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:textColor="@android:color/white"
-                android:background="@drawable/bg_button_primary"
+                android:background="@color/colorPrimary"
                 android:elevation="4dp"
                 android:stateListAnimator="@null" />
 

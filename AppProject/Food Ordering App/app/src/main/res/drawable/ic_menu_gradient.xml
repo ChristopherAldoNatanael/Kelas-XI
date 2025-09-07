@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Background gradient circle -->
+    <path android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10s10,-4.48 10,-10S17.52,2 12,2z">
+        <aapt:attr name="android:fillColor">
+            <gradient 
+                android:startColor="?attr/colorPrimary"
+                android:endColor="?attr/colorSecondary"
+                android:angle="45" />
+        </aapt:attr>
+    </path>
+    
+    <!-- Modern menu book -->
+    <group android:translateX="12" android:translateY="12">
+        <!-- Book cover -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-6,-8h10c0.55,0 1,0.45 1,1v14c0,0.55 -0.45,1 -1,1h-10c-0.55,0 -1,-0.45 -1,-1v-14c0,-0.55 0.45,-1 1,-1z"/>
+        
+        <!-- Menu lines with food icons -->
+        <path
+            android:fillColor="?attr/colorPrimary"
+            android:pathData="M-4,-4h6c0.28,0 0.5,0.22 0.5,0.5s-0.22,0.5 -0.5,0.5h-6c-0.28,0 -0.5,-0.22 -0.5,-0.5s0.22,-0.5 0.5,-0.5z"/>
+        <circle android:fillColor="#FF6B35" android:cx="-5" android:cy="-3.5" android:r="0.3"/>
+        
+        <path
+            android:fillColor="?attr/colorPrimary"
+            android:pathData="M-4,-1h5c0.28,0 0.5,0.22 0.5,0.5s-0.22,0.5 -0.5,0.5h-5c-0.28,0 -0.5,-0.22 -0.5,-0.5s0.22,-0.5 0.5,-0.5z"/>
+        <circle android:fillColor="#4CAF50" android:cx="-5" android:cy="-0.5" android:r="0.3"/>
+        
+        <path
+            android:fillColor="?attr/colorPrimary"
+            android:pathData="M-4,2h4c0.28,0 0.5,0.22 0.5,0.5s-0.22,0.5 -0.5,0.5h-4c-0.28,0 -0.5,-0.22 -0.5,-0.5s0.22,-0.5 0.5,-0.5z"/>
+        <circle android:fillColor="#FFC107" android:cx="-5" android:cy="2.5" android:r="0.3"/>
+        
+        <!-- Book spine -->
+        <path
+            android:fillColor="?attr/colorSecondary"
+            android:pathData="M5,-8h1v16h-1z"/>
+    </group>
+</vector>

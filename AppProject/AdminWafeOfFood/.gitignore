@@ -1,15 +1,80 @@
+# =====================
+# ANDROID & INTELLIJ
+# =====================
 *.iml
-.gradle
+.gradle/
 /local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+/.idea/
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
+/build/
+app/build/
+
+# =====================
+# FIREBASE & API KEYS
+# =====================
+app/google-services.json
+app/src/**/google-services.json
+
+# =====================
+# DATA PRIBADI & DUMMY
+# =====================
+orders_dummy.json
+*.jks
+*.keystore
+*.pem
+*.p12
+*.key
+*.crt
+*.der
+
+# =====================
+# DOKUMENTASI PRIBADI
+# =====================
+DOKUMENTASI_LENGKAP.md
+PRESENTASI_RINGKAS.md
+FITUR_ORDER_DETAIL.md
+FITUR_DELETE_ORDER_CANCELLED.md
+AUTHENTICATION_GUIDE.md
+AUTHENTICATION_FIX_SUMMARY.md
+FIREBASE_SETUP_INFO.md
+GOOGLE_SIGNIN_SETUP.md
+PROJECT_SUMMARY.md
+IMPLEMENTATION_GUIDE.md
+README_GITHUB.md
+PANDUAN_GITHUB_UPLOAD.md
+DOCUMENTATION.md
+README.md
+
+# =====================
+# LOGS & TEMP
+# =====================
+*.log
+*.tmp
+*.bak
+*.swp
+
+# =====================
+# LAIN-LAIN (JIKA ADA)
+# =====================
+# File screenshot, demo, atau data testing pribadi
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.mp4
+*.avi
+*.mov
+*.gif
+
+# =====================
+# LAINNYA YANG TIDAK BOLEH DIUPLOAD
+# =====================
+# File database lokal
+*.db
+*.sqlite
+*.mv.db
+*.h2.db
+
+# =====================
+# END OF GITIGNORE
+# =====================

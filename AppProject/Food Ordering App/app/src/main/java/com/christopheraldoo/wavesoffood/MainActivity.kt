@@ -12,12 +12,13 @@ import androidx.navigation.ui.setupActionBarWithNavController
  * MainActivity - Activity utama yang menampung semua fragment
  * 
  * Activity ini menggunakan Navigation Component untuk mengatur
- * navigasi antar fragment (Splash -> Onboarding -> Login)
+ * navigasi antar fragment (Splash -> Onboarding -> Login -> Main)
  * 
- * Features:
- * - Edge-to-edge display untuk modern UI
- * - Navigation Component integration
- * - Action bar integration dengan navigation
+ * VERSI PERBAIKAN:
+ * - Fixed package name
+ * - Proper R class resolution
+ * - Simple navigation setup
+ * - Error handling
  */
 class MainActivity : AppCompatActivity() {
     
@@ -50,13 +51,13 @@ class MainActivity : AppCompatActivity() {
             if (navHostFragment != null) {
                 // Navigation sudah setup, NavController siap digunakan
                 // Log success untuk debugging
-                println("Navigation setup successful")
+                println("MainActivity: Navigation setup successful")
             } else {
-                println("NavHostFragment not found - this is normal for simple navigation")
+                println("MainActivity: NavHostFragment not found - this might be normal for simple navigation")
             }
         } catch (e: Exception) {
             // Log error jika ada masalah dengan navigation setup
-            println("Navigation setup error: ${e.message}")
+            println("MainActivity: Navigation setup error: ${e.message}")
             e.printStackTrace()
         }
     }

@@ -6,72 +6,55 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.christopheraldoo.wavesoffood.R
 import com.christopheraldoo.wavesoffood.databinding.FragmentCartBinding
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlinx.coroutines.flow.collectLatest
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.NavController
+import androidx.navigation.NavOptions
+import androidx.navigation.fragment.FragmentNavigatorExtras
 
-/**
- * CartFragment - Fragment untuk menampilkan shopping cart
- * 
- * Fragment ini menampilkan:
- * - Daftar items dalam cart
- * - Quantity controls (+ dan -)
- * - Remove item functionality
- * - Total calculation
- * - Checkout button
- * - Promo code input
- * - Delivery options
- */
 class CartFragment : Fragment() {
 
-    // View binding untuk akses mudah ke view tanpa findViewById
     private var _binding: FragmentCartBinding? = null
     private val binding get() = _binding!!
-
-    // Simulasi data cart untuk demo
-    private val cartItems = mutableListOf(
-        CartItem("Herbal Pancake", 7.0, 2, R.drawable.ic_food_placeholder),
-        CartItem("Fruit Salad", 5.0, 1, R.drawable.ic_food_placeholder),
-        CartItem("Green Noodle", 15.0, 1, R.drawable.ic_food_placeholder)
-    )
     
-    private var deliveryFee = 2.5
-    private var discount = 0.0
+    private val viewModel: CartViewModel by viewModels()
+    private lateinit var cartAdapter: CartAdapter
+    private var discount: Int = 0
+    private var deliveryFee: Int = 5000 // Rp 5.000
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
-        // Inflate layout menggunakan view binding
         _binding = FragmentCartBinding.inflate(inflater, container, false)
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        
-        // Setup animasi masuk untuk elemen UI
         setupAnimations()
-        
-        // Setup cart items
-        setupCartItems()
-        
-        // Setup click listeners
         setupClickListeners()
-        
-        // Calculate and display totals
-        calculateTotals()
-        
-        // Setup promo code functionality
         setupPromoCode()
+        setupRecyclerView()
+        observeCartData()
     }
 
-    /**
-     * Setup animasi masuk untuk semua elemen UI
-     */
+    override fun onResume() {
+        super.onResume()
+        // Refresh cart data when returning to cart fragment
+        // This ensures cart is updated if it was cleared during checkout
+        viewModel.refreshCart()
+    }
+
     private fun setupAnimations() {
-        // Animasi untuk header (fade in + slide down)
         binding.tvCartTitle.apply {
             alpha = 0f
             translationY = -30f
@@ -82,20 +65,7 @@ class CartFragment : Fragment() {
                 .setStartDelay(100)
                 .start()
         }
-        
-        // Animasi untuk cart items (slide up + fade in)
-        binding.cartItemsContainer.apply {
-            alpha = 0f
-            translationY = 50f
-            animate()
-                .alpha(1f)
-                .translationY(0f)
-                .setDuration(600)
-                .setStartDelay(200)
-                .start()
-        }
-        
-        // Animasi untuk total section (slide up + fade in)
+        // Remove cartItemsContainer animation
         binding.totalSection.apply {
             alpha = 0f
             translationY = 80f
@@ -106,8 +76,6 @@ class CartFragment : Fragment() {
                 .setStartDelay(400)
                 .start()
         }
-        
-        // Animasi untuk checkout button (scale + fade in)
         binding.btnCheckout.apply {
             alpha = 0f
             scaleX = 0.9f
@@ -122,111 +90,26 @@ class CartFragment : Fragment() {
         }
     }
 
-    /**
-     * Setup cart items dengan functionality
-     */
-    private fun setupCartItems() {
-        if (cartItems.isEmpty()) {
-            showEmptyCart()
-        } else {
-            showCartItems()
-        }
-    }
-
-    /**
-     * Setup click listeners untuk berbagai elemen
-     */
     private fun setupClickListeners() {
-        // Checkout button
         binding.btnCheckout.setOnClickListener {
             animateButtonClick(it) {
                 processCheckout()
             }
         }
         
-        // Clear cart button
         binding.btnClearCart.setOnClickListener {
             animateButtonClick(it) {
                 clearCart()
             }
         }
         
-        // Continue shopping
         binding.btnContinueShopping.setOnClickListener {
             animateButtonClick(it) {
                 continueShopping()
             }
         }
-        
-        // Setup item quantity controls
-        setupQuantityControls()
     }
 
-    /**
-     * Setup quantity controls untuk setiap item
-     */
-    private fun setupQuantityControls() {
-        // Item 1 controls
-        binding.btnDecrease1.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(0, -1)
-            }
-        }
-        
-        binding.btnIncrease1.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(0, 1)
-            }
-        }
-        
-        binding.btnRemove1.setOnClickListener {
-            animateButtonClick(it) {
-                removeItem(0)
-            }
-        }
-        
-        // Item 2 controls
-        binding.btnDecrease2.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(1, -1)
-            }
-        }
-        
-        binding.btnIncrease2.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(1, 1)
-            }
-        }
-        
-        binding.btnRemove2.setOnClickListener {
-            animateButtonClick(it) {
-                removeItem(1)
-            }
-        }
-        
-        // Item 3 controls
-        binding.btnDecrease3.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(2, -1)
-            }
-        }
-        
-        binding.btnIncrease3.setOnClickListener {
-            animateButtonClick(it) {
-                updateQuantity(2, 1)
-            }
-        }
-        
-        binding.btnRemove3.setOnClickListener {
-            animateButtonClick(it) {
-                removeItem(2)
-            }
-        }
-    }
-
-    /**
-     * Setup promo code functionality
-     */
     private fun setupPromoCode() {
         binding.btnApplyPromo.setOnClickListener {
             animateButtonClick(it) {
@@ -237,91 +120,57 @@ class CartFragment : Fragment() {
         binding.etPromoCode.hint = "Enter promo code"
     }
 
-    /**
-     * Update quantity item tertentu
-     */
-    private fun updateQuantity(itemIndex: Int, change: Int) {
-        if (itemIndex < cartItems.size) {
-            val item = cartItems[itemIndex]
-            val newQuantity = item.quantity + change
-            
-            if (newQuantity > 0) {
-                item.quantity = newQuantity
-                updateCartItemDisplay(itemIndex)
-                calculateTotals()
-                showToast("${item.name} quantity updated! 📝")
-            } else {
-                removeItem(itemIndex)
+    private fun setupRecyclerView() {
+        cartAdapter = CartAdapter(
+            onQuantityChanged = { item, newQty ->
+                viewModel.updateCartItemQuantity(item.id, newQty)
+            },
+            onItemRemoved = { item ->
+                viewModel.removeFromCart(item.id)
+            }
+        )
+        binding.rvCartList.layoutManager = LinearLayoutManager(requireContext())
+        binding.rvCartList.adapter = cartAdapter
+    }
+
+    private fun observeCartData() {
+        lifecycleScope.launchWhenStarted {
+            viewModel.cartItems.collectLatest { items ->
+                cartAdapter.submitList(items)
+                if (items.isEmpty()) {
+                    showEmptyCart()
+                } else {
+                    showCartItems()
+                }
+                calculateTotals(items)
             }
         }
     }
 
-    /**
-     * Remove item dari cart
-     */
-    private fun removeItem(itemIndex: Int) {
-        if (itemIndex < cartItems.size) {
-            val itemName = cartItems[itemIndex].name
-            cartItems.removeAt(itemIndex)
-            
-            // Update display
-            if (cartItems.isEmpty()) {
-                showEmptyCart()
-            } else {
-                showCartItems()
-            }
-            
-            calculateTotals()
-            showToast("$itemName removed from cart! 🗑️")
-        }
-    }
-
-    /**
-     * Update display untuk item tertentu
-     */
-    private fun updateCartItemDisplay(itemIndex: Int) {
-        // Di implementasi nyata, ini akan update RecyclerView item
-        // Untuk demo, kita update manual
-        when (itemIndex) {
-            0 -> binding.tvQuantity1.text = cartItems[0].quantity.toString()
-            1 -> binding.tvQuantity2.text = cartItems[1].quantity.toString()
-            2 -> binding.tvQuantity3.text = cartItems[2].quantity.toString()
-        }
-    }
-
-    /**
-     * Calculate dan display totals
-     */
-    private fun calculateTotals() {
-        val subtotal = cartItems.sumOf { it.price * it.quantity }
+    private fun calculateTotals(items: List<CartItem>) {
+        val subtotal = items.sumOf { it.price * it.quantity }
         val total = subtotal + deliveryFee - discount
-        
-        binding.tvSubtotal.text = "$${"%.2f".format(subtotal)}"
-        binding.tvDeliveryFee.text = "$${"%.2f".format(deliveryFee)}"
-        binding.tvDiscount.text = "-$${"%.2f".format(discount)}"
-        binding.tvTotal.text = "$${"%.2f".format(total)}"
-        
-        // Update checkout button
-        binding.btnCheckout.text = "Checkout - $${"%.2f".format(total)}"
+        binding.tvSubtotal.text = "Rp ${subtotal}"
+        binding.tvDeliveryFee.text = "Rp ${deliveryFee}"
+        binding.tvDiscount.text = "-Rp ${discount}"
+        binding.tvTotal.text = "Rp ${total}"
+        binding.btnCheckout.text = "Checkout - Rp ${total}"
     }
 
-    /**
-     * Apply promo code
-     */
     private fun applyPromoCode() {
         val promoCode = binding.etPromoCode.text.toString().trim().uppercase()
         
         when (promoCode) {
             "WELCOME10" -> {
-                discount = calculateSubtotal() * 0.1
+                discount = (calculateSubtotal() * 0.1).toInt()
                 showToast("✅ Welcome discount applied! 10% off")
             }
             "FREESHIP" -> {
-                deliveryFee = 0.0
+                deliveryFee = 0
                 showToast("✅ Free shipping applied!")
             }
             "SAVE20" -> {
-                discount = calculateSubtotal() * 0.2
+                discount = (calculateSubtotal() * 0.2).toInt()
                 showToast("✅ Save20 applied! 20% off")
             }
             "" -> {
@@ -334,86 +183,55 @@ class CartFragment : Fragment() {
             }
         }
         
-        calculateTotals()
+        viewModel.cartItems.value?.let { calculateTotals(it) }
         binding.etPromoCode.setText("")
     }
 
-    /**
-     * Calculate subtotal
-     */
-    private fun calculateSubtotal(): Double {
-        return cartItems.sumOf { it.price * it.quantity }
+    private fun calculateSubtotal(): Int {
+        return viewModel.cartItems.value?.sumOf { it.price * it.quantity } ?: 0
     }
 
-    /**
-     * Show empty cart state
-     */
     private fun showEmptyCart() {
-        binding.cartItemsContainer.visibility = View.GONE
+        binding.rvCartList.visibility = View.GONE
         binding.emptyCartContainer.visibility = View.VISIBLE
         binding.totalSection.visibility = View.GONE
         binding.btnCheckout.visibility = View.GONE
     }
 
-    /**
-     * Show cart with items
-     */
     private fun showCartItems() {
-        binding.cartItemsContainer.visibility = View.VISIBLE
+        binding.rvCartList.visibility = View.VISIBLE
         binding.emptyCartContainer.visibility = View.GONE
         binding.totalSection.visibility = View.VISIBLE
         binding.btnCheckout.visibility = View.VISIBLE
-        
-        // Update item displays
-        if (cartItems.size > 0) {
-            binding.tvQuantity1.text = cartItems[0].quantity.toString()
-        }
-        if (cartItems.size > 1) {
-            binding.tvQuantity2.text = cartItems[1].quantity.toString()
-        }
-        if (cartItems.size > 2) {
-            binding.tvQuantity3.text = cartItems[2].quantity.toString()
-        }
     }
 
-    /**
-     * Process checkout
-     */
     private fun processCheckout() {
-        if (cartItems.isEmpty()) {
+        val items = viewModel.cartItems.value ?: emptyList()
+        if (items.isEmpty()) {
             showToast("Your cart is empty!")
             return
         }
-        
-        val total = calculateSubtotal() + deliveryFee - discount
-        showToast("🎉 Checkout successful! Total: $${"%.2f".format(total)}")
-        
-        // Simulate checkout process
-        binding.btnCheckout.text = "Processing..."
-        binding.btnCheckout.isEnabled = false
-        
-        binding.btnCheckout.postDelayed({
-            // Clear cart after successful checkout
-            cartItems.clear()
-            showEmptyCart()
-            binding.btnCheckout.text = "Checkout"
-            binding.btnCheckout.isEnabled = true
-            showToast("Order placed successfully! 📦")
-        }, 2000)
+        val subtotal = items.sumOf { it.price * it.quantity }
+        val total = subtotal + deliveryFee - discount
+        // Pass cart items and totals to CheckoutFragment using Bundle
+        val bundle = Bundle().apply {
+            putParcelableArrayList("cartItems", ArrayList(items))
+            putInt("subtotal", subtotal)
+            putInt("total", total)
+            putInt("discount", discount)
+            putInt("deliveryFee", deliveryFee)
+        }
+        findNavController().navigate(R.id.action_cartFragment_to_checkoutFragment, bundle)
     }
 
-    /**
-     * Clear semua items dari cart
-     */
     private fun clearCart() {
-        cartItems.clear()
-        discount = 0.0
-        deliveryFee = 2.5
+        viewModel.clearCart()
+        discount = 0
+        deliveryFee = 5000
         showEmptyCart()
         showToast("Cart cleared! 🗑️")
-    }    /**
-     * Continue shopping - kembali ke menu atau home
-     */
+    }
+
     private fun continueShopping() {
         try {
             findNavController().navigate(R.id.navigation_menu)
@@ -423,9 +241,6 @@ class CartFragment : Fragment() {
         }
     }
 
-    /**
-     * Animasi untuk memberikan feedback visual saat tombol diklik
-     */
     private fun animateButtonClick(view: View, onAnimationEnd: () -> Unit) {
         view.animate()
             .scaleX(0.95f)
@@ -444,29 +259,12 @@ class CartFragment : Fragment() {
             .start()
     }
 
-    /**
-     * Helper function untuk menampilkan toast message
-     */
     private fun showToast(message: String) {
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 
-    /**
-     * Cleanup resources saat fragment di destroy
-     */
     override fun onDestroyView() {
         super.onDestroyView()
-        // Clear view binding reference untuk mencegah memory leak
         _binding = null
     }
-
-    /**
-     * Data class untuk cart item
-     */
-    data class CartItem(
-        val name: String,
-        val price: Double,
-        var quantity: Int,
-        val imageRes: Int
-    )
 }

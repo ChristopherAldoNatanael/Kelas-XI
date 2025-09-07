@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/feedFragment">
+
+    <fragment
+        android:id="@+id/feedFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.FeedFragment"
+        android:label="Home"
+        tools:layout="@layout/fragment_feed">
+        <action
+            android:id="@+id/action_feed_to_reply"
+            app:destination="@id/replyFragment" />        <action
+            android:id="@+id/action_feed_to_profile"
+            app:destination="@id/profileFragment" />
+        <action
+            android:id="@+id/action_feed_to_search"
+            app:destination="@id/searchFragment" />
+        <action
+            android:id="@+id/action_feed_to_notifications"
+            app:destination="@id/notificationsFragment" />
+        <action
+            android:id="@+id/action_feed_to_messages"
+            app:destination="@id/messagesFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/searchFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.SearchFragment"
+        android:label="Search"
+        tools:layout="@layout/fragment_search">
+        <action
+            android:id="@+id/action_search_to_reply"
+            app:destination="@id/replyFragment" />
+        <action
+            android:id="@+id/action_search_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/notificationsFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.NotificationsFragment"
+        android:label="Notifications"
+        tools:layout="@layout/fragment_notifications">
+        <action
+            android:id="@+id/action_notifications_to_reply"
+            app:destination="@id/replyFragment" />
+        <action
+            android:id="@+id/action_notifications_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/messagesFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.MessagesFragment"
+        android:label="Messages"
+        tools:layout="@layout/fragment_messages">
+        <action
+            android:id="@+id/action_messages_to_chat"
+            app:destination="@id/chatFragment" />
+        <action
+            android:id="@+id/action_messages_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/replyFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.ReplyFragment"
+        android:label="Thread"
+        tools:layout="@layout/fragment_reply">
+        <argument
+            android:name="postId"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_reply_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.ProfileFragment"
+        android:label="Profile"
+        tools:layout="@layout/fragment_profile">
+        <argument
+            android:name="userId"
+            app:argType="string"
+            app:nullable="true" />
+        <action
+            android:id="@+id/action_profile_to_reply"
+            app:destination="@id/replyFragment" />
+        <action
+            android:id="@+id/action_profile_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.SettingsFragment"
+        android:label="Settings"
+        tools:layout="@layout/fragment_settings" />
+
+    <fragment
+        android:id="@+id/chatFragment"
+        android:name="com.christopheraldoo.sosialmediaapp.ui.ChatFragment"
+        android:label="Chat"
+        tools:layout="@layout/fragment_chat">
+        <argument
+            android:name="conversationId"
+            app:argType="string" />
+        <argument
+            android:name="otherUserId"
+            app:argType="string" />        <argument
+            android:name="otherUserName"
+            app:argType="string" />
+        <action
+            android:id="@+id/action_chat_to_profile"
+            app:destination="@id/profileFragment" />
+    </fragment>
+
+</navigation>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    
+    <!-- Background gradient circle -->
+    <path android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10s10,-4.48 10,-10S17.52,2 12,2z">
+        <aapt:attr name="android:fillColor">
+            <gradient 
+                android:startColor="?attr/colorPrimary"
+                android:endColor="?attr/colorSecondary"
+                android:angle="90" />
+        </aapt:attr>
+    </path>
+    
+    <!-- Modern shopping cart -->
+    <group android:translateX="12" android:translateY="12">
+        <!-- Cart wheels -->
+        <circle android:fillColor="#FFFFFF" android:cx="-3" android:cy="6" android:r="1.2"/>
+        <circle android:fillColor="?attr/colorPrimary" android:cx="-3" android:cy="6" android:r="0.6"/>
+        
+        <circle android:fillColor="#FFFFFF" android:cx="3" android:cy="6" android:r="1.2"/>
+        <circle android:fillColor="?attr/colorPrimary" android:cx="3" android:cy="6" android:r="0.6"/>
+        
+        <!-- Cart body -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M-5,-8h2l2,12h8l1,-8h-10z"/>
+        
+        <!-- Cart handle -->
+        <path
+            android:fillColor="#FFFFFF"
+            android:strokeColor="?attr/colorPrimary"
+            android:strokeWidth="0.8"
+            android:pathData="M-5,-8l-2,-3"/>
+        
+        <!-- Items in cart -->
+        <circle android:fillColor="#FF6B35" android:cx="-1" android:cy="-2" android:r="0.8"/>
+        <circle android:fillColor="#4CAF50" android:cx="2" android:cy="-1" android:r="0.6"/>
+        <circle android:fillColor="#FFC107" android:cx="0" android:cy="1" android:r="0.5"/>
+        
+        <!-- Cart glow effect -->
+        <path
+            android:fillColor="@android:color/transparent"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="0.5"
+            android:pathData="M-4,-6h8l1,-6h-8z"/>
+    </group>
+</vector>

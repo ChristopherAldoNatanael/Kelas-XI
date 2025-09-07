@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android">
+    <aapt:attr name="android:drawable" xmlns:aapt="http://schemas.android.com/aapt">
+        <vector
+            android:width="24dp"
+            android:height="24dp"
+            android:viewportWidth="24"
+            android:viewportHeight="24">
+            <group android:name="home_animation">
+                <path
+                    android:name="home_path"
+                    android:fillColor="?attr/colorPrimary"
+                    android:pathData="M12,3L2,12h3v8c0,1.1 0.9,2 2,2h10c1.1,0 2,-0.9 2,-2v-8h3L12,3z"/>
+                <!-- Door with animation -->
+                <path
+                    android:name="door_path"
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M10,14h4v6h-4z"/>
+                <!-- Windows with blinking effect -->
+                <group android:name="windows">
+                    <circle
+                        android:name="window1"
+                        android:fillColor="#FFEB3B"
+                        android:cx="9.5"
+                        android:cy="16.5"
+                        android:r="0.5"/>
+                    <circle
+                        android:name="window2"
+                        android:fillColor="#FFEB3B"
+                        android:cx="14.5"
+                        android:cy="16.5"
+                        android:r="0.5"/>
+                </group>
+            </group>
+        </vector>
+    </aapt:attr>
+    
+    <!-- Window blinking animation -->
+    <target android:name="window1">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="fillAlpha"
+                    android:duration="1000"
+                    android:valueFrom="1.0"
+                    android:valueTo="0.3"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"/>
+            </set>
+        </aapt:attr>
+    </target>
+    
+    <target android:name="window2">
+        <aapt:attr name="android:animation">
+            <set>
+                <objectAnimator
+                    android:propertyName="fillAlpha"
+                    android:duration="1200"
+                    android:valueFrom="1.0"
+                    android:valueTo="0.3"
+                    android:valueType="floatType"
+                    android:repeatCount="infinite"
+                    android:repeatMode="reverse"/>
+            </set>
+        </aapt:attr>
+    </target>
+</animated-vector>

@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="240dp"
+    android:height="240dp"
+    android:viewportWidth="240"
+    android:viewportHeight="240">
+    
+    <!-- Outer circle -->
+    <path
+        android:fillColor="@color/colorPrimary"
+        android:pathData="M120,120m-110,0a110,110 0,1 1,220 0a110,110 0,1 1,-220 0"/>
+    
+    <!-- Sections with different colors -->
+    <path
+        android:fillColor="@color/colorSecondary"
+        android:pathData="M120,10 A110,110 0 0,1 195.26,54.74 L120,120 Z"/>
+    
+    <path
+        android:fillColor="@color/colorError"
+        android:pathData="M195.26,54.74 A110,110 0 0,1 195.26,185.26 L120,120 Z"/>
+    
+    <path
+        android:fillColor="@color/colorWarning"
+        android:pathData="M195.26,185.26 A110,110 0 0,1 44.74,185.26 L120,120 Z"/>
+    
+    <path
+        android:fillColor="@color/colorSuccess"
+        android:pathData="M44.74,185.26 A110,110 0 0,1 44.74,54.74 L120,120 Z"/>
+    
+    <path
+        android:fillColor="@color/colorPrimary"
+        android:pathData="M44.74,54.74 A110,110 0 0,1 120,10 L120,120 Z"/>
+    
+    <!-- Center circle -->
+    <path
+        android:fillColor="@color/white"
+        android:pathData="M120,120m-20,0a20,20 0,1 1,40 0a20,20 0,1 1,-40 0"/>
+    
+    <!-- Numbers on wheel -->
+    <group>
+        <path
+            android:fillColor="@color/white"
+            android:pathData="M115,30 L125,30 L125,45 L115,45 Z"/>
+        <path
+            android:fillColor="@color/white"
+            android:pathData="M200,115 L215,115 L215,125 L200,125 Z"/>
+        <path
+            android:fillColor="@color/white"
+            android:pathData="M115,195 L125,195 L125,210 L115,210 Z"/>
+        <path
+            android:fillColor="@color/white"
+            android:pathData="M25,115 L40,115 L40,125 L25,125 Z"/>
+    </group>
+</vector>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Primary Twitter Colors -->
+    <color name="primary_blue">#1DA1F2</color>
+    <color name="primary_blue_dark">#1A91DA</color>
+    <color name="primary_blue_light">#E1F5FE</color>
+    
+    <!-- Dark Theme Background Colors -->
+    <color name="background_primary">#000000</color>
+    <color name="background_secondary">#16181C</color>
+    <color name="background_dark">#000000</color>
+    
+    <!-- Dark Theme Text Colors -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#8B98A5</color>
+    <color name="text_white">#FFFFFF</color>
+    
+    <!-- Border and Divider -->
+    <color name="border_light">#2F3336</color>
+    <color name="divider">#2F3336</color>
+    
+    <!-- Interactive Colors (same in both themes) -->
+    <color name="like_red">#E0245E</color>
+    <color name="retweet_green">#17BF63</color>
+    <color name="reply_blue">#1DA1F2</color>
+    
+    <!-- Status Colors (same in both themes) -->
+    <color name="success">#17BF63</color>
+    <color name="warning">#FFAD1F</color>
+    <color name="error">#E0245E</color>
+    
+    <!-- Dark Theme Surface Colors -->
+    <color name="surface_variant">#16181C</color>
+    <color name="outline">#2F3336</color>
+    
+    <!-- Additional Colors -->
+    <color name="online_green">#1D9BF0</color>
+    <color name="search_background">#16181C</color>
+    <color name="twitter_blue">#1DA1F2</color>
+    <color name="twitter_dark_blue">#1A91DA</color>
+</resources>

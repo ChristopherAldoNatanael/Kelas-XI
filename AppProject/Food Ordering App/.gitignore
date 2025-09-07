@@ -40,3 +40,54 @@ Thumbs.db
 # Others
 *.swp
 *.swo
+
+# Exclude all documentation and markdown
+/docs/
+*.md
+*.MD
+*.pdf
+*.docx
+*.txt
+
+# Exclude all personal/private data
+**/firebase-realtime-database-dependency.txt
+**/test_profile.txt
+**/local.properties
+**/google-services.json
+**/app/google-services.json
+**/app/src/main/res/values/google-services.xml
+**/app/src/main/res/values/secrets.xml
+**/app/src/main/res/values/keys.xml
+**/app/src/main/assets/**
+**/app/src/main/keystore/**
+**/app/keystore/**
+
+# Exclude all build outputs
+/build/
+/app/build/
+
+# Exclude OS and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.bak
+*.swp
+*.tmp
+*.log
+*.class
+*.apk
+*.ap_
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+*.lock
+*.so
+*.dex
+*.jar
+*.war
+*.ear

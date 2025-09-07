@@ -3,10 +3,10 @@
     <!-- Warna dasar -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-    
-    <!-- Warna utama aplikasi (hijau sesuai design) -->
+      <!-- Warna utama aplikasi (hijau sesuai design) -->
     <color name="primary">#FF6B35</color>
     <color name="colorPrimary">#FF6B35</color>
+    <color name="colorAccent">#03DAC5</color>
     <color name="primary_green">#4ADE80</color>
     <color name="primary_green_dark">#22C55E</color>
     <color name="primary_green_light">#86EFAC</color>
@@ -22,6 +22,10 @@
     <color name="text_secondary">#6B7280</color>
     <color name="text_hint">#9CA3AF</color>
     <color name="text_green">#059669</color>
+    
+    <!-- Missing essential text colors -->
+    <color name="primary_text">#1F2937</color>
+    <color name="secondary_text">#6B7280</color>
     
     <!-- Warna tombol social media -->
     <color name="facebook_blue">#1877F2</color>
@@ -46,4 +50,58 @@
     <color name="category_breakfast">#FFB6C1</color>
     <color name="category_lunch">#DDA0DD</color>
     <color name="category_dinner">#F0E68C</color>
+    
+    <!-- Order Status Colors -->
+    <color name="status_pending">#F59E0B</color>
+    <color name="status_confirmed">#3B82F6</color>
+    <color name="status_preparing">#8B5CF6</color>
+    <color name="status_ready">#10B981</color>
+    <color name="status_delivering">#06B6D4</color>
+    <color name="status_completed">#059669</color>
+    <color name="status_cancelled">#EF4444</color>
+    
+    <!-- Additional Status Colors -->
+    <color name="primary_color_light">#FFE57373</color>
+    <color name="divider_gray">#FFE0E0E0</color>
+    
+    <!-- Extended Status Colors for Better UX -->
+    <color name="status_pending_light">#FFFFF3CD</color>
+    <color name="status_confirmed_light">#FFCCE7FF</color>
+    <color name="status_preparing_light">#FFE1BEE7</color>
+    <color name="status_ready_light">#FFD4EDDA</color>
+    <color name="status_delivering_light">#FFCCE7FF</color>
+    <color name="status_completed_light">#FFD1E7DD</color>
+    <color name="status_cancelled_light">#FFF8D7DA</color>
+    
+    <!-- Additional UI Colors -->
+    <color name="primary_color">#FF6B35</color>
+    <color name="error_color">#EF4444</color>
+    <color name="success_color">#10B981</color>
+    <color name="warning_color">#F59E0B</color>
+    <color name="info_color">#3B82F6</color>
+    
+    <color name="primary_ripple">#40FF6B35</color>
+    <color name="error_ripple">#40EF4444</color>
+    
+    <color name="background_light">#F9FAFB</color>
+    <color name="image_placeholder">#F3F4F6</color>
+    
+    <!-- Background colors -->
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="surface_color">#FFF5F5F5</color>
+    
+    <!-- Chip colors -->
+    <color name="chip_background_selector">@color/primary_color</color>
+    
+    <!-- Missing essential colors -->
+    <color name="light_gray">#F9FAFB</color>
+    <color name="orange">#F59E0B</color>
+    
+    <!-- Additional missing colors -->    <color name="background_primary">#F8F9FA</color>
+    <color name="warning_orange">#F59E0B</color>
+    <color name="primary_blue">#3B82F6</color>
+    <color name="text_tertiary">#9CA3AF</color>
+    
+    <!-- Primary light variant for active indicator -->
+    <color name="primary_light">#FFB3A6</color>
 </resources>

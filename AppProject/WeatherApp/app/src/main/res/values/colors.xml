@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    
+    <!-- Weather Colors -->
+    <color name="sunny_yellow">#FFEB3B</color>
+    <color name="cloud_gray">#90A4AE</color>
+    <color name="cloud_shadow">#78909C</color>
+    <color name="rain_blue">#2196F3</color>
+    <color name="snow_white">#E1F5FE</color>
+    <color name="storm_dark">#455A64</color>
+    
+    <!-- Gradient Colors -->
+    <color name="gradient_sunny_start">#FFE082</color>
+    <color name="gradient_sunny_end">#FF8A65</color>
+    <color name="gradient_cloudy_start">#90A4AE</color>
+    <color name="gradient_cloudy_end">#607D8B</color>
+    <color name="gradient_rainy_start">#64B5F6</color>
+    <color name="gradient_rainy_end">#1976D2</color>
+    <color name="gradient_snowy_start">#E1F5FE</color>
+    <color name="gradient_snowy_end">#B3E5FC</color>
+    
+    <!-- Glass Effect -->
+    <color name="glass_white">#80FFFFFF</color>
+    <color name="glass_dark">#80000000</color>
+    
+    <!-- Weather Detail Icon Colors -->
+    <color name="weather_blue">#64B5F6</color>
+    <color name="weather_wind">#81C784</color>
+    <color name="weather_visibility">#FFB74D</color>
+    <color name="weather_uv">#FF8A65</color>
+    <color name="weather_pressure">#9575CD</color>
+    <color name="weather_cloud">#90A4AE</color>
+    
+    <!-- Overlay -->
+    <color name="overlay_background">#CC000000</color>
+    
+    <!-- Common UI Colors -->
+    <color name="text_primary">#FF1A1A1A</color>
+    <color name="text_secondary">#FF424242</color>
+    <color name="text_hint">#FF9E9E9E</color>
+    
+    <!-- Background Colors -->
+    <color name="background_light">#FFF5F5F5</color>
+    <color name="background_dark">#FF212121</color>
+    <color name="card_background">#FFFFFFFF</color>
+    <color name="card_background_dark">#FF37474F</color>
+    
+    <!-- Transparent Colors -->
+    <color name="transparent_white_10">#1AFFFFFF</color>
+    <color name="transparent_white_25">#40FFFFFF</color>
+    <color name="transparent_white_35">#59FFFFFF</color>
+    <color name="transparent_white_50">#80FFFFFF</color>
+    <color name="transparent_white_70">#B3FFFFFF</color>
+    <color name="transparent_white_85">#D9FFFFFF</color>
+    <color name="transparent_white_90">#E6FFFFFF</color>
+    <color name="transparent_white_95">#F2FFFFFF</color>
+    <color name="transparent_white_98">#FAFFFFFF</color>
+    
+    <!-- Status Colors -->
+    <color name="success_green">#FF4CAF50</color>
+    <color name="warning_orange">#FFFF9800</color>
+    <color name="error_red">#FFF44336</color>
+    <color name="info_blue">#FF2196F3</color>
+    
+    <!-- Weather Theme Colors -->
+    <color name="sunny_background">#FFFFD54F</color>
+    <color name="cloudy_background">#FF90A4AE</color>
+    <color name="rainy_background">#FF1565C0</color>
+    <color name="snowy_background">#FFE0F7FA</color>
+    <color name="stormy_background">#FF263238</color>
+    <color name="foggy_background">#FFECEFF1</color>
+    <color name="partly_cloudy_background">#FF81C784</color>
+    <color name="windy_background">#FFB0BEC5</color>
+</resources>
