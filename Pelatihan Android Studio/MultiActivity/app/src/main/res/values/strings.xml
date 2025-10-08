@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Multi Activity</string>
+    <string name="first_activity_title">Ini Activity Pertama</string>
+    <string name="second_activity_title">Ini Activity Kedua</string>
+    <string name="third_activity_title">Ini Activity Ketiga</string>
+    <string name="to_second_activity">Ke Activity Kedua</string>
+    <string name="to_third_activity">Ke Activity Ketiga</string>
+    <string name="back_to_first">Kembali ke Activity Pertama</string>
+    <string name="back_to_second">Kembali ke Activity Kedua</string>
+</resources>

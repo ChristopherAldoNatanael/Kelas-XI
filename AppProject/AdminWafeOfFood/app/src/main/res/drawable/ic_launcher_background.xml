@@ -1,12 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path
-        android:fillColor="#3DDC84"
-        android:pathData="M0,0h108v108h-108z" />
+    
+    <!-- Gradient Background -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient 
+                android:startColor="#FF6B35"
+                android:endColor="#FF8C42"
+                android:type="radial"
+                android:centerX="54"
+                android:centerY="54"
+                android:gradientRadius="70"/>
+        </aapt:attr>
+    </path>
+    
+    <!-- Subtle Pattern Circles -->
+    <circle
+        android:fillColor="#FFFFFF10"
+        android:cx="30"
+        android:cy="30"
+        android:r="8"/>
+    <circle
+        android:fillColor="#FFFFFF08"
+        android:cx="78"
+        android:cy="25"
+        android:r="6"/>
+    <circle
+        android:fillColor="#FFFFFF12"
+        android:cx="85"
+        android:cy="75"
+        android:r="10"/>
+    <circle
+        android:fillColor="#FFFFFF06"
+        android:cx="25"
+        android:cy="80"
+        android:r="7"/>
+        
+</vector>
     <path
         android:fillColor="#00000000"
         android:pathData="M9,0L9,108"

@@ -69,6 +69,7 @@ class MainActivity : AppCompatActivity() {
                         true
                     }
                     R.id.navigation_menu -> {
+                        Log.d("MainActivity", "User clicked menu navigation")
                         loadFragment(MenuFragment())
                         true
                     }
@@ -91,13 +92,17 @@ class MainActivity : AppCompatActivity() {
     
     private fun loadFragment(fragment: Fragment) {
         try {
+            Log.d("MainActivity", "Loading fragment: ${fragment::class.java.simpleName}")
             if (!isFinishing && !isDestroyed) {
                 supportFragmentManager.beginTransaction()
                     .replace(R.id.container, fragment)
                     .commitAllowingStateLoss()
+                Log.d("MainActivity", "Fragment loaded successfully: ${fragment::class.java.simpleName}")
+            } else {
+                Log.w("MainActivity", "Activity finishing/destroyed, cannot load fragment")
             }
         } catch (e: Exception) {
-            Log.e("MainActivity", "Fragment load error", e)
+            Log.e("MainActivity", "Fragment load error for ${fragment::class.java.simpleName}", e)
         }
     }
     

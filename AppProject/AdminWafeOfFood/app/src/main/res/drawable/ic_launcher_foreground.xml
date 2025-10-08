@@ -1,26 +1,68 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <path android:pathData="M31,63.928c0,0 6.4,-11 12.1,-13.1c7.2,-2.6 26,-1.4 26,-1.4l38.1,38.1L107,108.928l-32,-1L31,63.928z">
-        <aapt:attr name="android:fillColor">
-            <gradient
-                android:endX="85.84757"
-                android:endY="92.4963"
-                android:startX="42.9492"
-                android:startY="49.59793"
-                android:type="linear">
-                <item
-                    android:color="#44000000"
-                    android:offset="0.0" />
-                <item
-                    android:color="#00000000"
-                    android:offset="1.0" />
-            </gradient>
-        </aapt:attr>
-    </path>
+    
+    <!-- Burger Icon -->
+    <group android:scaleX="1.2" android:scaleY="1.2" android:pivotX="54" android:pivotY="54">
+        
+        <!-- Top Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M30,40 Q30,32 38,32 L70,32 Q78,32 78,40 Q78,48 70,48 L38,48 Q30,48 30,40 Z"/>
+        
+        <!-- Top Bun Shadow -->
+        <path
+            android:fillColor="#B8860B"
+            android:pathData="M30,44 Q30,48 38,48 L70,48 Q78,48 78,44 Q78,46 70,46 L38,46 Q30,46 30,44 Z"/>
+        
+        <!-- Sesame Seeds -->
+        <ellipse android:fillColor="#F5DEB3" android:cx="40" android:cy="38" android:rx="1.5" android:ry="2"/>
+        <ellipse android:fillColor="#F5DEB3" android:cx="50" android:cy="36" android:rx="1.5" android:ry="2"/>
+        <ellipse android:fillColor="#F5DEB3" android:cx="58" android:cy="37" android:rx="1.5" android:ry="2"/>
+        <ellipse android:fillColor="#F5DEB3" android:cx="68" android:cy="39" android:rx="1.5" android:ry="2"/>
+        
+        <!-- Lettuce -->
+        <path
+            android:fillColor="#228B22"
+            android:pathData="M32,48 Q35,52 40,51 Q45,50 50,52 Q55,51 58,52 Q63,50 68,51 Q73,52 76,48 L32,48 Z"/>
+        
+        <!-- Tomato -->
+        <path
+            android:fillColor="#FF6347"
+            android:pathData="M33,52 L75,52 Q75,56 71,56 L37,56 Q33,56 33,52 Z"/>
+        <ellipse android:fillColor="#FF4500" android:cx="45" android:cy="54" android:rx="2" android:ry="1"/>
+        <ellipse android:fillColor="#FF4500" android:cx="63" android:cy="54" android:rx="2" android:ry="1"/>
+        
+        <!-- Cheese -->
+        <path
+            android:fillColor="#FFD700"
+            android:pathData="M34,56 L74,56 Q74,60 70,60 L38,60 Q34,60 34,56 Z"/>
+        
+        <!-- Meat Patty -->
+        <path
+            android:fillColor="#8B4513"
+            android:pathData="M35,60 L73,60 Q73,66 69,66 L39,66 Q35,66 35,60 Z"/>
+        
+        <!-- Meat Texture -->
+        <ellipse android:fillColor="#A0522D" android:cx="42" android:cy="63" android:rx="2" android:ry="1"/>
+        <ellipse android:fillColor="#A0522D" android:cx="54" android:cy="62" android:rx="3" android:ry="1"/>
+        <ellipse android:fillColor="#A0522D" android:cx="66" android:cy="64" android:rx="2" android:ry="1"/>
+        
+        <!-- Bottom Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M32,66 L76,66 Q78,66 78,71 Q78,76 70,76 L38,76 Q30,76 30,71 Q30,66 32,66 Z"/>
+        
+        <!-- Bottom Bun Shadow -->
+        <path
+            android:fillColor="#B8860B"
+            android:pathData="M30,71 Q30,76 38,76 L70,76 Q78,76 78,71 Q78,73 70,73 L38,73 Q30,73 30,71 Z"/>
+            
+    </group>
+    
+</vector>
     <path
         android:fillColor="#FFFFFF"
         android:fillType="nonZero"

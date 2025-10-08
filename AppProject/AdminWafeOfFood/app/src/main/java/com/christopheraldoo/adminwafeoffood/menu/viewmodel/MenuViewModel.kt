@@ -27,39 +27,52 @@ class MenuViewModel : ViewModel() {
     companion object {
         private const val TAG = "MenuViewModel"
     }
-    
-    init {
+      init {
         Log.d(TAG, "MenuViewModel initialized")
-        loadMenus()
+        // Don't call loadMenus() in init to prevent automatic loading
+        // Fragment will call loadMenus() or refreshMenus() when ready
     }
     
-    private fun loadMenus() {
+    fun loadMenus() {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Starting to load menus...")
                 _isLoading.value = true
+                _error.value = null // Clear previous errors
                 
-                // PERBAIKI - gunakan catch untuk handle error
+                // Use safer error handling
                 repository.getAllMenus()
                     .catch { exception ->
                         Log.e(TAG, "Error in menu flow", exception)
                         _error.value = "Error loading menus: ${exception.message}"
                         _menuList.value = emptyList()
-                        _isLoading.value = false // PENTING: Set loading false saat error
+                        _isLoading.value = false
                     }
                     .collect { menuList ->
-                        Log.d(TAG, "Received ${menuList.size} menus from repository")
-                        _menuList.value = menuList
-                        _isLoading.value = false // PENTING: Set loading false saat sukses
+                        try {
+                            Log.d(TAG, "Received ${menuList.size} menus from repository")
+                            _menuList.value = menuList
+                            _isLoading.value = false
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error processing collected menus", e)
+                            _error.value = "Error processing menu data: ${e.message}"
+                            _menuList.value = emptyList()
+                            _isLoading.value = false
+                        }
                     }
                     
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading menus", e)
                 _error.value = "Error loading menus: ${e.message}"
                 _menuList.value = emptyList()
-                _isLoading.value = false // PENTING: Set loading false saat error
+                _isLoading.value = false
             }
         }
+    }
+
+    fun refreshMenus() {
+        Log.d(TAG, "Refreshing menus...")
+        loadMenus()
     }
     
     fun addMenu(menuItem: MenuItem) {
@@ -71,15 +84,15 @@ class MenuViewModel : ViewModel() {
                 val response = repository.addMenu(menuItem)
                 Log.d(TAG, "Add menu response: ${response.message}")
                 
-                _error.value = response.message
-                
-                // TIDAK perlu manual reload - Firebase realtime akan otomatis update
+                if (response.result.name != "SUCCESS") {
+                    _error.value = response.message
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error adding menu", e)
                 _error.value = "Failed to add menu: ${e.message}"
             } finally {
-                _isLoading.value = false // PENTING: Selalu set false di finally
+                _isLoading.value = false
             }
         }
     }
@@ -93,13 +106,15 @@ class MenuViewModel : ViewModel() {
                 val response = repository.updateMenu(menuItem)
                 Log.d(TAG, "Update menu response: ${response.message}")
                 
-                _error.value = response.message
+                if (response.result.name != "SUCCESS") {
+                    _error.value = response.message
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error updating menu", e)
                 _error.value = "Failed to update menu: ${e.message}"
             } finally {
-                _isLoading.value = false // PENTING: Selalu set false
+                _isLoading.value = false
             }
         }
     }
@@ -108,12 +123,13 @@ class MenuViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Deleting menu: $menuId")
-                // TIDAK set loading untuk delete - biar responsive
                 
                 val response = repository.deleteMenu(menuId)
                 Log.d(TAG, "Delete menu response: ${response.message}")
                 
-                _error.value = response.message
+                if (response.result.name != "SUCCESS") {
+                    _error.value = response.message
+                }
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error deleting menu", e)
@@ -126,12 +142,10 @@ class MenuViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Updating availability: $menuId -> $isAvailable")
-                // TIDAK set loading untuk toggle - biar responsive
                 
                 val response = repository.updateMenuAvailability(menuId, isAvailable)
                 
-                // TIDAK show success message untuk toggle sederhana
-                if (response.result.name == "ERROR") {
+                if (response.result.name != "SUCCESS") {
                     _error.value = response.message
                 }
                 
@@ -156,10 +170,5 @@ class MenuViewModel : ViewModel() {
     fun clearError() {
         Log.d(TAG, "Clearing error")
         _error.value = null
-    }
-    
-    fun refreshMenus() {
-        Log.d(TAG, "Manual refresh requested")
-        loadMenus()
     }
 }

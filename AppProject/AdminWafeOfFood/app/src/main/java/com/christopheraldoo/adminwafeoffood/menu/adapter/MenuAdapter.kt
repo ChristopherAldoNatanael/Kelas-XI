@@ -40,13 +40,11 @@ class MenuAdapter(
                 // Menu info
                 tvMenuName.text = menuItem.name
                 tvMenuDescription.text = menuItem.description
-                tvMenuPrice.text = "Rp ${String.format("%,.0f", menuItem.price)}"
-                tvMenuCategory.text = menuItem.category
-
-                // Load image
-                if (menuItem.imageUrl.isNotEmpty()) {
+                tvMenuPrice.text = menuItem.getFormattedPrice()
+                tvMenuCategory.text = menuItem.category                // Load image
+                if (menuItem.imageURL.isNotEmpty()) {
                     Glide.with(itemView.context)
-                        .load(menuItem.imageUrl)
+                        .load(menuItem.imageURL)
                         .placeholder(android.R.drawable.ic_menu_gallery)
                         .error(android.R.drawable.ic_menu_gallery)
                         .into(ivMenuImage)

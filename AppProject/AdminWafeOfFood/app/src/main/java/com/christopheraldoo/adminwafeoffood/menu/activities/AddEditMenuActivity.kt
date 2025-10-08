@@ -1,634 +1,376 @@
 package com.christopheraldoo.adminwafeoffood.menu.activities
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
+import android.provider.OpenableColumns
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
-import android.view.MenuItem
+import android.util.Patterns
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Toast
-import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.viewModels
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.christopheraldoo.adminwafeoffood.R
 import com.christopheraldoo.adminwafeoffood.databinding.ActivityAddEditMenuBinding
+import com.christopheraldoo.adminwafeoffood.menu.model.MenuItem
 import com.christopheraldoo.adminwafeoffood.menu.model.DefaultMenuCategories
-import com.christopheraldoo.adminwafeoffood.menu.model.MenuItem as MenuItemModel
-import com.christopheraldoo.adminwafeoffood.menu.model.MenuValidation
-import com.christopheraldoo.adminwafeoffood.menu.viewmodel.MenuViewModel
-import com.github.dhaval2404.imagepicker.ImagePicker
-import kotlinx.coroutines.launch
+import com.christopheraldoo.adminwafeoffood.menu.viewmodel.AddMenuViewModel
+import java.util.*
 
 class AddEditMenuActivity : AppCompatActivity() {
     
     private lateinit var binding: ActivityAddEditMenuBinding
-    private val viewModel: MenuViewModel by viewModels()
-    
-    private var currentMenuItem: MenuItemModel? = null
+    private lateinit var viewModel: AddMenuViewModel
+    private var currentMenuItem: MenuItem? = null
+    private var selectedImageUrl: String? = null
     private var selectedImageUri: Uri? = null
-    private var mode: String = MODE_ADD
-    private var menuId: String? = null
-    private var hasUnsavedChanges = false
     
     companion object {
         private const val TAG = "AddEditMenuActivity"
-        const val MODE_ADD = "add"
-        const val MODE_EDIT = "edit"
-        const val MODE_VIEW = "view"
-        const val EXTRA_MODE = "mode"
-        const val EXTRA_MENU_ID = "menu_id"
-        const val REQUEST_CODE_ADD_MENU = 1001
-        const val REQUEST_CODE_EDIT_MENU = 1002
-        
-        fun createAddIntent(context: android.content.Context): Intent {
-            return Intent(context, AddEditMenuActivity::class.java).apply {
-                putExtra(EXTRA_MODE, MODE_ADD)
-            }
-        }
-        
-        fun createEditIntent(context: android.content.Context, menuId: String): Intent {
-            return Intent(context, AddEditMenuActivity::class.java).apply {
-                putExtra(EXTRA_MODE, MODE_EDIT)
-                putExtra(EXTRA_MENU_ID, menuId)
-            }
-        }
-        
-        fun createViewIntent(context: android.content.Context, menuId: String): Intent {
-            return Intent(context, AddEditMenuActivity::class.java).apply {
-                putExtra(EXTRA_MODE, MODE_VIEW)
-                putExtra(EXTRA_MENU_ID, menuId)
-            }
-        }
-    }
-    
-    private val imagePickerLauncher = registerForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val data = result.data
-            selectedImageUri = data?.data
-            selectedImageUri?.let { uri ->
-                loadImageFromUri(uri)
-                hasUnsavedChanges = true
-            }
-        }
+        const val EXTRA_MENU_ITEM = "extra_menu_item"
+        const val EXTRA_IS_EDIT_MODE = "extra_is_edit_mode"
     }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityAddEditMenuBinding.inflate(layoutInflater)
-        setContentView(binding.root)
         
-        Log.d(TAG, "onCreate: Starting AddEditMenuActivity")
-        
-        setupUI()
-        handleIntent()
-        setupClickListeners()
-        observeViewModel()
-        setupTextWatchers()
-        
-        // Handle back press - FIX: Gunakan OnBackPressedCallback
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                handleBackPress()
-            }
-        })
+        try {
+            binding = ActivityAddEditMenuBinding.inflate(layoutInflater)
+            setContentView(binding.root)
+            
+            // Initialize ViewModel safely
+            viewModel = ViewModelProvider(this)[AddMenuViewModel::class.java]
+            
+            setupUI()
+            Log.d(TAG, "Activity created successfully")
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating activity", e)
+            Toast.makeText(this, "Error opening menu editor", Toast.LENGTH_SHORT).show()
+            finish()
+        }
     }
     
     private fun setupUI() {
         try {
-            // Setup toolbar
+            setupToolbar()
+            setupCategorySpinner()
+            setupImageUrlOnly()
+            setupClickListeners()
+            setupObservers()
+            loadMenuData()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting up UI", e)
+            Toast.makeText(this, "Error setting up interface", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun setupToolbar() {
+        try {
             setSupportActionBar(binding.toolbar)
             supportActionBar?.apply {
+                title = if (isEditMode()) "Edit Menu" else "Add Menu"
                 setDisplayHomeAsUpEnabled(true)
-                setDisplayShowHomeEnabled(true)
             }
-            
-            // Setup category spinner
-            setupCategorySpinner()
-            
-            Log.d(TAG, "setupUI: UI setup completed")
         } catch (e: Exception) {
-            Log.e(TAG, "Error in setupUI", e)
-            showError("Error setting up UI: ${e.message}")
+            Log.e(TAG, "Error setting up toolbar", e)
         }
     }
     
     private fun setupCategorySpinner() {
         try {
             val categories = DefaultMenuCategories.getCategoryDisplayNames()
-            val adapter = ArrayAdapter(
-                this, 
-                android.R.layout.simple_spinner_item, 
-                categories
-            )
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spinnerCategory.adapter = adapter
-            Log.d(TAG, "Category spinner setup with ${categories.size} categories")
+            val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, categories)
+            binding.spinnerCategory.setAdapter(adapter)
+            
+            if (categories.isNotEmpty()) {
+                binding.spinnerCategory.setText(categories[0], false)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up category spinner", e)
         }
     }
     
-    private fun handleIntent() {
+    private fun setupImageUrlOnly() {
         try {
-            mode = intent.getStringExtra(EXTRA_MODE) ?: MODE_ADD
-            menuId = intent.getStringExtra(EXTRA_MENU_ID)
+            binding.etImageUrl.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                
+                override fun afterTextChanged(s: Editable?) {
+                    try {
+                        val url = s.toString().trim()
+                        if (url.isNotEmpty() && Patterns.WEB_URL.matcher(url).matches()) {
+                            viewModel.setImageUrl(url)
+                            loadImageFromUrl(url)
+                        } else if (url.isEmpty()) {
+                            viewModel.clearImageUrl()
+                            clearImagePreview()
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error processing URL input", e)
+                    }
+                }
+            })
             
-            Log.d(TAG, "handleIntent: mode=$mode, menuId=$menuId")
-            
-            when (mode) {
-                MODE_ADD -> {
-                    title = "Add New Menu"
-                    binding.btnSaveMenu.text = "Add Menu"
-                }
-                MODE_EDIT -> {
-                    title = "Edit Menu"
-                    binding.btnSaveMenu.text = "Update Menu"
-                    loadMenuData()
-                }
-                MODE_VIEW -> {
-                    title = "Menu Details"
-                    binding.btnSaveMenu.visibility = View.GONE
-                    setFieldsReadOnly()
-                    loadMenuData()
-                }
-            }
+            binding.cardImagePreview.visibility = View.GONE
         } catch (e: Exception) {
-            Log.e(TAG, "Error handling intent", e)
-            showError("Error loading activity: ${e.message}")
-            finish()
-        }
-    }
-    
-    private fun loadMenuData() {
-        val id = menuId
-        if (id.isNullOrEmpty()) {
-            showError("Menu ID is required for this operation")
-            finish()
-            return
-        }
-        
-        lifecycleScope.launch {
-            try {
-                Log.d(TAG, "Loading menu data for ID: $id")
-                showLoading(true)
-                
-                val menuItem = viewModel.getMenuById(id)
-                if (menuItem != null) {
-                    currentMenuItem = menuItem
-                    populateFields(menuItem)
-                    Log.d(TAG, "Menu data loaded successfully: ${menuItem.name}")
-                } else {
-                    showError("Menu not found")
-                    finish()
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error loading menu data", e)
-                showError("Error loading menu: ${e.message}")
-                finish()
-            } finally {
-                showLoading(false)
-            }
-        }
-    }
-    
-    private fun populateFields(menuItem: MenuItemModel) {
-        try {
-            binding.apply {
-                etMenuName.setText(menuItem.name)
-                etMenuDescription.setText(menuItem.description)
-                etMenuPrice.setText(if (menuItem.price > 0) menuItem.price.toString() else "")
-                
-                // Set category
-                setCategorySelection(menuItem.category)
-                
-                // Load image
-                loadMenuImage(menuItem.imageUrl)
-                
-                // Set availability
-                switchAvailable.isChecked = menuItem.isAvailable
-                
-                Log.d(TAG, "Fields populated for menu: ${menuItem.name}")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error populating fields", e)
-            showError("Error displaying menu data")
-        }
-    }
-    
-    private fun setCategorySelection(categoryName: String) {
-        try {
-            val categories = DefaultMenuCategories.getCategories()
-            val categoryIndex = categories.indexOfFirst { 
-                it.name == categoryName || it.displayName == categoryName 
-            }
-            if (categoryIndex >= 0) {
-                binding.spinnerCategory.setSelection(categoryIndex)
-                Log.d(TAG, "Category set to index $categoryIndex for category: $categoryName")
-            } else {
-                Log.w(TAG, "Category not found: $categoryName")
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting category selection", e)
-        }
-    }
-    
-    private fun loadMenuImage(imageUrl: String) {
-        try {
-            if (imageUrl.isNotEmpty()) {
-                Glide.with(this)
-                    .load(imageUrl)
-                    .placeholder(android.R.drawable.ic_menu_gallery)
-                    .error(android.R.drawable.ic_menu_gallery)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .into(binding.ivMenuImage)
-                
-                binding.tvImageHint?.visibility = View.GONE
-                Log.d(TAG, "Image loaded from URL")
-            } else {
-                binding.ivMenuImage.setImageResource(android.R.drawable.ic_menu_gallery)
-                binding.tvImageHint?.visibility = View.VISIBLE
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading image", e)
-            binding.ivMenuImage.setImageResource(android.R.drawable.ic_menu_gallery)
-        }
-    }
-    
-    private fun loadImageFromUri(uri: Uri) {
-        try {
-            Glide.with(this)
-                .load(uri)
-                .placeholder(android.R.drawable.ic_menu_gallery)
-                .error(android.R.drawable.ic_menu_gallery)
-                .into(binding.ivMenuImage)
-            
-            binding.tvImageHint?.visibility = View.GONE
-            Log.d(TAG, "Image loaded from URI: $uri")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error loading image from URI", e)
-        }
-    }
-    
-    private fun setFieldsReadOnly() {
-        try {
-            binding.apply {
-                etMenuName.isEnabled = false
-                etMenuDescription.isEnabled = false
-                etMenuPrice.isEnabled = false
-                spinnerCategory.isEnabled = false
-                switchAvailable.isEnabled = false
-                ivMenuImage.isClickable = false
-                btnSelectImage?.isEnabled = false
-            }
-            Log.d(TAG, "Fields set to read-only")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting fields read-only", e)
+            Log.e(TAG, "Error setting up image URL", e)
         }
     }
     
     private fun setupClickListeners() {
         try {
-            binding.apply {
-                btnSaveMenu.setOnClickListener {
-                    if (mode != MODE_VIEW) {
-                        saveMenu()
-                    }
-                }
-                
-                ivMenuImage.setOnClickListener {
-                    if (mode != MODE_VIEW) {
-                        pickImage()
-                    }
-                }
-                
-                btnSelectImage?.setOnClickListener {
-                    if (mode != MODE_VIEW) {
-                        pickImage()
-                    }
-                }
+            binding.btnSave.setOnClickListener { saveMenu() }
+            
+            // URL-only actions
+            binding.btnRemoveImageUrl.setOnClickListener {
+                try {
+                    binding.etImageUrl.setText("")
+                    selectedImageUrl = null
+                    viewModel.clearImageUrl()
+                    clearImagePreview()
+                } catch (_: Exception) {}
             }
-            Log.d(TAG, "Click listeners setup completed")
+            
+            binding.btnChangeImageUrl.setOnClickListener {
+                showChangeImageUrlDialog()
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error setting up click listeners", e)
         }
     }
     
-    private fun setupTextWatchers() {
+    private fun showChangeImageUrlDialog() {
         try {
-            if (mode != MODE_VIEW) {
-                binding.apply {
-                    etMenuName.doOnTextChanged { _, _, _, _ -> hasUnsavedChanges = true }
-                    etMenuDescription.doOnTextChanged { _, _, _, _ -> hasUnsavedChanges = true }
-                    etMenuPrice.doOnTextChanged { _, _, _, _ -> hasUnsavedChanges = true }
+            val dialogView = layoutInflater.inflate(com.christopheraldoo.adminwafeoffood.R.layout.dialog_image_url_input, null)
+            val til = dialogView.findViewById<com.google.android.material.textfield.TextInputLayout>(com.christopheraldoo.adminwafeoffood.R.id.textInputLayoutUrl)
+            val et = dialogView.findViewById<com.google.android.material.textfield.TextInputEditText>(com.christopheraldoo.adminwafeoffood.R.id.editTextImageUrl)
+            val ivPreview = dialogView.findViewById<android.widget.ImageView>(com.christopheraldoo.adminwafeoffood.R.id.imageViewPreview)
+            val tvStatus = dialogView.findViewById<android.widget.TextView>(com.christopheraldoo.adminwafeoffood.R.id.textViewPreviewStatus)
+            
+            et.setText(binding.etImageUrl.text?.toString() ?: "")
+            
+            val alert = com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setView(dialogView)
+                .setPositiveButton("SIMPAN", null)
+                .setNegativeButton("BATAL", null)
+                .create()
+            
+            // Live preview when user types
+            et.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val url = s?.toString()?.trim().orEmpty()
+                    if (url.isNotEmpty() && Patterns.WEB_URL.matcher(url).matches()) {
+                        ivPreview.visibility = View.VISIBLE
+                        tvStatus.visibility = View.VISIBLE
+                        tvStatus.text = "Preview"
+                        Glide.with(this@AddEditMenuActivity)
+                            .load(url)
+                            .placeholder(android.R.drawable.ic_menu_gallery)
+                            .error(android.R.drawable.ic_menu_gallery)
+                            .into(ivPreview)
+                    } else {
+                        ivPreview.visibility = View.GONE
+                        tvStatus.visibility = View.GONE
+                    }
+                }
+            })
+            
+            alert.setOnShowListener {
+                val btnSave = alert.getButton(android.app.AlertDialog.BUTTON_POSITIVE)
+                btnSave.setOnClickListener {
+                    val url = et.text?.toString()?.trim().orEmpty()
+                    if (url.isEmpty() || !Patterns.WEB_URL.matcher(url).matches()) {
+                        til.error = "URL tidak valid"
+                        return@setOnClickListener
+                    }
+                    til.error = null
+                    binding.etImageUrl.setText(url)
+                    loadImageFromUrl(url)
+                    alert.dismiss()
                 }
             }
+            
+            alert.show()
         } catch (e: Exception) {
-            Log.e(TAG, "Error setting up text watchers", e)
+            Log.e(TAG, "Error showing change image URL dialog", e)
         }
     }
     
-    private fun pickImage() {
+    private fun loadImageFromUrl(url: String) {
         try {
-            ImagePicker.with(this)
-                .crop()
-                .compress(1024)
-                .maxResultSize(1080, 1080)
-                .createIntent { intent ->
-                    imagePickerLauncher.launch(intent)
-                }
+            selectedImageUrl = url
+            selectedImageUri = null
+            
+            viewModel.setImageUrl(url)
+            
+            Glide.with(this)
+                .load(url)
+                .placeholder(android.R.drawable.ic_menu_gallery)
+                .error(android.R.drawable.ic_menu_gallery)
+                .into(binding.ivPreview)
+                
+            binding.cardImagePreview.visibility = View.VISIBLE
         } catch (e: Exception) {
-            Log.e(TAG, "Error picking image", e)
-            showError("Error opening image picker")
+            Log.e(TAG, "Error loading image from URL", e)
+            Toast.makeText(this, "Error loading image from URL", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private fun clearImagePreview() {
+        try {
+            binding.ivPreview.setImageDrawable(null)
+            binding.cardImagePreview.visibility = View.GONE
+        } catch (e: Exception) {
+            Log.e(TAG, "Error clearing image preview", e)
+        }
+    }
+    
+    private fun loadMenuData() {
+        try {
+            if (isEditMode()) {
+                currentMenuItem = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    intent.getParcelableExtra(EXTRA_MENU_ITEM, MenuItem::class.java)
+                } else {
+                    @Suppress("DEPRECATION")
+                    intent.getParcelableExtra<MenuItem>(EXTRA_MENU_ITEM)
+                }
+                
+                currentMenuItem?.let { menu ->
+                    binding.etMenuName.setText(menu.name)
+                    binding.etMenuDescription.setText(menu.description)
+                    binding.etMenuPrice.setText(menu.price.toString())
+                    binding.switchAvailable.isChecked = menu.isAvailable
+                    
+                    val categories = DefaultMenuCategories.getCategories()
+                    val categoryDisplayNames = DefaultMenuCategories.getCategoryDisplayNames()
+                    val categoryIndex = categories.indexOfFirst { it.name == menu.category }
+                    if (categoryIndex >= 0 && categoryIndex < categoryDisplayNames.size) {
+                        binding.spinnerCategory.setText(categoryDisplayNames[categoryIndex], false)
+                    }
+                    
+                    if (menu.imageURL.isNotEmpty()) {
+                        binding.etImageUrl.setText(menu.imageURL)
+                        loadImageFromUrl(menu.imageURL)
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error loading menu data", e)
+            Toast.makeText(this, "Error loading menu data", Toast.LENGTH_SHORT).show()
         }
     }
     
     private fun saveMenu() {
         try {
-            if (!validateInput()) {
-                Log.w(TAG, "Input validation failed")
-                return
+            val menuName = binding.etMenuName.text.toString().trim()
+            val menuDescription = binding.etMenuDescription.text.toString().trim()
+            val menuPriceText = binding.etMenuPrice.text.toString().trim()
+            val isAvailable = binding.switchAvailable.isChecked
+            
+            val selectedCategoryText = binding.spinnerCategory.text.toString()
+            val categories = DefaultMenuCategories.getCategories()
+            val categoryDisplayNames = DefaultMenuCategories.getCategoryDisplayNames()
+            val categoryIndex = categoryDisplayNames.indexOf(selectedCategoryText)
+            val category = if (categoryIndex >= 0 && categoryIndex < categories.size) {
+                categories[categoryIndex].name
+            } else {
+                "main_course"
             }
             
-            val menuItem = createMenuItemFromInput()
-            if (menuItem == null) {
-                showError("Error creating menu data")
-                return
+            val finalImageUrl = viewModel.imageUrl.value ?: selectedImageUrl ?: ""
+            
+            val existingMenuId = if (isEditMode()) {
+                currentMenuItem?.id ?: ""
+            } else {
+                ""
             }
             
-            Log.d(TAG, "Saving menu: ${menuItem.name}")
+            viewModel.saveMenu(
+                name = menuName,
+                description = menuDescription,
+                priceText = menuPriceText,
+                category = category,
+                imageUrl = finalImageUrl,
+                isAvailable = isAvailable,
+                adminId = "admin_001",
+                isEditMode = isEditMode(),
+                existingMenuId = existingMenuId
+            )
             
-            when (mode) {
-                MODE_ADD -> viewModel.addMenu(menuItem)
-                MODE_EDIT -> viewModel.updateMenu(menuItem)
-            }
+            Log.d(TAG, "Save menu initiated: $menuName")
+            
         } catch (e: Exception) {
             Log.e(TAG, "Error saving menu", e)
-            showError("Error saving menu: ${e.message}")
+            Toast.makeText(this, "Error saving menu: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
     
-    private fun validateInput(): Boolean {
+    private fun isEditMode(): Boolean {
+        return intent.getBooleanExtra(EXTRA_IS_EDIT_MODE, false)
+    }
+    
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
+    }
+    
+    private fun setupObservers() {
         try {
-            binding.apply {
-                val name = etMenuName.text.toString().trim()
-                val description = etMenuDescription.text.toString().trim()
-                val priceText = etMenuPrice.text.toString().trim()
-                
-                // Clear previous errors
-                etMenuName.error = null
-                etMenuDescription.error = null
-                etMenuPrice.error = null
-                
-                // Validate name - PERBAIKI INI
-                if (name.isBlank()) {
-                    etMenuName.error = "Menu name is required"
-                    etMenuName.requestFocus()
-                    return false
-                }
-                if (name.length < 3) {
-                    etMenuName.error = "Menu name must be at least 3 characters"
-                    etMenuName.requestFocus()
-                    return false
-                }
-                if (name.length > 50) {
-                    etMenuName.error = "Menu name must not exceed 50 characters"
-                    etMenuName.requestFocus()
-                    return false
-                }
-                
-                // Validate description - PERBAIKI INI
-                if (description.isBlank()) {
-                    etMenuDescription.error = "Description is required"
-                    etMenuDescription.requestFocus()
-                    return false
-                }
-                if (description.length < 10) {
-                    etMenuDescription.error = "Description must be at least 10 characters"
-                    etMenuDescription.requestFocus()
-                    return false
-                }
-                if (description.length > 200) {
-                    etMenuDescription.error = "Description must not exceed 200 characters"
-                    etMenuDescription.requestFocus()
-                    return false
-                }
-                
-                // Validate price - PERBAIKI INI
-                if (priceText.isBlank()) {
-                    etMenuPrice.error = "Price is required"
-                    etMenuPrice.requestFocus()
-                    return false
-                }
-                
+            viewModel.saveState.observe(this) { state ->
                 try {
-                    val price = priceText.toDouble()
-                    if (price <= 0) {
-                        etMenuPrice.error = "Price must be greater than 0"
-                        etMenuPrice.requestFocus()
-                        return false
-                    }
-                    if (price > 10000000) {
-                        etMenuPrice.error = "Price must not exceed Rp 10,000,000"
-                        etMenuPrice.requestFocus()
-                        return false
-                    }
-                } catch (e: NumberFormatException) {
-                    etMenuPrice.error = "Invalid price format"
-                    etMenuPrice.requestFocus()
-                    return false
-                }
-                
-                // Validate category
-                if (spinnerCategory.selectedItemPosition < 0) {
-                    showError("Please select a category")
-                    return false
-                }
-                
-                return true
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error during validation", e)
-            showError("Validation error: ${e.message}")
-            return false
-        }
-    }
-    
-    private fun createMenuItemFromInput(): MenuItemModel? {
-        return try {
-            val name = binding.etMenuName.text.toString().trim()
-            val description = binding.etMenuDescription.text.toString().trim()
-            val price = binding.etMenuPrice.text.toString().toDouble()
-            
-            // Get selected category
-            val selectedCategoryPosition = binding.spinnerCategory.selectedItemPosition
-            val categories = DefaultMenuCategories.getCategories()
-            val selectedCategory = if (selectedCategoryPosition >= 0 && selectedCategoryPosition < categories.size) {
-                categories[selectedCategoryPosition].name
-            } else {
-                "main_course" // default
-            }
-            
-            val isAvailable = binding.switchAvailable.isChecked
-            val imageUrl = selectedImageUri?.toString() ?: currentMenuItem?.imageUrl ?: ""
-            
-            // Create and return MenuItem
-            val menuItem = when (mode) {
-                MODE_EDIT -> {
-                    currentMenuItem?.copy(
-                        name = name,
-                        description = description,
-                        price = price,
-                        category = selectedCategory,
-                        isAvailable = isAvailable,
-                        imageUrl = imageUrl,
-                        updatedAt = System.currentTimeMillis()
-                    )
-                }
-                else -> {
-                    MenuItemModel(
-                        id = "", // Will be generated by Firebase
-                        name = name,
-                        description = description,
-                        price = price,
-                        category = selectedCategory,
-                        isAvailable = isAvailable,
-                        imageUrl = imageUrl,
-                        createdAt = System.currentTimeMillis(),
-                        updatedAt = System.currentTimeMillis(),
-                        adminId = "admin_001" // TODO: Replace with actual admin ID from auth
-                    )
-                }
-            }
-            
-            menuItem
-            
-        } catch (e: Exception) {
-            Log.e(TAG, "Error creating menu item from input", e)
-            null
-        }
-    }
-    
-    private fun observeViewModel() {
-        try {
-            lifecycleScope.launch {
-                viewModel.error.collect { error ->
-                    error?.let {
-                        Log.d(TAG, "ViewModel error received: $it")
-                        showError(it)
-                        
-                        // PERBAIKI - Close activity hanya untuk success message
-                        if (it.startsWith("✅") || it.contains("berhasil")) {
-                            hasUnsavedChanges = false
+                    when (state) {
+                        is AddMenuViewModel.SaveState.Idle -> {
+                            binding.btnSave.isEnabled = true
+                            binding.btnSave.text = "💾 SIMPAN MENU"
+                            binding.progressBar.visibility = View.GONE
+                        }
+                        is AddMenuViewModel.SaveState.Loading -> {
+                            binding.btnSave.isEnabled = false
+                            binding.btnSave.text = "⏳ Menyimpan..."
+                            binding.progressBar.visibility = View.VISIBLE
+                        }
+                        is AddMenuViewModel.SaveState.Success -> {
+                            binding.btnSave.isEnabled = true
+                            binding.btnSave.text = "💾 SIMPAN MENU"
+                            binding.progressBar.visibility = View.GONE
+                            Toast.makeText(this, "✅ ${state.message}", Toast.LENGTH_SHORT).show()
                             setResult(Activity.RESULT_OK)
                             finish()
                         }
-                        viewModel.clearError()
+                        is AddMenuViewModel.SaveState.Error -> {
+                            binding.btnSave.isEnabled = true
+                            binding.btnSave.text = "💾 SIMPAN MENU"
+                            binding.progressBar.visibility = View.GONE
+                            Toast.makeText(this, "❌ ${state.message}", Toast.LENGTH_SHORT).show()
+                        }
                     }
+                } catch (e: Exception) {}
+            }
+            
+            viewModel.validationError.observe(this) { error ->
+                error?.let {
+                    Toast.makeText(this, "⚠️ $it", Toast.LENGTH_SHORT).show()
                 }
             }
             
-            lifecycleScope.launch {
-                viewModel.isLoading.collect { isLoading ->
-                    Log.d(TAG, "Loading state: $isLoading")
-                    showLoading(isLoading)
-                    updateSaveButtonState(isLoading)
+            viewModel.imageUrl.observe(this) { url ->
+                if (url.isNotEmpty()) {
+                    selectedImageUrl = url
                 }
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error setting up ViewModel observers", e)
-        }
-    }
-    
-    private fun updateSaveButtonState(isLoading: Boolean) {
-        try {
-            binding.btnSaveMenu.apply {
-                isEnabled = !isLoading
-                text = when {
-                    isLoading -> "Saving..." // INI yang bikin tombol stuck "Saving"
-                    mode == MODE_ADD -> "Add Menu"
-                    mode == MODE_EDIT -> "Update Menu"
-                    else -> "Save"
-                }
-            }
-            Log.d(TAG, "Save button updated - enabled: ${!isLoading}, text: ${binding.btnSaveMenu.text}")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error updating save button state", e)
-        }
-    }
-    
-    private fun showLoading(show: Boolean) {
-        try {
-            binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing loading", e)
-        }
-    }
-    
-    private fun showError(message: String) {
-        try {
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
-            Log.e(TAG, "Error shown to user: $message")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing error message", e)
-        }
-    }
-    
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        return when (item.itemId) {
-            android.R.id.home -> {
-                handleBackPress()
-                true
-            }
-            else -> super.onOptionsItemSelected(item)
-        }
-    }
-    
-    private fun handleBackPress() {
-        if (hasUnsavedChanges && mode != MODE_VIEW) {
-            showUnsavedChangesDialog()
-        } else {
-            finish()
-        }
-    }
-    
-    private fun showUnsavedChangesDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("Unsaved Changes")
-            .setMessage("You have unsaved changes. Are you sure you want to leave?")
-            .setPositiveButton("Leave") { _, _ ->
-                finish()
-            }
-            .setNegativeButton("Stay", null)
-            .show()
-    }
-    
-    override fun onDestroy() {
-        super.onDestroy()
-        Log.d(TAG, "Activity destroyed")
+        } catch (e: Exception) {}
     }
 }
-
-// Extension function untuk text watcher
-private inline fun android.widget.EditText.doOnTextChanged(
-    crossinline action: (
-        text: CharSequence?,
-        start: Int,
-        count: Int,
-        after: Int
-    ) -> Unit
-) = addTextChangedListener(object : android.text.TextWatcher {
-    override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-    override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-        action(s, start, count, before)
-    }
-    override fun afterTextChanged(s: android.text.Editable?) {}
-})

@@ -1,0 +1,88 @@
+<resources>
+    <string name="app_name">SimpleWeatherApp</string>
+    
+    <!-- Common -->
+    <string name="loading">Memuat…</string>
+    <string name="error_occurred">Terjadi kesalahan</string>
+    <string name="retry">Coba lagi</string>
+    <string name="search">Cari</string>
+    <string name="search_city">Cari kota…</string>
+    <string name="location_permission_required">Izin lokasi diperlukan</string>
+    <string name="grant_permission">Berikan Izin</string>
+    <string name="refresh">Perbarui</string>
+    <string name="weather">Cuaca</string>
+    <string name="forecast">Prakiraan</string>
+    <string name="alerts">Peringatan</string>
+    <string name="settings">Pengaturan</string>
+    
+    <!-- Weather Details -->
+    <string name="temperature">Suhu</string>
+    <string name="feels_like">Terasa seperti</string>
+    <string name="humidity">Kelembaban</string>
+    <string name="wind">Angin</string>
+    <string name="pressure">Tekanan</string>
+    <string name="visibility">Visibilitas</string>
+    <string name="sunrise">Matahari terbit</string>
+    <string name="sunset">Matahari terbenam</string>
+    <string name="uv_index">Indeks UV</string>
+    <string name="precipitation">Presipitasi</string>
+    <string name="today">Hari ini</string>
+    <string name="tomorrow">Besok</string>
+    <string name="degree_celsius">°C</string>
+    <string name="degree_fahrenheit">°F</string>
+    <string name="meter_per_second">m/dtk</string>
+    <string name="miles_per_hour">mph</string>
+    <string name="hpa">hPa</string>
+    <string name="percentage">%</string>
+    <string name="kilometers">km</string>
+    <string name="miles">mi</string>
+    
+    <!-- Forecast -->
+    <string name="forecast_for">Prakiraan untuk %1$s</string>
+    <string name="five_day_forecast">Prakiraan 5 Hari</string>
+    <string name="hourly_forecast">Prakiraan Perjam</string>
+    <string name="daily_forecast">Prakiraan Harian</string>
+    
+    <!-- Weather Alerts -->
+    <string name="no_alerts">Tidak ada peringatan cuaca saat ini</string>
+    <string name="weather_alerts">Peringatan Cuaca</string>
+    <string name="alert_from">Peringatan dari %1$s</string>
+    <string name="valid_until">Berlaku hingga %1$s</string>
+    <string name="alert_description">Deskripsi</string>
+    
+    <!-- Settings -->
+    <string name="app_theme">Tema Aplikasi</string>
+    <string name="units">Satuan</string>
+    <string name="language">Bahasa</string>
+    <string name="notifications">Notifikasi</string>
+    <string name="default_city">Kota Default</string>
+    <string name="about_app">Tentang Aplikasi</string>
+    
+    <!-- Themes -->
+    <string name="theme_system">Sistem</string>
+    <string name="theme_light">Terang</string>
+    <string name="theme_dark">Gelap</string>
+    <string name="theme_auto">Otomatis (Siang/Malam)</string>
+    
+    <!-- Units -->
+    <string name="units_metric">Metrik (°C, m/dtk)</string>
+    <string name="units_imperial">Imperial (°F, mph)</string>
+    
+    <!-- Languages -->
+    <string name="language_en">English (Inggris)</string>
+    <string name="language_es">Español (Spanyol)</string>
+    <string name="language_id">Bahasa Indonesia</string>
+    <string name="language_fr">Français (Prancis)</string>
+    <string name="language_de">Deutsch (Jerman)</string>
+    
+    <!-- Widget -->
+    <string name="widget_name">Widget Cuaca</string>
+    <string name="widget_description">Menampilkan informasi cuaca saat ini</string>
+    <string name="configure_widget">Konfigurasi Widget</string>
+    
+    <!-- Other -->
+    <string name="permission_explanation">Izin lokasi diperlukan untuk memberikan informasi cuaca yang akurat untuk wilayah Anda.</string>
+    <string name="save">Simpan</string>
+    <string name="cancel">Batal</string>
+    <string name="done">Selesai</string>
+</resources>

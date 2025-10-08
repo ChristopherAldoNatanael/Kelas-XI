@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Burger -->
+    <group android:scaleX="0.6" android:scaleY="0.6" android:pivotX="54" android:pivotY="54">
+        
+        <!-- Top Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M30,40 Q30,32 42,32 L66,32 Q78,32 78,40 Q78,48 66,48 L42,48 Q30,48 30,40 Z"/>
+        
+        <!-- Sesame Seeds -->
+        <circle android:fillColor="#F5DEB3" android:cx="42" android:cy="38" android:r="1.5"/>
+        <circle android:fillColor="#F5DEB3" android:cx="54" android:cy="36" android:r="1.5"/>
+        <circle android:fillColor="#F5DEB3" android:cx="66" android:cy="39" android:r="1.5"/>
+        
+        <!-- Lettuce -->
+        <path
+            android:fillColor="#228B22"
+            android:pathData="M32,48 Q36,54 42,50 Q48,48 54,52 Q60,50 66,52 Q72,48 76,48 L32,48 Z"/>
+        
+        <!-- Tomato -->
+        <rect
+            android:fillColor="#FF6347"
+            android:x="34"
+            android:y="52"
+            android:width="40"
+            android:height="6"/>
+        
+        <!-- Cheese -->
+        <rect
+            android:fillColor="#FFD700"
+            android:x="36"
+            android:y="58"
+            android:width="36"
+            android:height="4"/>
+        
+        <!-- Meat Patty -->
+        <rect
+            android:fillColor="#8B4513"
+            android:x="34"
+            android:y="62"
+            android:width="40"
+            android:height="8"/>
+        
+        <!-- Bottom Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M32,70 L76,70 Q78,70 78,76 Q78,82 66,82 L42,82 Q30,82 30,76 Q30,70 32,70 Z"/>
+            
+    </group>
+    
+</vector>
+    
+    <!-- Background Circle -->
+    <circle
+        android:fillColor="#FF6B35"
+        android:cx="24"
+        android:cy="24"
+        android:r="22"/>
+    
+    <!-- Burger -->
+    <group android:scaleX="0.8" android:scaleY="0.8" android:pivotX="24" android:pivotY="24">
+        
+        <!-- Top Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M12,18 Q12,14 16,14 L32,14 Q36,14 36,18 Q36,22 32,22 L16,22 Q12,22 12,18 Z"/>
+        
+        <!-- Sesame Seeds -->
+        <circle android:fillColor="#F5DEB3" android:cx="18" android:cy="17" android:r="0.8"/>
+        <circle android:fillColor="#F5DEB3" android:cx="24" android:cy="16" android:r="0.8"/>
+        <circle android:fillColor="#F5DEB3" android:cx="30" android:cy="17.5" android:r="0.8"/>
+        
+        <!-- Lettuce -->
+        <path
+            android:fillColor="#228B22"
+            android:pathData="M13,22 Q15,25 18,24 Q21,23 24,25 Q27,24 30,25 Q33,23 35,22 L13,22 Z"/>
+        
+        <!-- Tomato -->
+        <rect
+            android:fillColor="#FF6347"
+            android:x="14"
+            android:y="25"
+            android:width="20"
+            android:height="3"/>
+        
+        <!-- Cheese -->
+        <rect
+            android:fillColor="#FFD700"
+            android:x="15"
+            android:y="28"
+            android:width="18"
+            android:height="2"/>
+        
+        <!-- Meat Patty -->
+        <rect
+            android:fillColor="#8B4513"
+            android:x="14"
+            android:y="30"
+            android:width="20"
+            android:height="4"/>
+        
+        <!-- Bottom Bun -->
+        <path
+            android:fillColor="#D2691E"
+            android:pathData="M13,34 L35,34 Q36,34 36,37 Q36,40 32,40 L16,40 Q12,40 12,37 Q12,34 13,34 Z"/>
+            
+    </group>
+    
+</vector>

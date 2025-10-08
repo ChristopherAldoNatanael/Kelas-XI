@@ -1,0 +1,88 @@
+<resources>
+    <string name="app_name">SimpleWeatherApp</string>
+    
+    <!-- Common -->
+    <string name="loading">Cargando…</string>
+    <string name="error_occurred">Se produjo un error</string>
+    <string name="retry">Reintentar</string>
+    <string name="search">Buscar</string>
+    <string name="search_city">Buscar ciudad…</string>
+    <string name="location_permission_required">Se requiere permiso de ubicación</string>
+    <string name="grant_permission">Conceder Permiso</string>
+    <string name="refresh">Actualizar</string>
+    <string name="weather">Clima</string>
+    <string name="forecast">Pronóstico</string>
+    <string name="alerts">Alertas</string>
+    <string name="settings">Ajustes</string>
+    
+    <!-- Weather Details -->
+    <string name="temperature">Temperatura</string>
+    <string name="feels_like">Sensación térmica</string>
+    <string name="humidity">Humedad</string>
+    <string name="wind">Viento</string>
+    <string name="pressure">Presión</string>
+    <string name="visibility">Visibilidad</string>
+    <string name="sunrise">Amanecer</string>
+    <string name="sunset">Atardecer</string>
+    <string name="uv_index">Índice UV</string>
+    <string name="precipitation">Precipitación</string>
+    <string name="today">Hoy</string>
+    <string name="tomorrow">Mañana</string>
+    <string name="degree_celsius">°C</string>
+    <string name="degree_fahrenheit">°F</string>
+    <string name="meter_per_second">m/s</string>
+    <string name="miles_per_hour">mph</string>
+    <string name="hpa">hPa</string>
+    <string name="percentage">%</string>
+    <string name="kilometers">km</string>
+    <string name="miles">mi</string>
+    
+    <!-- Forecast -->
+    <string name="forecast_for">Pronóstico para %1$s</string>
+    <string name="five_day_forecast">Pronóstico de 5 días</string>
+    <string name="hourly_forecast">Pronóstico por hora</string>
+    <string name="daily_forecast">Pronóstico diario</string>
+    
+    <!-- Weather Alerts -->
+    <string name="no_alerts">No hay alertas meteorológicas en este momento</string>
+    <string name="weather_alerts">Alertas Meteorológicas</string>
+    <string name="alert_from">Alerta de %1$s</string>
+    <string name="valid_until">Válido hasta %1$s</string>
+    <string name="alert_description">Descripción</string>
+    
+    <!-- Settings -->
+    <string name="app_theme">Tema de la aplicación</string>
+    <string name="units">Unidades</string>
+    <string name="language">Idioma</string>
+    <string name="notifications">Notificaciones</string>
+    <string name="default_city">Ciudad predeterminada</string>
+    <string name="about_app">Acerca de la aplicación</string>
+    
+    <!-- Themes -->
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="theme_auto">Automático (Día/Noche)</string>
+    
+    <!-- Units -->
+    <string name="units_metric">Métrico (°C, m/s)</string>
+    <string name="units_imperial">Imperial (°F, mph)</string>
+    
+    <!-- Languages -->
+    <string name="language_en">English (Inglés)</string>
+    <string name="language_es">Español</string>
+    <string name="language_id">Bahasa Indonesia (Indonesio)</string>
+    <string name="language_fr">Français (Francés)</string>
+    <string name="language_de">Deutsch (Alemán)</string>
+    
+    <!-- Widget -->
+    <string name="widget_name">Widget del Clima</string>
+    <string name="widget_description">Muestra información actual del clima</string>
+    <string name="configure_widget">Configurar Widget</string>
+    
+    <!-- Other -->
+    <string name="permission_explanation">Se necesita permiso de ubicación para proporcionar información meteorológica precisa para su área.</string>
+    <string name="save">Guardar</string>
+    <string name="cancel">Cancelar</string>
+    <string name="done">Hecho</string>
+</resources>

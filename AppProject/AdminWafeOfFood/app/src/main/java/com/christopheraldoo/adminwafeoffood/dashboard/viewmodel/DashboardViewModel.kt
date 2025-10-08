@@ -21,28 +21,35 @@ class DashboardViewModel : ViewModel() {
     companion object {
         private const val TAG = "DashboardViewModel"
     }
-    
-    fun loadDashboardData() {
+      fun loadDashboardData() {
         viewModelScope.launch {
             try {
                 Log.d(TAG, "Loading dashboard data...")
                 _dashboardState.value = DashboardState(isLoading = true)
                 
-                repository.getDashboardStatistics()
-                    .catch { exception ->
-                        Log.e(TAG, "Error loading dashboard data", exception)
-                        _dashboardState.value = DashboardState(
-                            isLoading = false,
-                            error = "Error loading dashboard: ${exception.message}"
-                        )
-                    }
-                    .collect { statistics ->
+                val result = repository.getDashboardStatistics()
+                if (result.isSuccess) {
+                    val statistics = result.getOrNull()
+                    if (statistics != null) {
                         Log.d(TAG, "Dashboard data loaded successfully")
                         _dashboardState.value = DashboardState(
                             isLoading = false,
                             statistics = statistics
                         )
+                    } else {
+                        _dashboardState.value = DashboardState(
+                            isLoading = false,
+                            error = "No data received"
+                        )
                     }
+                } else {
+                    val exception = result.exceptionOrNull()
+                    Log.e(TAG, "Error loading dashboard data", exception)
+                    _dashboardState.value = DashboardState(
+                        isLoading = false,
+                        error = "Error loading dashboard: ${exception?.message}"
+                    )
+                }
                     
             } catch (e: Exception) {
                 Log.e(TAG, "Unexpected error loading dashboard", e)

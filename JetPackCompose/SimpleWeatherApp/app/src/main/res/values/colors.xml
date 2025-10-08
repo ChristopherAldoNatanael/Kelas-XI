@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic Colors -->
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Weather App Color Palette -->
+    <color name="primary_blue">#FF2196F3</color>
+    <color name="primary_blue_dark">#FF1976D2</color>
+    <color name="accent_blue">#FF03DAC6</color>
+    <color name="accent_color">#FFFFC107</color>
+
+    <!-- Gradient Colors -->
+    <color name="gradient_start">#FF667eea</color>
+    <color name="gradient_middle">#FF764ba2</color>
+    <color name="gradient_end">#FFf093fb</color>
+
+    <color name="weather_gradient_start">#FF4facfe</color>
+    <color name="weather_gradient_end">#FF00f2fe</color>
+
+    <color name="sunset_start">#FFff9a9e</color>
+    <color name="sunset_middle">#FFfecfef</color>
+    <color name="sunset_end">#FFfecfef</color>
+
+    <color name="card_stroke">#40FFFFFF</color>
+    <color name="fab_color">#FF2196F3</color>
+
+    <!-- Detail Item Colors -->
+    <color name="detail_item_bg">#1AFFFFFF</color>
+    <color name="detail_item_stroke">#40FFFFFF</color>
+
+    <!-- Status Colors -->
+    <color name="success_green">#FF4CAF50</color>
+    <color name="error_red">#FFF44336</color>
+    <color name="warning_yellow">#FFFF9800</color>
+
+    <!-- Text Colors -->
+    <color name="text_primary">#FFFFFFFF</color>
+    <color name="text_secondary">#B3FFFFFF</color>
+    <color name="text_accent">#FFFFC107</color>
+    
+    <!-- Splash Screen Colors -->
+    <color name="splash_background">#FF3F96FA</color>
+</resources>

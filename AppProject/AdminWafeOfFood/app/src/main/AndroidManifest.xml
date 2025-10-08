@@ -4,10 +4,14 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     
+    <!-- Image access permissions untuk upload gambar -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" 
+        android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    
     <!-- Vibration permission untuk haptic feedback -->
-    <uses-permission android:name="android.permission.VIBRATE" />
-
-    <application
+    <uses-permission android:name="android.permission.VIBRATE" /><application
+        android:name="com.christopheraldoo.adminwafeoffood.utils.FirebaseConfig"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -16,7 +20,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.AdminWafeOfFood"
-        tools:targetApi="31">        <!-- Authentication Activity (Launcher) -->
+        tools:targetApi="31"><!-- Authentication Activity (Launcher) -->
         <activity
             android:name=".AuthActivity"
             android:exported="true"
@@ -40,7 +44,7 @@
             android:name=".menu.activities.AddEditMenuActivity"
             android:exported="false"
             android:label="Menu Management"
-            android:parentActivityName=".MenuActivity"
+            android:parentActivityName=".MainActivity"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.AdminWafeOfFood"
             android:windowSoftInputMode="adjustResize" />

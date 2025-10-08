@@ -1,5 +1,7 @@
 package com.christopheraldoo.adminwafeoffood.menu.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
 import java.text.NumberFormat
 import java.util.*
 
@@ -7,26 +9,26 @@ import java.util.*
 // MENU ITEM MODEL - Model untuk Realtime Database
 // =================================================================================
 
+@Parcelize
 data class MenuItem(
     val id: String = "",
     val name: String = "",
     val description: String = "",
-    val price: Double = 0.0,
+    val price: Int = 0, // Ubah ke Int untuk matching dengan struktur Firebase
     val category: String = "",
-    val imageUrl: String = "",
+    val imageURL: String = "", // Ubah ke imageURL untuk matching dengan struktur Firebase
     val isAvailable: Boolean = true,
-    val adminId: String = "",
+    val adminId: String = "admin_001", // Set default adminId
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
-) {
+) : Parcelable {
     
     // Helper methods untuk format tampilan
     fun getFormattedPrice(): String {
-        val formatter = NumberFormat.getCurrencyInstance(Locale("id", "ID"))
-        return formatter.format(price).replace("IDR", "Rp")
+        return "Rp ${String.format("%,d", price)}"
     }
     
-    // Convert to Map untuk Firebase Realtime Database
+    // Convert to Map untuk Firebase Realtime Database - sesuai struktur yang ada
     fun toMap(): Map<String, Any> {
         return mapOf(
             "id" to id,
@@ -34,7 +36,7 @@ data class MenuItem(
             "description" to description,
             "price" to price,
             "category" to category,
-            "imageUrl" to imageUrl,
+            "imageURL" to imageURL, // Gunakan imageURL
             "isAvailable" to isAvailable,
             "adminId" to adminId,
             "createdAt" to createdAt,
@@ -50,18 +52,17 @@ data class MenuItem(
                     id = data["id"] as? String ?: id,
                     name = data["name"] as? String ?: "",
                     description = data["description"] as? String ?: "",
-                    price = (data["price"] as? Number)?.toDouble() ?: 0.0,
+                    price = (data["price"] as? Number)?.toInt() ?: 0, // Convert to Int
                     category = data["category"] as? String ?: "",
-                    imageUrl = data["imageUrl"] as? String ?: "",
+                    imageURL = data["imageURL"] as? String ?: "", // Gunakan imageURL
                     isAvailable = data["isAvailable"] as? Boolean ?: true,
-                    adminId = data["adminId"] as? String ?: "",
+                    adminId = data["adminId"] as? String ?: "admin_001",
                     createdAt = (data["createdAt"] as? Number)?.toLong() ?: System.currentTimeMillis(),
                     updatedAt = (data["updatedAt"] as? Number)?.toLong() ?: System.currentTimeMillis()
                 )
             } catch (e: Exception) {
                 null
-            }
-        }
+            }        }
     }
 }
 

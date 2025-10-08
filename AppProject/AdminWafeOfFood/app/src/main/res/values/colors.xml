@@ -73,4 +73,19 @@
     <color name="primary_light">#FFAB91</color>
     <color name="gray">#757575</color>
     <color name="light_gray">#F5F5F5</color>
+    
+    <!-- Material Design 3 Colors -->
+    <color name="surface">#FFFBFE</color>
+    <color name="surfaceVariant">#F3F0F4</color>
+    <color name="primaryContainer">#FFE5DB</color>
+    <color name="outline">#79757F</color>
+    <color name="textColorPrimary">#1C1B1F</color>
+    <color name="textColorSecondary">#49454F</color>
+    <color name="error_container">#FFEAEA</color>
+    <color name="surface_overlay">#80FFFFFF</color>
+    <color name="selection_overlay">#4DFF6B35</color>
+    
+    <!-- App Icon Colors -->
+    <color name="burger_icon_background">#FF6B35</color>
+    <color name="burger_icon_foreground">#FFFFFF</color>
 </resources>

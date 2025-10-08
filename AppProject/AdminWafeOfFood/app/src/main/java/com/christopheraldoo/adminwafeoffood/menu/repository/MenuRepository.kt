@@ -24,36 +24,53 @@ class MenuRepository {
     // Get all menus as Flow
     fun getAllMenus(): Flow<List<MenuItem>> = callbackFlow {
         Log.d(TAG, "Setting up Firebase listener for menus")
-        
-        val listener = object : ValueEventListener {
+          val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
                 try {
                     Log.d(TAG, "Firebase onDataChange - children count: ${snapshot.childrenCount}")
                     
                     val menuList = mutableListOf<MenuItem>()
+                    
+                    // Handle empty database case
+                    if (!snapshot.exists() || snapshot.childrenCount == 0L) {
+                        Log.d(TAG, "No menu data found, emitting empty list")
+                        trySend(emptyList<MenuItem>()).isSuccess
+                        return
+                    }
+                    
+                    // Process each menu item safely
                     for (childSnapshot in snapshot.children) {
                         try {
-                            val menuData = childSnapshot.value as? Map<String, Any>
-                            menuData?.let { data ->
-                                val menuItem = MenuItem.fromMap(data, childSnapshot.key ?: "")
-                                menuItem?.let { 
-                                    menuList.add(it)
-                                    Log.d(TAG, "Parsed menu: ${it.name}")
+                            val menuData = childSnapshot.value
+                            if (menuData != null) {
+                                when (menuData) {
+                                    is Map<*, *> -> {
+                                        @Suppress("UNCHECKED_CAST")
+                                        val dataMap = menuData as Map<String, Any>
+                                        val menuItem = MenuItem.fromMap(dataMap, childSnapshot.key ?: "")
+                                        menuItem?.let { 
+                                            menuList.add(it)
+                                            Log.d(TAG, "Successfully parsed menu: ${it.name}")
+                                        }
+                                    }
+                                    else -> {
+                                        Log.w(TAG, "Unexpected data type for menu item: ${childSnapshot.key}")
+                                    }
+                                }
                             }
-                        }
                         } catch (e: Exception) {
-                            Log.e(TAG, "Error parsing individual menu item", e)
+                            Log.e(TAG, "Error parsing menu item ${childSnapshot.key}: ${e.message}", e)
                         }
                     }
                     
                     val sortedList = menuList.sortedByDescending { it.createdAt }
-                    Log.d(TAG, "Emitting ${sortedList.size} menus")
+                    Log.d(TAG, "Successfully processed ${sortedList.size} menu items")
                     
-                    // Emit data
+                    // Emit data safely
                     trySend(sortedList).isSuccess
                     
                 } catch (e: Exception) {
-                    Log.e(TAG, "Error in onDataChange", e)
+                    Log.e(TAG, "Error in onDataChange: ${e.message}", e)
                     trySend(emptyList<MenuItem>()).isSuccess
                 }
             }

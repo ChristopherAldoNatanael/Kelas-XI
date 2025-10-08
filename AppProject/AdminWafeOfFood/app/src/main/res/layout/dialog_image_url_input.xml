@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🔗 Masukkan URL Gambar"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:textColor="#000000"
+        android:gravity="center"
+        android:layout_marginBottom="16dp" />    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Masukkan URL gambar dari internet (contoh: dari Google Images, Unsplash, dll)"
+        android:textSize="14sp"
+        android:textColor="#757575"
+        android:layout_marginBottom="16dp" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/textInputLayoutUrl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="https://example.com/image.jpg"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextImageUrl"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:inputType="textUri"
+            android:maxLines="3"
+            android:scrollHorizontally="false" />
+
+    </com.google.android.material.textfield.TextInputLayout>    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="💡 Tips: Pastikan URL mengarah langsung ke file gambar (berakhiran .jpg, .png, dll)"
+        android:textSize="12sp"
+        android:textColor="#FF9800"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="16dp" />    <!-- Preview ImageView -->
+    <ImageView
+        android:id="@+id/imageViewPreview"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/rounded_corner_background"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:contentDescription="Preview gambar" />    <TextView
+        android:id="@+id/textViewPreviewStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Preview akan muncul di sini"
+        android:textSize="12sp"
+        android:textColor="#757575"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:visibility="gone" />
+
+</LinearLayout>

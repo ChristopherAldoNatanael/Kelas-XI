@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Background Circle -->
+    <path
+        android:fillColor="#FF6B35"
+        android:pathData="M54,54m-52,0a52,52 0,1 1,104 0a52,52 0,1 1,-104 0"/>
+    
+    <!-- Top Bun -->
+    <path
+        android:fillColor="#D2691E"
+        android:pathData="M20,35 Q20,28 28,28 L80,28 Q88,28 88,35 Q88,42 80,42 L28,42 Q20,42 20,35 Z"/>
+    
+    <!-- Sesame Seeds on Top Bun -->
+    <ellipse
+        android:fillColor="#F5DEB3"
+        android:cx="32"
+        android:cy="32"
+        android:rx="1.5"
+        android:ry="2"/>
+    <ellipse
+        android:fillColor="#F5DEB3"
+        android:cx="45"
+        android:cy="30"
+        android:rx="1.5"
+        android:ry="2"/>
+    <ellipse
+        android:fillColor="#F5DEB3"
+        android:cx="58"
+        android:cy="31"
+        android:rx="1.5"
+        android:ry="2"/>
+    <ellipse
+        android:fillColor="#F5DEB3"
+        android:cx="72"
+        android:cy="33"
+        android:rx="1.5"
+        android:ry="2"/>
+    
+    <!-- Lettuce -->
+    <path
+        android:fillColor="#228B22"
+        android:pathData="M22,42 Q25,46 30,45 Q35,44 40,46 Q45,44 50,45 Q55,46 60,45 Q65,44 70,46 Q75,44 80,45 Q83,46 86,42 L22,42 Z"/>
+    
+    <!-- Tomato -->
+    <path
+        android:fillColor="#FF6347"
+        android:pathData="M24,46 L84,46 Q84,50 80,50 L28,50 Q24,50 24,46 Z"/>
+    
+    <!-- Cheese -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M26,50 L82,50 Q82,54 78,54 L30,54 Q26,54 26,50 Z"/>
+    
+    <!-- Meat Patty -->
+    <path
+        android:fillColor="#8B4513"
+        android:pathData="M25,54 L83,54 Q83,60 79,60 L29,60 Q25,60 25,54 Z"/>
+    
+    <!-- Bottom Bun -->
+    <path
+        android:fillColor="#D2691E"
+        android:pathData="M22,60 L86,60 Q88,60 88,65 Q88,72 80,72 L28,72 Q20,72 20,65 Q20,60 22,60 Z"/>
+    
+    <!-- Shadow/Gradient Effect -->
+    <path
+        android:fillColor="#00000020"
+        android:pathData="M20,65 Q20,72 28,72 L80,72 Q88,72 88,65 Q88,68 80,68 L28,68 Q20,68 20,65 Z"/>
+
+</vector>
