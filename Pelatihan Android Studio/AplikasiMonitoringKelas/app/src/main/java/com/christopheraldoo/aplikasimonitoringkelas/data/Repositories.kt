@@ -1,53 +1,143 @@
 package com.christopheraldoo.aplikasimonitoringkelas.data
 
 import android.content.Context
-import kotlinx.coroutines.flow.Flow
+import com.christopheraldoo.aplikasimonitoringkelas.network.ApiService
+import com.christopheraldoo.aplikasimonitoringkelas.network.RetrofitClient
+import com.christopheraldoo.aplikasimonitoringkelas.network.NetworkUtils
+import retrofit2.Response
 
-class UserRepository(context: Context) {
-    private val userDao = AppDatabase.getDatabase(context).userDao()
+/**
+ * Repository for User-related operations
+ * All data comes from MySQL database via Laravel API
+ */
+class UserRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
     
-    fun getAllUsers(): Flow<List<User>> = userDao.getAllUsers()
+    suspend fun login(email: String, password: String): Response<LoginResponse> {
+        val loginRequest = LoginRequest(email, password)
+        return apiService.login(loginRequest)
+    }
     
-    fun getUsersByRole(role: String): Flow<List<User>> = userDao.getUsersByRole(role)
+    suspend fun logout(): Response<ApiResponse<com.google.gson.JsonObject>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.logout(token)
+    }
     
-    suspend fun login(email: String, password: String): User? = userDao.login(email, password)
+    suspend fun getCurrentUser(): Response<ApiResponse<UserApi>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getCurrentUser(token)
+    }
     
-    suspend fun insertUser(user: User): Long = userDao.insertUser(user)
-    
-    suspend fun updateUser(user: User) = userDao.updateUser(user)
-    
-    suspend fun deleteUser(user: User) = userDao.deleteUser(user)
+    suspend fun getAllUsers(): Response<ApiResponse<List<UserApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getUsers(token)
+    }
 }
 
-class ScheduleRepository(context: Context) {
-    private val scheduleDao = AppDatabase.getDatabase(context).scheduleDao()
+/**
+ * Repository for Schedule-related operations
+ * All data comes from MySQL database via Laravel API
+ */
+class ScheduleRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
     
-    fun getAllSchedules(): Flow<List<Schedule>> = scheduleDao.getAllSchedules()
+    suspend fun getAllSchedules(): Response<ApiResponse<List<ScheduleApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getSchedules(token)
+    }
     
-    fun getSchedulesByDayAndClass(day: String, classRoom: String): Flow<List<Schedule>> = 
-        scheduleDao.getSchedulesByDayAndClass(day, classRoom)
+    suspend fun getSchedulesByDay(day: String): Response<ApiResponse<List<ScheduleApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getSchedules(token, day = day)
+    }
     
-    suspend fun insertSchedule(schedule: Schedule): Long = scheduleDao.insertSchedule(schedule)
+    suspend fun createSchedule(schedule: com.google.gson.JsonObject): Response<ApiResponse<ScheduleApi>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.createSchedule(token, schedule)
+    }
     
-    suspend fun updateSchedule(schedule: Schedule) = scheduleDao.updateSchedule(schedule)
+    suspend fun updateSchedule(scheduleId: Int, schedule: com.google.gson.JsonObject): Response<ApiResponse<ScheduleApi>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.updateSchedule(token, scheduleId, schedule)
+    }
     
-    suspend fun deleteSchedule(schedule: Schedule) = scheduleDao.deleteSchedule(schedule)
+    suspend fun deleteSchedule(scheduleId: Int): Response<ApiResponse<com.google.gson.JsonObject>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.deleteSchedule(token, scheduleId)
+    }
 }
 
-class ClassroomStatusRepository(context: Context) {
-    private val classroomStatusDao = AppDatabase.getDatabase(context).classroomStatusDao()
+/**
+ * Repository for Classroom monitoring operations
+ * All data comes from MySQL database via Laravel API
+ */
+class ClassroomRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
     
-    fun getAllClassroomStatus(): Flow<List<ClassroomStatus>> = classroomStatusDao.getAllClassroomStatus()
+    suspend fun getAllClassrooms(): Response<ApiResponse<List<ClassroomApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getClassrooms(token)
+    }
     
-    fun getEmptyClassroomsByDay(day: String): Flow<List<ClassroomStatus>> = 
-        classroomStatusDao.getEmptyClassroomsByDay(day)
+    suspend fun getEmptyClassrooms(day: String? = null, periodNumber: Int? = null): Response<ApiResponse<List<ClassroomApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getEmptyClassrooms(token, day, periodNumber)
+    }
+}
+
+/**
+ * Repository for Subject-related operations
+ * All data comes from MySQL database via Laravel API
+ */
+class SubjectRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
     
-    suspend fun insertClassroomStatus(classroomStatus: ClassroomStatus): Long = 
-        classroomStatusDao.insertClassroomStatus(classroomStatus)
+    suspend fun getAllSubjects(): Response<ApiResponse<List<SubjectApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getSubjects(token)
+    }
     
-    suspend fun updateClassroomStatus(classroomStatus: ClassroomStatus) = 
-        classroomStatusDao.updateClassroomStatus(classroomStatus)
+    // No auth required for dropdown endpoints
+    suspend fun getDropdownSubjects(): Response<ApiResponse<List<SubjectDropdown>>> {
+        return apiService.getDropdownSubjects()
+    }
     
-    suspend fun deleteClassroomStatus(classroomStatus: ClassroomStatus) = 
-        classroomStatusDao.deleteClassroomStatus(classroomStatus)
+    suspend fun getTeachersBySubject(subjectId: Int): Response<ApiResponse<TeachersBySubjectResponse>> {
+        return apiService.getTeachersBySubject(subjectId)
+    }
+}
+
+/**
+ * Repository for Teacher-related operations
+ * All data comes from MySQL database via Laravel API
+ */
+class TeacherRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
+    
+    suspend fun getAllTeachers(): Response<ApiResponse<List<TeacherApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getTeachers(token)
+    }
+}
+
+/**
+ * Repository for Notification-related operations
+ * All data comes from MySQL database via Laravel API
+ */
+class NotificationRepository(private val context: Context) {
+    private val apiService: ApiService = RetrofitClient.createApiService(context)
+    
+    suspend fun getAllNotifications(): Response<ApiResponse<List<NotificationApi>>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getNotifications(token)
+    }
+    
+    suspend fun markAsRead(notificationId: Int): Response<ApiResponse<com.google.gson.JsonObject>> {
+        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.markNotificationAsRead(token, notificationId)
+    }
+    
+    suspend fun getUnreadCount(): Response<ApiResponse<com.google.gson.JsonObject>> {        val token = NetworkUtils.getAuthToken(context) ?: return Response.error(401, okhttp3.ResponseBody.create(null, ""))
+        return apiService.getUnreadNotificationCount(token)
+    }
 }

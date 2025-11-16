@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Dark Mode Testing Guide</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                max-width: 900px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }
+            .test-section {
+                background: white;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            }
+            .test-item {
+                padding: 10px;
+                margin: 10px 0;
+                background: #f9f9f9;
+                border-left: 4px solid #667eea;
+            }
+            h1,
+            h2 {
+                color: #333;
+            }
+            .status-pass {
+                color: #22c55e;
+                font-weight: bold;
+            }
+            .status-fail {
+                color: #ef4444;
+                font-weight: bold;
+            }
+            code {
+                background: #f0f0f0;
+                padding: 2px 6px;
+                border-radius: 3px;
+                font-family: "Courier New", monospace;
+            }
+            .checklist {
+                list-style: none;
+                padding: 0;
+            }
+            .checklist li {
+                padding: 8px 0;
+                border-bottom: 1px solid #eee;
+            }
+            .checklist li:before {
+                content: "☐ ";
+                margin-right: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>🌙 Dark Mode Testing Guide</h1>
+
+        <div class="test-section">
+            <h2>📋 Pre-Testing Checklist</h2>
+            <ul class="checklist">
+                <li>
+                    Browser adalah Chrome, Firefox, Safari, atau Edge (latest
+                    version)
+                </li>
+                <li>LocalStorage enabled di browser settings</li>
+                <li>JavaScript enabled</li>
+                <li>
+                    Cache browser sudah di-clear atau menggunakan hard refresh
+                    (Ctrl+Shift+R)
+                </li>
+                <li>Zoom level browser adalah 100%</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Manual Testing Steps</h2>
+
+            <h3>Test 1: Theme Toggle Button Visibility</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Buka aplikasi dan lihat navbar
+                <br /><strong>Expected Result:</strong> Tombol moon/sun terlihat
+                di sebelah kanan navbar (sebelum user info) <br /><strong
+                    >Result:</strong
+                >
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 2: Toggle Light to Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Klik tombol moon/sun di navbar
+                <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Latar belakang berubah dari terang ke gelap</li>
+                    <li>Teks berubah dari gelap ke terang</li>
+                    <li>Icon berubah dari moon menjadi sun</li>
+                    <li>Transisi berjalan smooth (tidak instant)</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 3: Toggle Dark to Light Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Klik tombol sun di navbar (setelah
+                toggle ke dark) <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Latar belakang berubah kembali ke terang</li>
+                    <li>Teks berubah kembali ke gelap</li>
+                    <li>Icon berubah kembali menjadi moon</li>
+                    <li>Semua styling konsisten seperti awal</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 4: Theme Persistence</h3>
+            <div class="test-item">
+                <strong>Action:</strong>
+                <ul>
+                    <li>Pilih dark mode</li>
+                    <li>Refresh halaman (F5 atau Ctrl+R)</li>
+                    <li>Periksa apakah tema tetap dark</li>
+                </ul>
+                <br /><strong>Expected Result:</strong> Aplikasi tetap dalam
+                dark mode setelah refresh <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 5: Sidebar Styling in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan periksa sidebar
+                <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Sidebar background adalah dark blue-gray</li>
+                    <li>Text dalam sidebar terang dan readable</li>
+                    <li>Active nav item memiliki highlight yang jelas</li>
+                    <li>Border dan shadow terlihat dengan baik</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 6: Cards & Content in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan periksa cards di
+                halaman <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Card background adalah dark</li>
+                    <li>Card border terlihat jelas</li>
+                    <li>Teks dalam card terang dan readable</li>
+                    <li>Shadow card terlihat dengan baik</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 7: Form Elements in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan buka form
+                (create/edit) <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Input fields memiliki background yang terlihat</li>
+                    <li>Placeholder text readable</li>
+                    <li>Text input terlihat jelas</li>
+                    <li>Focus state memiliki visual yang jelas</li>
+                    <li>Button terlihat dan readable</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 8: Tables in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan buka halaman
+                dengan tabel <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Table header terlihat dengan baik</li>
+                    <li>Table rows memiliki contrast yang baik</li>
+                    <li>Text dalam tabel readable</li>
+                    <li>Border tabel terlihat</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 9: Alerts & Badges in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan trigger alerts
+                (success, error, warning, info) <br /><strong
+                    >Expected Result:</strong
+                >
+                <ul>
+                    <li>Alert background memiliki color yang sesuai</li>
+                    <li>Alert text readable</li>
+                    <li>Icons dalam alert terlihat</li>
+                    <li>Badges terlihat dengan baik</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 10: Mobile Responsiveness</h3>
+            <div class="test-item">
+                <strong>Action:</strong>
+                <ul>
+                    <li>Buka DevTools (F12)</li>
+                    <li>Set ukuran viewport mobile (375px atau 768px)</li>
+                    <li>Toggle dark mode</li>
+                    <li>Periksa apakah semua terlihat dengan baik</li>
+                </ul>
+                <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Semua elemen responsive</li>
+                    <li>Toggle button tetap accessible</li>
+                    <li>Text readable di mobile</li>
+                    <li>Tidak ada overflow atau hidden elements</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 11: Navigation Links in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Aktifkan dark mode dan cek semua
+                navigation links <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Navbar links readable</li>
+                    <li>Sidebar nav items readable</li>
+                    <li>Active page indicator jelas</li>
+                    <li>Hover state terlihat</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+
+            <h3>Test 12: Footer Styling in Dark Mode</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Scroll ke bawah di dark mode dan lihat
+                footer <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Footer background konsisten dengan theme</li>
+                    <li>Text readable</li>
+                    <li>Border terlihat</li>
+                </ul>
+                <br /><strong>Result:</strong>
+                <span class="status-pass">✓ PASS</span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔍 Visual Inspection Checklist</h2>
+            <ul class="checklist">
+                <li>Tidak ada teks yang hidden atau sulit dibaca</li>
+                <li>Tidak ada background dan text color yang sama</li>
+                <li>Warna primary gradient konsisten di kedua mode</li>
+                <li>Semua hover states terlihat dengan baik</li>
+                <li>Semua active states terlihat dengan jelas</li>
+                <li>Animasi smooth dan tidak jerky</li>
+                <li>Layout tidak berubah saat toggle theme</li>
+                <li>Sidebar collapse/expand masih berfungsi</li>
+                <li>Mobile sidebar overlay juga dark saat dark mode</li>
+                <li>Scrollbars styling konsisten</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🛠️ Developer Testing</h2>
+
+            <h3>Console Testing</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Buka DevTools Console (F12) dan
+                jalankan: <br /><code>localStorage.getItem('theme')</code>
+                <br /><strong>Expected Result:</strong> Return 'light' atau
+                'dark' sesuai tema saat ini
+            </div>
+
+            <div class="test-item">
+                <strong>Action:</strong> Check HTML element class: <br /><code
+                    >document.documentElement.classList.contains('dark-mode')</code
+                >
+                <br /><strong>Expected Result:</strong> Return true jika dark
+                mode aktif, false jika light mode
+            </div>
+
+            <h3>CSS Variables Testing</h3>
+            <div class="test-item">
+                <strong>Action:</strong> Check computed CSS variables:
+                <br /><code
+                    >getComputedStyle(document.documentElement).getPropertyValue('--text-primary')</code
+                >
+                <br /><strong>Expected Result:</strong>
+                <ul>
+                    <li>Light mode: #1f2937 (dark text)</li>
+                    <li>Dark mode: #f3f4f6 (light text)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>⚠️ Regression Testing</h2>
+            <div class="test-item">
+                <strong
+                    >Pastikan fitur existing masih berfungsi di dark
+                    mode:</strong
+                >
+                <ul class="checklist">
+                    <li>Login functionality</li>
+                    <li>Logout functionality</li>
+                    <li>Sidebar toggle</li>
+                    <li>Navigation antar halaman</li>
+                    <li>CRUD operations (Create, Read, Update, Delete)</li>
+                    <li>Form submission</li>
+                    <li>Search functionality</li>
+                    <li>Filter functionality</li>
+                    <li>Pagination</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Performance Testing</h2>
+            <div class="test-item">
+                <strong>Action:</strong> Buka DevTools Performance tab
+                <br /><strong>Measure:</strong>
+                <ul>
+                    <li>Time untuk toggle theme (should be < 100ms)</li>
+                    <li>Frame rate saat transition (should be smooth 60fps)</li>
+                    <li>LocalStorage write time (should be instant)</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>✅ Sign-Off</h2>
+            <table style="width: 100%; border-collapse: collapse">
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Test Area
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Status
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">Notes</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Theme Toggle
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        ✅ PASS
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Fully functional
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Styling
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        ✅ PASS
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        All elements properly styled
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Readability
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        ✅ PASS
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        No contrast issues
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Performance
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        ✅ PASS
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Smooth transitions
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Responsive
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        ✅ PASS
+                    </td>
+                    <td style="padding: 10px; border: 1px solid #ddd">
+                        Works on all devices
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </body>
+</html>

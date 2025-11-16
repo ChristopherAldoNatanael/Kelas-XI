@@ -6,98 +6,191 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
-import com.christopheraldoo.aplikasimonitoringkelas.data.ClassroomStatus
-import com.christopheraldoo.aplikasimonitoringkelas.data.ClassroomStatusRepository
-import com.christopheraldoo.aplikasimonitoringkelas.data.Schedule
-import com.christopheraldoo.aplikasimonitoringkelas.data.ScheduleRepository
-import com.christopheraldoo.aplikasimonitoringkelas.data.User
-import com.christopheraldoo.aplikasimonitoringkelas.data.UserRepository
+import com.christopheraldoo.aplikasimonitoringkelas.data.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * ViewModel for User authentication and management
+ * All data comes from MySQL database via Laravel API
+ */
 class UserViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = UserRepository(application)
-
-    val allUsers = repository.getAllUsers().asLiveData()
 
     private val _loginStatus = MutableLiveData<LoginResult>()
     val loginStatus: LiveData<LoginResult> = _loginStatus
 
+    private val _currentUser = MutableLiveData<UserApi?>()
+    val currentUser: LiveData<UserApi?> = _currentUser
+
+    private val _allUsers = MutableLiveData<List<UserApi>>()
+    val allUsers: LiveData<List<UserApi>> = _allUsers
+
     fun login(email: String, password: String) {
         viewModelScope.launch {
-            val user = repository.login(email, password)
-            if (user != null) {
-                _loginStatus.value = LoginResult.Success(user)
-            } else {
-                _loginStatus.value = LoginResult.Error("Invalid email or password")
+            try {
+                val response = repository.login(email, password)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val user = response.body()?.data?.user
+                    if (user != null) {
+                        _loginStatus.value = LoginResult.Success(
+                            UserApi(
+                                id = user.id,
+                                nama = user.nama,
+                                email = user.email,
+                                role = user.role,
+                                classId = user.classId,
+                                className = null,
+                                createdAt = user.createdAt
+                            )
+                        )
+                        _currentUser.value = _loginStatus.value.let { (it as? LoginResult.Success)?.user }
+                    } else {
+                        _loginStatus.value = LoginResult.Error("Login failed - no user data")
+                    }
+                } else {
+                    _loginStatus.value = LoginResult.Error("Invalid email or password")
+                }
+            } catch (e: Exception) {
+                _loginStatus.value = LoginResult.Error("Network error: ${e.message}")
             }
         }
     }
 
-    fun insertUser(user: User) {
+    fun logout() {
         viewModelScope.launch {
-            repository.insertUser(user)
+            try {
+                repository.logout()
+                _currentUser.value = null
+                _loginStatus.value = LoginResult.Logout
+            } catch (e: Exception) {
+                // Even if logout fails, clear local user data
+                _currentUser.value = null
+                _loginStatus.value = LoginResult.Logout
+            }
         }
     }
 
-    fun updateUser(user: User) {
+    fun getCurrentUser() {
         viewModelScope.launch {
-            repository.updateUser(user)
+            try {
+                val response = repository.getCurrentUser()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _currentUser.value = response.body()?.data
+                }
+            } catch (e: Exception) {
+                // Handle error silently for getCurrentUser
+            }
         }
     }
 
-    fun deleteUser(user: User) {
+    fun getAllUsers() {
         viewModelScope.launch {
-            repository.deleteUser(user)
+            try {
+                val response = repository.getAllUsers()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _allUsers.value = response.body()?.data ?: emptyList()
+                }
+            } catch (e: Exception) {
+                _allUsers.value = emptyList()
+            }
         }
     }
-
-    fun getUsersByRole(role: String) = repository.getUsersByRole(role).asLiveData()
 }
 
+/**
+ * ViewModel for Schedule management
+ * All data comes from MySQL database via Laravel API
+ */
 class ScheduleViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ScheduleRepository(application)
 
-    val allSchedules = repository.getAllSchedules().asLiveData()
+    private val _allSchedules = MutableLiveData<List<ScheduleApi>>()
+    val allSchedules: LiveData<List<ScheduleApi>> = _allSchedules
 
-    private val _saveStatus = MutableStateFlow<SaveResult<Schedule>>(SaveResult.Initial)
-    val saveStatus: StateFlow<SaveResult<Schedule>> = _saveStatus
+    private val _saveStatus = MutableStateFlow<SaveResult<ScheduleApi>>(SaveResult.Initial)
+    val saveStatus: StateFlow<SaveResult<ScheduleApi>> = _saveStatus
 
-    fun getSchedulesByDayAndClass(day: String, classRoom: String) = 
-        repository.getSchedulesByDayAndClass(day, classRoom).asLiveData()
-
-    fun insertSchedule(schedule: Schedule) {
+    fun getAllSchedules() {
         viewModelScope.launch {
             try {
-                val id = repository.insertSchedule(schedule)
-                if (id > 0) {
-                    _saveStatus.value = SaveResult.Success(schedule.copy(id = id))
-                } else {
-                    _saveStatus.value = SaveResult.Error("Failed to insert schedule")
+                val response = repository.getAllSchedules()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _allSchedules.value = response.body()?.data ?: emptyList()
                 }
             } catch (e: Exception) {
-                _saveStatus.value = SaveResult.Error(e.message ?: "Unknown error")
+                _allSchedules.value = emptyList()
             }
         }
     }
 
-    fun updateSchedule(schedule: Schedule) {
+    fun getSchedulesByDay(day: String) {
         viewModelScope.launch {
             try {
-                repository.updateSchedule(schedule)
-                _saveStatus.value = SaveResult.Success(schedule)
+                val response = repository.getSchedulesByDay(day)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _allSchedules.value = response.body()?.data ?: emptyList()
+                }
             } catch (e: Exception) {
-                _saveStatus.value = SaveResult.Error(e.message ?: "Unknown error")
+                _allSchedules.value = emptyList()
             }
         }
     }
 
-    fun deleteSchedule(schedule: Schedule) {
+    fun createSchedule(schedule: com.google.gson.JsonObject) {
         viewModelScope.launch {
-            repository.deleteSchedule(schedule)
+            try {
+                val response = repository.createSchedule(schedule)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val createdSchedule = response.body()?.data
+                    if (createdSchedule != null) {
+                        _saveStatus.value = SaveResult.Success(createdSchedule)
+                        getAllSchedules() // Refresh list
+                    } else {
+                        _saveStatus.value = SaveResult.Error("Failed to create schedule")
+                    }
+                } else {
+                    _saveStatus.value = SaveResult.Error("Failed to create schedule")
+                }
+            } catch (e: Exception) {
+                _saveStatus.value = SaveResult.Error(e.message ?: "Network error")
+            }
+        }
+    }
+
+    fun updateSchedule(scheduleId: Int, schedule: com.google.gson.JsonObject) {
+        viewModelScope.launch {
+            try {
+                val response = repository.updateSchedule(scheduleId, schedule)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val updatedSchedule = response.body()?.data
+                    if (updatedSchedule != null) {
+                        _saveStatus.value = SaveResult.Success(updatedSchedule)
+                        getAllSchedules() // Refresh list
+                    } else {
+                        _saveStatus.value = SaveResult.Error("Failed to update schedule")
+                    }
+                } else {
+                    _saveStatus.value = SaveResult.Error("Failed to update schedule")
+                }
+            } catch (e: Exception) {
+                _saveStatus.value = SaveResult.Error(e.message ?: "Network error")
+            }
+        }
+    }
+
+    fun deleteSchedule(scheduleId: Int) {
+        viewModelScope.launch {
+            try {
+                val response = repository.deleteSchedule(scheduleId)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    getAllSchedules() // Refresh list
+                }
+            } catch (e: Exception) {
+                // Handle error silently
+            }
         }
     }
 
@@ -106,36 +199,51 @@ class ScheduleViewModel(application: Application) : AndroidViewModel(application
     }
 }
 
-class ClassroomStatusViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = ClassroomStatusRepository(application)
+/**
+ * ViewModel for Classroom monitoring
+ * All data comes from MySQL database via Laravel API
+ */
+class ClassroomViewModel(application: Application) : AndroidViewModel(application) {
+    private val repository = ClassroomRepository(application)
 
-    val allClassroomStatus = repository.getAllClassroomStatus().asLiveData()
+    private val _allClassrooms = MutableLiveData<List<ClassroomApi>>()
+    val allClassrooms: LiveData<List<ClassroomApi>> = _allClassrooms
 
-    fun getEmptyClassroomsByDay(day: String) = repository.getEmptyClassroomsByDay(day).asLiveData()
+    private val _emptyClassrooms = MutableLiveData<List<ClassroomApi>>()
+    val emptyClassrooms: LiveData<List<ClassroomApi>> = _emptyClassrooms
 
-    fun insertClassroomStatus(classroomStatus: ClassroomStatus) {
+    fun getAllClassrooms() {
         viewModelScope.launch {
-            repository.insertClassroomStatus(classroomStatus)
+            try {
+                val response = repository.getAllClassrooms()
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _allClassrooms.value = response.body()?.data ?: emptyList()
+                }
+            } catch (e: Exception) {
+                _allClassrooms.value = emptyList()
+            }
         }
     }
 
-    fun updateClassroomStatus(classroomStatus: ClassroomStatus) {
+    fun getEmptyClassrooms(day: String? = null, periodNumber: Int? = null) {
         viewModelScope.launch {
-            repository.updateClassroomStatus(classroomStatus)
-        }
-    }
-
-    fun deleteClassroomStatus(classroomStatus: ClassroomStatus) {
-        viewModelScope.launch {
-            repository.deleteClassroomStatus(classroomStatus)
+            try {
+                val response = repository.getEmptyClassrooms(day, periodNumber)
+                if (response.isSuccessful && response.body()?.success == true) {
+                    _emptyClassrooms.value = response.body()?.data ?: emptyList()
+                }
+            } catch (e: Exception) {
+                _emptyClassrooms.value = emptyList()
+            }
         }
     }
 }
 
 // Result classes for handling operations
 sealed class LoginResult {
-    data class Success(val user: User) : LoginResult()
+    data class Success(val user: UserApi) : LoginResult()
     data class Error(val message: String) : LoginResult()
+    object Logout : LoginResult()
 }
 
 sealed class SaveResult<out T> {
@@ -146,12 +254,14 @@ sealed class SaveResult<out T> {
 
 // Factory for creating ViewModels with Application context
 class ViewModelFactory(private val application: Application) : ViewModelProvider.Factory {
+    @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(UserViewModel::class.java) -> UserViewModel(application) as T
             modelClass.isAssignableFrom(ScheduleViewModel::class.java) -> ScheduleViewModel(application) as T
-            modelClass.isAssignableFrom(ClassroomStatusViewModel::class.java) -> ClassroomStatusViewModel(application) as T
+            modelClass.isAssignableFrom(ClassroomViewModel::class.java) -> ClassroomViewModel(application) as T
             else -> throw IllegalArgumentException("Unknown ViewModel class")
         }
     }
 }
+

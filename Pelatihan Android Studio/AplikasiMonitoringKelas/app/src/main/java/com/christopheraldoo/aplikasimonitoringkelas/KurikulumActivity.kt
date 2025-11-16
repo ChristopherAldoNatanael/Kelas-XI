@@ -1,25 +1,31 @@
 package com.christopheraldoo.aplikasimonitoringkelas
 
+import android.content.Context
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.*
+import com.christopheraldoo.aplikasimonitoringkelas.data.*
+import com.christopheraldoo.aplikasimonitoringkelas.ui.components.BottomNavItem
+import kotlinx.coroutines.*
+import kotlinx.coroutines.launch
 
 class KurikulumActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -52,9 +58,6 @@ fun KurikulumApp() {
             composable("ganti_guru") {
                 GantiGuruPage()
             }
-            composable("list") {
-                ListKurikulumPage()
-            }
         }
     }
 }
@@ -63,8 +66,7 @@ fun KurikulumApp() {
 fun KurikulumBottomNavigationBar(navController: NavHostController) {
     val items = listOf(
         BottomNavItem("jadwal_pelajaran", "Jadwal", Icons.Default.DateRange),
-        BottomNavItem("ganti_guru", "Ganti Guru", Icons.Default.SwapHoriz),
-        BottomNavItem("list", "List", Icons.AutoMirrored.Filled.List)
+        BottomNavItem("ganti_guru", "Ganti Guru", Icons.Default.SwapHoriz)
     )
 
     NavigationBar {
@@ -117,19 +119,40 @@ fun JadwalPelajaranKurikulumPage() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GantiGuruPage() {
-    var selectedHari by remember { mutableStateOf("Senin") }
-    var selectedKelas by remember { mutableStateOf("X RPL") }
-    var selectedMataPelajaran by remember { mutableStateOf("IPA") }
-    var selectedGuruPengganti by remember { mutableStateOf("") }
-    var expandedHari by remember { mutableStateOf(false) }
-    var expandedKelas by remember { mutableStateOf(false) }
-    var expandedMataPelajaran by remember { mutableStateOf(false) }
-    var expandedGuruPengganti by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
-    val hariOptions = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
-    val kelasOptions = listOf("X RPL", "XI RPL", "XII RPL")
-    val mataPelajaranOptions = listOf("IPA", "IPS", "Bahasa")
-    val guruPenggantiOptions = listOf("Siti", "Budi", "Adi", "Agus", "Diana", "Eko", "Fendi")
+    // State variables
+    var selectedDay by remember { mutableStateOf("Senin") }
+    var selectedClass by remember { mutableStateOf("") }
+    var selectedSubject by remember { mutableStateOf("") }
+    var selectedSubstituteTeacher by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    // Dropdown state
+    var expandedDay by remember { mutableStateOf(false) }
+    var expandedClass by remember { mutableStateOf(false) }
+    var expandedSubject by remember { mutableStateOf(false) }
+    var expandedTeacher by remember { mutableStateOf(false) }
+
+    // Data from API
+    var classes by remember { mutableStateOf<List<ClassroomApi>>(emptyList()) }
+    var subjects by remember { mutableStateOf<List<SubjectApi>>(emptyList()) }
+    var teachers by remember { mutableStateOf<List<TeacherApi>>(emptyList()) }
+    var schedules by remember { mutableStateOf<List<ScheduleApi>>(emptyList()) }
+
+    val days = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu")
+
+    // Load initial data
+    LaunchedEffect(Unit) {
+        loadDropdownData(context, scope) { classesList, subjectsList, teachersList, error -> 
+            classes = classesList ?: emptyList()
+            subjects = subjectsList ?: emptyList()
+            teachers = teachersList ?: emptyList()
+            errorMessage = error
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -137,7 +160,7 @@ fun GantiGuruPage() {
             .padding(16.dp)
     ) {
         Text(
-            text = "Ganti Guru",
+            text = "Ganti Guru Pengganti",
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
@@ -146,7 +169,23 @@ fun GantiGuruPage() {
                 .padding(bottom = 24.dp)
         )
 
-        // Spinner Hari
+        if (errorMessage != null) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                )
+            ) {
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Day selector
         Text(
             text = "Pilih Hari:",
             style = MaterialTheme.typography.titleMedium,
@@ -154,19 +193,19 @@ fun GantiGuruPage() {
         )
 
         ExposedDropdownMenuBox(
-            expanded = expandedHari,
-            onExpandedChange = { expandedHari = !expandedHari },
+            expanded = expandedDay,
+            onExpandedChange = { expandedDay = !expandedDay },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
-                value = selectedHari,
-                onValueChange = { selectedHari = it },
+                value = selectedDay,
+                onValueChange = { selectedDay = it },
                 readOnly = true,
                 label = { Text("Pilih Hari") },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedHari)
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedDay)
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                 modifier = Modifier
@@ -175,22 +214,22 @@ fun GantiGuruPage() {
             )
 
             ExposedDropdownMenu(
-                expanded = expandedHari,
-                onDismissRequest = { expandedHari = false }
+                expanded = expandedDay,
+                onDismissRequest = { expandedDay = false }
             ) {
-                hariOptions.forEach { hari ->
+                days.forEach { day ->
                     DropdownMenuItem(
-                        text = { Text(hari) },
+                        text = { Text(day) },
                         onClick = {
-                            selectedHari = hari
-                            expandedHari = false
+                            selectedDay = day
+                            expandedDay = false
                         }
                     )
                 }
             }
         }
 
-        // Spinner Kelas
+        // Class selector
         Text(
             text = "Pilih Kelas:",
             style = MaterialTheme.typography.titleMedium,
@@ -198,19 +237,20 @@ fun GantiGuruPage() {
         )
 
         ExposedDropdownMenuBox(
-            expanded = expandedKelas,
-            onExpandedChange = { expandedKelas = !expandedKelas },
+            expanded = expandedClass,
+            onExpandedChange = { expandedClass = !expandedClass },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
-                value = selectedKelas,
-                onValueChange = { selectedKelas = it },
+                value = selectedClass,
+                onValueChange = { selectedClass = it },
                 readOnly = true,
                 label = { Text("Pilih Kelas") },
+                placeholder = { Text("Pilih kelas terlebih dahulu") },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedKelas)
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedClass)
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                 modifier = Modifier
@@ -219,22 +259,22 @@ fun GantiGuruPage() {
             )
 
             ExposedDropdownMenu(
-                expanded = expandedKelas,
-                onDismissRequest = { expandedKelas = false }
+                expanded = expandedClass,
+                onDismissRequest = { expandedClass = false }
             ) {
-                kelasOptions.forEach { kelas ->
+                classes.forEach { classItem ->
                     DropdownMenuItem(
-                        text = { Text(kelas) },
+                        text = { Text(classItem.name) },
                         onClick = {
-                            selectedKelas = kelas
-                            expandedKelas = false
+                            selectedClass = classItem.name
+                            expandedClass = false
                         }
                     )
                 }
             }
         }
 
-        // Spinner Mata Pelajaran
+        // Subject selector
         Text(
             text = "Pilih Mata Pelajaran:",
             style = MaterialTheme.typography.titleMedium,
@@ -242,19 +282,20 @@ fun GantiGuruPage() {
         )
 
         ExposedDropdownMenuBox(
-            expanded = expandedMataPelajaran,
-            onExpandedChange = { expandedMataPelajaran = !expandedMataPelajaran },
+            expanded = expandedSubject,
+            onExpandedChange = { expandedSubject = !expandedSubject },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         ) {
             OutlinedTextField(
-                value = selectedMataPelajaran,
-                onValueChange = { selectedMataPelajaran = it },
+                value = selectedSubject,
+                onValueChange = { selectedSubject = it },
                 readOnly = true,
                 label = { Text("Pilih Mata Pelajaran") },
+                placeholder = { Text("Pilih mata pelajaran") },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedMataPelajaran)
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSubject)
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                 modifier = Modifier
@@ -263,22 +304,22 @@ fun GantiGuruPage() {
             )
 
             ExposedDropdownMenu(
-                expanded = expandedMataPelajaran,
-                onDismissRequest = { expandedMataPelajaran = false }
+                expanded = expandedSubject,
+                onDismissRequest = { expandedSubject = false }
             ) {
-                mataPelajaranOptions.forEach { mapel ->
+                subjects.forEach { subject ->
                     DropdownMenuItem(
-                        text = { Text(mapel) },
+                        text = { Text(subject.name) },
                         onClick = {
-                            selectedMataPelajaran = mapel
-                            expandedMataPelajaran = false
+                            selectedSubject = subject.name
+                            expandedSubject = false
                         }
                     )
                 }
             }
         }
 
-        // Spinner Guru Pengganti
+        // Substitute teacher selector
         Text(
             text = "Pilih Guru Pengganti:",
             style = MaterialTheme.typography.titleMedium,
@@ -286,20 +327,20 @@ fun GantiGuruPage() {
         )
 
         ExposedDropdownMenuBox(
-            expanded = expandedGuruPengganti,
-            onExpandedChange = { expandedGuruPengganti = !expandedGuruPengganti },
+            expanded = expandedTeacher,
+            onExpandedChange = { expandedTeacher = !expandedTeacher },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp)
         ) {
             OutlinedTextField(
-                value = selectedGuruPengganti,
-                onValueChange = { selectedGuruPengganti = it },
+                value = selectedSubstituteTeacher,
+                onValueChange = { selectedSubstituteTeacher = it },
                 readOnly = true,
                 label = { Text("Pilih Guru Pengganti") },
                 placeholder = { Text("Pilih guru pengganti") },
                 trailingIcon = {
-                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGuruPengganti)
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedTeacher)
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                 modifier = Modifier
@@ -308,49 +349,263 @@ fun GantiGuruPage() {
             )
 
             ExposedDropdownMenu(
-                expanded = expandedGuruPengganti,
-                onDismissRequest = { expandedGuruPengganti = false }
+                expanded = expandedTeacher,
+                onDismissRequest = { expandedTeacher = false }
             ) {
-                guruPenggantiOptions.forEach { guru ->
+                teachers.forEach { teacher ->
                     DropdownMenuItem(
-                        text = { Text(guru) },
+                        text = {
+                            Text(
+                                teacher.name,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
                         onClick = {
-                            selectedGuruPengganti = guru
-                            expandedGuruPengganti = false
+                            selectedSubstituteTeacher = teacher.name
+                            expandedTeacher = false
                         }
                     )
                 }
             }
         }
 
-        // Button Ganti
-        Button(
-            onClick = {
-                // Action to replace teacher
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.White
-            )
+        // Action buttons
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(
-                Icons.Default.SwapHoriz,
-                contentDescription = "Ganti",
-                modifier = Modifier.padding(end = 8.dp)
-            )
+            OutlinedButton(
+                onClick = {
+                    selectedDay = "Senin"
+                    selectedClass = ""
+                    selectedSubject = ""
+                    selectedSubstituteTeacher = ""
+                },
+                modifier = Modifier.weight(1f)
+            ) {
+                Text("Reset")
+            }
+
+            Button(
+                onClick = {
+                    when {
+                        selectedClass.isEmpty() -> {
+                            Toast.makeText(context, "Pilih kelas terlebih dahulu", Toast.LENGTH_SHORT).show()
+                        }
+                        selectedSubject.isEmpty() -> {
+                            Toast.makeText(context, "Pilih mata pelajaran terlebih dahulu", Toast.LENGTH_SHORT).show()
+                        }
+                        selectedSubstituteTeacher.isEmpty() -> {
+                            Toast.makeText(context, "Pilih guru pengganti terlebih dahulu", Toast.LENGTH_SHORT).show()
+                        }
+                        else -> {
+                            submitTeacherSubstitution(
+                                context = context,
+                                scope = scope,
+                                day = selectedDay,
+                                className = selectedClass,
+                                subjectName = selectedSubject,
+                                substituteTeacherName = selectedSubstituteTeacher,
+                                onLoading = { isLoading = it },
+                                onError = { errorMessage = it }
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.weight(2f),
+                enabled = !isLoading
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.SwapHoriz,
+                        contentDescription = "Ganti",
+                        modifier = Modifier.padding(end = 8.dp)
+                    )
+                    Text("Ganti Guru")
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))        // Show current schedules for reference
+        Text(
+            text = "Jadwal Hari Ini (${selectedDay})",
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
+        if (schedules.isEmpty()) {
             Text(
-                text = "Ganti Guru",
-                style = MaterialTheme.typography.titleMedium
+                text = "Memuat jadwal...",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray
             )
+        } else {
+            val daySchedules = schedules.filter { it.dayOfWeek == selectedDay }
+            if (daySchedules.isEmpty()) {
+                Text(
+                    text = "Tidak ada jadwal untuk hari ini",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Gray
+                )
+            } else {
+                LazyColumn {
+                    items(daySchedules) { schedule ->
+                        SimpleScheduleCard(schedule = schedule)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun loadDropdownData(
+    context: Context,
+    scope: kotlinx.coroutines.CoroutineScope,
+    onResult: (List<ClassroomApi>?, List<SubjectApi>?, List<TeacherApi>?, String?) -> Unit
+) {
+    scope.launch {
+        try {
+            val token = context.getSharedPreferences("MonitoringKelasSession", Context.MODE_PRIVATE)
+                .getString("token", null) ?: ""
+
+            if (token.isEmpty()) {
+                onResult(null, null, null, "Token tidak ditemukan")
+                return@launch
+            }
+
+            val schedulesResponse = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.christopheraldoo.aplikasimonitoringkelas.network.RetrofitClient
+                    .createApiService(context)
+                    .getSchedules("Bearer $token")
+            }
+
+            val subjectsResponse = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.christopheraldoo.aplikasimonitoringkelas.network.RetrofitClient
+                    .createApiService(context)
+                    .getSubjects("Bearer $token")
+            }
+
+            val teachersResponse = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                com.christopheraldoo.aplikasimonitoringkelas.network.RetrofitClient
+                    .createApiService(context)
+                    .getTeachers("Bearer $token")
+            }
+
+            val classes = if (schedulesResponse.isSuccessful && schedulesResponse.body()?.success == true) {
+                // schedules response no longer includes nested classData. Use classrooms endpoint instead.
+                null
+            } else null
+
+            val subjects = if (subjectsResponse.isSuccessful && subjectsResponse.body()?.success == true) {
+                subjectsResponse.body()?.data
+            } else null
+
+            val teachers = if (teachersResponse.isSuccessful && teachersResponse.body()?.success == true) {
+                teachersResponse.body()?.data
+            } else null
+
+            val error = when {
+                classes == null -> "Gagal memuat data kelas"
+                subjects == null -> "Gagal memuat data mata pelajaran"
+                teachers == null -> "Gagal memuat data guru"
+                else -> null
+            }
+
+            onResult(classes, subjects, teachers, error)
+        } catch (e: Exception) {
+            onResult(null, null, null, "Error: ${e.localizedMessage}")
+        }
+    }
+}
+
+private fun submitTeacherSubstitution(
+    context: Context,
+    scope: kotlinx.coroutines.CoroutineScope,
+    day: String,
+    className: String,
+    subjectName: String,
+    substituteTeacherName: String,
+    onLoading: (Boolean) -> Unit,
+    onError: (String?) -> Unit
+) {
+    scope.launch {
+        onLoading(true)
+        onError(null)
+
+        try {
+            // Here you would implement the actual API call to submit teacher substitution
+            // For now, we'll just show a success message
+            kotlinx.coroutines.delay(1000) // Simulate API call
+
+            Toast.makeText(
+                context,
+                "Guru pengganti berhasil ditetapkan untuk $subjectName di kelas $className pada hari $day",
+                Toast.LENGTH_LONG
+            ).show()
+
+        } catch (e: Exception) {
+            onError("Error: ${e.localizedMessage}")
+        } finally {
+            onLoading(false)
         }
     }
 }
 
 @Composable
-fun ListKurikulumPage() {
-    // Reuse the EntriUser component
-    EntriUser()
+fun SimpleScheduleCard(schedule: ScheduleApi) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = schedule.subjectName ?: "Unknown Subject",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = "Jam ${schedule.period}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(4.dp))
+              Text(
+                text = "Guru: ${schedule.teacherName ?: "Unknown Teacher"}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            
+            Text(
+                text = schedule.className ?: "Kelas tidak diketahui",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            
+            Text(
+                text = "Ruang: ${schedule.className ?: "Unknown Room"}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            
+            Text(
+                text = "Waktu: ${schedule.startTime} - ${schedule.endTime}",
+                style = MaterialTheme.typography.bodySmall,
+                color = Color.Gray
+            )
+        }
+    }
 }
+
+

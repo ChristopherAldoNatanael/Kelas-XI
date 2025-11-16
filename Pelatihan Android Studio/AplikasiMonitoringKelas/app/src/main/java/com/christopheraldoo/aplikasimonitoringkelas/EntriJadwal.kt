@@ -31,9 +31,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.christopheraldoo.aplikasimonitoringkelas.data.Schedule
+import com.christopheraldoo.aplikasimonitoringkelas.data.ScheduleApi
 import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.ScheduleViewModel
 import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.SaveResult
+import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.ScheduleNetworkViewModel
+import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.MasterDataNetworkViewModel
+import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.ClassroomNetworkViewModel
+import com.christopheraldoo.aplikasimonitoringkelas.viewmodel.ApiState
+import com.christopheraldoo.aplikasimonitoringkelas.network.NetworkUtils
+import com.christopheraldoo.aplikasimonitoringkelas.data.SubjectApi
+import com.christopheraldoo.aplikasimonitoringkelas.data.TeacherApi
+import com.christopheraldoo.aplikasimonitoringkelas.data.ClassroomApi
+import com.google.gson.JsonObject
 import androidx.lifecycle.viewmodel.compose.viewModel
 
 // Data class untuk menyimpan data jadwal yang di-entri
@@ -59,41 +68,66 @@ data class JadwalFormState(
 fun EntriJadwal() {
     val formState = remember { JadwalFormState() }
     val viewModel: ScheduleViewModel = viewModel()
+    
+    // Add network ViewModels for dropdown data
+    val masterDataViewModel: MasterDataNetworkViewModel = viewModel()
+    val classroomViewModel: ClassroomNetworkViewModel = viewModel()
+
+    // Observe API states
+    val subjectsState by masterDataViewModel.subjectsState.collectAsStateWithLifecycle()
+    val teachersState by masterDataViewModel.filteredTeachersState.collectAsStateWithLifecycle()
+    val classroomsState by classroomViewModel.classroomsState.collectAsStateWithLifecycle()    // Load data when component mounts
+    LaunchedEffect(Unit) {
+        masterDataViewModel.getSubjects()
+        classroomViewModel.getClassrooms()
+        viewModel.getAllSchedules() // Load existing schedules
+    }
+
+    // Load teachers when subject is selected
+    LaunchedEffect(formState.selectedMataPelajaran) {
+        if (formState.selectedMataPelajaran.isNotEmpty()) {
+            when (val state = subjectsState) {
+                is ApiState.Success -> {
+                    val selectedSubject = state.data.find { it.name == formState.selectedMataPelajaran }
+                    selectedSubject?.let { subject ->
+                        masterDataViewModel.getFilteredTeachersBySubject(subject.id)
+                    }
+                }
+                else -> {}
+            }
+        }
+    }
 
     // State untuk menyimpan data yang sudah di-entri
     var showDialog by remember { mutableStateOf(false) }
     var isSuccess by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
     // Observe save status from viewModel
-    val saveStatus by viewModel.saveStatus.collectAsStateWithLifecycle()
-
-    // Observe schedules from viewModel
+    val saveStatus by viewModel.saveStatus.collectAsStateWithLifecycle()    // Observe schedules from viewModel
     val schedules by viewModel.allSchedules.observeAsState(initial = emptyList())
 
-    // Convert schedules to savedJadwal format for backward compatibility
-    val savedJadwal = schedules.map { schedule ->
-        JadwalData(
-            hari = schedule.day,
-            kelas = schedule.classRoom,
-            mataPelajaran = schedule.subject,
-            namaGuru = schedule.teacherName,
-            jamKe = schedule.periodNumber
-        )
-    }
       // Effect to handle save status changes
     var isLoading by remember { mutableStateOf(false) }
 
     LaunchedEffect(saveStatus) {
-        when (saveStatus) {
-            is SaveResult.Success -> {
+        when (val currentStatus = saveStatus) {            is SaveResult.Success -> {
                 isLoading = false
-                dialogMessage = "Jadwal berhasil disimpan"
+                val schedule = currentStatus.data
+                dialogMessage = "🎉 Jadwal berhasil disimpan ke MySQL Database!\n\n" +
+                    "📝 Detail:\n" +
+                    "• ID: ${schedule.id}\n" +
+                    "• Hari: ${formState.selectedHari}\n" +
+                    "• Mata Pelajaran: ${formState.selectedMataPelajaran}\n" +
+                    "• Guru: ${formState.selectedNamaGuru}\n" +
+                    "• Ruangan: ${formState.selectedKelas}\n" +
+                    "• Jam: ${formState.jamKe}\n" +
+                    "• Status: Berhasil tersimpan"
                 isSuccess = true
                 showDialog = true
             }
             is SaveResult.Error -> {
                 isLoading = false
-                dialogMessage = "Gagal menyimpan jadwal: ${(saveStatus as SaveResult.Error).message}"
+                dialogMessage = "Gagal menyimpan jadwal: ${currentStatus.message}"
                 isSuccess = false
                 showDialog = true
             }
@@ -103,7 +137,23 @@ fun EntriJadwal() {
 
     // Options untuk spinners
     val hariOptions = listOf("Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu", "Minggu")
-    val kelasOptions = listOf("X RPL", "XI RPL", "XII RPL")
+      // Get classroom options from API
+    val kelasOptions = when (val state = classroomsState) {
+        is ApiState.Success -> state.data.map { it.name }
+        else -> emptyList()
+    }
+    
+    // Get subject options from API
+    val mataPelajaranOptions = when (val state = subjectsState) {
+        is ApiState.Success -> state.data.map { it.name }
+        else -> emptyList()
+    }
+      // Get teacher options from API (filtered by subject)
+    val namaGuruOptions = when (val state = teachersState) {
+        is ApiState.Success -> state.data.map { it.name }
+        else -> emptyList()
+    }
+    
     val scrollState = rememberScrollState()
 
     Column(
@@ -216,13 +266,13 @@ fun EntriJadwal() {
                 }
             }
         }        // Text Field Mata Pelajaran
-        var expandedMapel by remember { mutableStateOf(false) }
-        val mataPelajaranOptions = listOf(
-            "Matematika", "Bahasa Indonesia", "Bahasa Inggris", "Fisika",
-            "Biologi", "Kimia", "Sejarah", "Ekonomi", "Geografi",
-            "Kewarganegaraan", "Pemrograman Dasar", "Basis Data",
-            "Pemrograman Web", "Pemrograman Mobile", "Rekayasa Perangkat Lunak"
+        Text(
+            text = "Pilih Mata Pelajaran:",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
+        
+        var expandedMapel by remember { mutableStateOf(false) }
 
         ExposedDropdownMenuBox(
             expanded = expandedMapel,
@@ -233,9 +283,14 @@ fun EntriJadwal() {
         ) {
             OutlinedTextField(
                 value = formState.selectedMataPelajaran,
-                onValueChange = { formState.selectedMataPelajaran = it },
+                onValueChange = { 
+                    formState.selectedMataPelajaran = it
+                    // Clear teacher selection when subject changes
+                    formState.selectedNamaGuru = ""
+                },
+                readOnly = true,
                 label = { Text("Mata Pelajaran") },
-                placeholder = { Text("Ketik nama mata pelajaran atau pilih dari list") },
+                placeholder = { Text("Pilih mata pelajaran") },
                 leadingIcon = {
                     Icon(
                         Icons.Default.School,
@@ -256,24 +311,47 @@ fun EntriJadwal() {
                 expanded = expandedMapel,
                 onDismissRequest = { expandedMapel = false }
             ) {
-                mataPelajaranOptions.forEach { mapel ->
-                    DropdownMenuItem(
-                        text = { Text(mapel) },
-                        onClick = {
-                            formState.selectedMataPelajaran = mapel
-                            expandedMapel = false
+                when (val state = subjectsState) {
+                    is ApiState.Loading -> {
+                        DropdownMenuItem(
+                            text = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Loading subjects...")
+                                }
+                            },
+                            onClick = { }
+                        )
+                    }
+                    is ApiState.Success -> {                        state.data.forEach { subject ->
+                            DropdownMenuItem(
+                                text = { Text(subject.name) },
+                                onClick = {
+                                    formState.selectedMataPelajaran = subject.name
+                                    formState.selectedNamaGuru = "" // Clear teacher selection
+                                    expandedMapel = false
+                                }
+                            )
                         }
-                    )
+                    }
+                    is ApiState.Error -> {
+                        DropdownMenuItem(
+                            text = { Text("Error: ${state.message}") },
+                            onClick = { }
+                        )
+                    }
+                    else -> {}
                 }
             }
         }        // Dropdown Nama Guru
-        var expandedGuru by remember { mutableStateOf(false) }
-        val namaGuruOptions = listOf(
-            "Pak Budi Santoso", "Ibu Siti Nurhaliza", "Pak Adi Wijaya",
-            "Ibu Maya Sari", "Mr. John Smith", "Ibu Rina Agustina",
-            "Pak Doni Ramadhan", "Pak Eko Prasetyo", "Pak Ahmad Fauzi",
-            "Ibu Lisa Permata", "Pak Hendra Gunawan", "Ibu Diana Putri"
+        Text(
+            text = "Pilih Nama Guru:",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
         )
+        
+        var expandedGuru by remember { mutableStateOf(false) }
 
         ExposedDropdownMenuBox(
             expanded = expandedGuru,
@@ -286,8 +364,15 @@ fun EntriJadwal() {
                 value = formState.selectedNamaGuru,
                 onValueChange = { formState.selectedNamaGuru = it },
                 readOnly = true,
-                label = { Text("Nama Guru") },
-                placeholder = { Text("Pilih nama guru pengajar") },
+                label = { Text("Nama Guru") },                placeholder = { 
+                    Text(
+                        if (formState.selectedMataPelajaran.isEmpty()) {
+                            "Pilih mata pelajaran terlebih dahulu"
+                        } else {
+                            "Pilih nama guru pengajar"
+                        }
+                    )
+                },
                 leadingIcon = {
                     Icon(
                         Icons.Default.Person,
@@ -299,6 +384,7 @@ fun EntriJadwal() {
                     ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedGuru)
                 },
                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                enabled = formState.selectedMataPelajaran.isNotEmpty(),
                 modifier = Modifier
                     .fillMaxWidth()
                     .menuAnchor()
@@ -308,17 +394,62 @@ fun EntriJadwal() {
                 expanded = expandedGuru,
                 onDismissRequest = { expandedGuru = false }
             ) {
-                namaGuruOptions.forEach { guru ->
-                    DropdownMenuItem(
-                        text = { Text(guru) },
-                        onClick = {
-                            formState.selectedNamaGuru = guru
-                            expandedGuru = false
+                when (val state = teachersState) {
+                    is ApiState.Loading -> {
+                        DropdownMenuItem(
+                            text = { 
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Loading teachers...")
+                                }
+                            },
+                            onClick = { }
+                        )
+                    }
+                    is ApiState.Success -> {
+                        if (state.data.isEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("No teachers available for this subject") },
+                                onClick = { }
+                            )
+                        } else {
+                            state.data.forEach { teacher ->
+                                DropdownMenuItem(
+                                    text = { Text(teacher.name ?: "Unknown Teacher") },
+                                    onClick = {
+                                        formState.selectedNamaGuru = teacher.name ?: "Unknown Teacher"
+                                        expandedGuru = false
+                                    }
+                                )
+                            }
                         }
-                    )
+                    }
+                    is ApiState.Error -> {
+                        DropdownMenuItem(
+                            text = { Text("Error: ${state.message}") },
+                            onClick = { }
+                        )
+                    }
+                    else -> {
+                        if (formState.selectedMataPelajaran.isNotEmpty()) {
+                            DropdownMenuItem(
+                                text = { Text("Select a subject first") },
+                                onClick = { }
+                            )
+                        }
+                    }
                 }
             }
-        }        // Dropdown untuk Jam Ke
+        }
+
+        // Dropdown untuk Jam Ke
+        Text(
+            text = "Pilih Jam Ke:",
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        
         var expandedJam by remember { mutableStateOf(false) }
         val jamOptions = listOf(
             "Jam ke-1", "Jam ke-2", "Jam ke-3", "Jam ke-4", "Jam ke-5",
@@ -407,23 +538,66 @@ fun EntriJadwal() {
                                 .uppercase()
                         } else {
                             "TCH001"
+                        }                        // Get selected IDs from the API data
+                        var selectedSubjectId: Int? = null
+                        var selectedTeacherId: Int? = null
+                        var selectedClassroomId: Int? = null
+                          // Find selected subject ID
+                        val currentSubjectsState = subjectsState
+                        if (currentSubjectsState is ApiState.Success) {
+                            selectedSubjectId = currentSubjectsState.data.find { it.name == formState.selectedMataPelajaran }?.id
                         }
-
-                        // Create Schedule entity
-                        val newSchedule = Schedule(
-                            day = formState.selectedHari,
-                            classRoom = formState.selectedKelas,
-                            subject = formState.selectedMataPelajaran,
-                            teacherName = formState.selectedNamaGuru,
-                            teacherCode = teacherCode,
-                            periodNumber = formState.jamKe
-                        )
+                        
+                        // Find selected teacher ID
+                        val currentTeachersState = teachersState
+                        if (currentTeachersState is ApiState.Success) {
+                            selectedTeacherId = currentTeachersState.data.find { 
+                                it.name == formState.selectedNamaGuru 
+                            }?.id
+                        }
+                        
+                        // Find selected classroom ID
+                        val currentClassroomsState = classroomsState
+                        if (currentClassroomsState is ApiState.Success) {
+                            selectedClassroomId = currentClassroomsState.data.find { it.name == formState.selectedKelas }?.id
+                        }                        // Create JsonObject for API request with proper data
+                        val scheduleData = JsonObject().apply {
+                            addProperty("day", formState.selectedHari)
+                            addProperty("classroom_id", selectedClassroomId ?: 8) // Default to Lab1
+                            addProperty("subject_id", selectedSubjectId ?: 3) // Default to Bahasa Inggris
+                            addProperty("teacher_id", selectedTeacherId ?: 4) // Default to Adi Wijaya
+                            
+                            // Parse jam ke untuk mendapatkan waktu yang tepat
+                            val periodNumber = formState.jamKe.replace("Jam ke-", "").toIntOrNull() ?: 1
+                            addProperty("period_number", periodNumber)
+                            
+                            // Mapping jam ke ke waktu yang sesuai
+                            val timeMapping = mapOf(
+                                1 to Pair("07:00:00", "08:40:00"),
+                                2 to Pair("08:40:00", "10:20:00"), 
+                                3 to Pair("10:20:00", "12:00:00"),
+                                4 to Pair("13:00:00", "14:40:00"),
+                                5 to Pair("14:40:00", "16:20:00")
+                            )
+                            
+                            val (startTime, endTime) = timeMapping[periodNumber] ?: Pair("07:00:00", "08:40:00")
+                            addProperty("start_time", startTime)
+                            addProperty("end_time", endTime)
+                              // Tambahkan notes yang informatif
+                            val teacherName = if (currentTeachersState is ApiState.Success) {
+                                currentTeachersState.data.find { it.id == selectedTeacherId }?.name ?: "Guru"
+                            } else "Guru"
+                            
+                            val subjectName = if (currentSubjectsState is ApiState.Success) {
+                                currentSubjectsState.data.find { it.id == selectedSubjectId }?.name ?: "Mata Pelajaran"
+                            } else "Mata Pelajaran"
+                            
+                            addProperty("notes", "Jadwal $subjectName dengan $teacherName - Periode $periodNumber pada hari ${formState.selectedHari}")
+                        }// Send to API via ViewModel
+                        viewModel.createSchedule(scheduleData)
 
                         // Reset loading state for now - the save status will be handled by the LaunchedEffect above
                         isLoading = false
-
-                        // Save to database using viewModel
-                        viewModel.insertSchedule(newSchedule)
                     }
                 }
             },
@@ -452,21 +626,20 @@ fun EntriJadwal() {
                     text = "Simpan Jadwal",
                     style = MaterialTheme.typography.titleMedium
                 )
-            }
-        }
+            }        }
 
-        Spacer(modifier = Modifier.height(32.dp))        // Section untuk menampilkan data yang sudah di-entri
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // Section untuk menampilkan data yang sudah di-entri
         Text(
             text = "Data Jadwal yang Sudah Di-Entri",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Dialog states for confirmation
+        )        // Dialog states for confirmation
         var showDeleteDialog by remember { mutableStateOf(false) }
-        var scheduleToDelete by remember { mutableStateOf<Schedule?>(null) }
-        var scheduleToEdit by remember { mutableStateOf<Schedule?>(null) }
+        var scheduleToDelete by remember { mutableStateOf<ScheduleApi?>(null) }
+        var scheduleToEdit by remember { mutableStateOf<ScheduleApi?>(null) }
 
         // Show edit dialog if we have a schedule to edit
         scheduleToEdit?.let { schedule ->
@@ -497,7 +670,7 @@ fun EntriJadwal() {
                 confirmButton = {
                     FilledTonalButton(
                         onClick = {
-                            scheduleToDelete?.let { viewModel.deleteSchedule(it) }
+                            scheduleToDelete?.let { viewModel.deleteSchedule(it.id) }
                             showDeleteDialog = false
                             scheduleToDelete = null
                         },
@@ -551,10 +724,11 @@ fun EntriJadwal() {
                             showDeleteDialog = true
                         }
                     )
-                }
-            }
+                }            }
         }
-    }    // Dialog untuk notifikasi
+    }
+
+    // Dialog untuk notifikasi
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -583,19 +757,20 @@ fun EntriJadwal() {
 }
 
 @Composable
-fun JadwalEntriCard(jadwalData: JadwalData) {
-    // This function is kept for backward compatibility
+@Suppress("UNUSED_PARAMETER")
+fun JadwalEntriCard(unusedData: JadwalData) {
+    // This function is kept for backward compatibility but parameter is unused
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         JadwalCardContent(
-            hari = jadwalData.hari,
-            kelas = jadwalData.kelas,
-            mataPelajaran = jadwalData.mataPelajaran,
-            namaGuru = jadwalData.namaGuru,
-            jamKe = jadwalData.jamKe,
+            hari = "Senin", // Default values since parameter is unused
+            kelas = "X RPL",
+            mataPelajaran = "Sample",
+            namaGuru = "Default Teacher",
+            jamKe = "Jam ke-1",
             onEdit = { /* Not implemented */ },
             onDelete = { /* Not implemented */ }
         )
@@ -603,20 +778,19 @@ fun JadwalEntriCard(jadwalData: JadwalData) {
 }
 
 @Composable
-fun JadwalEntriCard(schedule: Schedule, onEdit: (Schedule) -> Unit, onDelete: (Schedule) -> Unit) {    Card(
+fun JadwalEntriCard(schedule: ScheduleApi, onEdit: (ScheduleApi) -> Unit, onDelete: (ScheduleApi) -> Unit) {
+    Card(
         modifier = Modifier
             .fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
         )
-    ) {
-        JadwalCardContent(
-            hari = schedule.day,
-            kelas = schedule.classRoom,
-            mataPelajaran = schedule.subject,
-            namaGuru = schedule.teacherName,
-            jamKe = schedule.periodNumber,
+    ) {        JadwalCardContent(            hari = schedule.dayOfWeek,
+            kelas = schedule.className ?: "Unknown Class",
+            mataPelajaran = schedule.subjectName ?: "Unknown Subject",
+            namaGuru = schedule.teacherName ?: "Unknown Teacher",
+            jamKe = "Jam ke-${schedule.period}",
             onEdit = { onEdit(schedule) },
             onDelete = { onDelete(schedule) }
         )
@@ -778,3 +952,5 @@ fun EntriJadwalPreview() {
         EntriJadwal()
     }
 }
+
+

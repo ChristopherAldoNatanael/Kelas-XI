@@ -6,23 +6,35 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import com.christopheraldoo.aplikasimonitoringkelas.network.NetworkRepository
+import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.JadwalScreen
+import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.KehadiranScreen
+import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.RiwayatScreen
+import com.christopheraldoo.aplikasimonitoringkelas.ui.viewmodel.SiswaViewModel
+import com.christopheraldoo.aplikasimonitoringkelas.util.SessionManager
 import kotlinx.coroutines.launch
 
+/**
+ * Role Siswa Activity - Professional Jetpack Compose Implementation
+ * 3 Main Screens: Jadwal, Kehadiran (Input), Riwayat
+ */
 class SiswaActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -34,170 +46,92 @@ class SiswaActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SiswaApp() {
+    val context = LocalContext.current
+    val sessionManager = SessionManager(context)
+    val repository = NetworkRepository(context)
+    val viewModel = SiswaViewModel(repository)
     val navController = rememberNavController()
+    val scope = rememberCoroutineScope()    // Get user data
+    val userName = sessionManager.getUserName() ?: "Siswa"
+    val userClassId = sessionManager.getUserClassId()
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Monitoring Kelas - $userName") },
+                actions = {
+                    IconButton(onClick = {
+                        scope.launch {
+                            sessionManager.logout()
+                            context.startActivity(Intent(context, LoginActivity::class.java))
+                            (context as? ComponentActivity)?.finish()
+                        }
+                    }) {
+                        Icon(Icons.Default.Logout, "Logout")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            )
+        },
         bottomBar = {
-            BottomNavigationBar(navController = navController)
+            NavigationBar {
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+
+                siswaNavigationItems.forEach { screen ->
+                    NavigationBarItem(
+                        icon = { Icon(screen.icon, contentDescription = screen.label) },
+                        label = { Text(screen.label) },
+                        selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
+                        onClick = {
+                            navController.navigate(screen.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    )
+                }
+            }
         }
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = "jadwal_pelajaran",
+            startDestination = "jadwal",
             modifier = Modifier.padding(paddingValues)
         ) {
-            composable("jadwal_pelajaran") {
-                JadwalPage(userName = "Siswa", userRole = "Siswa")
+            composable("jadwal") {
+                JadwalScreen(
+                    viewModel = viewModel
+                )
             }
-            composable("entri") {
-                EntriPage()
+            composable("kehadiran") {
+                KehadiranScreen(viewModel = viewModel)
             }
-            composable("list") {
-                ListPage()
-            }
-        }
-    }
-}
-
-@Composable
-fun BottomNavigationBar(navController: NavHostController) {
-    val items = listOf(
-        BottomNavItem("jadwal_pelajaran", "Jadwal", Icons.Default.DateRange),
-        BottomNavItem("entri", "Entri", Icons.Default.Add),
-        BottomNavItem("list", "List", Icons.AutoMirrored.Filled.List)
-    )
-
-    NavigationBar {
-        val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
-
-        items.forEach { item ->
-            NavigationBarItem(
-                icon = {
-                    Icon(
-                        item.icon,
-                        contentDescription = item.label,
-                        tint = if (currentRoute == item.route)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            Color.Gray
-                    )
-                },
-                label = {
-                    Text(
-                        item.label,
-                        color = if (currentRoute == item.route)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            Color.Gray
-                    )
-                },
-                selected = currentRoute == item.route,
-                onClick = {
-                    navController.navigate(item.route) {
-                        navController.graph.startDestinationRoute?.let { route ->
-                            popUpTo(route) {
-                                saveState = true
-                            }
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
-                }
-            )
-        }
-    }
-}
-
-data class BottomNavItem(val route: String, val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector)
-
-@Composable
-fun JadwalPelajaranPage() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
-            text = "Jadwal Pelajaran",
-            style = MaterialTheme.typography.headlineMedium,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        // Placeholder content for Jadwal Pelajaran
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
-            elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Senin - X RPL",
-                    style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Text(
-                    text = "Jam ke-1: Matematika (Pak Budi)",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Jam ke-2: Bahasa Indonesia (Ibu Siti)",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-                Text(
-                    text = "Jam ke-3: IPA (Pak Adi)",
-                    style = MaterialTheme.typography.bodyMedium
-                )
+            composable("riwayat") {
+                RiwayatScreen(viewModel = viewModel)
             }
         }
     }
 }
 
-@Composable
-fun EntriPage() {
-    // For Siswa, show a message that they don't have permission to add schedules
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            Icons.Default.Warning,
-            contentDescription = "Akses Dibatasi",
-            tint = MaterialTheme.colorScheme.error,
-            modifier = Modifier.size(64.dp)
-        )
+// Navigation items
+data class SiswaNavigationItem(
+    val route: String,
+    val label: String,
+    val icon: ImageVector
+)
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Akses Dibatasi",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.error
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Sebagai Siswa, Anda tidak memiliki izin untuk menambah jadwal pelajaran. Silakan hubungi Admin atau Guru Kurikulum untuk informasi jadwal.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
-@Composable
-fun ListPage() {
-    // Use the EntriUser as an example
-    EntriUser()
-}
+val siswaNavigationItems = listOf(
+    SiswaNavigationItem("jadwal", "Jadwal", Icons.Default.CalendarToday),
+    SiswaNavigationItem("kehadiran", "Kehadiran", Icons.Default.AssignmentTurnedIn),
+    SiswaNavigationItem("riwayat", "Riwayat", Icons.Default.History)
+)
