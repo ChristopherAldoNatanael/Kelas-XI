@@ -52,6 +52,17 @@ class Subject extends Model
         $this->attributes['nama'] = $value;
     }
 
+    // Backward compatibility accessor for 'name' (English alias)
+    public function getNameAttribute(): string
+    {
+        return $this->nama;
+    }
+
+    public function setNameAttribute($value)
+    {
+        $this->attributes['nama'] = $value;
+    }
+
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',

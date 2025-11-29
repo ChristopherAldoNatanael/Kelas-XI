@@ -871,4 +871,298 @@ class NetworkRepository(private val context: Context) {
             Result.failure(e)
         }
     }
+
+    // ===============================================
+    // KURIKULUM API FUNCTIONS
+    // ===============================================
+    
+    private fun getAuthToken(): String {
+        val token = TokenManager.getToken(context) ?: ""
+        return if (token.startsWith("Bearer ")) token else "Bearer $token"
+    }
+
+    // Get Kurikulum Dashboard Overview
+    suspend fun getKurikulumDashboard(
+        day: String? = null,
+        classId: Int? = null,
+        subjectId: Int? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumDashboardResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKurikulumDashboard(getAuthToken(), day, classId, subjectId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumDashboardResponse(
+                    success = false,
+                    message = "Gagal memuat dashboard: ${response.message()}",
+                    date = "",
+                    day = "",
+                    stats = com.christopheraldoo.aplikasimonitoringkelas.data.DashboardStats(),
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKurikulumDashboard error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumDashboardResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                date = "",
+                day = "",
+                stats = com.christopheraldoo.aplikasimonitoringkelas.data.DashboardStats(),
+                data = emptyList()
+            )
+        }
+    }
+
+    // Get Kurikulum Class Management
+    suspend fun getKurikulumClasses(
+        status: String? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.ClassManagementResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKurikulumClasses(getAuthToken(), status)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.ClassManagementResponse(
+                    success = false,
+                    message = "Gagal memuat data kelas: ${response.message()}",
+                    date = "",
+                    day = "",
+                    currentTime = "",
+                    statusCounts = com.christopheraldoo.aplikasimonitoringkelas.data.StatusCounts(),
+                    alertClasses = emptyList(),
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKurikulumClasses error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.ClassManagementResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                date = "",
+                day = "",
+                currentTime = "",
+                statusCounts = com.christopheraldoo.aplikasimonitoringkelas.data.StatusCounts(),
+                alertClasses = emptyList(),
+                data = emptyList()
+            )
+        }
+    }
+
+    // Get Available Substitute Teachers
+    suspend fun getAvailableSubstitutes(
+        period: Int,
+        subjectId: Int? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.SubstituteTeachersResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getAvailableSubstitutes(getAuthToken(), period, subjectId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.SubstituteTeachersResponse(
+                    success = false,
+                    message = "Gagal memuat guru pengganti: ${response.message()}",
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getAvailableSubstitutes error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.SubstituteTeachersResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = emptyList()
+            )
+        }
+    }
+
+    // Assign Substitute Teacher
+    suspend fun assignSubstitute(
+        request: com.christopheraldoo.aplikasimonitoringkelas.data.AssignSubstituteRequest
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.AssignSubstituteResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().assignSubstitute(getAuthToken(), request)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.AssignSubstituteResponse(
+                    success = false,
+                    message = "Gagal menugaskan guru pengganti: ${response.message()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "assignSubstitute error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.AssignSubstituteResponse(
+                success = false,
+                message = "Error: ${e.message}"
+            )
+        }
+    }
+
+    // Get Kurikulum Attendance History
+    suspend fun getKurikulumHistory(
+        page: Int = 1,
+        dateFrom: String? = null,
+        dateTo: String? = null,
+        teacherId: Int? = null,
+        classId: Int? = null,
+        status: String? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumHistoryResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKurikulumHistory(
+                getAuthToken(), page, 20, dateFrom, dateTo, teacherId, classId, status
+            )
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumHistoryResponse(
+                    success = false,
+                    message = "Gagal memuat riwayat: ${response.message()}",
+                    data = emptyList(),
+                    pagination = com.christopheraldoo.aplikasimonitoringkelas.data.PaginationInfo(1, 20, 0, 1)
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKurikulumHistory error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumHistoryResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = emptyList(),
+                pagination = com.christopheraldoo.aplikasimonitoringkelas.data.PaginationInfo(1, 20, 0, 1)
+            )
+        }
+    }
+
+    // Get Kurikulum Statistics
+    suspend fun getKurikulumStatistics(
+        month: Int? = null,
+        year: Int? = null,
+        teacherId: Int? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.StatisticsResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKurikulumStatistics(getAuthToken(), month, year, teacherId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.StatisticsResponse(
+                    success = false,
+                    message = "Gagal memuat statistik: ${response.message()}",
+                    statistics = com.christopheraldoo.aplikasimonitoringkelas.data.MonthlyStats(
+                        0, 0, "", 0, 0, 0, 0, 0,
+                        com.christopheraldoo.aplikasimonitoringkelas.data.PercentageStats(0f, 0f, 0f, 0f)
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKurikulumStatistics error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.StatisticsResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                statistics = com.christopheraldoo.aplikasimonitoringkelas.data.MonthlyStats(
+                    0, 0, "", 0, 0, 0, 0, 0,
+                    com.christopheraldoo.aplikasimonitoringkelas.data.PercentageStats(0f, 0f, 0f, 0f)
+                )
+            )
+        }
+    }
+
+    // Export Attendance Data
+    suspend fun exportAttendance(
+        dateFrom: String? = null,
+        dateTo: String? = null,
+        teacherId: Int? = null,
+        classId: Int? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.ExportResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().exportAttendance(getAuthToken(), dateFrom, dateTo, teacherId, classId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.ExportResponse(
+                    success = false,
+                    message = "Gagal export data: ${response.message()}",
+                    totalRecords = 0,
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "exportAttendance error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.ExportResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                totalRecords = 0,
+                data = emptyList()
+            )
+        }
+    }
+
+    // Get Filter Classes
+    suspend fun getFilterClasses(): com.christopheraldoo.aplikasimonitoringkelas.data.FilterClassesResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getFilterClasses(getAuthToken())
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.FilterClassesResponse(
+                    success = false,
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getFilterClasses error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.FilterClassesResponse(
+                success = false,
+                data = emptyList()
+            )
+        }
+    }
+
+    // Get Filter Teachers
+    suspend fun getFilterTeachers(): com.christopheraldoo.aplikasimonitoringkelas.data.FilterTeachersResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getFilterTeachers(getAuthToken())
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.FilterTeachersResponse(
+                    success = false,
+                    data = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getFilterTeachers error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.FilterTeachersResponse(
+                success = false,
+                data = emptyList()
+            )
+        }
+    }
+
+    // Get Class Students
+    suspend fun getClassStudents(
+        classId: Int
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.ClassStudentsResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getClassStudents(getAuthToken(), classId)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.ClassStudentsResponse(
+                    success = false,
+                    message = "Gagal memuat data siswa: ${response.message()}",
+                    classInfo = com.christopheraldoo.aplikasimonitoringkelas.data.ClassInfo(0, "Unknown"),
+                    totalStudents = 0,
+                    students = emptyList()
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getClassStudents error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.ClassStudentsResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                classInfo = com.christopheraldoo.aplikasimonitoringkelas.data.ClassInfo(0, "Unknown"),
+                totalStudents = 0,
+                students = emptyList()
+            )
+        }
+    }
 }

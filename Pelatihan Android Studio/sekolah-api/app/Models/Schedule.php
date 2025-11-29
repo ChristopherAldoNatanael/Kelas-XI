@@ -58,7 +58,7 @@ class Schedule extends Model
         // Using 'mata_pelajaran' field to match with 'nama' field in subjects table
         return $this->belongsTo(Subject::class, 'mata_pelajaran', 'nama');
     }
-    
+
     // Safeguard method to safely get subject data
     public function getSubjectSafely()
     {
@@ -78,7 +78,7 @@ class Schedule extends Model
     {
         return $this->belongsTo(ClassModel::class, 'kelas', 'nama_kelas');
     }
-    
+
     // Safeguard method to safely get class data
     public function getClassSafely()
     {
@@ -94,17 +94,11 @@ class Schedule extends Model
         }
     }
 
-
-    public function teacher(): BelongsTo
-    {
-        return $this->belongsTo(Teacher::class, 'guru_id');
-    }
-
     public function teacherAttendances(): HasMany
     {
         return $this->hasMany(TeacherAttendance::class, 'schedule_id');
     }
-    
+
     // Safeguard method to safely get teacher data
     public function getTeacherSafely()
     {
@@ -152,7 +146,7 @@ class Schedule extends Model
         $className = $this->class ? ($this->class->name ?? 'Unknown Class') : 'Unknown Class';
         $subjectName = $this->subject ? ($this->subject->name ?? 'Unknown Subject') : 'Unknown Subject';
         $teacherName = $this->teacher && $this->teacher->user ? ($this->teacher->user->nama ?? 'Unknown Teacher') : 'Unknown Teacher';
-        
+
         return $className . ' | ' . $subjectName . ' | ' . $teacherName;
     }
 

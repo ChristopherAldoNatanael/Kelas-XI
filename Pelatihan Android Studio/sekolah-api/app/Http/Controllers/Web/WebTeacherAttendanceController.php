@@ -24,8 +24,9 @@ class WebTeacherAttendanceController extends Controller
     public function index(Request $request)
     {
         $subjects = Cache::remember('subjects_for_attendance', 3600, function () {
-            return Subject::select('id', 'name')->get()->map(function ($subject) {
-                $subject->nama_mapel = $subject->name; // Add backward compatibility
+            return Subject::select('id', 'nama')->get()->map(function ($subject) {
+                $subject->nama_mapel = $subject->nama; // Add backward compatibility
+                $subject->name = $subject->nama; // English alias
                 return $subject;
             });
         });
@@ -182,7 +183,7 @@ class WebTeacherAttendanceController extends Controller
             $subject = Subject::find($request->subject_id);
             if ($subject) {
                 $query->whereHas('schedule', function ($q) use ($subject) {
-                    $q->where('mata_pelajaran', $subject->name);
+                    $q->where('mata_pelajaran', $subject->nama);
                 });
             }
         }

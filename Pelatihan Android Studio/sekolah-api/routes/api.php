@@ -21,6 +21,7 @@ use App\Http\Controllers\Api\KehadiranController;
 use App\Http\Controllers\Api\TeacherAttendanceController;
 use App\Http\Controllers\Api\SiswaKehadiranController;
 use App\Http\Controllers\Api\SiswaKehadiranGuruController;
+use App\Http\Controllers\Api\KurikulumController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -220,4 +221,38 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::apiResource('teacher-attendances', TeacherAttendanceController::class);
     Route::get('teacher-attendances/by-date/{date}', [TeacherAttendanceController::class, 'getByDate']);
     Route::get('teacher-attendances/by-guru/{guru_id}', [TeacherAttendanceController::class, 'getByGuru']);
+});
+
+// ===============================================
+// KURIKULUM ROUTES - Lightweight endpoints with manual auth
+// These routes bypass Sanctum middleware issues for better performance
+// ===============================================
+Route::prefix('kurikulum')->group(function () {
+    // Dashboard - Overview of all classes with teacher attendance status
+    Route::get('dashboard', [KurikulumController::class, 'dashboardOverview']);
+
+    // Class Management - Sort and filter classes by teacher status
+    Route::get('classes', [KurikulumController::class, 'classManagement']);
+
+    // Get available substitute teachers for a period
+    Route::get('substitutes', [KurikulumController::class, 'getAvailableSubstitutes']);
+
+    // Assign substitute teacher to a class
+    Route::post('assign-substitute', [KurikulumController::class, 'assignSubstitute']);
+
+    // Attendance history with filters
+    Route::get('history', [KurikulumController::class, 'attendanceHistory']);
+
+    // Attendance statistics for reports
+    Route::get('statistics', [KurikulumController::class, 'attendanceStatistics']);
+
+    // Export attendance data
+    Route::get('export', [KurikulumController::class, 'exportAttendance']);
+
+    // Get students in a class
+    Route::get('class/{classId}/students', [KurikulumController::class, 'getClassStudents']);
+
+    // Filter data - classes and teachers list
+    Route::get('filter/classes', [KurikulumController::class, 'getClasses']);
+    Route::get('filter/teachers', [KurikulumController::class, 'getTeachers']);
 });

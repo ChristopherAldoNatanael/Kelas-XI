@@ -219,4 +219,88 @@ interface ApiService {
     // Enhanced today status
     @GET("siswa/kehadiran/today")
     suspend fun getTodayStatus(): Response<ApiResponse<TodayStatusResponse>>
+
+    // ========== KURIKULUM ENDPOINTS ==========
+    
+    // Dashboard overview - All classes with teacher attendance status
+    @GET("kurikulum/dashboard")
+    suspend fun getKurikulumDashboard(
+        @Header("Authorization") token: String,
+        @Query("day") day: String? = null,
+        @Query("class_id") classId: Int? = null,
+        @Query("subject_id") subjectId: Int? = null
+    ): Response<KurikulumDashboardResponse>
+    
+    // Class management - Sort and filter classes by teacher status
+    @GET("kurikulum/classes")
+    suspend fun getKurikulumClasses(
+        @Header("Authorization") token: String,
+        @Query("status") status: String? = null
+    ): Response<ClassManagementResponse>
+    
+    // Get available substitute teachers
+    @GET("kurikulum/substitutes")
+    suspend fun getAvailableSubstitutes(
+        @Header("Authorization") token: String,
+        @Query("period") period: Int? = null,
+        @Query("subject_id") subjectId: Int? = null
+    ): Response<SubstituteTeachersResponse>
+    
+    // Assign substitute teacher
+    @POST("kurikulum/assign-substitute")
+    suspend fun assignSubstitute(
+        @Header("Authorization") token: String,
+        @Body request: AssignSubstituteRequest
+    ): Response<AssignSubstituteResponse>
+    
+    // Attendance history with filters and pagination
+    @GET("kurikulum/history")
+    suspend fun getKurikulumHistory(
+        @Header("Authorization") token: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20,
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+        @Query("teacher_id") teacherId: Int? = null,
+        @Query("class_id") classId: Int? = null,
+        @Query("status") status: String? = null
+    ): Response<KurikulumHistoryResponse>
+    
+    // Attendance statistics for reports
+    @GET("kurikulum/statistics")
+    suspend fun getKurikulumStatistics(
+        @Header("Authorization") token: String,
+        @Query("month") month: Int? = null,
+        @Query("year") year: Int? = null,
+        @Query("teacher_id") teacherId: Int? = null
+    ): Response<StatisticsResponse>
+    
+    // Export attendance data
+    @GET("kurikulum/export")
+    suspend fun exportAttendance(
+        @Header("Authorization") token: String,
+        @Query("date_from") dateFrom: String? = null,
+        @Query("date_to") dateTo: String? = null,
+        @Query("teacher_id") teacherId: Int? = null,
+        @Query("class_id") classId: Int? = null
+    ): Response<ExportResponse>
+    
+    // Get students in a class
+    @GET("kurikulum/class/{classId}/students")
+    suspend fun getClassStudents(
+        @Header("Authorization") token: String,
+        @Path("classId") classId: Int
+    ): Response<ClassStudentsResponse>
+    
+    // Filter data - classes list
+    @GET("kurikulum/filter/classes")
+    suspend fun getFilterClasses(
+        @Header("Authorization") token: String
+    ): Response<FilterClassesResponse>
+    
+    // Filter data - teachers list
+    @GET("kurikulum/filter/teachers")
+    suspend fun getFilterTeachers(
+        @Header("Authorization") token: String
+    ): Response<FilterTeachersResponse>
 }
