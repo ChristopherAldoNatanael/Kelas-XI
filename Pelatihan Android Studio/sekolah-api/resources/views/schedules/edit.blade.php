@@ -3,288 +3,464 @@
 @section('title', 'Edit Schedule')
 
 @section('content')
-<div class="container mx-auto px-6 py-8">
-    <div class="max-w-4xl mx-auto">
-        <!-- Modern Header -->
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8">
-            <div class="mb-4 sm:mb-0">
-                <h1 class="text-3xl font-bold text-gray-900 flex items-center">
-                    <div class="w-12 h-12 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl flex items-center justify-center mr-4">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+<div class="min-h-screen">
+    <!-- Hero Header with Glass Morphism -->
+    <div class="relative overflow-hidden rounded-3xl mx-6 mb-8">
+        <!-- Background Layers -->
+        <div class="absolute inset-0 bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
+
+        <!-- Animated Background Elements -->
+        <div class="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/5 rounded-full blur-2xl animate-pulse" style="animation-delay: 4s;"></div>
+
+        <!-- Glass Morphism Overlay -->
+        <div class="relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-white/90 text-sm font-medium">System Online</span>
                     </div>
-                    Edit Schedule
-                </h1>
-                <p class="text-gray-600 mt-1">Update schedule information and settings</p>
-            </div>
-            <div class="flex items-center space-x-3">
-                <a href="{{ route('web-schedules.show', $schedule->id) }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    View Details
-                </a>
-                <a href="{{ route('web-schedules.index') }}" class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200">
-                    <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                    </svg>
-                    Back to List
-                </a>
+
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+                            Edit Schedule
+                        </h1>
+                        <p class="text-white/70 text-lg md:text-xl leading-relaxed max-w-2xl">
+                            Update schedule information and optimize your academic timetable management.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 pt-4">
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->mata_pelajaran ?? 'N/A' }}</div>
+                            <div class="text-white/70 text-sm">Subject</div>
+                        </div>
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->kelas ?? 'N/A' }}</div>
+                            <div class="text-white/70 text-sm">Class</div>
+                        </div>
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->hari ?? 'N/A' }}</div>
+                            <div class="text-white/70 text-sm">Day</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:shrink-0">
+                    <div class="flex gap-3">
+                        <a href="{{ route('web-schedules.show', $schedule->id) }}" class="glass-action-button group">
+                            <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/20">
+                                <i class="fas fa-eye text-blue-300 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold">View Details</div>
+                                <div class="text-slate-300 text-sm">See schedule info</div>
+                            </div>
+                        </a>
+                        <a href="{{ route('web-schedules.index') }}" class="glass-action-button group">
+                            <div class="p-3 rounded-xl bg-gradient-to-br from-slate-500/20 to-gray-500/20 border border-slate-400/20">
+                                <i class="fas fa-arrow-left text-slate-300 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold">Back to List</div>
+                                <div class="text-slate-300 text-sm">All schedules</div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
 
         <!-- Alert Messages -->
         @if(session('success'))
-            <div class="mb-6 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg animate-fade-in">
-                <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{{ session('success') }}</span>
+            <div class="mx-6 mb-6 glass-notification glass-notification-success">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 rounded-lg bg-green-500/20">
+                        <i class="fas fa-check-circle text-green-400"></i>
+                    </div>
+                    <span class="text-white">{{ session('success') }}</span>
                 </div>
             </div>
         @endif
 
         @if(session('error'))
-            <div class="mb-6 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg animate-fade-in">
-                <div class="flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    <span>{{ session('error') }}</span>
+            <div class="mx-6 mb-6 glass-notification glass-notification-error">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 rounded-lg bg-red-500/20">
+                        <i class="fas fa-exclamation-triangle text-red-400"></i>
+                    </div>
+                    <span class="text-white">{{ session('error') }}</span>
                 </div>
             </div>
         @endif
 
-        <!-- Modern Form Card -->
-        <div class="bg-white shadow-2xl rounded-2xl overflow-hidden transform transition-all duration-300 hover:shadow-3xl">
-            <!-- Card Header -->
-            <div class="bg-gradient-to-r from-purple-50 to-indigo-100 px-6 py-4 border-b border-gray-200">
-                <div class="flex items-center">
-                    <div class="w-10 h-10 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center mr-3">
-                        <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
+    <!-- Form Container -->
+    <div class="px-6 space-y-6">
+        <!-- Form Card -->
+        <div class="glass-morphism-card">
+            <div class="p-6">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-purple-400/20">
+                        <i class="fas fa-edit text-purple-300 text-xl"></i>
                     </div>
                     <div>
-                        <h3 class="text-lg font-bold text-gray-900">Schedule Information</h3>
-                        <p class="text-sm text-gray-600">Update the schedule details below</p>
+                        <h3 class="text-xl font-bold text-white">Schedule Information</h3>
+                        <p class="text-slate-300">Update the schedule details below</p>
                     </div>
                 </div>
-            </div>
 
-            <form method="POST" action="{{ route('web-schedules.update', $schedule->id) }}" class="p-6">
+                <form method="POST" action="{{ route('web-schedules.update', $schedule->id) }}" class="space-y-6">
                 @csrf
                 @method('PUT')
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Hari Selection -->
-                    <div>
-                        <label for="hari" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                Hari
-                            </span>
-                        </label>
-                        <div class="relative">
-                            <select id="hari" name="hari" required
-                                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200">
-                                <option value="">Pilih Hari</option>
-                                <option value="Senin" {{ ($schedule->hari ?? '') == 'Senin' ? 'selected' : '' }}>Senin</option>
-                                <option value="Selasa" {{ ($schedule->hari ?? '') == 'Selasa' ? 'selected' : '' }}>Selasa</option>
-                                <option value="Rabu" {{ ($schedule->hari ?? '') == 'Rabu' ? 'selected' : '' }}>Rabu</option>
-                                <option value="Kamis" {{ ($schedule->hari ?? '') == 'Kamis' ? 'selected' : '' }}>Kamis</option>
-                                <option value="Jumat" {{ ($schedule->hari ?? '') == 'Jumat' ? 'selected' : '' }}>Jumat</option>
-                                <option value="Sabtu" {{ ($schedule->hari ?? '') == 'Sabtu' ? 'selected' : '' }}>Sabtu</option>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Hari Selection -->
+                        <div>
+                            <label for="hari" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-calendar-day mr-2 text-indigo-400"></i>
+                                    Day
+                                </span>
+                            </label>
+                            <select id="hari" name="hari" required class="glass-select">
+                                <option value="">Select Day</option>
+                                <option value="Senin" {{ ($schedule->hari ?? '') == 'Senin' ? 'selected' : '' }}>Monday</option>
+                                <option value="Selasa" {{ ($schedule->hari ?? '') == 'Selasa' ? 'selected' : '' }}>Tuesday</option>
+                                <option value="Rabu" {{ ($schedule->hari ?? '') == 'Rabu' ? 'selected' : '' }}>Wednesday</option>
+                                <option value="Kamis" {{ ($schedule->hari ?? '') == 'Kamis' ? 'selected' : '' }}>Thursday</option>
+                                <option value="Jumat" {{ ($schedule->hari ?? '') == 'Jumat' ? 'selected' : '' }}>Friday</option>
+                                <option value="Sabtu" {{ ($schedule->hari ?? '') == 'Sabtu' ? 'selected' : '' }}>Saturday</option>
                             </select>
-                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
+                            @error('hari')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
                         </div>
-                        @error('hari')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
 
-                    <!-- Kelas Input -->
-                    <div>
-                        <label for="kelas" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                Kelas
-                            </span>
-                        </label>
-                        <input type="text" id="kelas" name="kelas" value="{{ $schedule->kelas ?? '' }}" required
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200"
-                               placeholder="Contoh: X RPL, XI IPA">
-                        @error('kelas')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
+                        <!-- Kelas Input -->
+                        <div>
+                            <label for="kelas" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-users mr-2 text-blue-400"></i>
+                                    Class
+                                </span>
+                            </label>
+                            <input type="text" id="kelas" name="kelas" value="{{ $schedule->kelas ?? '' }}" required
+                                    class="glass-input" placeholder="Example: X RPL, XI IPA">
+                            @error('kelas')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
 
-                    <!-- Mata Pelajaran Input -->
-                    <div class="md:col-span-2">
-                        <label for="mata_pelajaran" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                                Mata Pelajaran
-                            </span>
-                        </label>
-                        <input type="text" id="mata_pelajaran" name="mata_pelajaran" value="{{ $schedule->mata_pelajaran ?? '' }}" required
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200"
-                               placeholder="Contoh: Matematika, Bahasa Indonesia">
-                        @error('mata_pelajaran')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
+                        <!-- Mata Pelajaran Input -->
+                        <div class="md:col-span-2">
+                            <label for="mata_pelajaran" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-book mr-2 text-green-400"></i>
+                                    Subject
+                                </span>
+                            </label>
+                            <input type="text" id="mata_pelajaran" name="mata_pelajaran" value="{{ $schedule->mata_pelajaran ?? '' }}" required
+                                    class="glass-input" placeholder="Example: Mathematics, English">
+                            @error('mata_pelajaran')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
 
-                    <!-- Guru Selection -->
-                    <div class="md:col-span-2">
-                        <label for="guru_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                                Guru Pengajar
-                            </span>
-                        </label>
-                        <div class="relative">
-                            <select id="guru_id" name="guru_id" required
-                                    class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200">
-                                <option value="">Pilih Guru</option>
+                        <!-- Guru Selection -->
+                        <div class="md:col-span-2">
+                            <label for="guru_id" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-chalkboard-teacher mr-2 text-purple-400"></i>
+                                    Teacher
+                                </span>
+                            </label>
+                            <select id="guru_id" name="guru_id" required class="glass-select">
+                                <option value="">Select Teacher</option>
                                 @foreach($dropdownData['teachers'] ?? [] as $teacher)
                                     <option value="{{ $teacher['id'] }}" {{ ($schedule->guru_id ?? '') == $teacher['id'] ? 'selected' : '' }}>
                                         👨‍🏫 {{ $teacher['name'] }}
                                     </option>
                                 @endforeach
                             </select>
-                            <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                <svg class="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                                </svg>
-                            </div>
+                            @error('guru_id')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
                         </div>
-                        @error('guru_id')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
 
-                    <!-- Time Fields -->
-                    <div>
-                        <label for="jam_mulai" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Jam Mulai
-                            </span>
-                        </label>
-                        <input type="time" id="jam_mulai" name="jam_mulai" value="{{ $schedule->jam_mulai ?? '' }}" required
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200">
-                        @error('jam_mulai')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
+                        <!-- Time Fields -->
+                        <div>
+                            <label for="jam_mulai" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-clock mr-2 text-teal-400"></i>
+                                    Start Time
+                                </span>
+                            </label>
+                            <input type="time" id="jam_mulai" name="jam_mulai" value="{{ $schedule->jam_mulai ?? '' }}" required
+                                    class="glass-input">
+                            @error('jam_mulai')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
 
-                    <div>
-                        <label for="jam_selesai" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                Jam Selesai
-                            </span>
-                        </label>
-                        <input type="time" id="jam_selesai" name="jam_selesai" value="{{ $schedule->jam_selesai ?? '' }}" required
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200">
-                        @error('jam_selesai')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
+                        <div>
+                            <label for="jam_selesai" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-clock mr-2 text-pink-400"></i>
+                                    End Time
+                                </span>
+                            </label>
+                            <input type="time" id="jam_selesai" name="jam_selesai" value="{{ $schedule->jam_selesai ?? '' }}" required
+                                    class="glass-input">
+                            @error('jam_selesai')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
 
-                    <!-- Ruang Input -->
-                    <div class="md:col-span-2">
-                        <label for="ruang" class="block text-sm font-medium text-gray-700 mb-2">
-                            <span class="flex items-center">
-                                <svg class="w-4 h-4 mr-2 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                                Ruang Kelas
-                            </span>
-                        </label>
-                        <input type="text" id="ruang" name="ruang" value="{{ $schedule->ruang ?? '' }}"
-                               class="block w-full rounded-lg border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 transition-colors duration-200"
-                               placeholder="Contoh: Ruang 101, Lab Komputer">
-                        @error('ruang')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
+                        <!-- Ruang Input -->
+                        <div class="md:col-span-2">
+                            <label for="ruang" class="block text-sm font-medium text-white mb-2">
+                                <span class="flex items-center">
+                                    <i class="fas fa-map-marker-alt mr-2 text-orange-400"></i>
+                                    Room
+                                </span>
+                            </label>
+                            <input type="text" id="ruang" name="ruang" value="{{ $schedule->ruang ?? '' }}"
+                                    class="glass-input" placeholder="Example: Room 101, Computer Lab">
+                            @error('ruang')
+                                <p class="mt-1 text-sm text-red-400 flex items-center">
+                                    <i class="fas fa-exclamation-circle mr-1"></i>
+                                    {{ $message }}
+                                </p>
+                            @enderror
+                        </div>
                     </div>
-                </div>
-
-                <!-- Submit Buttons -->
-                <div class="md:col-span-2 flex flex-col sm:flex-row justify-end items-center space-y-3 sm:space-y-0 sm:space-x-3 pt-6 border-t border-gray-200">
-                    <a href="{{ route('web-schedules.index') }}" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 transition-colors duration-200">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                        Cancel
-                    </a>
-                    <button type="submit" class="w-full sm:w-auto inline-flex justify-center items-center px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white text-sm font-medium rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                        </svg>
-                        Update Schedule
-                    </button>
-                </div>
-            </form>
+                    <!-- Submit Buttons -->
+                    <div class="flex flex-col sm:flex-row justify-end items-center gap-4 pt-6 border-t border-white/10">
+                        <a href="{{ route('web-schedules.index') }}" class="glass-action-btn glass-action-secondary">
+                            <i class="fas fa-times mr-2"></i>
+                            Cancel
+                        </a>
+                        <button type="submit" class="glass-action-btn glass-action-primary">
+                            <i class="fas fa-save mr-2"></i>
+                            Update Schedule
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
+
+<style>
+/* Glass Morphism Components */
+.glass-morphism-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.glass-morphism-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Form Inputs */
+.glass-input, .glass-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.glass-input:focus, .glass-select:focus {
+    outline: none;
+    border-color: rgba(147, 51, 234, 0.5);
+    box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.1);
+}
+
+.glass-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Action Buttons */
+.glass-action-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-decoration: none;
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.glass-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.glass-action-primary {
+    background: rgba(147, 51, 234, 0.1);
+    border-color: rgba(147, 51, 234, 0.3);
+    color: #c084fc;
+}
+
+.glass-action-primary:hover {
+    background: rgba(147, 51, 234, 0.2);
+    border-color: rgba(147, 51, 234, 0.4);
+    color: #ddd6fe;
+}
+
+.glass-action-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+}
+
+.glass-action-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #cbd5e1;
+}
+
+/* Notifications */
+.glass-notification {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.glass-notification-success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+.glass-notification-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+/* Stat Cards */
+.glass-stat-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    min-width: 120px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e2e8f0;
+    border-top: 2px solid #8b5cf6;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .glass-morphism-card {
+        margin: 0 1rem;
+    }
+}
+
+/* Theme Detection */
+.dark {
+    /* Dark mode styles are default */
+}
+
+.light {
+    /* Light mode overrides */
+    color: #1f2937;
+}
+
+.light body {
+    background-color: #f9fafb;
+    color: #1f2937;
+}
+
+/* Print Styles */
+@media print {
+    .glass-morphism-card {
+        background: white !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: none !important;
+    }
+}
+</style>
 @endsection
 
 @section('scripts')
@@ -328,19 +504,38 @@ document.addEventListener('DOMContentLoaded', function() {
         teacherSelect.innerHTML = '<option value="">Select Teacher</option>';
 
         if (subjectId) {
+            // Get data from controller
             const subjects = @json($dropdownData['subjects'] ?? []);
+            const teachers = @json($dropdownData['teachers'] ?? []);
+
+            // Find the selected subject
             const selectedSubject = subjects.find(s => s.id == subjectId);
 
-            if (selectedSubject && selectedSubject.teachers) {
-                selectedSubject.teachers.forEach(teacher => {
+            if (selectedSubject) {
+                // Filter teachers by subject
+                const filteredTeachers = teachers.filter(teacher =>
+                    teacher.mata_pelajaran === selectedSubject.nama
+                );
+
+                // Add filtered teachers to dropdown
+                filteredTeachers.forEach(teacher => {
                     const option = document.createElement('option');
                     option.value = teacher.id;
-                    option.textContent = `${teacher.user ? teacher.user.nama : 'Unknown'} (${teacher.teacher_code})`;
+                    option.textContent = `👨‍🏫 ${teacher.name} (${teacher.mata_pelajaran})`;
                     if (teacher.id == currentTeacherId) {
                         option.selected = true;
                     }
                     teacherSelect.appendChild(option);
                 });
+
+                // If no teachers found for this subject, show message
+                if (filteredTeachers.length === 0) {
+                    const option = document.createElement('option');
+                    option.value = '';
+                    option.textContent = 'No teachers available for this subject';
+                    option.disabled = true;
+                    teacherSelect.appendChild(option);
+                }
             }
         }
     }

@@ -188,30 +188,3 @@ class EnhancedApiService(private val context: Context) {
  */
 class CircuitBreakerOpenException(message: String) : Exception(message)
 
-/**
- * Data classes untuk lightweight endpoints
- */
-data class JadwalHariIni(
-    val periode: Int,
-    val waktu: String,
-    val mapel: String?,
-    val guru: String?
-)
-
-data class RiwayatKehadiran(
-    val tanggal: String,
-    val guru_hadir: Boolean,
-    val mapel: String?,
-    val periode: Int
-)
-
-data class PaginatedResponse<T>(
-    val data: T,
-    val pagination: PaginationMeta
-)
-
-data class PaginationMeta(
-    val current_page: Int,
-    val total: Int,
-    val has_more: Boolean
-)

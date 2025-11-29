@@ -98,6 +98,7 @@ try {
 
     echo "\n=== TEST COMPLETED SUCCESSFULLY ===\n";
     echo "All database connections and models are working correctly!\n";
+
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage() . "\n";
     echo "Stack trace: " . $e->getTraceAsString() . "\n";

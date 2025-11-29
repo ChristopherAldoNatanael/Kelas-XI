@@ -3,60 +3,66 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Notifications\Notifiable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
-class Teacher extends Authenticatable
+class Teacher extends Model
 {
-    use HasFactory, HasApiTokens, Notifiable;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'mata_pelajaran',
-        'is_banned'
-    ];
-
-    protected $hidden = [
-        'password',
-        'remember_token',
+        'nama',
+        'nip',
+        'teacher_code',
+        'position',
+        'department',
+        'expertise',
+        'certification',
+        'join_date',
+        'status'
     ];
 
     protected $casts = [
-        'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'is_banned' => 'boolean',
+        'join_date' => 'date',
+        'status' => 'string',
     ];
 
     // Helper methods
-    public function isBanned(): bool
-    {
-        return $this->is_banned;
-    }
-
     public function isActive(): bool
     {
-        return !$this->is_banned;
+        return $this->status === 'active';
+    }
+
+    public function isInactive(): bool
+    {
+        return $this->status === 'inactive';
+    }
+
+    public function isRetired(): bool
+    {
+        return $this->status === 'retired';
     }
 
     // Scopes
     public function scopeActive($query)
     {
-        return $query->where('is_banned', false);
+        return $query->where('status', 'active');
     }
 
-    public function scopeBanned($query)
+    public function scopeInactive($query)
     {
-        return $query->where('is_banned', true);
+        return $query->where('status', 'inactive');
     }
 
-    public function scopeBySubject($query, $subject)
+    public function scopeByDepartment($query, $department)
     {
-        return $query->where('mata_pelajaran', $subject);
+        return $query->where('department', $department);
+    }
+
+    public function scopeByExpertise($query, $expertise)
+    {
+        return $query->where('expertise', $expertise);
     }
 
     // Relationships
@@ -70,14 +76,10 @@ class Teacher extends Authenticatable
         return $this->hasMany(TeacherAttendance::class);
     }
 
-    // Accessor for API compatibility
-    public function getNamaAttribute()
+    // Accessors for backward compatibility
+    public function getNameAttribute(): ?string
     {
-        return $this->name;
+        return $this->nama;
     }
 
-    public function getEmailAttribute()
-    {
-        return $this->attributes['email'];
-    }
 }

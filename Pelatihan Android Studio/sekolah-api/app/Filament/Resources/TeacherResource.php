@@ -4,7 +4,6 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\TeacherResource\Pages;
 use App\Models\Teacher;
-use App\Models\User;
 use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -45,13 +44,13 @@ class TeacherResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\Select::make('user_id')
-                    ->label('User Account')
-                    ->options(User::where('role', 'kurikulum')->pluck('nama', 'id'))
+                Forms\Components\TextInput::make('nama')
+                    ->label('Full Name')
                     ->required()
-                    ->searchable()
-                    ->preload()
-                    ->helperText('Select the user account associated with this teacher'),
+                    ->helperText('Full name of the teacher')
+                    ->validationMessages([
+                        'required' => 'Please enter the teacher full name.',
+                    ]),
 
                 Forms\Components\TextInput::make('nip')
                     ->label('NIP')
@@ -135,7 +134,7 @@ class TeacherResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('user.nama')
+                Tables\Columns\TextColumn::make('nama')
                     ->label('Name')
                     ->sortable()
                     ->searchable()

@@ -94,13 +94,13 @@ class SiswaViewModel(
                 if (response.isSuccessful && response.body()?.success == true) {
                     val paginatedResponse = response.body()?.data
                     if (paginatedResponse != null) {
-                        val currentState = if (isLoadMore) {
+                        val currentState: PaginatedData<List<RiwayatKehadiran>> = if (isLoadMore) {
                             when (val current = _riwayatKehadiran.value) {
                                 is UiState.Success -> {
                                     val existingData = current.data.data.toMutableList()
                                     existingData.addAll(paginatedResponse.data)
                                     PaginatedData(
-                                        data = existingData,
+                                        data = existingData.toList(),
                                         pagination = paginatedResponse.pagination
                                     )
                                 }
@@ -214,7 +214,7 @@ class SiswaViewModel(
     fun submitKehadiran(
         scheduleId: Int,
         tanggal: String,
-        guruHadir: Boolean,
+        status: String,
         catatan: String? = null,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
@@ -227,7 +227,7 @@ class SiswaViewModel(
                 val request = KehadiranRequest(
                     scheduleId = scheduleId,
                     tanggal = tanggal,
-                    guruHadir = guruHadir,
+                    status = status,
                     catatan = catatan
                 )
 

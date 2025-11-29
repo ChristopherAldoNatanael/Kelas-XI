@@ -20,10 +20,10 @@ class DatabaseSeeder extends Seeder
             $adminUser = User::firstOrCreate(
                 ['email' => 'admin@gmail.com'],
                 [
-                    'nama' => 'Administrator',
+                    'name' => 'Administrator',
                     'password' => bcrypt('123456'),
                     'role' => 'admin',
-                    'status' => 'active',
+                    'is_banned' => false,
                 ]
             );
 
@@ -40,10 +40,10 @@ class DatabaseSeeder extends Seeder
             $testUser = User::firstOrCreate(
                 ['email' => 'test@example.com'],
                 [
-                    'nama' => 'Test User',
+                    'name' => 'Test User',
                     'password' => bcrypt('123456'),
                     'role' => 'siswa',
-                    'status' => 'active',
+                    'is_banned' => false,
                 ]
             );
 
@@ -58,7 +58,6 @@ class DatabaseSeeder extends Seeder
 
         // Jalankan semua seeder
         $this->call([
-            GuruSeeder::class,
             TeacherSeeder::class,
             SubjectSeeder::class,
             ClassSeeder::class,

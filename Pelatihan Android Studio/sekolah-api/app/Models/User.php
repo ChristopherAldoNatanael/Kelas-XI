@@ -7,12 +7,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasApiTokens;
+    use HasFactory, Notifiable, HasApiTokens, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -21,11 +22,13 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'nama',
         'email',
         'password',
         'role',
         'mata_pelajaran',
-        'is_banned'
+        'is_banned',
+        'class_id'
     ];
 
     /**
@@ -56,6 +59,7 @@ class User extends Authenticatable
         // Teachers are now in separate teachers table
         // Students are users with role 'siswa'
 
+
     /**
      * Relasi ke kelas (untuk siswa)
      * Siswa memiliki satu kelas yang sedang ditempuh
@@ -63,6 +67,15 @@ class User extends Authenticatable
     public function class()
     {
         return $this->belongsTo(ClassModel::class, 'class_id');
+    }
+
+    /**
+     * Relasi ke teacher (untuk user yang merupakan guru)
+     * User dapat memiliki satu record teacher
+     */
+    public function teacher()
+    {
+        return $this->hasOne(Teacher::class);
     }
 
     // Activity Logs
@@ -79,10 +92,15 @@ class User extends Authenticatable
         return $query->where('status', 'active');
     }
 
-    // Accessors
-    public function getNamaAttribute()
+    // Accessors & Mutators
+    public function getNamaAttribute(): string
     {
         return $this->name;
+    }
+
+    public function setNamaAttribute($value)
+    {
+        $this->attributes['name'] = $value;
     }
 
     public function getRoleNameAttribute(): string

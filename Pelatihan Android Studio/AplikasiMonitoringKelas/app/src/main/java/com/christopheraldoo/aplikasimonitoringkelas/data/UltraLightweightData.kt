@@ -17,7 +17,7 @@ data class JadwalHariIni(
 // Riwayat Kehadiran Ultra Lightweight
 data class RiwayatKehadiran(
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("mapel") val mapel: String?,
     @SerializedName("periode") val periode: Int
 )
@@ -39,7 +39,7 @@ data class PaginationMeta(
 data class KehadiranRequest(
     @SerializedName("schedule_id") val scheduleId: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("catatan") val catatan: String?
 )
 
@@ -58,7 +58,7 @@ data class TodaySchedule(
     @SerializedName("subject") val subject: String,
     @SerializedName("teacher") val teacher: String,
     @SerializedName("submitted") val submitted: Boolean,
-    @SerializedName("guru_hadir") val guruHadir: Boolean?,
+    @SerializedName("status") val status: String?,
     @SerializedName("catatan") val catatan: String
 )
 
@@ -82,9 +82,3 @@ data class JadwalHariIniResponse(
     @SerializedName("jumlah") val jumlah: Int
 )
 
-// API Response untuk riwayat kehadiran
-data class RiwayatKehadiranResponse(
-    @SerializedName("success") val success: Boolean,
-    @SerializedName("data") val data: List<RiwayatKehadiran>,
-    @SerializedName("pagination") val pagination: PaginationMeta
-)

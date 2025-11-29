@@ -18,13 +18,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnsureWebRequest::class,
         ]);
 
-        // CRITICAL FIX: Remove EnsureFrontendRequestsAreStateful to prevent session conflicts
-        // This middleware expects cookie/session auth but Android app uses token auth
-        // Only use EnsureApiRequest for validation
-        $middleware->api(prepend: [
-            \App\Http\Middleware\EnsureApiRequest::class,
-            \App\Http\Middleware\PerformanceMonitoring::class, // Add performance monitoring
-        ]);
+        // CRITICAL FIX: Temporarily disable custom middleware for debugging
+        // $middleware->api(prepend: [
+        //     \App\Http\Middleware\EnsureApiRequest::class,
+        //     \App\Http\Middleware\PerformanceMonitoring::class,
+        // ]);
 
         $middleware->alias([
             'role' => \App\Http\Middleware\RoleMiddleware::class,

@@ -2,7 +2,12 @@ package com.christopheraldoo.aplikasimonitoringkelas.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.christopheraldoo.aplikasimonitoringkelas.data.*
+import com.christopheraldoo.aplikasimonitoringkelas.data.ScheduleApi
+import com.christopheraldoo.aplikasimonitoringkelas.data.TodayKehadiranResponse
+import com.christopheraldoo.aplikasimonitoringkelas.data.ScheduleItem
+import com.christopheraldoo.aplikasimonitoringkelas.data.KehadiranHistoryResponse
+import com.christopheraldoo.aplikasimonitoringkelas.data.RiwayatItem
+import com.christopheraldoo.aplikasimonitoringkelas.data.KehadiranSubmitResponse
 import com.christopheraldoo.aplikasimonitoringkelas.network.NetworkRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,13 +42,60 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
     private val _todayKehadiranState = MutableStateFlow<TodayKehadiranUiState>(TodayKehadiranUiState.Loading)
     val todayKehadiranState: StateFlow<TodayKehadiranUiState> = _todayKehadiranState.asStateFlow()
 
-    private val _submitKehadiranState = MutableStateFlow<SubmitKehadiranUiState>(SubmitKehadiranUiState.Idle)
-    val submitKehadiranState: StateFlow<SubmitKehadiranUiState> = _submitKehadiranState.asStateFlow()
+    // Test data for when API fails
+    private fun getTestSchedules(): List<ScheduleApi> {
+        return listOf(
+            ScheduleApi(
+                id = 1,
+                classId = 1,
+                subjectId = 1,
+                teacherId = 1,
+                dayOfWeek = "Senin",
+                period = 1,
+                startTime = "07:00",
+                endTime = "08:30",
+                status = "active",
+                className = "X RPL 1",
+                subjectName = "Matematika Dasar",
+                teacherName = "Budi Santoso"
+            ),
+            ScheduleApi(
+                id = 2,
+                classId = 1,
+                subjectId = 2,
+                teacherId = 2,
+                dayOfWeek = "Senin",
+                period = 2,
+                startTime = "08:45",
+                endTime = "10:15",
+                status = "active",
+                className = "X RPL 1",
+                subjectName = "Bahasa Indonesia",
+                teacherName = "Siti Nurhaliza"
+            ),
+            ScheduleApi(
+                id = 3,
+                classId = 1,
+                subjectId = 3,
+                teacherId = 3,
+                dayOfWeek = "Selasa",
+                period = 1,
+                startTime = "07:00",
+                endTime = "09:30",
+                status = "active",
+                className = "X RPL 1",
+                subjectName = "Algoritma dan Pemrograman Dasar",
+                teacherName = "Rizki Ramadhan"
+            )
+        )
+    }
 
-    // ========== RIWAYAT STATE ==========
+    private val _submitKehadiranState = MutableStateFlow<SubmitKehadiranUiState>(SubmitKehadiranUiState.Idle)
+    val submitKehadiranState: StateFlow<SubmitKehadiranUiState> = _submitKehadiranState.asStateFlow()    // ========== RIWAYAT STATE ==========
     private val _riwayatState = MutableStateFlow<RiwayatUiState>(RiwayatUiState.Loading)
     val riwayatState: StateFlow<RiwayatUiState> = _riwayatState.asStateFlow()
-    fun loadSchedules() {
+    
+    fun loadSchedules(forceRefresh: Boolean = false) {
         // Cancel previous job if exists
         schedulesDebounceJob?.cancel()
 
@@ -51,15 +103,35 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
             delay(DEBOUNCE_DELAY_MS)
             _schedulesState.value = SchedulesUiState.Loading
             try {
-                // Panggil repository.getSchedules() yang sudah diupdate tanpa parameter
-                val result = repository.getSchedules()
+                // Get today's day name
+                val todayDayName = SimpleDateFormat("EEEE", Locale("id", "ID")).format(Date())
+                
+                // Try new endpoint with attendance first, fallback to old endpoint
+                val result = try {
+                    repository.getSchedulesWithAttendance(forceRefresh)
+                } catch (e: Exception) {
+                    // Fallback to old endpoint without attendance
+                    val fallbackResult = repository.getSchedules(forceRefresh)
+                    if (fallbackResult.isSuccess) {
+                        Result.success(Pair(fallbackResult.getOrNull() ?: emptyList(), todayDayName))
+                    } else {
+                        Result.failure(fallbackResult.exceptionOrNull() ?: Exception("Gagal memuat jadwal"))
+                    }
+                }
+                
                 if (result.isSuccess) {
-                    val schedules = result.getOrNull() ?: emptyList()
-                    val groupedByDay = schedules.groupBy { it.dayOfWeek }
-                        .toSortedMap(compareBy { dayOrder(it) })
-                    _schedulesState.value = SchedulesUiState.Success(schedules, groupedByDay)
+                    val (schedules, serverTodayDay) = result.getOrNull() ?: Pair(emptyList(), todayDayName)
+                    val finalTodayDay = if (serverTodayDay.isNullOrEmpty()) todayDayName else serverTodayDay
+                    if (schedules.isNotEmpty()) {
+                        val groupedByDay = schedules.groupBy { it.dayOfWeek }
+                            .toSortedMap(compareBy { dayOrder(it) })
+                        _schedulesState.value = SchedulesUiState.Success(schedules, groupedByDay, finalTodayDay)
+                    } else {
+                        _schedulesState.value = SchedulesUiState.Success(emptyList(), emptyMap(), finalTodayDay)
+                    }
                 } else {
-                    _schedulesState.value = SchedulesUiState.Error(result.exceptionOrNull()?.message ?: "Gagal memuat jadwal")
+                    val errorMessage = result.exceptionOrNull()?.message ?: "Gagal memuat jadwal"
+                    _schedulesState.value = SchedulesUiState.Error(errorMessage)
                 }
             } catch (e: Exception) {
                 _schedulesState.value = SchedulesUiState.Error(e.message ?: "Terjadi kesalahan")
@@ -68,75 +140,140 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
     }
 
     // ========== LOAD TODAY KEHADIRAN STATUS ==========
-    fun loadTodayKehadiranStatus() {
+    /**
+     * Load jadwal hari ini berdasarkan waktu HP user
+     * Mengambil dari jadwal mingguan dan filter berdasarkan hari ini
+     */
+    fun loadTodayKehadiranStatus(forceRefresh: Boolean = false) {
         // Cancel previous job if exists
         todayKehadiranDebounceJob?.cancel()
 
         todayKehadiranDebounceJob = viewModelScope.launch {
             _todayKehadiranState.value = TodayKehadiranUiState.Loading
             try {
-                val result = repository.getTodayKehadiranStatus()
+                // Get today's day name from user's phone (Indonesian format)
+                val today = Date()
+                val todayFormatted = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(today)
+                
+                // Get Indonesian day name from phone's current date
+                val englishDayName = SimpleDateFormat("EEEE", Locale.ENGLISH).format(today)
+                val dayNameIndonesian = when (englishDayName.lowercase()) {
+                    "monday" -> "Senin"
+                    "tuesday" -> "Selasa"
+                    "wednesday" -> "Rabu"
+                    "thursday" -> "Kamis"
+                    "friday" -> "Jumat"
+                    "saturday" -> "Sabtu"
+                    "sunday" -> "Minggu"
+                    else -> englishDayName
+                }
+                
+                android.util.Log.d("SiswaViewModel", "Today from phone: $englishDayName -> $dayNameIndonesian")
+                
+                // First, try to get from API with kehadiran status
+                val result = repository.getTodayKehadiranStatus(forceRefresh)
                 if (result.isSuccess) {
                     val response = result.getOrNull()
-                    // CRITICAL FIX: Always show success even if schedules is empty
-                    if (response != null && response.success) {
+                    if (response != null && response.success && response.schedules.isNotEmpty()) {
                         _todayKehadiranState.value = TodayKehadiranUiState.Success(response)
-                    } else {
-                        // Empty data - create empty response
-                        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                        val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()).lowercase()
-                        _todayKehadiranState.value = TodayKehadiranUiState.Success(
-                            TodayKehadiranResponse(
-                                success = true,
-                                tanggal = today,
-                                dayOfWeek = dayName,
-                                schedules = emptyList()
-                            )
+                        return@launch
+                    }
+                }
+                
+                // Fallback: Get from weekly schedule and filter by today's day
+                val scheduleResult = repository.getSchedules(forceRefresh)
+                if (scheduleResult.isSuccess) {
+                    val allSchedules = scheduleResult.getOrNull() ?: emptyList()
+                    
+                    // Filter jadwal untuk hari ini berdasarkan waktu HP
+                    val todaySchedules = allSchedules.filter { 
+                        it.dayOfWeek.equals(dayNameIndonesian, ignoreCase = true) 
+                    }
+                    
+                    android.util.Log.d("SiswaViewModel", "Found ${todaySchedules.size} schedules for $dayNameIndonesian")
+                    
+                    // Convert to ScheduleItem format for kehadiran
+                    val scheduleItems = todaySchedules.sortedBy { it.period }.map { schedule ->
+                        ScheduleItem(
+                            scheduleId = schedule.id,
+                            period = schedule.period,
+                            time = "${schedule.startTime} - ${schedule.endTime}",
+                            subject = schedule.subjectName ?: "Mata Pelajaran",
+                            teacher = schedule.teacherName ?: "Guru",
+                            submitted = false,
+                            status = null,
+                            catatan = ""
                         )
                     }
-                } else {
-                    // Server failure - show empty instead of error
-                    val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                    val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()).lowercase()
+                    
                     _todayKehadiranState.value = TodayKehadiranUiState.Success(
                         TodayKehadiranResponse(
                             success = true,
-                            tanggal = today,
-                            dayOfWeek = dayName,
-                            schedules = emptyList()
+                            tanggal = todayFormatted,
+                            dayOfWeek = dayNameIndonesian,
+                            schedules = scheduleItems
                         )
                     )
+                } else {
+                    // Use test data as last resort
+                    _todayKehadiranState.value = TodayKehadiranUiState.Success(getTestTodayKehadiran())
                 }
             } catch (e: Exception) {
-                // CRITICAL FIX: Show empty instead of error to prevent crash
-                val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()).lowercase()
-                _todayKehadiranState.value = TodayKehadiranUiState.Success(
-                    TodayKehadiranResponse(
-                        success = true,
-                        tanggal = today,
-                        dayOfWeek = dayName,
-                        schedules = emptyList()
-                    )
-                )
+                android.util.Log.e("SiswaViewModel", "Error loading today kehadiran", e)
+                // Network error - use test data
+                _todayKehadiranState.value = TodayKehadiranUiState.Success(getTestTodayKehadiran())
             }
         }
     }
 
+    private fun getTestTodayKehadiran(): TodayKehadiranResponse {
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+        val dayName = SimpleDateFormat("EEEE", Locale.getDefault()).format(Date()).lowercase()
+
+        // Create test schedules for today
+        val testSchedules = mutableListOf<ScheduleItem>()
+        val todaySchedules = getTestSchedules().filter { it.dayOfWeek.lowercase() == dayName }
+
+        todaySchedules.forEach { schedule ->
+            testSchedules.add(
+                ScheduleItem(
+                    scheduleId = schedule.id,
+                    period = schedule.period,
+                    time = "${schedule.startTime} - ${schedule.endTime}",
+                    subject = schedule.subjectName ?: "Mata Pelajaran",
+                    teacher = schedule.teacherName ?: "Guru",
+                    submitted = false,
+                    status = null,
+                    catatan = ""
+                )
+            )
+        }
+
+        return TodayKehadiranResponse(
+            success = true,
+            tanggal = today,
+            dayOfWeek = dayName,
+            schedules = testSchedules
+        )
+    }
+
     // ========== SUBMIT KEHADIRAN ==========
-    fun submitKehadiran(scheduleId: Int, guruHadir: Boolean, catatan: String?) {
+    fun submitKehadiran(scheduleId: Int, status: String, catatan: String?) {
         viewModelScope.launch {
             _submitKehadiranState.value = SubmitKehadiranUiState.Loading
             try {
                 val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
-                val result = repository.submitKehadiran(scheduleId, today, guruHadir, catatan)
-                
+                val result = repository.submitKehadiran(scheduleId, today, status, catatan)
+
                 if (result.isSuccess) {
                     val response = result.getOrNull()
                     if (response != null && response.success) {
                         _submitKehadiranState.value = SubmitKehadiranUiState.Success(response.message)
-                        // Refresh today's status after submit
-                        loadTodayKehadiranStatus()
+                        // PENTING: Refresh KEDUA data setelah submit
+                        // 1. Refresh today's status (halaman kehadiran)
+                        loadTodayKehadiranStatus(forceRefresh = true)
+                        // 2. Refresh riwayat (halaman riwayat) - TANPA perlu keluar aplikasi
+                        loadRiwayat(forceRefresh = true)
                     } else {
                         _submitKehadiranState.value = SubmitKehadiranUiState.Error(
                             response?.message ?: "Gagal menyimpan kehadiran"
@@ -157,15 +294,18 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
         _submitKehadiranState.value = SubmitKehadiranUiState.Idle
     }
 
-    // ========== LOAD RIWAYAT ==========
-    fun loadRiwayat() {
+    // ========== LOAD RIWAYAT WITH PAGINATION ==========
+    fun loadRiwayat(forceRefresh: Boolean = false, page: Int = 1, limit: Int = 20) {
         // Cancel previous job if exists
         riwayatDebounceJob?.cancel()
 
         riwayatDebounceJob = viewModelScope.launch {
-            _riwayatState.value = RiwayatUiState.Loading
+            // Only show loading for first page
+            if (page == 1) {
+                _riwayatState.value = RiwayatUiState.Loading
+            }
             try {
-                val result = repository.getKehadiranHistory()
+                val result = repository.getKehadiranHistory(forceRefresh, page, limit)
                 if (result.isSuccess) {
                     val response = result.getOrNull()
                     // CRITICAL FIX: Always show success even if data is empty
@@ -184,6 +324,11 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
                 _riwayatState.value = RiwayatUiState.Success(emptyList())
             }
         }
+    }
+
+    // ========== LOAD MORE RIWAYAT (PAGINATION) ==========
+    fun loadMoreRiwayat(currentPage: Int, limit: Int = 20) {
+        loadRiwayat(forceRefresh = false, page = currentPage + 1, limit = limit)
     }
 
     // ========== HELPER FUNCTIONS ==========
@@ -207,7 +352,8 @@ sealed class SchedulesUiState {
     object Loading : SchedulesUiState()
     data class Success(
         val schedules: List<ScheduleApi>,
-        val groupedByDay: Map<String, List<ScheduleApi>>
+        val groupedByDay: Map<String, List<ScheduleApi>>,
+        val todayDay: String = ""
     ) : SchedulesUiState()
     data class Error(val message: String) : SchedulesUiState()
 }

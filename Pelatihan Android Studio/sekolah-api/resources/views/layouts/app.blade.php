@@ -15,6 +15,8 @@
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
+    @yield('styles')
+
     <script>
         tailwind.config = {
             theme: {
@@ -82,65 +84,91 @@
 
     <style>
         :root {
-            /* Light Mode Variables */
-            --primary-gradient: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
-            --primary-dark: #3b82f6;
-            --primary-light: #8b5cf6;
-            --sidebar-bg: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
-            --text-primary: #1f2937;
-            --text-secondary: #6b7280;
-            --text-muted: #9ca3af;
-            --border-color: #e5e7eb;
-            --hover-bg: #f3f4f6;
-            --accent-color: #3b82f6;
-            --bg-color: #ffffff;
+            /* Ultra-Modern Minimalist Light Mode */
+            --primary: #000000;
+            --primary-light: #1a1a1a;
+            --primary-dark: #000000;
+            --secondary: #6b7280;
+            --accent: #3b82f6;
+            --accent-light: #60a5fa;
+            --accent-dark: #2563eb;
+
+            --bg-primary: #ffffff;
             --bg-secondary: #f8fafc;
             --bg-tertiary: #f1f5f9;
-            --card-bg: #ffffff;
-            --card-border: #e5e7eb;
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --shadow-hover: rgba(0, 0, 0, 0.15);
-            --nav-bg: #ffffff;
-            --nav-border: #e5e7eb;
-            --input-bg: #ffffff;
-            --input-border: #d1d5db;
-            --success-bg: #f0fdf4;
-            --success-text: #166534;
-            --success-border: #bbf7d0;
+            --bg-muted: #e2e8f0;
+
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-inverse: #ffffff;
+
+            --border: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-dark: #cbd5e1;
+
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+            --radius-sm: 0.25rem;
+            --radius: 0.375rem;
+            --radius-md: 0.5rem;
+            --radius-lg: 0.75rem;
+            --radius-xl: 1rem;
+
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            --transition-slow: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+            /* Status Colors */
+            --success: #10b981;
+            --success-bg: #ecfdf5;
+            --success-border: #d1fae5;
+            --error: #ef4444;
             --error-bg: #fef2f2;
-            --error-text: #dc2626;
             --error-border: #fecaca;
+            --warning: #f59e0b;
             --warning-bg: #fffbeb;
-            --warning-text: #d97706;
-            --warning-border: #fed7aa;
+            --warning-border: #fef3c7;
+            --info: #3b82f6;
             --info-bg: #eff6ff;
-            --info-text: #1d4ed8;
-            --info-border: #bfdbfe;
+            --info-border: #dbeafe;
         }
 
         :root.dark-mode {
-            /* Dark Mode Variables */
-            --primary-gradient: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
-            --primary-dark: #60a5fa;
-            --primary-light: #a78bfa;
-            --sidebar-bg: linear-gradient(135deg, #1f2937 0%, #111827 100%);
-            --text-primary: #f9fafb;
-            --text-secondary: #d1d5db;
-            --text-muted: #9ca3af;
-            --border-color: #374151;
-            --hover-bg: #374151;
-            --accent-color: #60a5fa;
-            --bg-color: #111827;
-            --bg-secondary: #1f2937;
-            --bg-tertiary: #374151;
-            --card-bg: #1f2937;
-            --card-border: #374151;
-            --shadow-color: rgba(0, 0, 0, 0.5);
-            --shadow-hover: rgba(0, 0, 0, 0.7);
-            --nav-bg: #1f2937;
-            --nav-border: #374151;
-            --input-bg: #374151;
-            --input-border: #4b5563;
+            /* Professional Minimalist Dark Mode Variables */
+            --primary-gradient: linear-gradient(135deg, #334155 0%, #475569 50%, #64748b 100%);
+            --primary-hover: linear-gradient(135deg, #1e293b 0%, #334155 50%, #475569 100%);
+            --primary-dark: #334155;
+            --primary-light: #64748b;
+            --accent-gradient: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            --success-gradient: linear-gradient(135deg, #166534 0%, #22c55e 100%);
+            --danger-gradient: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+            --warning-gradient: linear-gradient(135deg, #ca8a04 0%, #eab308 100%);
+            --sidebar-bg: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --sidebar-glass: rgba(255, 255, 255, 0.06);
+            --sidebar-glass-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e0;
+            --text-muted: #94a3b8;
+            --text-sidebar: #f8fafc;
+            --border-color: rgba(71, 85, 105, 0.4);
+            --hover-bg: rgba(51, 65, 85, 0.1);
+            --accent-color: #334155;
+            --bg-color: #0f172a;
+            --bg-secondary: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            --bg-tertiary: #1e293b;
+            --card-bg: rgba(30, 41, 59, 0.95);
+            --card-border: rgba(71, 85, 105, 0.3);
+            --shadow-color: rgba(0, 0, 0, 0.6);
+            --shadow-hover: rgba(0, 0, 0, 0.8);
+            --nav-bg: #1e293b;
+            --nav-border: #334155;
+            --input-bg: #334155;
+            --input-border: #475569;
             --success-bg: rgba(34, 197, 94, 0.1);
             --success-text: #4ade80;
             --success-border: rgba(34, 197, 94, 0.3);
@@ -172,217 +200,118 @@
         }
 
         body {
-            background: var(--bg-color);
-            background-image: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-secondary) 100%);
+            background: var(--bg-secondary);
             min-height: 100vh;
-        }
-
-        /* Navigation Styling */
-        nav {
-            background: var(--nav-bg) !important;
-            border-bottom: 1px solid var(--nav-border) !important;
-            box-shadow: 0 4px 12px var(--shadow-color);
-            backdrop-filter: blur(10px);
-        }
-
-        nav .text-gray-900 {
-            color: var(--text-primary) !important;
-        }
-
-        nav .text-gray-500 {
-            color: var(--text-secondary) !important;
-        }
-
-        nav .text-indigo-600 {
-            color: var(--primary-dark) !important;
-        }
-
-        nav .bg-indigo-100 {
-            background-color: rgba(59, 130, 246, 0.1) !important;
-        }
-
-        nav .border-indigo-300 {
-            border-color: rgba(59, 130, 246, 0.3) !important;
-        }
-
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 80px;
-            height: calc(100vh - 80px);
-            width: 280px;
-            background: var(--sidebar-bg);
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 1000;
-            overflow-y: auto;
+            position: relative;
             overflow-x: hidden;
-            border-right: 1px solid var(--border-color);
-            box-shadow: 4px 0 20px var(--shadow-color);
-            backdrop-filter: blur(12px);
-            padding: 0;
         }
 
-        .sidebar > div {
-            padding: 16px;
-            padding-top: 8px;
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-secondary);
+            z-index: -2;
         }
 
-        .sidebar.collapsed {
-            width: 85px;
-            box-shadow: 4px 0 16px var(--shadow-color);
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(240, 147, 251, 0.08) 0%, transparent 50%);
+            z-index: -1;
+            animation: morphing 20s ease-in-out infinite;
         }
 
-        .sidebar.collapsed .sidebar-text,
-        .sidebar.collapsed .section-title {
-            display: none;
+        @keyframes morphing {
+            0%, 100% {
+                background:
+                    radial-gradient(circle at 20% 80%, rgba(102, 126, 234, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 80% 20%, rgba(118, 75, 162, 0.1) 0%, transparent 50%),
+                    radial-gradient(circle at 40% 40%, rgba(240, 147, 251, 0.08) 0%, transparent 50%);
+            }
+            33% {
+                background:
+                    radial-gradient(circle at 60% 30%, rgba(102, 126, 234, 0.12) 0%, transparent 50%),
+                    radial-gradient(circle at 30% 70%, rgba(118, 75, 162, 0.12) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 60%, rgba(240, 147, 251, 0.1) 0%, transparent 50%);
+            }
+            66% {
+                background:
+                    radial-gradient(circle at 40% 60%, rgba(102, 126, 234, 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 70% 40%, rgba(118, 75, 162, 0.08) 0%, transparent 50%),
+                    radial-gradient(circle at 20% 30%, rgba(240, 147, 251, 0.12) 0%, transparent 50%);
+            }
         }
 
-        .sidebar.collapsed .nav-item {
-            justify-content: center;
-        }
-
-        .sidebar.collapsed .nav-item i {
-            margin-right: 0 !important;
-        }
-
-        .sidebar::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        .sidebar::-webkit-scrollbar-track {
-            background: rgba(59, 130, 246, 0.05);
-        }
-
-        .sidebar::-webkit-scrollbar-thumb {
-            background: var(--primary-gradient);
-            border-radius: 3px;
-        }
-
-        .sidebar::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary-dark) 100%);
-        }
-
-        .sidebar-section {
-            transition: all 0.3s ease;
-            padding: 8px 0;
-            border-bottom: 1px solid rgba(59, 130, 246, 0.1);
-        }
-
-        .sidebar-section:first-child {
-            padding-top: 0;
-        }
-
-        .sidebar-section:last-child {
-            border-bottom: none;
-        }
-
-        .section-title {
-            padding: 8px 16px;
-            font-size: 11px;
-            font-weight: 700;
-            letter-spacing: 1.5px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            transition: all 0.3s ease;
-            margin-bottom: 4px;
-            opacity: 0.8;
-        }
-
-        .sidebar.collapsed .section-title {
-            display: none;
-        }
-
-        /* Enhanced section title visibility */
-        :root.dark-mode .section-title {
-            color: var(--text-secondary);
-            opacity: 0.9;
-        }
-
-        :root .section-title {
-            color: var(--text-muted);
-            opacity: 0.7;
-        }
-
-        .nav-item {
+        /* Minimalist Navigation & Sidebar */
+        .nav-link {
             display: flex;
             align-items: center;
+            gap: 12px;
             padding: 12px 16px;
-            margin: 3px 8px;
-            color: var(--text-primary);
+            color: var(--text-secondary);
             text-decoration: none;
-            border-radius: 12px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-radius: var(--radius);
+            transition: var(--transition);
             font-size: 14px;
             font-weight: 500;
             position: relative;
-            overflow: hidden;
-            border: 1px solid transparent;
         }
 
-        .nav-item::before {
+        .nav-link:hover {
+            color: var(--text-primary);
+            background-color: var(--bg-muted);
+        }
+
+        .nav-link.active {
+            color: var(--primary);
+            background-color: rgba(0, 0, 0, 0.05);
+            font-weight: 600;
+        }
+
+        .nav-link.active::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: var(--primary-gradient);
-            opacity: 0.1;
-            transition: left 0.4s ease;
-            z-index: -1;
-        }
-
-        .nav-item:hover::before {
             left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 20px;
+            background-color: var(--primary);
+            border-radius: 2px;
         }
 
-        .nav-item:hover {
-            color: var(--primary-dark);
-            background: rgba(59, 130, 246, 0.1);
-            border-color: rgba(59, 130, 246, 0.2);
-            transform: translateX(2px);
-            box-shadow: 0 4px 12px var(--shadow-color);
-        }
-
-        .nav-item.active {
-            background: rgba(59, 130, 246, 0.15);
-            color: var(--primary-dark);
-            border-color: var(--primary-dark);
-            font-weight: 600;
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
-        }
-
-        .nav-item i {
-            margin-right: 12px;
+        .nav-link i {
             width: 18px;
             text-align: center;
-            transition: all 0.3s ease;
-            font-size: 16px;
-            color: var(--primary-dark);
             flex-shrink: 0;
-        }
-
-        .sidebar.collapsed .nav-item:hover {
-            border: 1px solid rgba(59, 130, 246, 0.3);
-            background: rgba(59, 130, 246, 0.15);
-            border-radius: 12px;
         }
 
         .content-area {
             margin-left: 280px;
-            transition: margin-left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             min-height: 100vh;
             width: calc(100% - 280px);
             max-width: calc(100% - 280px);
             overflow-x: hidden;
             position: relative;
-            background: var(--bg-secondary);
+            background: #fafbfc;
         }
 
         .content-area.sidebar-collapsed {
-            margin-left: 85px;
-            width: calc(100% - 85px);
-            max-width: calc(100% - 85px);
+            margin-left: 80px;
+            width: calc(100% - 80px);
+            max-width: calc(100% - 80px);
         }
 
         .main-content {
@@ -539,29 +468,67 @@
             box-sizing: border-box !important;
         }
 
-        /* Card improvements */
+        /* Ultra Modern Card Design */
         .card {
-            margin-bottom: 24px;
-            box-shadow: 0 4px 20px var(--shadow-color);
-            border-radius: 16px;
+            margin-bottom: 32px;
+            box-shadow:
+                0 10px 40px rgba(102, 126, 234, 0.1),
+                0 0 0 1px var(--card-border) inset;
+            border-radius: 24px;
             overflow: hidden;
-            border: 1px solid var(--card-border);
+            border: none;
             background: var(--card-bg);
             color: var(--text-primary);
-            transition: all 0.3s ease;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            backdrop-filter: blur(20px);
+            position: relative;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(
+                90deg,
+                transparent 0%,
+                rgba(102, 126, 234, 0.3) 50%,
+                transparent 100%
+            );
         }
 
         .card:hover {
-            box-shadow: 0 8px 30px var(--shadow-hover);
-            transform: translateY(-2px);
+            box-shadow:
+                0 20px 60px rgba(102, 126, 234, 0.15),
+                0 0 0 1px rgba(102, 126, 234, 0.2) inset;
+            transform: translateY(-8px) scale(1.02);
         }
 
         .card-header {
-            background: rgba(59, 130, 246, 0.05);
-            border-bottom: 1px solid var(--card-border);
-            padding: 20px 24px;
-            font-weight: 600;
+            background: linear-gradient(
+                135deg,
+                rgba(102, 126, 234, 0.08) 0%,
+                rgba(118, 75, 162, 0.05) 100%
+            );
+            border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+            padding: 28px 32px;
+            font-weight: 700;
             color: var(--text-primary);
+            position: relative;
+        }
+
+        .card-header::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 32px;
+            right: 32px;
+            height: 2px;
+            background: var(--primary-gradient);
+            border-radius: 1px;
+            opacity: 0.6;
         }
 
         .card-body {
@@ -596,9 +563,121 @@
             color: var(--text-muted);
         }
 
-        /* Button improvements */
+        /* Modern Button Styles */
         .btn {
-            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-weight: 500;
+            font-size: 14px;
+            transition: var(--transition);
+            border: 1px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: var(--text-inverse);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-light);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border-color: var(--border);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--bg-muted);
+        }
+
+        /* Modern Card Styles */
+        .card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            box-shadow: var(--shadow);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .card-body {
+            padding: 24px;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        /* Table Styles */
+        .table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--bg-primary);
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .table th,
+        .table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .table th {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .table tbody tr:hover {
+            background: var(--bg-muted);
+        }
             font-weight: 600;
             padding: 12px 24px;
             transition: all 0.3s ease;
@@ -1113,17 +1192,28 @@
             background: linear-gradient(180deg, var(--primary-light) 0%, var(--primary-dark) 100%);
         }
 
-        /* Responsive improvements */
-        @media (max-width: 640px) {
+        /* Enhanced Responsive Design for Professional Sidebar */
+        @media (max-width: 768px) {
             .sidebar {
-                width: 100% !important;
+                width: 280px !important;
                 transform: translateX(-100%);
+                z-index: 50;
             }
 
             .content-area {
                 margin-left: 0 !important;
                 width: 100% !important;
                 max-width: 100% !important;
+            }
+
+            .sidebar-nav-item {
+                padding: 14px 18px;
+                font-size: 15px;
+            }
+
+            .section-header {
+                padding: 10px 18px 14px 18px;
+                font-size: 12px;
             }
 
             .card {
@@ -1135,6 +1225,201 @@
                 border-radius: 8px;
                 overflow: hidden;
             }
+        }
+
+        /* Custom Scrollbar for Sidebar */
+        #sidebar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #sidebar::-webkit-scrollbar-track {
+            background: rgba(148, 163, 184, 0.1);
+            border-radius: 3px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.3);
+            border-radius: 3px;
+        }
+
+        #sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.5);
+        }
+
+        /* Dark mode scrollbar */
+        :root.dark-mode #sidebar::-webkit-scrollbar-track {
+            background: rgba(71, 85, 105, 0.2);
+        }
+
+        :root.dark-mode #sidebar::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.4);
+        }
+
+        :root.dark-mode #sidebar::-webkit-scrollbar-thumb:hover {
+            background: rgba(59, 130, 246, 0.6);
+        }
+
+        @media (max-width: 640px) {
+            .sidebar {
+                width: 100% !important;
+                max-width: 320px;
+            }
+
+            .sidebar-nav-item {
+                padding: 16px 20px;
+                margin-bottom: 4px;
+            }
+
+            .nav-icon {
+                width: 24px;
+                height: 24px;
+            }
+
+            .section-header {
+                padding: 12px 20px 16px 20px;
+            }
+        }
+
+        /* Enhanced Navbar Scroll Effects */
+        .navbar-scrolled {
+            background: rgba(255, 255, 255, 0.98) !important;
+            backdrop-filter: blur(20px) !important;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12) !important;
+            border-color: rgba(0, 0, 0, 0.08) !important;
+            transform: translateY(0) !important;
+            animation: navbarSlideDown 0.3s ease-out;
+        }
+
+        @keyframes navbarSlideDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        :root.dark-mode .navbar-scrolled {
+            background: rgba(15, 23, 42, 0.95) !important;
+            border-color: rgba(71, 85, 105, 0.3) !important;
+        }
+
+        /* Enhanced Professional Sidebar Styles */
+        .sidebar-nav-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 2px;
+            border: 1px solid transparent;
+        }
+
+        .sidebar-nav-item:hover {
+            color: var(--text-primary);
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(147, 51, 234, 0.06) 100%);
+            border-color: rgba(59, 130, 246, 0.2);
+            transform: translateX(4px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .sidebar-nav-item.active {
+            color: #3b82f6;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.12) 0%, rgba(147, 51, 234, 0.08) 100%);
+            border-color: rgba(59, 130, 246, 0.3);
+            font-weight: 600;
+            box-shadow: inset 0 2px 4px rgba(59, 130, 246, 0.1), 0 4px 12px rgba(59, 130, 246, 0.15);
+        }
+
+        .sidebar-nav-item.active::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(180deg, #3b82f6 0%, #6366f1 100%);
+            border-radius: 2px;
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+        }
+
+        .nav-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-nav-item:hover .nav-icon,
+        .sidebar-nav-item.active .nav-icon {
+            transform: scale(1.1);
+        }
+
+        .nav-text {
+            flex: 1;
+            transition: all 0.3s ease;
+        }
+
+        .nav-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.3);
+            opacity: 0;
+            transition: all 0.3s ease;
+            flex-shrink: 0;
+        }
+
+        .sidebar-nav-item:hover .nav-indicator,
+        .sidebar-nav-item.active .nav-indicator {
+            opacity: 1;
+            background: #3b82f6;
+            box-shadow: 0 0 6px rgba(59, 130, 246, 0.6);
+        }
+
+        .sidebar-section {
+            margin-bottom: 24px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px 12px 16px;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+            margin-bottom: 8px;
+        }
+
+        .section-content {
+            space-y: 2px;
+        }
+
+        .quick-action {
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+
+        .quick-action:hover {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.08) 0%, rgba(251, 191, 36, 0.06) 100%);
+            border-color: rgba(245, 158, 11, 0.2);
         }
 
         /* Enhanced navigation and sidebar text styling */
@@ -1189,62 +1474,97 @@
                 box-shadow: 4px 0 20px var(--shadow-color);
             }
         }
+
+        /* Dark Mode Support for Enhanced Sidebar */
+        :root.dark-mode .sidebar {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+            border-color: rgba(71, 85, 105, 0.3);
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.3);
+        }
+
+        :root.dark-mode .sidebar-nav-item {
+            color: var(--text-sidebar);
+        }
+
+        :root.dark-mode .sidebar-nav-item:hover {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(147, 51, 234, 0.1) 100%);
+            border-color: rgba(59, 130, 246, 0.3);
+            color: #e2e8f0;
+        }
+
+        :root.dark-mode .sidebar-nav-item.active {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(147, 51, 234, 0.15) 100%);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+        }
+
+        :root.dark-mode .section-header {
+            color: #94a3b8;
+            border-color: rgba(71, 85, 105, 0.3);
+        }
+
+        :root.dark-mode .sidebar-section {
+            border-bottom-color: rgba(71, 85, 105, 0.2);
+        }
+
+        :root.dark-mode .quick-action:hover {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(251, 191, 36, 0.1) 100%);
+            border-color: rgba(245, 158, 11, 0.3);
+        }
     </style>
 </head>
 <body class="font-sans" style="background: var(--bg-secondary);">
-    <!-- Modern Navigation -->
-    <nav class="bg-white dark:bg-gray-900 shadow-lg border-b border-gray-200 dark:border-gray-700 sticky top-0 z-50 transition-colors duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center gap-3">
-                    <!-- Sidebar toggle button -->
+    <!-- Ultra-Modern Navigation -->
+    <nav id="main-navbar" class="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-200/50 shadow-lg transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-6">
+                    <!-- Sidebar toggle -->
                     @if(session('user'))
-                        <button id="sidebar-toggle" class="p-2.5 rounded-lg text-white bg-linear-to-r from-indigo-500 via-purple-500 to-pink-500 hover:from-indigo-600 hover:via-purple-600 hover:to-pink-600 transform hover:scale-110 transition-all duration-300 shadow-md hover:shadow-lg md:hidden flex items-center justify-center" title="Toggle Sidebar">
+                        <button id="sidebar-toggle" class="md:hidden p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200">
                             <i class="fas fa-bars text-lg"></i>
                         </button>
                     @endif
 
                     <!-- Logo -->
-                    <div class="flex items-center">
-                        <div class="shrink-0">
-                            <i class="fas fa-graduation-cap text-2xl mr-2" style="color: var(--primary-dark);"></i>
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-black flex items-center justify-center">
+                            <i class="fas fa-graduation-cap text-white text-sm"></i>
                         </div>
                         <div class="hidden md:block">
-                            <h1 class="text-lg font-bold" style="color: var(--text-primary);">School Management</h1>
-                            <p class="text-xs" style="color: var(--text-secondary);">System Administration</p>
+                            <h1 class="text-lg font-semibold text-gray-900">SchoolHub</h1>
                         </div>
                     </div>
                 </div>
 
-                <div class="flex items-center gap-3">
-                    <!-- Theme Toggle Button -->
-                    <button id="theme-toggle" class="p-2.5 rounded-lg bg-indigo-100 dark:bg-gray-700 text-indigo-600 dark:text-yellow-400 hover:bg-indigo-200 dark:hover:bg-gray-600 transition-all duration-300 shadow-md hover:shadow-lg border border-indigo-300 dark:border-gray-600 font-semibold" title="Toggle Dark Mode">
-                        <i class="fas fa-moon dark:hidden"></i>
-                        <i class="fas fa-sun hidden dark:inline"></i>
+                <div class="flex items-center gap-4">
+                    <!-- Theme Toggle -->
+                    <button id="theme-toggle" class="p-2 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200">
+                        <i class="fas fa-moon text-lg"></i>
                     </button>
 
                     @if(session('user'))
-                        <!-- User info -->
-                        <div class="hidden md:flex items-center gap-3 px-4 py-2 rounded-lg user-info-container shadow-sm">
-                            <div class="text-right">
-                                <p class="text-sm font-bold user-name leading-tight">{{ session('user')['nama'] }}</p>
-                                <p class="text-xs user-role leading-tight">{{ session('user')['role'] }}</p>
+                        <!-- User Menu -->
+                        <div class="flex items-center gap-3">
+                            <div class="hidden md:block text-right">
+                                <p class="text-sm font-medium text-gray-900">{{ session('user')['nama'] }}</p>
+                                <p class="text-xs text-gray-500 capitalize">{{ session('user')['role'] }}</p>
                             </div>
-                            <div class="h-8 w-8 rounded-full bg-linear-to-br from-indigo-500 to-purple-600 flex items-center justify-center shrink-0 shadow-md">
-                                <i class="fas fa-user text-white text-xs"></i>
+                            <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                                <i class="fas fa-user text-gray-600 text-sm"></i>
                             </div>
                         </div>
 
-                        <!-- Logout button -->
+                        <!-- Logout -->
                         <form method="POST" action="{{ route('logout') }}" class="inline">
                             @csrf
-                            <button type="submit" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-lg text-white bg-red-500 hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700 focus:outline-none transition ease-in-out duration-150 shadow-sm hover:shadow-md">
+                            <button type="submit" class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-700 hover:text-gray-900 hover:bg-gray-100 transition-colors duration-200">
                                 <i class="fas fa-sign-out-alt mr-2"></i>
                                 Logout
                             </button>
                         </form>
                     @else
-                        <a href="{{ route('login') }}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none transition ease-in-out duration-150 shadow-sm hover:shadow-md">
+                        <a href="{{ route('login') }}" class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg text-white bg-black hover:bg-gray-800 transition-colors duration-200">
                             <i class="fas fa-sign-in-alt mr-2"></i>
                             Login
                         </a>
@@ -1255,84 +1575,186 @@
     </nav>
 
     <!-- Main Content -->
-    <div class="flex min-h-screen" style="background: var(--bg-secondary);">
-        <!-- Modern Sidebar -->
+    <div class="flex min-h-screen pt-16" style="background: var(--bg-secondary);">
+        <!-- Enhanced Professional Sidebar -->
         @if(session('user'))
-        <aside id="sidebar" class="sidebar">
-            <div class="p-4 space-y-6">
-                <!-- Sidebar Toggle Button -->
-                <div class="flex justify-end pb-2">
-                    <button id="sidebar-collapse-btn" class="p-2.5 rounded-lg text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-all duration-300 font-semibold" title="Toggle Sidebar">
-                        <i class="fas fa-chevron-left text-base"></i>
-                    </button>
+        <aside id="sidebar" class="fixed left-0 top-16 h-[calc(100vh-4rem)] w-72 bg-gradient-to-b from-slate-50 to-white border-r border-slate-200/60 shadow-xl backdrop-blur-sm transition-all duration-500 ease-in-out overflow-y-auto z-40">
+            <!-- Sidebar Header -->
+            <div class="relative p-6 border-b border-slate-200/50 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg">
+                        <i class="fas fa-school text-white text-sm"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold text-slate-800 text-sm">SchoolHub Pro</h3>
+                        <p class="text-xs text-slate-500">Management System</p>
+                    </div>
                 </div>
 
-                <!-- Navigation Menu -->
-                <nav class="space-y-2">
+                <!-- User Status Indicator -->
+                <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/60 backdrop-blur-sm border border-slate-200/50">
+                    <div class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
+                    <span class="text-xs font-medium text-slate-600">{{ session('user')['nama'] }}</span>
+                    <span class="text-xs text-slate-400 capitalize">({{ session('user')['role'] }})</span>
+                </div>
+            </div>
+
+            <!-- Navigation Menu -->
+            <div class="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-transparent">
+                <nav class="p-4 space-y-2">
                     <!-- Dashboard -->
-                    <div class="sidebar-section">
-                        <a href="{{ route('dashboard') }}" class="nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
-                            <i class="fas fa-tachometer-alt"></i>
-                            <span class="sidebar-text">Dashboard</span>
+                    <div class="mb-6">
+                        <a href="{{ route('dashboard') }}" class="sidebar-nav-item {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <div class="nav-icon">
+                                <i class="fas fa-home"></i>
+                            </div>
+                            <span class="nav-text">Dashboard</span>
+                            <div class="nav-indicator"></div>
                         </a>
                     </div>
 
-                    <!-- Schedule Management -->
+                    <!-- Management Section -->
                     <div class="sidebar-section">
-                        <h3 class="section-title">Schedule</h3>
-                        <a href="{{ route('web-schedules.index') }}" class="nav-item {{ request()->routeIs('web-schedules.index') ? 'active' : '' }}">
-                            <i class="fas fa-calendar-alt"></i>
-                            <span class="sidebar-text">All Schedules</span>
-                        </a>
-                        <a href="{{ route('web-schedules.create') }}" class="nav-item">
-                            <i class="fas fa-plus-circle"></i>
-                            <span class="sidebar-text">Create Schedule</span>
-                        </a>
+                        <div class="section-header">
+                            <i class="fas fa-cogs text-blue-500"></i>
+                            <span>Management</span>
+                        </div>
+
+                        <div class="section-content">
+                            <a href="{{ route('web-users.index') }}" class="sidebar-nav-item {{ request()->routeIs('web-users.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <span class="nav-text">Users</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+
+                            <a href="{{ route('web-teachers.index') }}" class="sidebar-nav-item {{ request()->routeIs('web-teachers.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                </div>
+                                <span class="nav-text">Teachers</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+
+                            <a href="{{ route('web-subjects.index') }}" class="sidebar-nav-item {{ request()->routeIs('web-subjects.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-book-open"></i>
+                                </div>
+                                <span class="nav-text">Subjects</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+
+                            <a href="{{ route('web-classes.index') }}" class="sidebar-nav-item {{ request()->routeIs('web-classes.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-graduation-cap"></i>
+                                </div>
+                                <span class="nav-text">Classes</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+                        </div>
                     </div>
 
-                    <!-- User Management -->
+                    <!-- Schedules Section -->
                     <div class="sidebar-section">
-                        <h3 class="section-title">Users</h3>
-                        <a href="{{ route('web-users.index') }}" class="nav-item {{ request()->routeIs('web-users.*') ? 'active' : '' }}">
-                            <i class="fas fa-users"></i>
-                            <span class="sidebar-text">Users</span>
-                        </a>
-                        <a href="{{ route('web-teachers.index') }}" class="nav-item {{ request()->routeIs('web-teachers.*') ? 'active' : '' }}">
-                            <i class="fas fa-chalkboard-user"></i>
-                            <span class="sidebar-text">Teachers</span>
-                        </a>
+                        <div class="section-header">
+                            <i class="fas fa-calendar-alt text-purple-500"></i>
+                            <span>Schedules</span>
+                        </div>
+
+                        <div class="section-content">
+                            <a href="{{ route('web-schedules.index') }}" class="sidebar-nav-item {{ request()->routeIs('web-schedules.index', 'web-schedules.show') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-calendar"></i>
+                                </div>
+                                <span class="nav-text">All Schedules</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+
+                            <a href="{{ route('web-schedules.create') }}" class="sidebar-nav-item {{ request()->routeIs('web-schedules.create') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-plus-circle"></i>
+                                </div>
+                                <span class="nav-text">Create Schedule</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+                        </div>
                     </div>
 
-                    <!-- Academic Management -->
+                    <!-- Attendance Section -->
                     <div class="sidebar-section">
-                        <h3 class="section-title">Academic</h3>
-                        <a href="{{ route('web-subjects.index') }}" class="nav-item {{ request()->routeIs('web-subjects.*') ? 'active' : '' }}">
-                            <i class="fas fa-book"></i>
-                            <span class="sidebar-text">Subjects</span>
-                        </a>
-                        <a href="{{ route('web-classes.index') }}" class="nav-item {{ request()->routeIs('web-classes.*') ? 'active' : '' }}">
-                            <i class="fas fa-graduation-cap"></i>
-                            <span class="sidebar-text">Classes</span>
-                        </a>
+                        <div class="section-header">
+                            <i class="fas fa-user-check text-green-500"></i>
+                            <span>Attendance</span>
+                        </div>
+
+                        <div class="section-content">
+                            <a href="{{ route('teacher-attendance.index') }}" class="sidebar-nav-item {{ request()->routeIs('teacher-attendance.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-clipboard-check"></i>
+                                </div>
+                                <span class="nav-text">Teacher Attendance</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+
+                            <a href="{{ route('teacher-leaves.index') }}" class="sidebar-nav-item {{ request()->routeIs('teacher-leaves.*') ? 'active' : '' }}">
+                                <div class="nav-icon">
+                                    <i class="fas fa-calendar-times"></i>
+                                </div>
+                                <span class="nav-text">Leave Management</span>
+                                <div class="nav-indicator"></div>
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="sidebar-section">
+                        <div class="section-header">
+                            <i class="fas fa-bolt text-amber-500"></i>
+                            <span>Quick Actions</span>
+                        </div>
+
+                        <div class="section-content">
+                            <button class="sidebar-nav-item quick-action" onclick="showQuickStats()">
+                                <div class="nav-icon">
+                                    <i class="fas fa-chart-bar"></i>
+                                </div>
+                                <span class="nav-text">Quick Stats</span>
+                            </button>
+
+                            <button class="sidebar-nav-item quick-action" onclick="showRecentActivity()">
+                                <div class="nav-icon">
+                                    <i class="fas fa-clock"></i>
+                                </div>
+                                <span class="nav-text">Recent Activity</span>
+                            </button>
+                        </div>
                     </div>
                 </nav>
+            </div>
+
+            <!-- Sidebar Footer -->
+            <div class="p-4 border-t border-slate-200/50 bg-gradient-to-r from-slate-50 to-white">
+                <div class="text-center">
+                    <p class="text-xs text-slate-500 mb-2">SchoolHub v2.0</p>
+                    <div class="flex justify-center gap-2">
+                        <button class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Settings">
+                            <i class="fas fa-cog"></i>
+                        </button>
+                        <button class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Help">
+                            <i class="fas fa-question-circle"></i>
+                        </button>
+                        <button class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors" title="Feedback">
+                            <i class="fas fa-comment"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
         </aside>
         @endif
 
         <!-- Content Area -->
-        <main class="flex-1 content-area {{ session('user') ? 'md:ml-0' : '' }}">
-            <!-- Mobile sidebar overlay -->
-            @if(session('user'))
-                <div id="sidebar-overlay" class="fixed inset-0 bg-gray-600 bg-opacity-75 z-40 md:hidden hidden">
-                    <div class="fixed inset-y-0 left-0 flex w-full max-w-xs flex-col">
-                        <div class="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4">
-                            <!-- Mobile sidebar content would go here -->
-                        </div>
-                    </div>
-                </div>
-            @endif
-
+        <main class="flex-1 {{ session('user') ? 'ml-72' : '' }} transition-all duration-300">
             <!-- Page Header -->
             @hasSection('page-header')
                 @yield('page-header')
@@ -1341,7 +1763,7 @@
             <!-- Alert Messages -->
             <div class="px-6 py-4">
                 @if(session('success'))
-                    <div class="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg animate-fade-in">
+                    <div class="mb-4 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-check-circle mr-2"></i>
                             <span>{{ session('success') }}</span>
@@ -1350,7 +1772,7 @@
                 @endif
 
                 @if(session('error'))
-                    <div class="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg animate-fade-in">
+                    <div class="mb-4 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-exclamation-circle mr-2"></i>
                             <span>{{ session('error') }}</span>
@@ -1359,7 +1781,7 @@
                 @endif
 
                 @if(session('warning'))
-                    <div class="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg animate-fade-in">
+                    <div class="mb-4 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-exclamation-triangle mr-2"></i>
                             <span>{{ session('warning') }}</span>
@@ -1368,7 +1790,7 @@
                 @endif
 
                 @if(session('info'))
-                    <div class="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg animate-fade-in">
+                    <div class="mb-4 bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
                         <div class="flex items-center">
                             <i class="fas fa-info-circle mr-2"></i>
                             <span>{{ session('info') }}</span>
@@ -1384,14 +1806,14 @@
         </main>
     </div>
 
-    <!-- Modern Footer -->
-    <footer class="border-t transition-colors duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+    <!-- Professional Footer -->
+    <footer class="bg-white border-t border-slate-200 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
             <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="text-sm" style="color: var(--text-secondary);">
+                <div class="text-sm text-slate-600">
                     © {{ date('Y') }} School Management System. All rights reserved.
                 </div>
-                <div class="mt-2 md:mt-0 text-sm" style="color: var(--text-secondary);">
+                <div class="mt-2 md:mt-0 text-sm text-slate-600">
                     <span>Built with </span>
                     <i class="fas fa-heart text-red-500 mx-1"></i>
                     <span>using Laravel & Tailwind CSS</span>
@@ -1451,7 +1873,7 @@
 
             // Initialize sidebar state
             function initSidebarState() {
-                if (isCollapsed && window.innerWidth >= 768) {
+                if (sidebar && contentArea && isCollapsed && window.innerWidth >= 768) {
                     sidebar.classList.add('collapsed');
                     contentArea.classList.add('sidebar-collapsed');
                     if (toggleIcon) {
@@ -1528,6 +1950,110 @@
 
             // Initialize on page load
             initSidebarState();
+
+            // Navbar scroll effect
+            let lastScrollY = window.scrollY;
+            const navbar = document.getElementById('main-navbar');
+
+            window.addEventListener('scroll', () => {
+                const currentScrollY = window.scrollY;
+
+                if (currentScrollY > 10) {
+                    navbar.classList.add('navbar-scrolled');
+                } else {
+                    navbar.classList.remove('navbar-scrolled');
+                }
+
+                lastScrollY = currentScrollY;
+            });
+
+            // Quick Actions Functions
+            window.showQuickStats = function() {
+                // Create a modal or toast with quick statistics
+                const statsModal = document.createElement('div');
+                statsModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                statsModal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Quick Statistics</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                                <span class="text-sm text-gray-600">Total Users</span>
+                                <span class="font-semibold text-blue-600">Loading...</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                                <span class="text-sm text-gray-600">Active Schedules</span>
+                                <span class="font-semibold text-green-600">Loading...</span>
+                            </div>
+                            <div class="flex justify-between items-center p-3 bg-purple-50 rounded-lg">
+                                <span class="text-sm text-gray-600">Teachers</span>
+                                <span class="font-semibold text-purple-600">Loading...</span>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-center">
+                            <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(statsModal);
+            };
+
+            window.showRecentActivity = function() {
+                // Create a modal with recent activity
+                const activityModal = document.createElement('div');
+                activityModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+                activityModal.innerHTML = `
+                    <div class="bg-white rounded-2xl p-6 max-w-md mx-4 shadow-2xl">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-800">Recent Activity</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-600">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="space-y-3 max-h-64 overflow-y-auto">
+                            <div class="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                                <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-user-plus text-blue-600 text-xs"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">New user registered</p>
+                                    <p class="text-xs text-gray-500">2 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
+                                <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-calendar-plus text-green-600 text-xs"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Schedule created</p>
+                                    <p class="text-xs text-gray-500">15 minutes ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-start gap-3 p-3 bg-yellow-50 rounded-lg">
+                                <div class="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                                    <i class="fas fa-edit text-yellow-600 text-xs"></i>
+                                </div>
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-gray-800">Teacher profile updated</p>
+                                    <p class="text-xs text-gray-500">1 hour ago</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4 text-center">
+                            <button onclick="this.closest('.fixed').remove()" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(activityModal);
+            };
         });
     </script>
     @endif

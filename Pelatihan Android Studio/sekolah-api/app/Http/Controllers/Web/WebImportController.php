@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -20,19 +21,19 @@ class WebImportController extends Controller
     {
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="template_'.$type.'.csv"',
+            'Content-Disposition' => 'attachment; filename="template_' . $type . '.csv"',
         ];
         $columns = match ($type) {
-            'users' => ['nama','email','password','role'],
-            'teachers' => ['user_email','nip','teacher_code','position','department'],
-            'subjects' => ['name','code','category','credit_hours','semester'],
-            'classes' => ['name','level','major','academic_year','capacity'],
-            'classrooms' => ['name','code','type','capacity','building','floor'],
-            'schedules' => ['class_id','subject_id','teacher_id','classroom_id','day_of_week','period_number','start_time','end_time','semester','academic_year'],
-            default => ['column1','column2']
+            'users' => ['nama', 'email', 'password', 'role'],
+            'teachers' => ['user_email', 'nip', 'teacher_code', 'position', 'department'],
+            'subjects' => ['name', 'code', 'category', 'credit_hours', 'semester'],
+            'classes' => ['name', 'level', 'major', 'academic_year', 'capacity'],
+            'classrooms' => ['name', 'code', 'type', 'capacity', 'building', 'floor'],
+            'schedules' => ['nomor', 'kelas', 'hari', 'jam_pelajaran', 'mata_pelajaran', 'guru_id', 'ruangan'],
+            default => ['column1', 'column2']
         };
 
-        $callback = function() use ($columns) {
+        $callback = function () use ($columns) {
             $fh = fopen('php://output', 'w');
             fputcsv($fh, $columns);
             fclose($fh);
@@ -64,7 +65,7 @@ class WebImportController extends Controller
         // Tentukan file sumber yang bisa dibaca
         $source = is_string($realPath) && is_file($realPath)
             ? $realPath
-            : storage_path('app/'.$path);
+            : storage_path('app/' . $path);
         if (!is_file($source)) {
             return back()->with('error', 'File upload tidak ditemukan. Coba ulangi proses import.');
         }
@@ -85,7 +86,9 @@ class WebImportController extends Controller
         $counts = [',' => substr_count($first, ','), ';' => substr_count($first, ';'), "\t" => substr_count($first, "\t")];
         arsort($counts);
         $delimiter = key($counts);
-        if (($counts[$delimiter] ?? 0) === 0) { $delimiter = ','; }
+        if (($counts[$delimiter] ?? 0) === 0) {
+            $delimiter = ',';
+        }
         rewind($handle);
 
         $header = fgetcsv($handle, 0, $delimiter);
@@ -94,19 +97,25 @@ class WebImportController extends Controller
             return back()->with('error', 'Header CSV tidak valid. Gunakan template yang disediakan.');
         }
         // Normalisasi header
-        $header = array_map(function($h){
+        $header = array_map(function ($h) {
             $h = preg_replace('/^\xEF\xBB\xBF/', '', (string)$h);
             return trim($h, " \"'\t\n\r");
         }, $header);
 
         while (($data = fgetcsv($handle, 0, $delimiter)) !== false) {
-            if (count($data) !== count($header)) { continue; }
-            $clean = array_map(function($v){ return is_string($v) ? trim($v, " \"'\t\n\r") : $v; }, $data);
+            if (count($data) !== count($header)) {
+                continue;
+            }
+            $clean = array_map(function ($v) {
+                return is_string($v) ? trim($v, " \"'\t\n\r") : $v;
+            }, $data);
             $rows[] = array_combine($header, $clean);
         }
         fclose($handle);
 
-        $inserted = 0; $failed = 0; $messages = [];
+        $inserted = 0;
+        $failed = 0;
+        $messages = [];
         DB::beginTransaction();
         try {
             foreach ($rows as $i => $row) {
@@ -122,13 +131,13 @@ class WebImportController extends Controller
                     $inserted++;
                 } catch (\Throwable $e) {
                     $failed++;
-                    $messages[] = 'Row '.($i+2).': '.$e->getMessage();
+                    $messages[] = 'Row ' . ($i + 2) . ': ' . $e->getMessage();
                 }
             }
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            return back()->with('error', 'Import gagal: '.$e->getMessage());
+            return back()->with('error', 'Import gagal: ' . $e->getMessage());
         }
 
         // Redirect ke halaman yang diminta jika ada
@@ -252,99 +261,67 @@ class WebImportController extends Controller
 
     private function importSchedule(array $row): void
     {
-        $data = Validator::make($row, [
-            'class_id' => 'required|integer|min:1',
-            'subject_id' => 'required|integer|min:1',
-            'teacher_id' => 'required|integer|min:1',
-            'classroom_id' => 'nullable|integer|min:1',
-            'day_of_week' => 'required|string|max:20',
-            'period_number' => 'required|integer|min:1|max:12',
-            'start_time' => 'required',
-            'end_time' => 'required',
-            'semester' => 'required|string|max:20',
-            'academic_year' => 'required|string|max:20',
-        ])->validate();
+        // Log row untuk debugging
+        Log::info('Import schedule row: ' . json_encode($row));
 
-        \App\Models\Schedule::create([
-            'class_id' => $data['class_id'],
-            'subject_id' => $data['subject_id'],
-            'teacher_id' => $data['teacher_id'],
-            'classroom_id' => $data['classroom_id'] ?? null,
-            'day_of_week' => strtolower($data['day_of_week']),
-            'period_number' => $data['period_number'],
-            'start_time' => date('H:i:s', strtotime($data['start_time'])),
-            'end_time' => date('H:i:s', strtotime($data['end_time'])),
-            'semester' => $data['semester'],
-            'academic_year' => $data['academic_year'],
+        // Validasi kolom yang diperlukan
+        $required = ['kelas', 'hari', 'jam_pelajaran', 'mata_pelajaran', 'guru_id'];
+        foreach ($required as $field) {
+            if (empty($row[$field])) {
+                throw new \Exception("Field '$field' tidak boleh kosong");
+            }
+        }
+
+        // Parse jam_pelajaran "07:00 - 08:00" menjadi start_time dan end_time
+        $jamPelajaran = trim($row['jam_pelajaran']);
+        if (preg_match('/(\d{1,2}:\d{2})\s*[-–]\s*(\d{1,2}:\d{2})/', $jamPelajaran, $matches)) {
+            $startTime = $matches[1];
+            $endTime = $matches[2];
+        } else {
+            throw new \Exception("Format jam_pelajaran tidak valid: '$jamPelajaran'. Gunakan format '07:00 - 08:00'");
+        }
+
+        // Lookup teacher berdasarkan teacher_code (guru_id di CSV adalah kode guru, bukan ID numerik)
+        $teacherCode = trim($row['guru_id']);
+        $teacher = \App\Models\Teacher::where('teacher_code', $teacherCode)->first();
+        if (!$teacher) {
+            throw new \Exception("Guru dengan kode '$teacherCode' tidak ditemukan");
+        }
+
+        // Lookup class berdasarkan nama kelas
+        $className = trim($row['kelas']);
+        $class = \App\Models\ClassModel::where('nama_kelas', $className)->first();
+        // Class bisa null jika tidak ada, kita simpan nama kelas saja
+
+        // Data untuk disimpan
+        $scheduleData = [
+            'kelas' => $className,
+            'hari' => trim($row['hari']),
+            'mata_pelajaran' => trim($row['mata_pelajaran']),
+            'guru_id' => $teacher->id,
+            'jam_mulai' => $startTime . ':00',
+            'jam_selesai' => $endTime . ':00',
+            'ruang' => trim($row['ruangan'] ?? ''),
             'status' => 'active',
-        ]);
-    }
-}
+        ];
 
+        // Jika class ditemukan, tambahkan class_id
+        if ($class) {
+            $scheduleData['class_id'] = $class->id;
+        }
 
+        // Cari jadwal yang sama (kelas + hari + jam_mulai) untuk update atau create baru
+        $existing = \App\Models\Schedule::where('kelas', $className)
+            ->where('hari', $scheduleData['hari'])
+            ->where('jam_mulai', $scheduleData['jam_mulai'])
+            ->first();
 
-
-}    }        ]);            'status' => 'active',            'academic_year' => $data['academic_year'],            'semester' => $data['semester'],            'end_time' => date('H:i:s', strtotime($data['end_time'])),            'start_time' => date('H:i:s', strtotime($data['start_time'])),            'period_number' => $data['period_number'],            'day_of_week' => strtolower($data['day_of_week']),            'classroom_id' => $data['classroom_id'] ?? null,            'teacher_id' => $data['teacher_id'],            'subject_id' => $data['subject_id'],            'class_id' => $data['class_id'],        \App\Models\Schedule::create([        ])->validate();            'academic_year' => 'required|string|max:20',            'semester' => 'required|string|max:20',            'end_time' => 'required',            'start_time' => 'required',            'period_number' => 'required|integer|min:1|max:12',            'day_of_week' => 'required|string|max:20',            'classroom_id' => 'nullable|integer|min:1',            'teacher_id' => 'required|integer|min:1',            'subject_id' => 'required|integer|min:1',            'class_id' => 'required|integer|min:1',        $data = Validator::make($row, [    {    private function importSchedule(array $row): void    }        );            ]                'status' => 'available',                'floor' => $data['floor'] ?? 1,                'building' => $data['building'] ?? '',    }
-
-    private function importSchedule(array $row): void
-    {
-        $data = Validator::make($row, [
-            'class_id' => 'required|integer|min:1',
-            'subject_id' => 'required|integer|min:1',
-            'teacher_id' => 'required|integer|min:1',
-            'classroom_id' => 'nullable|integer|min:1',
-            'day_of_week' => 'required|string|max:20',
-            'period_number' => 'required|integer|min:1|max:12',
-            'start_time' => 'required',
-            'end_time' => 'required',
-            'semester' => 'required|string|max:20',
-            'academic_year' => 'required|string|max:20',
-        ])->validate();
-
-        \App\Models\Schedule::create([
-            'class_id' => $data['class_id'],
-            'subject_id' => $data['subject_id'],
-            'teacher_id' => $data['teacher_id'],
-            'classroom_id' => $data['classroom_id'] ?? null,
-            'day_of_week' => strtolower($data['day_of_week']),
-            'period_number' => $data['period_number'],
-            'start_time' => date('H:i:s', strtotime($data['start_time'])),
-            'end_time' => date('H:i:s', strtotime($data['end_time'])),
-            'semester' => $data['semester'],
-            'academic_year' => $data['academic_year'],
-            'status' => 'active',
-        ]);
-    }
-}
-            'academic_year' => $data['academic_year'],
-            'status' => 'active',
-        ]);
-    }
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-}    }        ]);            'status' => 'active',            'academic_year' => $data['academic_year'],            'semester' => $data['semester'],            'end_time' => date('H:i:s', strtotime($data['end_time'])),            'start_time' => date('H:i:s', strtotime($data['start_time'])),            'period_number' => $data['period_number'],            'day_of_week' => strtolower($data['day_of_week']),            'classroom_id' => $data['classroom_id'] ?? null,            'teacher_id' => $data['teacher_id'],            'subject_id' => $data['subject_id'],            'class_id' => $data['class_id'],        \App\Models\Schedule::create([        ])->validate();            'academic_year' => 'required|string|max:20',            'semester' => 'required|string|max:20',            'end_time' => 'required',            'start_time' => 'required',            'period_number' => 'required|integer|min:1|max:12',            'day_of_week' => 'required|string|max:20',            'classroom_id' => 'nullable|integer|min:1',            'teacher_id' => 'required|integer|min:1',            'subject_id' => 'required|integer|min:1',            'class_id' => 'required|integer|min:1',        $data = Validator::make($row, [    {    private function importSchedule(array $row): void    }        );            ]            'status' => 'active',
-        ]);
+        if ($existing) {
+            $existing->update($scheduleData);
+            Log::info("Updated schedule ID: {$existing->id}");
+        } else {
+            $schedule = \App\Models\Schedule::create($scheduleData);
+            Log::info("Created schedule ID: {$schedule->id}");
+        }
     }
 }

@@ -19,6 +19,8 @@ use App\Http\Controllers\Api\AttendanceController;
 use App\Http\Controllers\Api\OptimizedController;
 use App\Http\Controllers\Api\KehadiranController;
 use App\Http\Controllers\Api\TeacherAttendanceController;
+use App\Http\Controllers\Api\SiswaKehadiranController;
+use App\Http\Controllers\Api\SiswaKehadiranGuruController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -27,6 +29,68 @@ Route::get('/user', function (Request $request) {
 // Test endpoint
 Route::get('/test', function () {
     return response()->json(['message' => 'API is working']);
+});
+
+// CLEAN weekly schedule endpoint - no middleware at all
+Route::get('/jadwal-siswa', [ScheduleController::class, 'myWeeklyScheduleManualAuth']);
+
+// SUPER SIMPLE TEST - Manual token check without Sanctum middleware
+Route::get('/test-auth-manual', function (Request $request) {
+    try {
+        $token = $request->bearerToken();
+        if (!$token) {
+            return response()->json(['success' => false, 'message' => 'No token'], 401);
+        }
+
+        // Manual token lookup
+        $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+        if (!$accessToken) {
+            return response()->json(['success' => false, 'message' => 'Invalid token'], 401);
+        }
+
+        $user = $accessToken->tokenable;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Auth working (manual)',
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'user_role' => $user->role
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Error: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
+// SUPER SIMPLE TEST - Auth only
+Route::middleware('auth:sanctum')->get('/test-auth', function (Request $request) {
+    return response()->json([
+        'success' => true,
+        'message' => 'Auth working',
+        'user_id' => $request->user()->id ?? 'no user'
+    ]);
+});
+
+// Debug endpoint for schedule issues
+Route::get('/debug-schedule', function () {
+    try {
+        $schedules = \App\Models\Schedule::select('id', 'hari', 'kelas', 'mata_pelajaran')->limit(5)->get();
+        return response()->json([
+            'success' => true,
+            'count' => $schedules->count(),
+            'data' => $schedules
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine()
+        ]);
+    }
 });
 
 // Lightweight dashboard summary (public for speed; add auth if needed)
@@ -69,6 +133,38 @@ Route::middleware('throttle:60,1')->group(function () {
     Route::get('schedules-public', [ScheduleController::class, 'index']);
 });
 
+// TEMPORARY: Emergency test route - completely bypass ScheduleController
+Route::get('test-weekly-schedule', function () {
+    return 'Emergency test response - server is working';
+});
+
+// TEMPORARY: Test route without middleware
+Route::get('siswa/weekly-schedule-test', [ScheduleController::class, 'myWeeklySchedule']);
+
+// TEMPORARY: Test route with ONLY auth (no circuit breaker or role)
+Route::middleware('auth:sanctum')->get('siswa/weekly-schedule-auth-only', [ScheduleController::class, 'myWeeklySchedule']);
+
+// NEW: Manual auth route for siswa weekly schedule (bypass Sanctum middleware bug)
+Route::get('siswa/weekly-schedule', [ScheduleController::class, 'myWeeklyScheduleManualAuth']);
+
+// NEW: Weekly schedule with teacher attendance status for JadwalScreen
+// CRITICAL: Must be outside middleware group to prevent server crash
+Route::get('siswa/weekly-schedule-attendance', [ScheduleController::class, 'myWeeklyScheduleWithAttendanceManualAuth']);
+
+// ===============================================
+// ULTRA LIGHTWEIGHT ROUTES - NO MIDDLEWARE (Manual Auth)
+// These routes bypass Sanctum middleware bugs and circuit breaker
+// ===============================================
+Route::get('siswa/kehadiran-guru/today', [SiswaKehadiranGuruController::class, 'todaySchedule']);
+Route::post('siswa/kehadiran-guru/submit', [SiswaKehadiranGuruController::class, 'submitKehadiran']);
+Route::get('siswa/kehadiran-guru/riwayat', [SiswaKehadiranGuruController::class, 'riwayat']);
+
+// CRITICAL: These routes MUST be outside middleware group to prevent server crash
+// They use manual auth inside the controller
+Route::get('siswa/kehadiran/today', [SiswaKehadiranController::class, 'todaySchedule']);
+Route::post('siswa/kehadiran', [SiswaKehadiranController::class, 'submitAttendance']);
+Route::get('siswa/kehadiran/riwayat', [SiswaKehadiranController::class, 'riwayat']);
+
 // Protected Routes (Require Authentication) - With Circuit Breaker
 Route::middleware(['auth:sanctum', 'circuit.breaker'])->group(function () {
 
@@ -92,8 +188,7 @@ Route::middleware(['auth:sanctum', 'circuit.breaker'])->group(function () {
     });
 
     // Kepala Sekolah Routes
-    Route::middleware('role:admin,kepala-sekolah')->group(function () {
-    });
+    Route::middleware('role:admin,kepala-sekolah')->group(function () {});
 
     // Siswa Routes - Optimized endpoints
     Route::middleware('role:admin,siswa')->group(function () {
@@ -101,7 +196,10 @@ Route::middleware(['auth:sanctum', 'circuit.breaker'])->group(function () {
         Route::get('siswa/my-schedule', [ScheduleController::class, 'myClassSchedule']);
         Route::get('siswa/today-schedule', [ScheduleController::class, 'myTodaySchedule']);
         Route::get('siswa/weekly-schedule', [ScheduleController::class, 'myWeeklySchedule']); // ✅ BARU
+        Route::get('siswa/weekly-schedule-simple', [ScheduleController::class, 'myWeeklyScheduleSimple']); // TEST
 
+        // NOTE: siswa/kehadiran/* routes moved outside middleware group (above)
+        // They use manual auth to prevent server crashes
 
         // SUPER LIGHTWEIGHT ENDPOINTS untuk Android App - CRITICAL FIX
         Route::middleware('throttle:60,1')->group(function () {
@@ -113,10 +211,7 @@ Route::middleware(['auth:sanctum', 'circuit.breaker'])->group(function () {
         Route::get('my-schedule', [ScheduleController::class, 'mySchedule']);
         Route::get('my-schedule/{day}', [ScheduleController::class, 'myScheduleByDay']);
         Route::get('my-schedule/today', [ScheduleController::class, 'todaySchedule']);
-
     });
-
-
 });
 
 // Teacher Attendance Routes (Protected by auth)

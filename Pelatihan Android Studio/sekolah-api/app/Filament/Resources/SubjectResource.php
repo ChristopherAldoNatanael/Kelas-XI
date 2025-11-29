@@ -8,6 +8,7 @@ use Filament\Forms;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Schemas\Schema;
+use Illuminate\Validation\Rule;
 
 class SubjectResource extends Resource
 {
@@ -42,7 +43,7 @@ class SubjectResource extends Resource
     {
         return $schema
             ->schema([
-                Forms\Components\TextInput::make('name')
+                Forms\Components\TextInput::make('nama')
                     ->label('Subject Name')
                     ->required()
                     ->unique(ignoreRecord: true)
@@ -51,7 +52,7 @@ class SubjectResource extends Resource
                         'unique' => 'This subject name is already registered.',
                     ]),
 
-                Forms\Components\TextInput::make('code')
+                Forms\Components\TextInput::make('kode')
                     ->label('Subject Code')
                     ->required()
                     ->unique(ignoreRecord: true)
@@ -125,12 +126,12 @@ class SubjectResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('name')
+                Tables\Columns\TextColumn::make('nama')
                     ->label('Subject Name')
                     ->sortable()
                     ->searchable(),
 
-                Tables\Columns\TextColumn::make('code')
+                Tables\Columns\TextColumn::make('kode')
                     ->label('Code')
                     ->sortable()
                     ->searchable(),
@@ -190,7 +191,9 @@ class SubjectResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->successNotificationTitle('Subject updated successfully!')
+                    ->slideOver(false),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

@@ -1,0 +1,16 @@
+nama,nip,teacher_code,position,department,join_date,expertise,certification,status
+Dr. Ahmad Santoso,198001012010011001,TCH001,Guru Senior,Teknik Informatika,2020-01-01,"Pemrograman Web, Database",Certified Laravel Developer,active
+Budi Santoso,198502152015032001,TCH002,Guru Matematika,Matematika,2019-03-15,"Matematika, Kalkulus, Aljabar",Certified Math Teacher,active
+Siti Nurhaliza,198703202018011002,TCH003,Guru Bahasa Indonesia,Bahasa Indonesia,2018-07-10,"Bahasa Indonesia, Sastra, Linguistik",Certified Indonesian Language Teacher,active
+Adi Wijaya,198904252019022003,TCH004,Guru Bahasa Inggris,Bahasa Inggris,2019-08-20,"Bahasa Inggris, TOEFL, IELTS",Certified English Teacher,active
+Maya Sari,199005302020013004,TCH005,Guru Fisika,Fisika,2020-02-14,"Fisika, Mekanika, Elektromagnetik",Certified Physics Teacher,active
+Rizki Ramadhan,199106102021014005,TCH006,Guru RPL Senior,Rekayasa Perangkat Lunak,2021-01-15,"Pemrograman Web, Database, Mobile App",Certified Full-Stack Developer,active
+Diana Putri,199207202022015006,TCH007,Guru Basis Data,Basis Data,2022-03-10,"Database, SQL, MySQL, PostgreSQL",Certified Database Administrator,active
+Eko Prasetyo,199308252023016007,TCH008,Guru Mobile Programming,Mobile Programming,2023-05-20,"Android, iOS, Flutter, React Native",Certified Mobile App Developer,active
+Lisa Permata,199409152024017008,TCH009,Guru UI/UX Design,Design,2024-01-10,"UI/UX Design, Graphic Design",Certified UI/UX Designer,active
+Hendra Gunawan,199510202025018009,TCH010,Guru Jaringan,Network,2025-02-15,"Computer Network, Cisco, Security",Certified Network Engineer,active
+Sari Dewi,198812032017021001,TCH011,Guru Matematika,Matematika,2017-08-15,"Matematika, Statistika, Aljabar",Certified Mathematics Educator,active
+Joko Susilo,199003152019031002,TCH012,Guru Bahasa Indonesia,Bahasa Indonesia,2019-04-10,"Bahasa Indonesia, Sastra, Menulis",Certified Language Teacher,active
+Maria Magdalena,198705122018041003,TCH013,Guru Bahasa Inggris,Bahasa Inggris,2018-09-20,"Bahasa Inggris, Literature, Writing",Certified English Educator,active
+Andi Pratama,199112032020051004,TCH014,Guru Pemrograman,Rekayasa Perangkat Lunak,2020-06-15,"Java, Python, Web Development",Certified Programmer,active
+Siti Aisyah,199208142021061005,TCH015,Guru PBO,Rekayasa Perangkat Lunak,2021-03-25,"Java OOP, C++, Software Engineering",Certified Software Engineer,active

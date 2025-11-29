@@ -15,7 +15,7 @@ class TeacherController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $teachers = Teacher::with('user')->get();
+            $teachers = Teacher::all();
 
             return response()->json([
                 'success' => true,
@@ -39,7 +39,7 @@ class TeacherController extends Controller
     {
         try {
             $validated = $request->validate([
-                'user_id' => 'required|exists:users,id',
+                'nama' => 'required|string|max:255',
                 'nip' => 'required|string|max:50|unique:teachers',
                 'teacher_code' => 'required|string|max:50|unique:teachers',
                 'position' => 'required|string|max:100',
@@ -47,7 +47,7 @@ class TeacherController extends Controller
                 'expertise' => 'nullable|string|max:255',
                 'certification' => 'nullable|string|max:255',
                 'join_date' => 'required|date',
-                'status' => 'required|in:active,inactive'
+                'status' => 'required|in:active,inactive,retired'
             ]);
 
             $teacher = Teacher::create($validated);
@@ -55,7 +55,7 @@ class TeacherController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Guru berhasil ditambahkan',
-                'data' => $teacher->load('user')
+                'data' => $teacher
             ], 201);
 
         } catch (\Exception $e) {
@@ -73,7 +73,7 @@ class TeacherController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $teacher = Teacher::with('user')->findOrFail($id);
+            $teacher = Teacher::findOrFail($id);
 
             return response()->json([
                 'success' => true,
@@ -99,7 +99,7 @@ class TeacherController extends Controller
             $teacher = Teacher::findOrFail($id);
 
             $validated = $request->validate([
-                'user_id' => 'sometimes|required|exists:users,id',
+                'nama' => 'sometimes|required|string|max:255',
                 'nip' => 'sometimes|required|string|max:50|unique:teachers,nip,' . $id,
                 'teacher_code' => 'sometimes|required|string|max:50|unique:teachers,teacher_code,' . $id,
                 'position' => 'sometimes|required|string|max:100',
@@ -107,7 +107,7 @@ class TeacherController extends Controller
                 'expertise' => 'nullable|string|max:255',
                 'certification' => 'nullable|string|max:255',
                 'join_date' => 'sometimes|required|date',
-                'status' => 'sometimes|required|in:active,inactive'
+                'status' => 'sometimes|required|in:active,inactive,retired'
             ]);
 
             $teacher->update($validated);
@@ -115,7 +115,7 @@ class TeacherController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Guru berhasil diperbarui',
-                'data' => $teacher->load('user')
+                'data' => $teacher
             ], 200);
 
         } catch (\Exception $e) {

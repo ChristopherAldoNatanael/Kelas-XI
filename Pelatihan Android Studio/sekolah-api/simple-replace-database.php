@@ -1,5 +1,134 @@
 <?php
 
+/**
+ * SIMPLE REPLACE DATABASE STRUCTURE SCRIPT
+ * Mengubah struktur database menggunakan database_schema_complete.sql
+ */
+
+echo "=== SIMPLE DATABASE REPLACEMENT ===\n";
+echo "Using: database_schema_complete.sql\n\n";
+
+require __DIR__ . '/vendor/autoload.php';
+
+$app = require_once __DIR__ . '/bootstrap/app.php';
+$kernel = $app->make(\Illuminate\Contracts\Console\Kernel::class);
+$kernel->bootstrap();
+
+use Illuminate\Support\Facades\DB;
+
+try {
+    $envFile = __DIR__ . '/.env';
+    if (!file_exists($envFile)) {
+        throw new Exception("File .env tidak ditemukan!");
+    }
+
+    $envContent = file_get_contents($envFile);
+    preg_match('/DB_DATABASE=(.*)/', $envContent, $dbMatch);
+    $database = trim($dbMatch[1] ?? 'db_sekolah');
+
+    echo "Target Database: {$database}\n";
+
+    // Backup existing database
+    $backupFile = __DIR__ . "/backup_before_complete_" . date('Y-m-d_H-i-s') . ".sql";
+    echo "Creating backup: {$backupFile}\n";
+
+    $tables = DB::select("SHOW TABLES");
+    $backupContent = "-- Backup created: " . date('Y-m-d H:i:s') . "\nUSE {$database};\n\n";
+
+    foreach ($tables as $table) {
+        $tableName = current($table);
+        $backupContent .= "-- Table: {$tableName}\n";
+        $columns = DB::select("SHOW CREATE TABLE {$tableName}");
+        $backupContent .= $columns[0]->{'Create Table'} . ";\n\n";
+
+        $data = DB::select("SELECT * FROM {$tableName}");
+        if ($data) {
+            $columnNames = array_keys((array)$data[0]);
+            $backupContent .= "INSERT INTO `{$tableName}` (`" . implode('`, `', $columnNames) . "`) VALUES\n";
+            $values = [];
+            foreach ($data as $row) {
+                $rowArray = (array)$row;
+                $rowValues = array_map(function($value) {
+                    return $value === null ? 'NULL' : "'" . addslashes($value) . "'";
+                }, $rowArray);
+                $values[] = "(" . implode(', ', $rowValues) . ")";
+            }
+            $backupContent .= implode(",\n", $values) . ";\n\n";
+        }
+    }
+
+    file_put_contents($backupFile, $backupContent);
+    echo "✓ Backup created successfully\n\n";
+
+    // Confirm replacement
+    echo "⚠️  This will REPLACE ALL DATA with complete schema!\n";
+    echo "Confirm? (yes/no): ";
+    $handle = fopen("php://stdin", "r");
+    $confirmation = trim(fgets($handle));
+    fclose($handle);
+
+    if ($confirmation !== 'yes') {
+        echo "Cancelled.\n";
+        exit(0);
+    }
+
+    // Drop all tables
+    echo "Dropping existing tables...\n";
+    DB::statement("SET FOREIGN_KEY_CHECKS = 0");
+    foreach ($tables as $table) {
+        $tableName = current($table);
+        DB::statement("DROP TABLE IF EXISTS `{$tableName}`");
+        echo "  ✓ Dropped: {$tableName}\n";
+    }
+    DB::statement("SET FOREIGN_KEY_CHECKS = 1");
+
+    // Execute complete schema
+    echo "\nExecuting complete schema...\n";
+    $schemaFile = __DIR__ . '/database_schema_complete.sql';
+
+    if (!file_exists($schemaFile)) {
+        throw new Exception("File database_schema_complete.sql tidak ditemukan!");
+    }
+
+    $sql = file_get_contents($schemaFile);
+    $statements = array_filter(array_map('trim', explode(';', $sql)), function($stmt) {
+        return !empty($stmt) && !preg_match('/^--/', $stmt);
+    });
+
+    $executed = 0;
+    foreach ($statements as $statement) {
+        if (trim($statement)) {
+            try {
+                DB::statement($statement);
+                $executed++;
+            } catch (Exception $e) {
+                if (!str_contains($e->getMessage(), 'Variable')) {
+                    throw $e;
+                }
+            }
+        }
+    }
+
+    echo "✓ Executed {$executed} SQL statements\n";
+
+    // Clear caches
+    try {
+        \Artisan::call('cache:clear');
+        \Artisan::call('config:clear');
+        \Artisan::call('route:clear');
+        \Artisan::call('view:clear');
+    } catch (Exception $e) {
+        echo "Warning: Cache clearing failed: " . $e->getMessage() . "\n";
+    }
+
+    echo "\n✅ DATABASE COMPLETELY REPLACED!\n";
+    echo "Backup saved to: {$backupFile}\n\n";
+
+} catch (Exception $e) {
+    echo "\n❌ ERROR: " . $e->getMessage() . "\n";
+    exit(1);
+}
+
 // Database configuration
 $host = '127.0.0.1';
 $port = 3306;

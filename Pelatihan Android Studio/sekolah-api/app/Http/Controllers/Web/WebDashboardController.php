@@ -15,11 +15,6 @@ class WebDashboardController extends Controller
 {
     public function index()
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
             // Get real-time statistics using correct table structures
             $stats = [
@@ -34,7 +29,7 @@ class WebDashboardController extends Controller
             ];
 
             // Get recent schedules for display
-            $recent_schedules = Schedule::with(['guru:id,name'])
+            $recent_schedules = Schedule::with(['guru:id,nama'])
                 ->orderBy('created_at', 'desc')
                 ->limit(5)
                 ->get();

@@ -14,8 +14,7 @@ class UserRepository(private val context: Context) {
     private val apiService: ApiService = RetrofitClient.createApiService(context)
     
     suspend fun login(email: String, password: String): Response<LoginResponse> {
-        val loginRequest = LoginRequest(email, password)
-        return apiService.login(loginRequest)
+        return apiService.login(email, password)
     }
     
     suspend fun logout(): Response<ApiResponse<com.google.gson.JsonObject>> {

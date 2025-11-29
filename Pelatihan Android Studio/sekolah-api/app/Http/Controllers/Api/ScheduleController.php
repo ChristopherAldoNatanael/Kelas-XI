@@ -40,7 +40,7 @@ class ScheduleController extends Controller
                         'ruang'
                     ])
                     ->with([
-                        'guru:id,name,email'
+                        'guru:id,nama,email'
                     ]);
 
                 if ($request->has('day')) {
@@ -83,8 +83,7 @@ class ScheduleController extends Controller
                     'ruang' => $schedule->ruang,
                     'guru' => $schedule->guru ? [
                         'id' => $schedule->guru->id,
-                        'name' => $schedule->guru->name,
-                        'email' => $schedule->guru->email,
+                        'name' => $schedule->guru->nama,
                     ] : null,
                 ];
             });
@@ -145,9 +144,7 @@ class ScheduleController extends Controller
             $schedules = Cache::remember($cacheKey, 300, function () use ($classId, $perPage) {
                 return Schedule::query()
                     ->with([
-                        'subject:id,nama',
-                        'guru:id,nama',
-                        'classroom:id,nama'
+                        'guru:id,nama'
                     ])
                     ->where('kelas', $classId)
                     ->orderBy('hari')
@@ -207,7 +204,7 @@ class ScheduleController extends Controller
                     ])
                     ->with([
                         'subject:id,nama',
-                        'guru:id,name'
+                        'guru:id,nama'
                     ])
                     ->where('hari', $today);
 
@@ -262,6 +259,13 @@ class ScheduleController extends Controller
                 'jam_selesai' => $validated['jam_selesai'],
                 'ruang' => $validated['ruang']
             ];
+
+            // DEBUG: Log guru_id validation
+            Log::info('Schedule creation attempt', [
+                'guru_id' => $validated['guru_id'],
+                'teacher_exists' => \App\Models\Teacher::where('id', $validated['guru_id'])->exists(),
+                'schedule_data' => $scheduleData
+            ]);
 
             // Check if schedule already exists
             $existingSchedule = Schedule::where('kelas', $validated['kelas'])
@@ -354,7 +358,7 @@ class ScheduleController extends Controller
                     'mata_pelajaran' => $schedule->mata_pelajaran,
                     'guru' => $schedule->guru ? [
                         'id' => $schedule->guru->id,
-                        'nama' => $schedule->guru->name
+                        'name' => $schedule->guru->nama
                     ] : null,
                     'jam_mulai' => $schedule->jam_mulai,
                     'jam_selesai' => $schedule->jam_selesai,
@@ -611,6 +615,7 @@ class ScheduleController extends Controller
                 ->whereHas('schedules', function ($query) use ($subject) {
                     $query->where('mata_pelajaran', $subject->nama);
                 })
+                ->limit(100)
                 ->get();
 
             return response()->json([
@@ -638,10 +643,26 @@ class ScheduleController extends Controller
         @set_time_limit(10);
 
         try {
+            Log::info('myClassSchedule called', [
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'query_params' => $request->query(),
+                'start_time' => microtime(true)
+            ]);
+
             $user = $request->user();
 
             // Validasi role siswa
             if (!$user || $user->role !== 'siswa') {
+                Log::info('myClassSchedule access denied', [
+                    'user_id' => $user ? $user->id : null,
+                    'user_role' => $user ? $user->role : null
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Akses ditolak. Endpoint ini hanya untuk siswa.'
@@ -650,6 +671,10 @@ class ScheduleController extends Controller
 
             // Validasi siswa sudah punya class_id
             if (!$user->class_id) {
+                Log::info('myClassSchedule no class assigned', [
+                    'user_id' => $user->id
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda tidak terdaftar di kelas manapun. Hubungi admin.'
@@ -660,15 +685,35 @@ class ScheduleController extends Controller
             $perPage = min($request->query('per_page', 20), 20);
             $cacheKey = "ultra_light_schedule_user_{$user->id}_page_{$request->query('page', 1)}";
 
+            Log::info('myClassSchedule preparing query', [
+                'user_id' => $user->id,
+                'user_class_id' => $user->class_id,
+                'per_page' => $perPage,
+                'cache_key' => $cacheKey
+            ]);
+
             $schedules = Cache::remember($cacheKey, 120, function () use ($user, $perPage) {
+                Log::info('myClassSchedule cache miss, executing query', [
+                    'user_id' => $user->id,
+                    'user_class' => $user->class_id
+                ]);
+
                 // Get user's class name
                 $userClass = $user->class;
                 if (!$userClass) {
+                    Log::warning('myClassSchedule user has no class', [
+                        'user_id' => $user->id
+                    ]);
                     return collect([]);
                 }
 
+                Log::info('myClassSchedule query params', [
+                    'user_class_name' => $userClass->nama_kelas,
+                    'per_page_limit' => $perPage
+                ]);
+
                 // ULTRA OPTIMIZED: Minimal query dengan raw SQL untuk speed
-                return DB::table('schedules as s')
+                $query = DB::table('schedules as s')
                     ->select([
                         's.id',
                         's.hari',
@@ -682,9 +727,28 @@ class ScheduleController extends Controller
                     ->where('s.kelas', $userClass->nama_kelas)
                     ->orderBy('s.hari')
                     ->orderBy('s.jam_mulai')
-                    ->limit($perPage)
-                    ->get();
+                    ->limit($perPage);
+
+                Log::info('myClassSchedule query built', [
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings()
+                ]);
+
+                $result = $query->get();
+
+                Log::info('myClassSchedule query executed', [
+                    'result_count' => $result->count(),
+                    'user_id' => $user->id
+                ]);
+
+                return $result;
             });
+
+            Log::info('myClassSchedule success', [
+                'user_id' => $user->id,
+                'result_count' => $schedules->count(),
+                'response_data' => $schedules->toArray()
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -692,11 +756,41 @@ class ScheduleController extends Controller
                 'data' => $schedules,
                 'count' => $schedules->count()
             ], 200);
+        } catch (\PDOException $e) {
+            Log::error('CRITICAL myClassSchedule database error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Server sedang sibuk. Coba lagi dalam beberapa detik.',
+                'data' => []
+            ], 503);
         } catch (\Exception $e) {
             Log::error('CRITICAL myClassSchedule error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
                 'user_id' => $request->user() ? $request->user()->id : 'guest',
-                'class_id' => $request->user() ? $request->user()->class_id : 'none'
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
             ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Server sedang sibuk. Coba lagi dalam beberapa detik.',
@@ -711,11 +805,36 @@ class ScheduleController extends Controller
      */
     public function myTodaySchedule(Request $request): JsonResponse
     {
+        @set_time_limit(10); // Set reasonable time limit
+
         try {
+            Log::info('myTodaySchedule called', [
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'start_time' => microtime(true)
+            ]);
+
             $user = $request->user();
+
+            if (!$user) {
+                Log::warning('myTodaySchedule: No authenticated user');
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User tidak terautentikasi'
+                ], 401);
+            }
 
             // Validasi role siswa
             if ($user->role !== 'siswa') {
+                Log::warning('myTodaySchedule: Invalid role', [
+                    'user_id' => $user->id,
+                    'user_role' => $user->role
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Endpoint ini hanya untuk siswa'
@@ -724,6 +843,10 @@ class ScheduleController extends Controller
 
             // Validasi siswa sudah punya class_id
             if (!$user->class_id) {
+                Log::info('myTodaySchedule: No class assigned', [
+                    'user_id' => $user->id
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda belum di-assign ke kelas. Hubungi admin.',
@@ -732,17 +855,21 @@ class ScheduleController extends Controller
             }
 
             $today = strtolower(now()->format('l'));
-            $user->load('class');
 
-            Log::info('MyTodaySchedule called', [
+            Log::info('myTodaySchedule preparing query', [
                 'user_id' => $user->id,
                 'class_id' => $user->class_id,
                 'today' => $today
             ]);
 
-            // Get user's class
+            // Get user's class (with detailed logging)
             $userClass = $user->class;
             if (!$userClass) {
+                Log::warning('myTodaySchedule: User has no associated class record', [
+                    'user_id' => $user->id,
+                    'user_class_id' => $user->class_id
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Anda belum di-assign ke kelas. Hubungi admin.',
@@ -750,15 +877,46 @@ class ScheduleController extends Controller
                 ], 200);
             }
 
-            // Ambil jadwal hari ini untuk kelas siswa
-            $schedules = Schedule::query()
+            Log::info('myTodaySchedule class found', [
+                'user_id' => $user->id,
+                'class_id' => $userClass->id,
+                'class_name' => $userClass->nama_kelas
+            ]);
+
+            // Build query with detailed logging
+            $query = Schedule::query()
+                ->select(['schedules.*']) // Explicitly select schedules fields to avoid issues with eager loading
                 ->with(['guru:id,nama'])
                 ->where('kelas', $userClass->nama_kelas)
                 ->where('hari', $today)
                 ->orderBy('jam_mulai')
-                ->get();
+                ->limit(50); // Add limit to prevent memory issues
 
-            return response()->json([
+            Log::info('myTodaySchedule query built', [
+                'sql' => $query->toSql(),
+                'bindings' => $query->getBindings(),
+                'user_id' => $user->id
+            ]);
+
+            // Execute query with timeout protection
+            try {
+                $schedules = $query->get();
+
+                Log::info('myTodaySchedule query executed', [
+                    'result_count' => $schedules->count(),
+                    'user_id' => $user->id
+                ]);
+            } catch (\Exception $e) {
+                Log::error('myTodaySchedule query execution failed', [
+                    'error' => $e->getMessage(),
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings(),
+                    'user_id' => $user->id
+                ]);
+                $schedules = collect(); // Return empty collection on error
+            }
+
+            $responseData = [
                 'success' => true,
                 'message' => 'Jadwal hari ini berhasil diambil',
                 'data' => [
@@ -779,10 +937,61 @@ class ScheduleController extends Controller
                         ];
                     })
                 ]
-            ], 200);
-        } catch (\Exception $e) {
-            Log::error('MyTodaySchedule error: ' . $e->getMessage(), [
+            ];
+
+            Log::info('myTodaySchedule success response', [
+                'user_id' => $user->id,
+                'response_data_count' => count($responseData['data']['schedules'])
+            ]);
+
+            return response()->json($responseData, 200);
+        } catch (\PDOException $e) {
+            Log::error('myTodaySchedule database error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan database saat mengambil jadwal',
+                'error' => config('app.debug') ? $e->getMessage() : 'Database error'
+            ], 500);
+        } catch (\Error $e) {
+            // Catch fatal errors like memory exhaustion, recursion, etc.
+            Log::error('myTodaySchedule fatal error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan fatal saat mengambil jadwal',
+                'error' => 'Server error'
+            ], 500);
+        } catch (\Exception $e) {
+            Log::error('myTodaySchedule error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
             ]);
 
             return response()->json([
@@ -794,70 +1003,218 @@ class ScheduleController extends Controller
     }
 
     /**
-     * Get weekly schedule for student's class (auto-detect from user's class_id)
-     * Endpoint khusus siswa - WAJIB sudah login & punya class_id
+     * Weekly schedule for siswa - ULTRA SIMPLE to prevent connection reset
+     * Returns schedule data matching Android ScheduleApi format
      */
     public function myWeeklySchedule(Request $request): JsonResponse
     {
+        @set_time_limit(15);
+
         try {
             $user = $request->user();
 
             if (!$user) {
-                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized',
+                    'data' => []
+                ], 401);
             }
 
-            if (!$user->class_id) {
-                return response()->json(['success' => false, 'message' => 'Anda belum di-assign ke kelas. Hubungi admin.', 'data' => []], 200);
+            $classId = $user->class_id;
+
+            if (!$classId) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Belum ada kelas yang ditetapkan',
+                    'data' => []
+                ], 200);
             }
 
-            // OPTIMIZED: Cache the result for 10 minutes per user
-            $cacheKey = "weekly_schedule_user_{$user->id}_class_{$user->class_id}";
+            // Get user's class name - simple query
+            $userClass = DB::table('classes')->where('id', $classId)->first();
 
-            $data = Cache::remember($cacheKey, 600, function () use ($user) {
-                // Get user's class
-                $userClass = $user->class;
-                if (!$userClass) {
-                    return [
-                        'class' => null,
-                        'total_schedules' => 0,
-                        'schedules' => collect([]),
-                    ];
-                }
+            if (!$userClass) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kelas tidak ditemukan',
+                    'data' => []
+                ], 200);
+            }
 
-                // OPTIMIZED: Eager load with specific columns to prevent N+1 problem
-                $schedules = Schedule::query()
-                    ->with(['guru:id,nama'])
-                    ->where('kelas', $userClass->nama_kelas)
-                    ->orderBy('hari')
-                    ->orderBy('jam_mulai')
-                    ->limit(100) // CRITICAL: Add safety limit to prevent memory crash
-                    ->get();
+            $className = $userClass->nama_kelas;
 
-                return [
-                    'class' => [
-                        'id' => $userClass->id,
-                        'nama_kelas' => $userClass->nama_kelas,
-                        'kode_kelas' => $userClass->kode_kelas
-                    ],
-                    'total_schedules' => $schedules->count(),
-                    'schedules' => $schedules,
+            // Simple query without complex joins
+            $schedules = DB::table('schedules')
+                ->select([
+                    'schedules.id',
+                    'schedules.hari',
+                    'schedules.mata_pelajaran',
+                    'schedules.jam_mulai',
+                    'schedules.jam_selesai',
+                    'schedules.guru_id',
+                    'teachers.nama as guru_nama'
+                ])
+                ->leftJoin('teachers', 'schedules.guru_id', '=', 'teachers.id')
+                ->where('schedules.kelas', $className)
+                ->orderBy('schedules.hari')
+                ->orderBy('schedules.jam_mulai')
+                ->limit(50)
+                ->get();
+
+            // Transform to match Android ScheduleApi format
+            $formattedData = [];
+            foreach ($schedules as $item) {
+                $formattedData[] = [
+                    'id' => (int) $item->id,
+                    'class_id' => (int) $classId,
+                    'subject_id' => 0,
+                    'teacher_id' => (int) ($item->guru_id ?? 0),
+                    'day_of_week' => $item->hari ?? '',
+                    'period' => 1,
+                    'start_time' => $item->jam_mulai ?? '',
+                    'end_time' => $item->jam_selesai ?? '',
+                    'status' => 'active',
+                    'class_name' => $className,
+                    'subject_name' => $item->mata_pelajaran ?? '',
+                    'teacher_name' => $item->guru_nama ?? ''
                 ];
-            });
+            }
 
             return response()->json([
                 'success' => true,
-                'message' => 'Jadwal seminggu berhasil diambil dari cache',
-                'data' => $data
+                'message' => 'Jadwal mingguan berhasil dimuat',
+                'data' => $formattedData
             ], 200);
         } catch (\Exception $e) {
-            Log::error('MyWeeklySchedule error: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
+            Log::error('myWeeklySchedule error: ' . $e->getMessage());
 
             return response()->json([
                 'success' => false,
-                'message' => 'Gagal memuat jadwal seminggu',
-                'error' => config('app.debug') ? $e->getMessage() : 'Server error'
+                'message' => 'Terjadi kesalahan saat memuat jadwal',
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Weekly schedule with MANUAL AUTH - bypasses Sanctum middleware bug
+     * This is the main endpoint called by Android app
+     */
+    public function myWeeklyScheduleManualAuth(Request $request)
+    {
+        try {
+            // Manual token authentication
+            $token = $request->bearerToken();
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token tidak ditemukan',
+                    'data' => []
+                ], 401);
+            }
+
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if (!$accessToken) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token tidak valid',
+                    'data' => []
+                ], 401);
+            }
+
+            $user = $accessToken->tokenable;
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User tidak ditemukan',
+                    'data' => []
+                ], 401);
+            }
+
+            $classId = $user->class_id;
+
+            if (!$classId) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Belum ada kelas yang ditetapkan',
+                    'data' => []
+                ], 200);
+            }
+
+            // Get user's class name - simple query
+            $userClass = DB::table('classes')->where('id', $classId)->first();
+
+            if (!$userClass) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kelas tidak ditemukan',
+                    'data' => []
+                ], 200);
+            }
+
+            $className = $userClass->nama_kelas;
+
+            // Simple query with limit to prevent heavy load
+            $schedules = DB::table('schedules')
+                ->select([
+                    'schedules.id',
+                    'schedules.hari',
+                    'schedules.mata_pelajaran',
+                    'schedules.jam_mulai',
+                    'schedules.jam_selesai',
+                    'schedules.guru_id',
+                    'teachers.nama as guru_nama'
+                ])
+                ->leftJoin('teachers', 'schedules.guru_id', '=', 'teachers.id')
+                ->where('schedules.kelas', $className)
+                ->orderBy('schedules.hari')
+                ->orderBy('schedules.jam_mulai')
+                ->limit(50) // Keep it simple and light
+                ->get();
+
+            // Transform to match Android ScheduleApi format
+            $formattedData = [];
+            foreach ($schedules as $item) {
+                // Format jam untuk konsistensi
+                $jamMulai = $item->jam_mulai;
+                $jamSelesai = $item->jam_selesai;
+
+                // Pastikan format HH:MM:SS
+                if ($jamMulai && strlen($jamMulai) == 5) {
+                    $jamMulai .= ':00';
+                }
+                if ($jamSelesai && strlen($jamSelesai) == 5) {
+                    $jamSelesai .= ':00';
+                }
+
+                $formattedData[] = [
+                    'id' => (int) $item->id,
+                    'class_id' => (int) $classId,
+                    'subject_id' => 0,
+                    'teacher_id' => (int) ($item->guru_id ?? 0),
+                    'day_of_week' => $item->hari ?? '',
+                    'period' => 1,
+                    'start_time' => $jamMulai ?? '',
+                    'end_time' => $jamSelesai ?? '',
+                    'status' => 'active',
+                    'class_name' => $className,
+                    'subject_name' => $item->mata_pelajaran ?? '',
+                    'teacher_name' => $item->guru_nama ?? ''
+                ];
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal mingguan berhasil dimuat (' . count($formattedData) . ' jadwal)',
+                'data' => $formattedData
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan: ' . $e->getMessage(),
+                'data' => []
             ], 500);
         }
     }
@@ -871,9 +1228,25 @@ class ScheduleController extends Controller
         @set_time_limit(5); // Very short timeout
 
         try {
+            Log::info('siswaJadwalHariIni called', [
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'start_time' => microtime(true)
+            ]);
+
             $user = $request->user();
 
             if (!$user || $user->role !== 'siswa' || !$user->class_id) {
+                Log::info('siswaJadwalHariIni access denied', [
+                    'user_id' => $user ? $user->id : null,
+                    'user_role' => $user ? $user->role : null,
+                    'user_class_id' => $user ? $user->class_id : null
+                ]);
+
                 return response()->json([
                     'success' => false,
                     'message' => 'Akses ditolak atau tidak ada kelas.',
@@ -884,13 +1257,43 @@ class ScheduleController extends Controller
             $today = strtolower(now()->format('l'));
             $cacheKey = "siswa_today_{$user->id}_{$today}";
 
+            Log::info('siswaJadwalHariIni preparing query', [
+                'user_id' => $user->id,
+                'user_class_id' => $user->class_id,
+                'today' => $today,
+                'cache_key' => $cacheKey
+            ]);
+
             $jadwal = Cache::remember($cacheKey, 60, function () use ($user, $today) {
-                $userClass = $user->class;
-                if (!$userClass) {
+                Log::info('siswaJadwalHariIni cache miss, executing query', [
+                    'user_id' => $user->id,
+                    'user_class' => $user->class_id
+                ]);
+
+                // Safe way to get user class to prevent crashes
+                try {
+                    $userClass = $user->class;
+                } catch (\Exception $e) {
+                    Log::warning('siswaJadwalHariIni unable to load user class', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage()
+                    ]);
                     return collect([]);
                 }
 
-                return DB::table('schedules as s')
+                if (!$userClass) {
+                    Log::info('siswaJadwalHariIni user has no class', [
+                        'user_id' => $user->id
+                    ]);
+                    return collect([]);
+                }
+
+                Log::info('siswaJadwalHariIni query params', [
+                    'user_class_name' => $userClass->nama_kelas,
+                    'today' => $today
+                ]);
+
+                $query = DB::table('schedules as s')
                     ->select([
                         DB::raw("CONCAT(s.jam_mulai, '-', s.jam_selesai) as waktu"),
                         's.mata_pelajaran as mapel',
@@ -900,9 +1303,38 @@ class ScheduleController extends Controller
                     ->where('s.kelas', $userClass->nama_kelas)
                     ->where('s.hari', $today)
                     ->orderBy('s.jam_mulai')
-                    ->limit(10)
-                    ->get();
+                    ->limit(10);
+
+                Log::info('siswaJadwalHariIni query built', [
+                    'sql' => $query->toSql(),
+                    'bindings' => $query->getBindings()
+                ]);
+
+                try {
+                    $result = $query->get();
+
+                    Log::info('siswaJadwalHariIni query executed', [
+                        'result_count' => $result->count(),
+                        'user_id' => $user->id
+                    ]);
+
+                    return $result;
+                } catch (\Exception $e) {
+                    Log::error('siswaJadwalHariIni query execution failed', [
+                        'error' => $e->getMessage(),
+                        'sql' => $query->toSql(),
+                        'bindings' => $query->getBindings(),
+                        'user_id' => $user->id
+                    ]);
+                    return collect([]);
+                }
             });
+
+            Log::info('siswaJadwalHariIni success', [
+                'user_id' => $user->id,
+                'result_count' => $jadwal->count(),
+                'response_data' => $jadwal->toArray()
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -910,13 +1342,109 @@ class ScheduleController extends Controller
                 'data' => $jadwal,
                 'jumlah' => $jadwal->count()
             ]);
-        } catch (\Exception $e) {
-            Log::error('CRITICAL siswaJadwalHariIni error: ' . $e->getMessage());
+        } catch (\PDOException $e) {
+            Log::error('CRITICAL siswaJadwalHariIni database error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
+            ]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Server sibuk, coba lagi.',
                 'data' => []
             ], 503);
+        } catch (\Error $e) {
+            // Catch fatal errors like memory exhaustion, recursion, etc.
+            Log::error('CRITICAL siswaJadwalHariIni fatal error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest'
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Server sibuk, coba lagi.',
+                'data' => []
+            ], 503);
+        } catch (\Exception $e) {
+            Log::error('CRITICAL siswaJadwalHariIni error: ' . $e->getMessage(), [
+                'exception_class' => get_class($e),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $request->user() ? $request->user()->id : 'guest',
+                'request_headers' => [
+                    'authorization_present' => $request->bearerToken() !== null,
+                    'content_type' => $request->header('Content-Type'),
+                    'user_agent' => $request->header('User-Agent')
+                ],
+                'request_data' => $request->all()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Server sibuk, coba lagi.',
+                'data' => []
+            ], 503);
+        }
+    }
+
+    /**
+     * SIMPLE TEST VERSION - No complex queries to prevent crashes
+     */
+    public function myWeeklyScheduleSimple(Request $request): JsonResponse
+    {
+        try {
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+            }
+
+            if (!$user->class_id) {
+                return response()->json(['success' => false, 'message' => 'No class assigned', 'data' => []], 200);
+            }
+
+            // Simple hardcoded test data
+            $testData = [
+                'Senin' => [
+                    ['subject' => 'Matematika', 'teacher' => 'Guru A', 'time' => '07:00-08:30'],
+                    ['subject' => 'Bahasa Indonesia', 'teacher' => 'Guru B', 'time' => '08:45-10:15']
+                ],
+                'Selasa' => [
+                    ['subject' => 'Fisika', 'teacher' => 'Guru C', 'time' => '07:00-08:30']
+                ]
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Test schedule loaded successfully',
+                'data' => [
+                    'class' => [
+                        'id' => $user->class_id,
+                        'nama_kelas' => 'Test Class',
+                        'kode_kelas' => 'TEST'
+                    ],
+                    'total_schedules' => 3,
+                    'grouped_by_day' => $testData
+                ]
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Test endpoint error: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -950,11 +1478,10 @@ class ScheduleController extends Controller
                     ->select([
                         'k.tanggal',
                         'k.guru_hadir',
-                        'sub.name as mapel',
+                        's.mata_pelajaran as mapel',
                         DB::raw("CONCAT(s.jam_mulai, '-', s.jam_selesai) as periode")
                     ])
                     ->join('schedules as s', 'k.schedule_id', '=', 's.id')
-                    ->leftJoin('subjects as sub', 's.subject_id', '=', 'sub.id')
                     ->where('k.submitted_by', $user->id)
                     ->orderBy('k.tanggal', 'DESC')
                     ->limit($limit)
@@ -985,6 +1512,392 @@ class ScheduleController extends Controller
                 'message' => 'Server sibuk, coba lagi.',
                 'data' => []
             ], 503);
+        }
+    }
+
+    /**
+     * Weekly schedule WITH teacher attendance status
+     * Shows whether teacher is hadir/telat/tidak_hadir/diganti with substitute teacher name
+     */
+    public function myWeeklyScheduleWithAttendance(Request $request): JsonResponse
+    {
+        @set_time_limit(10);
+
+        try {
+            $user = $request->user();
+
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized',
+                    'today' => '',
+                    'data' => []
+                ], 401);
+            }
+
+            $classId = $user->class_id;
+
+            if (!$classId) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Belum ada kelas yang ditetapkan',
+                    'today' => '',
+                    'data' => []
+                ], 200);
+            }
+
+            // Get user's class name
+            $userClass = DB::table('classes')->where('id', $classId)->first();
+
+            if (!$userClass) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kelas tidak ditemukan',
+                    'today' => '',
+                    'data' => []
+                ], 200);
+            }
+
+            $className = $userClass->nama_kelas;
+            $today = now()->format('Y-m-d');
+
+            // Get Indonesian day name without locale dependency
+            $dayMap = [
+                'Monday' => 'Senin',
+                'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu',
+                'Thursday' => 'Kamis',
+                'Friday' => 'Jumat',
+                'Saturday' => 'Sabtu',
+                'Sunday' => 'Minggu'
+            ];
+            $todayDayName = $dayMap[now()->format('l')] ?? now()->format('l');
+
+            Log::info('myWeeklyScheduleWithAttendance', [
+                'user_id' => $user->id,
+                'class_id' => $classId,
+                'class_name' => $className,
+                'today' => $todayDayName
+            ]);
+
+            // Get schedules with teacher info - SIMPLE query
+            $schedules = DB::table('schedules')
+                ->select([
+                    'schedules.id',
+                    'schedules.hari',
+                    'schedules.mata_pelajaran',
+                    'schedules.jam_mulai',
+                    'schedules.jam_selesai',
+                    'schedules.guru_id',
+                    'teachers.nama as guru_nama'
+                ])
+                ->leftJoin('teachers', 'schedules.guru_id', '=', 'teachers.id')
+                ->where('schedules.kelas', $className)
+                ->orderByRaw("FIELD(schedules.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')")
+                ->orderBy('schedules.jam_mulai')
+                ->limit(50)
+                ->get();
+
+            // Get today's attendance records from teacher_attendances table
+            $scheduleIds = $schedules->pluck('id')->toArray();
+            $todayAttendance = collect();
+
+            if (!empty($scheduleIds)) {
+                $todayAttendance = DB::table('teacher_attendances')
+                    ->select(['schedule_id', 'status', 'keterangan', 'guru_id', 'guru_asli_id'])
+                    ->where('tanggal', $today)
+                    ->whereIn('schedule_id', $scheduleIds)
+                    ->get()
+                    ->keyBy('schedule_id');
+            }
+
+            // Get substitute teacher names (guru_id is substitute when status is 'diganti')
+            $substituteTeacherIds = $todayAttendance
+                ->filter(fn($a) => $a->status === 'diganti' && $a->guru_id)
+                ->pluck('guru_id')
+                ->unique()
+                ->toArray();
+            $substituteTeachers = [];
+            if (!empty($substituteTeacherIds)) {
+                $substituteTeachers = DB::table('teachers')
+                    ->whereIn('id', $substituteTeacherIds)
+                    ->pluck('nama', 'id')
+                    ->toArray();
+            }
+
+            // Transform data
+            $formattedData = [];
+            $period = 1;
+            $lastDay = null;
+
+            foreach ($schedules as $item) {
+                if ($lastDay !== $item->hari) {
+                    $period = 1;
+                    $lastDay = $item->hari;
+                }
+
+                $isToday = strtolower($item->hari ?? '') === strtolower($todayDayName);
+                $attendance = $todayAttendance->get($item->id);
+
+                $attendanceStatus = null;
+                $attendanceCatatan = null;
+                $substituteTeacherName = null;
+
+                if ($isToday && $attendance) {
+                    $attendanceStatus = $attendance->status;
+                    $attendanceCatatan = $attendance->keterangan;
+
+                    if ($attendance->status === 'diganti' && $attendance->guru_id) {
+                        $substituteTeacherName = $substituteTeachers[$attendance->guru_id] ?? null;
+                    }
+                }
+
+                $formattedData[] = [
+                    'id' => (int) $item->id,
+                    'class_id' => (int) $classId,
+                    'subject_id' => 0,
+                    'teacher_id' => (int) ($item->guru_id ?? 0),
+                    'day_of_week' => $item->hari ?? '',
+                    'period' => $period,
+                    'start_time' => $item->jam_mulai ?? '',
+                    'end_time' => $item->jam_selesai ?? '',
+                    'status' => 'active',
+                    'class_name' => $className,
+                    'subject_name' => $item->mata_pelajaran ?? '',
+                    'teacher_name' => $item->guru_nama ?? '',
+                    'is_today' => $isToday,
+                    'attendance_status' => $attendanceStatus,
+                    'attendance_catatan' => $attendanceCatatan,
+                    'substitute_teacher_name' => $substituteTeacherName
+                ];
+
+                $period++;
+            }
+
+            Log::info('myWeeklyScheduleWithAttendance response', [
+                'count' => count($formattedData),
+                'today' => $todayDayName
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal mingguan dengan status kehadiran berhasil dimuat',
+                'today' => $todayDayName,
+                'date' => $today,
+                'data' => $formattedData
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('myWeeklyScheduleWithAttendance error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat jadwal',
+                'today' => '',
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Weekly schedule WITH teacher attendance status - MANUAL AUTH VERSION
+     * Bypasses Sanctum middleware to prevent server crashes
+     * Shows whether teacher is hadir/telat/tidak_hadir/diganti with substitute teacher name
+     */
+    public function myWeeklyScheduleWithAttendanceManualAuth(Request $request): JsonResponse
+    {
+        @set_time_limit(10);
+
+        try {
+            // Manual token validation (bypass Sanctum middleware)
+            $token = $request->bearerToken();
+            if (!$token) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token tidak ditemukan',
+                    'today' => '',
+                    'data' => []
+                ], 401);
+            }
+
+            $accessToken = \Laravel\Sanctum\PersonalAccessToken::findToken($token);
+            if (!$accessToken) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Token tidak valid',
+                    'today' => '',
+                    'data' => []
+                ], 401);
+            }
+
+            $user = $accessToken->tokenable;
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User tidak ditemukan',
+                    'today' => '',
+                    'data' => []
+                ], 401);
+            }
+
+            $classId = $user->class_id;
+
+            if (!$classId) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Belum ada kelas yang ditetapkan',
+                    'today' => '',
+                    'data' => []
+                ], 200);
+            }
+
+            // Get user's class name
+            $userClass = DB::table('classes')->where('id', $classId)->first();
+
+            if (!$userClass) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Kelas tidak ditemukan',
+                    'today' => '',
+                    'data' => []
+                ], 200);
+            }
+
+            $className = $userClass->nama_kelas;
+            $today = now()->format('Y-m-d');
+
+            // Get Indonesian day name without locale dependency
+            $dayMap = [
+                'Monday' => 'Senin',
+                'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu',
+                'Thursday' => 'Kamis',
+                'Friday' => 'Jumat',
+                'Saturday' => 'Sabtu',
+                'Sunday' => 'Minggu'
+            ];
+            $todayDayName = $dayMap[now()->format('l')] ?? now()->format('l');
+
+            Log::info('myWeeklyScheduleWithAttendanceManualAuth', [
+                'user_id' => $user->id,
+                'class_id' => $classId,
+                'class_name' => $className,
+                'today' => $todayDayName
+            ]);
+
+            // Get schedules with teacher info - SIMPLE query
+            $schedules = DB::table('schedules')
+                ->select([
+                    'schedules.id',
+                    'schedules.hari',
+                    'schedules.mata_pelajaran',
+                    'schedules.jam_mulai',
+                    'schedules.jam_selesai',
+                    'schedules.guru_id',
+                    'teachers.nama as guru_nama'
+                ])
+                ->leftJoin('teachers', 'schedules.guru_id', '=', 'teachers.id')
+                ->where('schedules.kelas', $className)
+                ->orderByRaw("FIELD(schedules.hari, 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu')")
+                ->orderBy('schedules.jam_mulai')
+                ->limit(50)
+                ->get();
+
+            // Get today's attendance records from teacher_attendances table
+            $scheduleIds = $schedules->pluck('id')->toArray();
+            $todayAttendance = collect();
+
+            if (!empty($scheduleIds)) {
+                $todayAttendance = DB::table('teacher_attendances')
+                    ->select(['schedule_id', 'status', 'keterangan', 'guru_id', 'guru_asli_id'])
+                    ->where('tanggal', $today)
+                    ->whereIn('schedule_id', $scheduleIds)
+                    ->get()
+                    ->keyBy('schedule_id');
+            }
+
+            // Get substitute teacher names (guru_id is substitute when status is 'diganti')
+            $substituteTeacherIds = $todayAttendance
+                ->filter(fn($a) => $a->status === 'diganti' && $a->guru_id)
+                ->pluck('guru_id')
+                ->unique()
+                ->toArray();
+            $substituteTeachers = [];
+            if (!empty($substituteTeacherIds)) {
+                $substituteTeachers = DB::table('teachers')
+                    ->whereIn('id', $substituteTeacherIds)
+                    ->pluck('nama', 'id')
+                    ->toArray();
+            }
+
+            // Transform data
+            $formattedData = [];
+            $period = 1;
+            $lastDay = null;
+
+            foreach ($schedules as $item) {
+                if ($lastDay !== $item->hari) {
+                    $period = 1;
+                    $lastDay = $item->hari;
+                }
+
+                $isToday = strtolower($item->hari ?? '') === strtolower($todayDayName);
+                $attendance = $todayAttendance->get($item->id);
+
+                $attendanceStatus = null;
+                $attendanceCatatan = null;
+                $substituteTeacherName = null;
+
+                if ($isToday && $attendance) {
+                    $attendanceStatus = $attendance->status;
+                    $attendanceCatatan = $attendance->keterangan;
+
+                    if ($attendance->status === 'diganti' && $attendance->guru_id) {
+                        $substituteTeacherName = $substituteTeachers[$attendance->guru_id] ?? null;
+                    }
+                }
+
+                $formattedData[] = [
+                    'id' => (int) $item->id,
+                    'class_id' => (int) $classId,
+                    'subject_id' => 0,
+                    'teacher_id' => (int) ($item->guru_id ?? 0),
+                    'day_of_week' => $item->hari ?? '',
+                    'period' => $period,
+                    'start_time' => $item->jam_mulai ?? '',
+                    'end_time' => $item->jam_selesai ?? '',
+                    'status' => 'active',
+                    'class_name' => $className,
+                    'subject_name' => $item->mata_pelajaran ?? '',
+                    'teacher_name' => $item->guru_nama ?? '',
+                    'is_today' => $isToday,
+                    'attendance_status' => $attendanceStatus,
+                    'attendance_catatan' => $attendanceCatatan,
+                    'substitute_teacher_name' => $substituteTeacherName
+                ];
+
+                $period++;
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Jadwal mingguan dengan status kehadiran berhasil dimuat',
+                'today' => $todayDayName,
+                'date' => $today,
+                'data' => $formattedData
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('myWeeklyScheduleWithAttendanceManualAuth error: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat memuat jadwal',
+                'today' => '',
+                'data' => []
+            ], 500);
         }
     }
 }

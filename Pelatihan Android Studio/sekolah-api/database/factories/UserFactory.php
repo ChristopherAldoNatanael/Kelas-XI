@@ -40,7 +40,7 @@ class UserFactory extends Factory
         $selectedName = fake()->randomElement($indonesianNames);
 
         return [
-            'nama' => $selectedName,
+            'name' => $selectedName,
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),

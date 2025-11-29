@@ -10,13 +10,8 @@ class WebClassController extends Controller
 {
     public function index()
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $classes = ClassModel::withTrashed()->paginate(20);
+            $classes = ClassModel::paginate(20);
             return view('classes.index', compact('classes'));
         } catch (\Exception $e) {
             return redirect()->route('dashboard')->with('error', 'Failed to load classes: ' . $e->getMessage());
@@ -25,33 +20,35 @@ class WebClassController extends Controller
 
     public function create()
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         return view('classes.create');
     }
 
     public function store(Request $request)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
             $request->validate([
-                'name' => 'required|string|max:255|unique:classes',
-                'grade_level' => 'required|integer|min:1|max:12',
-                'capacity' => 'required|integer|min:1',
-                'academic_year' => 'required|string|max:20',
+                'nama_kelas' => 'required|string|max:255',
+                'kode_kelas' => 'required|string|max:255|unique:classes,kode_kelas',
+                'tingkat_kelas' => 'required|integer|min:10|max:12',
+                'tahun_ajaran' => 'required|string|max:20',
+                'major' => 'nullable|string|max:255',
+                'capacity' => 'nullable|integer|min:1|max:100',
+                'homeroom_teacher_id' => 'nullable|exists:teachers,id',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            ClassModel::create($request->all());
+            ClassModel::create([
+                'nama_kelas' => $request->nama_kelas,
+                'kode_kelas' => $request->kode_kelas,
+                'level' => $request->tingkat_kelas,
+                'academic_year' => $request->tahun_ajaran,
+                'major' => $request->major,
+                'capacity' => $request->capacity,
+                'homeroom_teacher_id' => $request->homeroom_teacher_id,
+                'status' => $request->status,
+            ]);
 
-            return redirect()->route('classes.index')->with('success', 'Class created successfully.');
+            return redirect()->route('web-classes.index')->with('success', 'Class created successfully.');
         } catch (\Exception $e) {
             return back()->withErrors('Failed to create class: ' . $e->getMessage())->withInput();
         }
@@ -59,55 +56,52 @@ class WebClassController extends Controller
 
     public function show($id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $class = ClassModel::withTrashed()->findOrFail($id);
+            $class = ClassModel::findOrFail($id);
             return view('classes.show', compact('class'));
         } catch (\Exception $e) {
-            return redirect()->route('classes.index')->with('error', 'Class not found.');
+            return redirect()->route('web-classes.index')->with('error', 'Class not found.');
         }
     }
 
     public function edit($id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $class = ClassModel::withTrashed()->findOrFail($id);
+            $class = ClassModel::findOrFail($id);
             return view('classes.edit', compact('class'));
         } catch (\Exception $e) {
-            return redirect()->route('classes.index')->with('error', 'Class not found.');
+            return redirect()->route('web-classes.index')->with('error', 'Class not found.');
         }
     }
 
     public function update(Request $request, $id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $class = ClassModel::withTrashed()->findOrFail($id);
+            $class = ClassModel::findOrFail($id);
 
             $request->validate([
-                'name' => 'required|string|max:255|unique:classes,name,' . $id,
-                'grade_level' => 'required|integer|min:1|max:12',
-                'capacity' => 'required|integer|min:1',
-                'academic_year' => 'required|string|max:20',
+                'nama_kelas' => 'required|string|max:255',
+                'kode_kelas' => 'required|string|max:255|unique:classes,kode_kelas,' . $id,
+                'tingkat_kelas' => 'required|integer|min:10|max:12',
+                'tahun_ajaran' => 'required|string|max:20',
+                'major' => 'nullable|string|max:255',
+                'capacity' => 'nullable|integer|min:1|max:100',
+                'homeroom_teacher_id' => 'nullable|exists:teachers,id',
                 'status' => 'required|in:active,inactive',
             ]);
 
-            $class->update($request->all());
+            $class->update([
+                'nama_kelas' => $request->nama_kelas,
+                'kode_kelas' => $request->kode_kelas,
+                'level' => $request->tingkat_kelas,
+                'academic_year' => $request->tahun_ajaran,
+                'major' => $request->major,
+                'capacity' => $request->capacity,
+                'homeroom_teacher_id' => $request->homeroom_teacher_id,
+                'status' => $request->status,
+            ]);
 
-            return redirect()->route('classes.index')->with('success', 'Class updated successfully.');
+            return redirect()->route('web-classes.index')->with('success', 'Class updated successfully.');
         } catch (\Exception $e) {
             return back()->withErrors('Failed to update class: ' . $e->getMessage())->withInput();
         }
@@ -115,16 +109,11 @@ class WebClassController extends Controller
 
     public function destroy($id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
             $class = ClassModel::findOrFail($id);
             $class->delete();
 
-            return redirect()->route('classes.index')->with('success', 'Class deleted successfully.');
+            return redirect()->route('web-classes.index')->with('success', 'Class deleted successfully.');
         } catch (\Exception $e) {
             return back()->withErrors('Failed to delete class: ' . $e->getMessage());
         }
@@ -132,16 +121,9 @@ class WebClassController extends Controller
 
     public function restore($id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $class = ClassModel::withTrashed()->findOrFail($id);
-            $class->restore();
-
-            return redirect()->route('classes.index')->with('success', 'Class restored successfully.');
+            // Soft deletes not enabled for classes, redirect to index
+            return redirect()->route('web-classes.index')->with('error', 'Restore function not available for classes.');
         } catch (\Exception $e) {
             return back()->withErrors('Failed to restore class: ' . $e->getMessage());
         }
@@ -149,16 +131,11 @@ class WebClassController extends Controller
 
     public function forceDelete($id)
     {
-        $token = session('api_token');
-        if (!$token) {
-            return redirect()->route('login');
-        }
-
         try {
-            $class = ClassModel::withTrashed()->findOrFail($id);
-            $class->forceDelete();
+            $class = ClassModel::findOrFail($id);
+            $class->delete(); // Regular delete since no soft deletes
 
-            return redirect()->route('classes.index')->with('success', 'Class permanently deleted.');
+            return redirect()->route('web-classes.index')->with('success', 'Class permanently deleted.');
         } catch (\Exception $e) {
             return back()->withErrors('Failed to permanently delete class: ' . $e->getMessage());
         }

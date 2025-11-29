@@ -114,7 +114,10 @@ fun LoginScreen() {
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                // Remove image entirely - just show text
+                Text(
+                    text = "🏫",
+                    style = MaterialTheme.typography.displayLarge
+                )
             }
         }
 
@@ -261,29 +264,45 @@ fun LoginScreen() {
                                     password = password
                                 )
 
-                                // Log base URL untuk debug, tapi tidak tampil ke user
+                                // Log base URL untuk debug
                                 val base = NetworkConfig.BaseUrls.getDefault(context)
-                                android.util.Log.d("Login", "Base URL: $base")
+                                android.util.Log.d("Login", "🔗 Base URL: $base")
+                                android.util.Log.d("Login", "🌐 Server should be accessible at: http://192.168.1.10:8000/api/test")
 
                                 val response = withContext(Dispatchers.IO) {
-                                    RetrofitClient.createApiService(context).login(loginRequest)
+                                    RetrofitClient.getUnauthenticatedInstance(context).login(email, password)
                                 }
+
+                                android.util.Log.d("Login", "Response code: ${response.code()}")
+                                android.util.Log.d("Login", "Response successful: ${response.isSuccessful}")
+                                android.util.Log.d("Login", "Response body: ${response.body()}")
+                                android.util.Log.d("Login", "Response error body: ${response.errorBody()?.string()}")
+
                                 if (response.isSuccessful && response.body()?.success == true) {
                                     val responseBody = response.body()
-                                    val loginData = responseBody?.data
-                                    val user = loginData?.user
+                                    android.util.Log.d("Login", "Response body success: ${responseBody?.success}")
+                                    android.util.Log.d("Login", "Response body data: ${responseBody?.data}")
+                                    android.util.Log.d("Login", "Response body token: ${responseBody?.token}")
 
-                                    if (user != null && loginData != null) {
+                                    val user = responseBody?.user
+                                    val token = responseBody?.token
+
+                                    android.util.Log.d("Login", "User: $user")
+                                    android.util.Log.d("Login", "Token: $token")
+
+                                    if (user != null && token != null) {
                                         val roleFromServer = user.role
                                         val normalizedRole = normalizeRole(roleFromServer)
-                                        
+
+                                        android.util.Log.d("Login", "Role from server: $roleFromServer, normalized: $normalizedRole")
+
                                         val sessionManager = SessionManager(context)
                                         sessionManager.createLoginSession(
                                             id = user.id.toLong(),
                                             name = user.nama,
                                             email = user.email,
                                             role = roleFromServer, // keep original
-                                            token = loginData.token,
+                                            token = token,
                                             classId = user.classId
                                         )
 
@@ -311,56 +330,29 @@ fun LoginScreen() {
                                             }
                                         }
                                     } else {
+                                        android.util.Log.e("Login", "User or token is null - user: $user, token: $token")
                                         Toast.makeText(context, "Gagal memproses data login.", Toast.LENGTH_SHORT).show()
                                     }
                                 } else {
-                                    val friendly = response.body()?.message ?: "Login gagal. Coba lagi."
+                                    val errorBody = response.errorBody()?.string()
+                                    android.util.Log.e("Login", "Login failed - code: ${response.code()}, error: $errorBody")
+                                    val friendly = response.body()?.message ?: errorBody ?: "Login gagal. Coba lagi."
                                     Toast.makeText(context, friendly, Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: IOException) {
-                                // Flip base URL and retry once
-                                RetrofitClient.markConnectionFailureAndFlipBaseUrl(context)
-                                
-                                try {
-                                    val retry = withContext(Dispatchers.IO) {
-                                        RetrofitClient.createApiService(context).login(LoginRequest(email, password))
-                                    }
-                                    if (retry.isSuccessful && retry.body()?.success == true) {
-                                        val responseBody = retry.body()
-                                        val loginData = responseBody?.data
-                                        val user = loginData?.user
-
-                                        if (user != null && loginData != null) {
-                                            val roleFromServer = user.role
-                                            val normalizedRole = normalizeRole(roleFromServer)
-
-                                            val sessionManager = SessionManager(context)
-                                            sessionManager.createLoginSession(
-                                                id = user.id.toLong(),
-                                                name = user.nama,
-                                                email = user.email,
-                                                role = roleFromServer,
-                                                token = loginData.token,
-                                                classId = user.classId
-                                            )
-                                            
-                                            Toast.makeText(context, "Login berhasil", Toast.LENGTH_SHORT).show()
-                                            
-                                            when (normalizedRole) {
-                                                "siswa" -> context.startActivity(Intent(context, SiswaActivity::class.java))
-                                                "kurikulum" -> context.startActivity(Intent(context, KurikulumActivity::class.java))
-                                                "kepala-sekolah" -> context.startActivity(Intent(context, KepalaSekolahActivity::class.java))
-                                                "admin" -> Toast.makeText(context, "Role admin gunakan web", Toast.LENGTH_SHORT).show()
-                                                else -> Toast.makeText(context, "Role tidak dikenali: $roleFromServer", Toast.LENGTH_SHORT).show()
-                                            }
-                                            (context as ComponentActivity).finish()
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "Tidak bisa terhubung ke server. Coba lagi.", Toast.LENGTH_LONG).show()
-                                    }
-                                } catch (e2: Exception) {
-                                    Toast.makeText(context, "Terjadi kesalahan jaringan. Coba lagi.", Toast.LENGTH_LONG).show()
+                                android.util.Log.e("Login", "Connection failed: ${e.message}", e)
+                                android.util.Log.e("Login", "Stack trace: ${e.stackTraceToString()}")
+                                // Show specific error message
+                                val errorMsg = when {
+                                    e.message?.contains("failed to connect") == true ->
+                                        "Tidak dapat terhubung ke server. Pastikan server Laravel berjalan di http://192.168.1.10:8000"
+                                    e.message?.contains("timeout") == true ->
+                                        "Koneksi timeout. Server mungkin lambat atau tidak merespons"
+                                    e.message?.contains("Network is unreachable") == true ->
+                                        "Jaringan tidak dapat dijangkau. Periksa koneksi internet"
+                                    else -> "Error koneksi: ${e.localizedMessage}"
                                 }
+                                Toast.makeText(context, errorMsg, Toast.LENGTH_LONG).show()
                             } catch (e: Exception) {
                                 val msg = e.localizedMessage?.lowercase() ?: ""
                                 val friendly = when {

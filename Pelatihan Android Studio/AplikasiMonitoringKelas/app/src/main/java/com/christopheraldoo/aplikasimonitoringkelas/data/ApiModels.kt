@@ -8,19 +8,25 @@ data class LoginRequest(
     @SerializedName("password") val password: String
 )
 
+data class LoginData(
+    @SerializedName("user") val user: User,
+    @SerializedName("token") val token: String,
+    @SerializedName("token_type") val tokenType: String
+)
+
 data class LoginResponse(
     @SerializedName("success") val success: Boolean? = true,
     @SerializedName("message") val message: String? = "",
-    @SerializedName("token") val token: String? = null,
-    @SerializedName("data") val data: User? = null
+    @SerializedName("data") val data: LoginData? = null
 ) {
-    // Allow accessing user field for backward compatibility
-    val user: User? get() = data
+    // Allow accessing user and token fields for backward compatibility
+    val user: User? get() = data?.user
+    val token: String? get() = data?.token
 }
 
 data class User(
     @SerializedName("id") val id: Int,
-    @SerializedName("nama") val nama: String,
+    @SerializedName("name") val nama: String,
     @SerializedName("email") val email: String,
     @SerializedName("role") val role: String,
     @SerializedName("class_id") val classId: Int?,
@@ -32,7 +38,7 @@ data class User(
 data class KehadiranSubmitRequest(
     @SerializedName("schedule_id") val scheduleId: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("catatan") val catatan: String = ""
 )
 
@@ -46,7 +52,7 @@ data class KehadiranItem(
     @SerializedName("id") val id: Int,
     @SerializedName("schedule_id") val scheduleId: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("catatan") val catatan: String = "",
     @SerializedName("submitted_by") val submittedBy: Int
 )
@@ -54,21 +60,32 @@ data class KehadiranItem(
 data class TodayKehadiranResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("day_of_week") val dayOfWeek: String,
+    // Support both camelCase and snake_case
+    @SerializedName("dayOfWeek") val dayOfWeek: String = "",
+    @SerializedName("day_of_week") private val _dayOfWeekSnake: String? = null,
+    @SerializedName("kelas") val kelas: String? = null,
     @SerializedName("schedules") val schedules: List<ScheduleItem>,
     @SerializedName("message") val message: String? = null
-)
+) {
+    fun getDay(): String = dayOfWeek.ifEmpty { _dayOfWeekSnake ?: "" }
+}
 
 data class ScheduleItem(
-    @SerializedName("schedule_id") val scheduleId: Int,
-    @SerializedName("period") val period: Int,
-    @SerializedName("time") val time: String,
-    @SerializedName("subject") val subject: String,
-    @SerializedName("teacher") val teacher: String,
-    @SerializedName("submitted") val submitted: Boolean,
-    @SerializedName("guru_hadir") val guruHadir: Boolean?,
+    // Support both snake_case and camelCase from different API endpoints
+    @SerializedName("scheduleId") val scheduleId: Int = 0,
+    @SerializedName("schedule_id") private val _scheduleIdSnake: Int = 0,
+    @SerializedName("period") val period: Int = 0,
+    @SerializedName("time") val time: String = "",
+    @SerializedName("subject") val subject: String = "",
+    @SerializedName("teacher") val teacher: String = "",
+    @SerializedName("teacherId") val teacherId: Int = 0,
+    @SerializedName("submitted") val submitted: Boolean = false,
+    @SerializedName("status") val status: String? = null,
     @SerializedName("catatan") val catatan: String = ""
-)
+) {
+    // Get schedule ID from either field
+    fun getActualScheduleId(): Int = if (scheduleId > 0) scheduleId else _scheduleIdSnake
+}
 
 data class RiwayatKehadiranResponse(
     @SerializedName("success") val success: Boolean,
@@ -81,20 +98,35 @@ data class KehadiranHistoryResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("data") val data: List<RiwayatItem>,
     @SerializedName("total") val total: Int,
+    @SerializedName("pagination") val pagination: PaginationMeta? = null,
     @SerializedName("message") val message: String? = null
 )
 
 data class RiwayatItem(
     @SerializedName("id") val id: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
-    @SerializedName("catatan") val catatan: String = "",
-    @SerializedName("day") val day: String,
-    @SerializedName("period") val period: Int,
-    @SerializedName("time") val time: String,
-    @SerializedName("subject") val subject: String,
-    @SerializedName("teacher") val teacher: String
-)
+    @SerializedName("status") val status: String,
+    // Support both field names from different API responses
+    @SerializedName("keterangan") val keterangan: String? = null,
+    @SerializedName("catatan") private val _catatan: String? = null,
+    @SerializedName("hari") val hari: String? = null,
+    @SerializedName("day") private val _day: String? = null,
+    @SerializedName("period") val period: Int = 0,
+    @SerializedName("jam") val jam: String? = null,
+    @SerializedName("time") private val _time: String? = null,
+    @SerializedName("jam_masuk") val jamMasuk: String? = null, // Jam masuk guru (untuk status terlambat)
+    @SerializedName("mapel") val mapel: String? = null,
+    @SerializedName("subject") private val _subject: String? = null,
+    @SerializedName("guru") val guru: String? = null,
+    @SerializedName("teacher") private val _teacher: String? = null
+) {
+    // Computed properties to handle both field name variants
+    val catatan: String get() = keterangan ?: _catatan ?: ""
+    val day: String get() = hari ?: _day ?: ""
+    val time: String get() = jam ?: _time ?: ""
+    val subject: String get() = mapel ?: _subject ?: ""
+    val teacher: String get() = guru ?: _teacher ?: ""
+}
 
 // === USER MANAGEMENT ===
 data class UserApi(
@@ -136,7 +168,21 @@ data class ScheduleApi(
     @SerializedName("status") val status: String = "active",
     @SerializedName("class_name") val className: String? = null,
     @SerializedName("subject_name") val subjectName: String? = null,
-    @SerializedName("teacher_name") val teacherName: String? = null
+    @SerializedName("teacher_name") val teacherName: String? = null,
+    // Attendance fields (for JadwalScreen with teacher attendance)
+    @SerializedName("is_today") val isToday: Boolean = false,
+    @SerializedName("attendance_status") val attendanceStatus: String? = null, // hadir, telat, tidak_hadir, diganti
+    @SerializedName("attendance_catatan") val attendanceCatatan: String? = null,
+    @SerializedName("substitute_teacher_name") val substituteTeacherName: String? = null
+)
+
+// Response for weekly schedule with attendance
+data class WeeklyScheduleWithAttendanceResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String? = null,
+    @SerializedName("today") val today: String? = null,
+    @SerializedName("date") val date: String? = null,
+    @SerializedName("data") val data: List<ScheduleApi>
 )
 
 data class StudentWeeklyScheduleResponse(
@@ -252,14 +298,14 @@ data class DashboardSummary(
 data class AttendanceSubmitRequest(
     @SerializedName("schedule_id") val scheduleId: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("catatan") val catatan: String = ""
 )
 
 data class AttendanceHistoryItem(
     @SerializedName("id") val id: Int,
     @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("guru_hadir") val guruHadir: Boolean,
+    @SerializedName("status") val status: String,
     @SerializedName("catatan") val catatan: String = "",
     @SerializedName("day") val day: String,
     @SerializedName("period") val period: Int,

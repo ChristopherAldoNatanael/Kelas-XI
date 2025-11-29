@@ -15,7 +15,15 @@ class SubjectController extends Controller
     public function index(): JsonResponse
     {
         try {
-            $subjects = Subject::all();
+            $subjects = Subject::all()->map(function ($subject) {
+                return [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->code,
+                    'created_at' => $subject->created_at,
+                    'updated_at' => $subject->updated_at
+                ];
+            });
 
             return response()->json([
                 'success' => true,
@@ -37,22 +45,30 @@ class SubjectController extends Controller
     public function store(Request $request): JsonResponse
     {
         try {
+            // Hanya validasi field yang ada di database (nama dan kode)
             $validated = $request->validate([
                 'name' => 'required|string|max:255',
-                'code' => 'required|string|max:50|unique:subjects',
-                'category' => 'required|string|max:100',
-                'description' => 'nullable|string',
-                'credit_hours' => 'required|integer|min:1',
-                'semester' => 'required|integer|min:1|max:8',
-                'status' => 'required|in:active,inactive'
+                'code' => 'required|string|max:50|unique:subjects,kode',
             ]);
 
-            $subject = Subject::create($validated);
+            // Map API field names ke database field names
+            $createData = [
+                'nama' => $validated['name'],
+                'kode' => $validated['code']
+            ];
+
+            $subject = Subject::create($createData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Mata pelajaran berhasil ditambahkan',
-                'data' => $subject
+                'data' => [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->code,
+                    'created_at' => $subject->created_at,
+                    'updated_at' => $subject->updated_at
+                ]
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -74,7 +90,13 @@ class SubjectController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Data mata pelajaran berhasil diambil',
-                'data' => $subject
+                'data' => [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->code,
+                    'created_at' => $subject->created_at,
+                    'updated_at' => $subject->updated_at
+                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
@@ -93,22 +115,36 @@ class SubjectController extends Controller
         try {
             $subject = Subject::findOrFail($id);
 
+            // Hanya validasi field yang ada di database (nama dan kode)
             $validated = $request->validate([
                 'name' => 'sometimes|required|string|max:255',
-                'code' => 'sometimes|required|string|max:50|unique:subjects,code,' . $id,
-                'category' => 'sometimes|required|string|max:100',
-                'description' => 'nullable|string',
-                'credit_hours' => 'sometimes|required|integer|min:1',
-                'semester' => 'sometimes|required|integer|min:1|max:8',
-                'status' => 'sometimes|required|in:active,inactive'
+                'code' => 'sometimes|required|string|max:50|unique:subjects,kode,' . $id,
             ]);
 
-            $subject->update($validated);
+            // Map API field names ke database field names
+            $updateData = [];
+            if (isset($validated['name'])) {
+                $updateData['nama'] = $validated['name'];
+            }
+            if (isset($validated['code'])) {
+                $updateData['kode'] = $validated['code'];
+            }
+
+            $subject->update($updateData);
+
+            // Reload subject untuk mendapatkan data terbaru dengan accessor
+            $subject->refresh();
 
             return response()->json([
                 'success' => true,
                 'message' => 'Mata pelajaran berhasil diperbarui',
-                'data' => $subject
+                'data' => [
+                    'id' => $subject->id,
+                    'name' => $subject->name,
+                    'code' => $subject->code,
+                    'created_at' => $subject->created_at,
+                    'updated_at' => $subject->updated_at
+                ]
             ], 200);
         } catch (\Exception $e) {
             return response()->json([

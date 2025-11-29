@@ -19,7 +19,7 @@ class TeacherAttendanceController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $query = TeacherAttendance::with(['schedule', 'guru:id,name,email', 'guruAsli:id,name,email']);
+            $query = TeacherAttendance::with(['schedule', 'guru:id,nama,email', 'guruAsli:id,nama,email']);
 
             // Filter by date if provided
             if ($request->has('tanggal')) {
@@ -92,7 +92,7 @@ class TeacherAttendanceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Data kehadiran guru berhasil disimpan',
-                'data' => $attendance->load(['schedule', 'guru:id,name,email'])
+                'data' => $attendance->load(['schedule', 'guru:id,nama,email'])
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -111,8 +111,8 @@ class TeacherAttendanceController extends Controller
         try {
             $attendance = TeacherAttendance::with([
                 'schedule',
-                'guru:id,name,email',
-                'guruAsli:id,name,email',
+                'guru:id,nama,email',
+                'guruAsli:id,nama,email',
                 'createdBy:id,name',
                 'assignedBy:id,name'
             ])->findOrFail($id);
@@ -164,7 +164,7 @@ class TeacherAttendanceController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Data kehadiran guru berhasil diupdate',
-                'data' => $attendance->load(['schedule', 'guru:id,name,email'])
+                'data' => $attendance->load(['schedule', 'guru:id,nama,email'])
             ]);
         } catch (\Exception $e) {
             return response()->json([

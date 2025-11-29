@@ -55,22 +55,69 @@ class Schedule extends Model
 
     public function subject(): BelongsTo
     {
+        // Using 'mata_pelajaran' field to match with 'nama' field in subjects table
         return $this->belongsTo(Subject::class, 'mata_pelajaran', 'nama');
+    }
+    
+    // Safeguard method to safely get subject data
+    public function getSubjectSafely()
+    {
+        try {
+            return $this->subject;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Subject relationship error for schedule', [
+                'schedule_id' => $this->id,
+                'mata_pelajaran' => $this->mata_pelajaran,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     public function class(): BelongsTo
     {
         return $this->belongsTo(ClassModel::class, 'kelas', 'nama_kelas');
     }
-
-    public function classroom(): BelongsTo
+    
+    // Safeguard method to safely get class data
+    public function getClassSafely()
     {
-        return $this->belongsTo(Classroom::class, 'ruang', 'nama');
+        try {
+            return $this->class;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Class relationship error for schedule', [
+                'schedule_id' => $this->id,
+                'kelas' => $this->kelas,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+
+
+    public function teacher(): BelongsTo
+    {
+        return $this->belongsTo(Teacher::class, 'guru_id');
     }
 
     public function teacherAttendances(): HasMany
     {
         return $this->hasMany(TeacherAttendance::class, 'schedule_id');
+    }
+    
+    // Safeguard method to safely get teacher data
+    public function getTeacherSafely()
+    {
+        try {
+            return $this->teacher;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('Teacher relationship error for schedule', [
+                'schedule_id' => $this->id,
+                'guru_id' => $this->guru_id,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
     }
 
     // Scopes
@@ -102,7 +149,11 @@ class Schedule extends Model
 
     public function getFullInfoAttribute(): string
     {
-        return $this->class->name . ' | ' . $this->subject->name . ' | ' . $this->teacher->user->nama;
+        $className = $this->class ? ($this->class->name ?? 'Unknown Class') : 'Unknown Class';
+        $subjectName = $this->subject ? ($this->subject->name ?? 'Unknown Subject') : 'Unknown Subject';
+        $teacherName = $this->teacher && $this->teacher->user ? ($this->teacher->user->nama ?? 'Unknown Teacher') : 'Unknown Teacher';
+        
+        return $className . ' | ' . $subjectName . ' | ' . $teacherName;
     }
 
     public function getDayNameAttribute(): string
@@ -189,35 +240,55 @@ class Schedule extends Model
     // Helper methods for API responses
     public function toApiArray(): array
     {
-        return [
-            'id' => $this->id,
-            'class' => [
+        $classData = null;
+        if ($this->class) {
+            $classData = [
                 'id' => $this->class->id,
-                'name' => $this->class->name,
-                'level' => $this->class->level,
-                'major' => $this->class->major
-            ],
-            'subject' => [
+                'name' => $this->class->name ?? 'Unknown',
+                'level' => $this->class->level ?? null,
+                'major' => $this->class->major ?? null
+            ];
+        }
+
+        $subjectData = null;
+        if ($this->subject) {
+            $subjectData = [
                 'id' => $this->subject->id,
-                'name' => $this->subject->name,
+                'name' => $this->subject->name ?? 'Unknown',
                 'category' => $this->subject->category ?? null
-            ],
-            'teacher' => [
+            ];
+        }
+
+        $teacherData = null;
+        if ($this->teacher && $this->teacher->user) {
+            $teacherData = [
                 'id' => $this->teacher->id,
-                'name' => $this->teacher->user->nama,
+                'name' => $this->teacher->user->nama ?? 'Unknown',
                 'position' => $this->teacher->position ?? null
-            ],
-            'classroom' => $this->classroom ? [
+            ];
+        }
+
+        $classroomData = null;
+        if ($this->classroom) {
+            $classroomData = [
                 'id' => $this->classroom->id,
-                'name' => $this->classroom->name,
+                'name' => $this->classroom->name ?? 'Unknown',
                 'type' => $this->classroom->type ?? null,
                 'capacity' => $this->classroom->capacity ?? null
-            ] : null,
+            ];
+        }
+
+        return [
+            'id' => $this->id,
+            'class' => $classData,
+            'subject' => $subjectData,
+            'teacher' => $teacherData,
+            'classroom' => $classroomData,
             'day_of_week' => $this->day_of_week,
             'day_name' => $this->day_name,
             'period_number' => $this->period_number,
-            'start_time' => $this->start_time->format('H:i:s'),
-            'end_time' => $this->end_time->format('H:i:s'),
+            'start_time' => $this->start_time ? $this->start_time->format('H:i:s') : null,
+            'end_time' => $this->end_time ? $this->end_time->format('H:i:s') : null,
             'duration' => $this->duration,
             'academic_year' => $this->academic_year,
             'semester' => $this->semester,
@@ -234,11 +305,11 @@ class Schedule extends Model
             'id' => $this->id,
             'day_of_week' => $this->day_of_week,
             'period_number' => $this->period_number,
-            'start_time' => $this->start_time->format('H:i'),
-            'end_time' => $this->end_time->format('H:i'),
-            'subject_name' => $this->subject->name,
-            'teacher_name' => $this->teacher->user->nama,
-            'classroom_name' => $this->classroom->name ?? 'No Room',
+            'start_time' => $this->start_time ? $this->start_time->format('H:i') : null,
+            'end_time' => $this->end_time ? $this->end_time->format('H:i') : null,
+            'subject_name' => $this->subject ? ($this->subject->name ?? 'Unknown') : 'Unknown',
+            'teacher_name' => $this->teacher && $this->teacher->user ? ($this->teacher->user->nama ?? 'Unknown') : 'Unknown',
+            'classroom_name' => $this->classroom ? ($this->classroom->name ?? 'No Room') : 'No Room',
             'notes' => $this->notes
         ];
     }

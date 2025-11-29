@@ -10,6 +10,7 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "doctrine/dbal": "^4.3",
         "filament/filament": "^4.1",
         "laravel/framework": "^11.0",
         "laravel/sanctum": "^4.2",

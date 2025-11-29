@@ -3,152 +3,208 @@
 @section('title', 'Create Schedule')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-2xl mx-auto">
-        <!-- Success Message with Animation -->
-        @if(session('success'))
-            <div id="success-message" class="mb-6 bg-gradient-to-r from-green-400 to-green-600 text-white px-6 py-4 rounded-lg shadow-lg transform transition-all duration-500 ease-in-out">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                    </div>
-                    <div class="ml-3 flex-1">
-                        <h3 class="text-lg font-semibold">🎉 Schedule Created Successfully!</h3>
-                        <p class="mt-1 text-green-100">{{ session('success') }}</p>
+<div class="min-h-screen">
+    <!-- Hero Header with Glass Morphism -->
+    <div class="relative overflow-hidden rounded-3xl mx-6 mb-8">
+        <!-- Background Layers -->
+        <div class="absolute inset-0 bg-gradient-to-br from-green-900 via-green-800 to-green-900"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
 
-                        <!-- Action Buttons -->
-                        <div class="mt-3 flex space-x-2">
-                            <a href="{{ route('web-schedules.create') }}" class="text-xs bg-green-700 hover:bg-green-800 px-3 py-1 rounded transition-colors duration-200">
-                                Create Another
-                            </a>
-                            <a href="{{ route('web-schedules.index') }}" class="text-xs bg-green-700 hover:bg-green-800 px-3 py-1 rounded transition-colors duration-200">
-                                View All Schedules
-                            </a>
+        <!-- Animated Background Elements -->
+        <div class="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-green-500/5 rounded-full blur-2xl animate-pulse" style="animation-delay: 4s;"></div>
+
+        <!-- Glass Morphism Overlay -->
+        <div class="relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-white/90 text-sm font-medium">System Online</span>
+                    </div>
+
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+                            Create New Schedule
+                        </h1>
+                        <p class="text-white/70 text-lg md:text-xl leading-relaxed max-w-2xl">
+                            Schedule new class sessions and academic activities with our intelligent scheduling system.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 pt-4">
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ count($dropdownData['teachers'] ?? []) }}</div>
+                            <div class="text-white/70 text-sm">Available Teachers</div>
+                        </div>
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ count($dropdownData['classrooms'] ?? []) }}</div>
+                            <div class="text-white/70 text-sm">Classrooms</div>
+                        </div>
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ count($dropdownData['subjects'] ?? []) }}</div>
+                            <div class="text-white/70 text-sm">Subjects</div>
                         </div>
                     </div>
                 </div>
-            </div>
-        @endif
 
-        <!-- Error Messages -->
-        @if($errors->any())
-            <div class="mb-6 bg-gradient-to-r from-red-400 to-red-600 text-white px-6 py-4 rounded-lg shadow-lg">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0">
-                        <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                        </svg>
-                    </div>
-                    <div class="ml-3">
-                        <h3 class="text-lg font-semibold">Oops! Something went wrong</h3>
-                        <ul class="mt-2 list-disc list-inside text-red-100">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
+                <div class="lg:shrink-0">
+                    <a href="{{ route('web-schedules.index') }}" class="glass-action-button group">
+                        <div class="p-3 rounded-xl bg-gradient-to-br from-slate-500/20 to-gray-500/20 border border-slate-400/20">
+                            <i class="fas fa-arrow-left text-slate-300 text-xl"></i>
+                        </div>
+                        <div>
+                            <div class="text-white font-semibold">Back to Schedules</div>
+                            <div class="text-slate-300 text-sm">View all schedules</div>
+                        </div>
+                    </a>
                 </div>
             </div>
-        @endif
+        </div>
+    </div>
 
-        <!-- Main Form Card -->
-        <div class="bg-white shadow-2xl rounded-2xl overflow-hidden transform transition-all duration-300 hover:shadow-3xl">
-            <div class="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4">
-                <h2 class="text-xl font-bold text-white flex items-center">
-                    <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                    </svg>
-                    Create New Schedule
-                </h2>
-                <p class="text-blue-100 mt-1">Add a new class schedule to the system</p>
+    <!-- Success Message -->
+    @if(session('success'))
+        <div class="mx-6 mb-6 glass-notification glass-notification-success">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-lg bg-green-500/20">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <span class="text-white">{{ session('success') }}</span>
+            </div>
+        </div>
+    @endif
+
+    <!-- Error Messages -->
+    @if($errors->any())
+        <div class="mx-6 mb-6 glass-notification glass-notification-error">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-lg bg-red-500/20">
+                    <i class="fas fa-exclamation-triangle text-red-400"></i>
+                </div>
+                <div class="flex-1">
+                    <div class="text-white font-semibold mb-2">Please fix the following errors:</div>
+                    <ul class="text-red-300 space-y-1">
+                        @foreach($errors->all() as $error)
+                            <li>• {{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Form Container -->
+    <div class="px-6 space-y-6">
+        <!-- Schedule Information Card -->
+        <div class="glass-morphism-card p-6">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-400/20">
+                    <i class="fas fa-calendar-alt text-blue-400 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Schedule Information</h3>
+                    <p class="text-slate-300">Set the basic schedule details</p>
+                </div>
             </div>
 
-            <form method="POST" action="{{ route('web-schedules.store') }}" class="p-8">
+            <form method="POST" action="{{ route('web-schedules.store') }}" class="space-y-6" id="scheduleForm">
                 @csrf
 
-                <!-- Hari Selection -->
-                <div class="mb-6">
-                    <label for="hari" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Hari <span class="text-red-500">*</span>
-                    </label>
-                    <select id="hari" name="hari" required
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 transition-all duration-200 bg-white">
-                        <option value="">Pilih hari...</option>
-                        <option value="Senin" {{ old('hari') == 'Senin' ? 'selected' : '' }}>📅 Senin</option>
-                        <option value="Selasa" {{ old('hari') == 'Selasa' ? 'selected' : '' }}>📅 Selasa</option>
-                        <option value="Rabu" {{ old('hari') == 'Rabu' ? 'selected' : '' }}>📅 Rabu</option>
-                        <option value="Kamis" {{ old('hari') == 'Kamis' ? 'selected' : '' }}>📅 Kamis</option>
-                        <option value="Jumat" {{ old('hari') == 'Jumat' ? 'selected' : '' }}>📅 Jumat</option>
-                        <option value="Sabtu" {{ old('hari') == 'Sabtu' ? 'selected' : '' }}>📅 Sabtu</option>
-                    </select>
-                    @error('hari')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
-                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Day Selection -->
+                    <div>
+                        <label for="hari" class="block text-sm font-medium text-white mb-2">
+                            <span class="flex items-center">
+                                <i class="fas fa-calendar-day mr-2 text-blue-400"></i>
+                                Day <span class="text-red-400">*</span>
+                            </span>
+                        </label>
+                        <select id="hari" name="hari" required class="glass-select">
+                            <option value="">Select day...</option>
+                            <option value="Senin" {{ old('hari') == 'Senin' ? 'selected' : '' }}>Monday</option>
+                            <option value="Selasa" {{ old('hari') == 'Selasa' ? 'selected' : '' }}>Tuesday</option>
+                            <option value="Rabu" {{ old('hari') == 'Rabu' ? 'selected' : '' }}>Wednesday</option>
+                            <option value="Kamis" {{ old('hari') == 'Kamis' ? 'selected' : '' }}>Thursday</option>
+                            <option value="Jumat" {{ old('hari') == 'Jumat' ? 'selected' : '' }}>Friday</option>
+                            <option value="Sabtu" {{ old('hari') == 'Sabtu' ? 'selected' : '' }}>Saturday</option>
+                        </select>
+                        @error('hari')
+                            <p class="mt-1 text-sm text-red-400 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
 
-                <!-- Kelas Input -->
-                <div class="mb-6">
-                    <label for="kelas" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        Kelas <span class="text-red-500">*</span>
-                    </label>
-                    <input type="text" id="kelas" name="kelas" value="{{ old('kelas') }}" required
-                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200"
-                           placeholder="Contoh: X RPL, XI IPA">
-                    @error('kelas')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
+                    <!-- Class Input -->
+                    <div>
+                        <label for="kelas" class="block text-sm font-medium text-white mb-2">
+                            <span class="flex items-center">
+                                <i class="fas fa-users mr-2 text-green-400"></i>
+                                Class <span class="text-red-400">*</span>
+                            </span>
+                        </label>
+                        <input type="text" id="kelas" name="kelas" value="{{ old('kelas') }}" required
+                                class="glass-input" placeholder="e.g., X RPL, XI IPA" maxlength="50">
+                        <div class="text-xs text-slate-400 mt-1">
+                            <span id="kelasCount">{{ strlen(old('kelas', '')) }}</span>/50 characters
+                        </div>
+                        @error('kelas')
+                            <p class="mt-1 text-sm text-red-400 flex items-center">
+                                <i class="fas fa-exclamation-circle mr-1"></i>
+                                {{ $message }}
+                            </p>
+                        @enderror
+                    </div>
                 </div>
+        </div>
 
-                <!-- Mata Pelajaran Input -->
-                <div class="mb-6">
-                    <label for="mata_pelajaran" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                        </svg>
-                        Mata Pelajaran <span class="text-red-500">*</span>
+        <!-- Academic Details Card -->
+        <div class="glass-morphism-card p-6">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/20">
+                    <i class="fas fa-book text-green-400 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Academic Details</h3>
+                    <p class="text-slate-300">Subject and teacher information</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Subject Input -->
+                <div>
+                    <label for="mata_pelajaran" class="block text-sm font-medium text-white mb-2">
+                        <span class="flex items-center">
+                            <i class="fas fa-book-open mr-2 text-green-400"></i>
+                            Subject <span class="text-red-400">*</span>
+                        </span>
                     </label>
                     <input type="text" id="mata_pelajaran" name="mata_pelajaran" value="{{ old('mata_pelajaran') }}" required
-                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 transition-all duration-200"
-                           placeholder="Contoh: Matematika, Bahasa Indonesia">
+                            class="glass-input" placeholder="e.g., Mathematics, English" maxlength="100">
+                    <div class="text-xs text-slate-400 mt-1">
+                        <span id="subjectCount">{{ strlen(old('mata_pelajaran', '')) }}</span>/100 characters
+                    </div>
                     @error('mata_pelajaran')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <p class="mt-1 text-sm text-red-400 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
                             {{ $message }}
                         </p>
                     @enderror
                 </div>
 
-                <!-- Guru Selection -->
-                <div class="mb-6">
-                    <label for="guru_id" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        Guru Pengajar <span class="text-red-500">*</span>
+                <!-- Teacher Selection -->
+                <div>
+                    <label for="guru_id" class="block text-sm font-medium text-white mb-2">
+                        <span class="flex items-center">
+                            <i class="fas fa-chalkboard-teacher mr-2 text-purple-400"></i>
+                            Teacher <span class="text-red-400">*</span>
+                        </span>
                     </label>
-                    <select id="guru_id" name="guru_id" required
-                            class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-purple-500 focus:ring-2 focus:ring-purple-200 transition-all duration-200 bg-white">
-                        <option value="">Pilih guru...</option>
+                    <select id="guru_id" name="guru_id" required class="glass-select">
+                        <option value="">Select teacher...</option>
                         @foreach($dropdownData['teachers'] ?? [] as $teacher)
                             <option value="{{ $teacher->id }}" {{ old('guru_id') == $teacher->id ? 'selected' : '' }}>
                                 👨‍🏫 {{ $teacher->name }}
@@ -156,176 +212,523 @@
                         @endforeach
                     </select>
                     @error('guru_id')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <p class="mt-1 text-sm text-red-400 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            {{ $message }}
+                        </p>
+                    @enderror
+                </div>
+            </div>
+        </div>
+
+        <!-- Time & Location Card -->
+        <div class="glass-morphism-card p-6">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 border border-orange-400/20">
+                    <i class="fas fa-clock text-orange-400 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Time & Location</h3>
+                    <p class="text-slate-300">Schedule timing and classroom details</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Start Time -->
+                <div>
+                    <label for="jam_mulai" class="block text-sm font-medium text-white mb-2">
+                        <span class="flex items-center">
+                            <i class="fas fa-play mr-2 text-teal-400"></i>
+                            Start Time <span class="text-red-400">*</span>
+                        </span>
+                    </label>
+                    <input type="time" id="jam_mulai" name="jam_mulai" value="{{ old('jam_mulai') }}" required
+                            class="glass-input">
+                    @error('jam_mulai')
+                        <p class="mt-1 text-sm text-red-400 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
                             {{ $message }}
                         </p>
                     @enderror
                 </div>
 
-                <!-- Time Fields -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div>
-                        <label for="jam_mulai" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                            <svg class="w-4 h-4 mr-1 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Jam Mulai <span class="text-red-500">*</span>
-                        </label>
-                        <input type="time" id="jam_mulai" name="jam_mulai" value="{{ old('jam_mulai') }}" required
-                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-teal-500 focus:ring-2 focus:ring-teal-200 transition-all duration-200">
-                        @error('jam_mulai')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="jam_selesai" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                            <svg class="w-4 h-4 mr-1 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            Jam Selesai <span class="text-red-500">*</span>
-                        </label>
-                        <input type="time" id="jam_selesai" name="jam_selesai" value="{{ old('jam_selesai') }}" required
-                               class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-pink-500 focus:ring-2 focus:ring-pink-200 transition-all duration-200">
-                        @error('jam_selesai')
-                            <p class="mt-1 text-sm text-red-600 flex items-center">
-                                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                                {{ $message }}
-                            </p>
-                        @enderror
-                    </div>
+                <!-- End Time -->
+                <div>
+                    <label for="jam_selesai" class="block text-sm font-medium text-white mb-2">
+                        <span class="flex items-center">
+                            <i class="fas fa-stop mr-2 text-pink-400"></i>
+                            End Time <span class="text-red-400">*</span>
+                        </span>
+                    </label>
+                    <input type="time" id="jam_selesai" name="jam_selesai" value="{{ old('jam_selesai') }}" required
+                            class="glass-input">
+                    @error('jam_selesai')
+                        <p class="mt-1 text-sm text-red-400 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
+                            {{ $message }}
+                        </p>
+                    @enderror
                 </div>
 
-                <!-- Ruang Input -->
-                <div class="mb-6">
-                    <label for="ruang" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                        </svg>
-                        Ruang Kelas
+                <!-- Room -->
+                <div>
+                    <label for="ruang" class="block text-sm font-medium text-white mb-2">
+                        <span class="flex items-center">
+                            <i class="fas fa-map-marker-alt mr-2 text-orange-400"></i>
+                            Classroom
+                        </span>
                     </label>
                     <input type="text" id="ruang" name="ruang" value="{{ old('ruang') }}"
-                           class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all duration-200"
-                           placeholder="Contoh: Ruang 101, Lab Komputer">
+                            class="glass-input" placeholder="e.g., Room 101, Computer Lab" maxlength="50">
+                    <div class="text-xs text-slate-400 mt-1">
+                        <span id="roomCount">{{ strlen(old('ruang', '')) }}</span>/50 characters
+                    </div>
                     @error('ruang')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <p class="mt-1 text-sm text-red-400 flex items-center">
+                            <i class="fas fa-exclamation-circle mr-1"></i>
                             {{ $message }}
                         </p>
                     @enderror
                 </div>
+            </div>
 
-                <!-- Notes -->
-                <div class="mb-8">
-                    <label for="notes" class="block text-sm font-semibold text-gray-700 mb-2 flex items-center">
-                        <svg class="w-4 h-4 mr-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
+            <!-- Duration Display -->
+            <div class="mt-6 p-4 glass-morphism-card">
+                <div class="flex items-center text-slate-300">
+                    <i class="fas fa-hourglass-half mr-3 text-blue-400"></i>
+                    <span class="font-medium">Duration: </span>
+                    <span id="duration" class="ml-2 font-bold text-white">--</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Information Card -->
+        <div class="glass-morphism-card p-6">
+            <div class="flex items-center gap-4 mb-6">
+                <div class="p-3 rounded-xl bg-gradient-to-br from-yellow-500/20 to-amber-500/20 border border-yellow-400/20">
+                    <i class="fas fa-sticky-note text-yellow-400 text-xl"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-white">Additional Information</h3>
+                    <p class="text-slate-300">Optional notes and special instructions</p>
+                </div>
+            </div>
+
+            <div>
+                <label for="notes" class="block text-sm font-medium text-white mb-2">
+                    <span class="flex items-center">
+                        <i class="fas fa-sticky-note mr-2 text-yellow-400"></i>
                         Notes (Optional)
-                    </label>
-                    <textarea id="notes" name="notes" rows="4"
-                              class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-gray-500 focus:ring-2 focus:ring-gray-200 transition-all duration-200 resize-none"
-                              placeholder="Add any additional notes or special instructions...">{{ old('notes') }}</textarea>
-                    @error('notes')
-                        <p class="mt-1 text-sm text-red-600 flex items-center">
-                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            {{ $message }}
-                        </p>
-                    @enderror
+                    </span>
+                </label>
+                <textarea id="notes" name="notes" rows="4" class="glass-input resize-none"
+                          placeholder="Add any special instructions, requirements, or additional information about this schedule..."
+                          maxlength="500">{{ old('notes') }}</textarea>
+                <div class="text-xs text-slate-400 mt-1">
+                    <span id="notesCount">{{ strlen(old('notes', '')) }}</span>/500 characters
                 </div>
-
-                <!-- Submit Button -->
-                <div class="flex justify-end space-x-4">
-                    <a href="{{ route('web-schedules.index') }}"
-                       class="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded-lg transition-all duration-200 flex items-center">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                        </svg>
-                        Cancel
-                    </a>
-                    <button type="submit"
-                            class="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-bold rounded-lg transition-all duration-200 transform hover:scale-105 shadow-lg hover:shadow-xl flex items-center">
-                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Create Schedule
-                    </button>
-                </div>
+                @error('notes')
+                    <p class="mt-1 text-sm text-red-400 flex items-center">
+                        <i class="fas fa-exclamation-circle mr-1"></i>
+                        {{ $message }}
+                    </p>
+                @enderror
+            </div>
+        </div>
             </form>
+
+        <!-- Form Actions -->
+        <div class="flex flex-col sm:flex-row justify-center gap-4 pt-6">
+            <a href="{{ route('web-schedules.index') }}" class="glass-action-btn glass-action-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Cancel
+            </a>
+            <button type="submit" form="scheduleForm" class="glass-action-btn glass-action-primary">
+                <i class="fas fa-save mr-2"></i>
+                Create Schedule
+            </button>
         </div>
     </div>
 </div>
 @endsection
 
-@section('scripts')
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const subjectSelect = document.getElementById('subject_id');
-    const teacherSelect = document.getElementById('teacher_id');
+<style>
+/* Glass Morphism Components */
+.glass-morphism-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
 
-    // Auto-hide success message after 5 seconds
-    const successMessage = document.getElementById('success-message');
-    if (successMessage) {
-        setTimeout(() => {
-            successMessage.style.transform = 'translateY(-100%)';
-            successMessage.style.opacity = '0';
-            setTimeout(() => successMessage.remove(), 500);
-        }, 5000);
+.glass-morphism-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Form Inputs */
+.glass-input, .glass-select {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    color: white;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+}
+
+.glass-input:focus, .glass-select:focus {
+    outline: none;
+    border-color: rgba(34, 197, 94, 0.5);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
+}
+
+.glass-input::placeholder {
+    color: #94a3b8;
+}
+
+/* Action Buttons */
+.glass-action-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-decoration: none;
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.glass-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.glass-action-primary {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+.glass-action-primary:hover {
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #16a34a;
+}
+
+.glass-action-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+}
+
+.glass-action-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #cbd5e1;
+}
+
+/* Notifications */
+.glass-notification {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.glass-notification-success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+.glass-notification-error {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+/* Stat Cards */
+.glass-stat-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    min-width: 120px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading States */
+.loading {
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid #e2e8f0;
+    border-top: 2px solid #22c55e;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: translateY(-50%) rotate(0deg); }
+    100% { transform: translateY(-50%) rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .glass-morphism-card {
+        margin: 0 1rem;
     }
 
-    subjectSelect.addEventListener('change', function() {
-        const subjectId = this.value;
+    .glass-input, .glass-select {
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
 
-        // Clear teacher select
-        teacherSelect.innerHTML = '<option value="">Select a teacher...</option>';
+    .glass-action-btn {
+        padding: 0.5rem 1rem;
+        font-size: 0.8rem;
+    }
+}
 
-        if (subjectId) {
-            // Find the selected subject in dropdownData
-            @php
-                $subjects = $dropdownData['subjects'] ?? [];
-            @endphp
+/* Theme Detection */
+.dark {
+    /* Dark mode styles are default */
+}
 
-            const subjects = @json($subjects);
-            const selectedSubject = subjects.find(s => s.id == subjectId);
+.light {
+    /* Light mode overrides */
+    color: #1f2937;
+}
 
-            if (selectedSubject && selectedSubject.teachers) {
-                selectedSubject.teachers.forEach(teacher => {
-                    const option = document.createElement('option');
-                    option.value = teacher.id;
-                    option.textContent = `👨‍🏫 ${teacher.user ? teacher.user.nama : 'Unknown'} (${teacher.teacher_code})`;
-                    teacherSelect.appendChild(option);
-                });
+.light body {
+    background-color: #f9fafb;
+    color: #1f2937;
+}
+
+/* Print Styles */
+@media print {
+    .glass-morphism-card {
+        background: white !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Theme Detection
+    function applyTheme(theme) {
+        const html = document.documentElement;
+        if (theme === 'dark') {
+            html.classList.remove('light');
+            html.classList.add('dark');
+        } else {
+            html.classList.remove('dark');
+            html.classList.add('light');
+        }
+    }
+
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+        applyTheme(savedTheme);
+    } else {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        applyTheme(prefersDark ? 'dark' : 'light');
+    }
+
+    // Form elements
+    const form = document.getElementById('scheduleForm');
+
+    // Input elements
+    const kelasInput = document.getElementById('kelas');
+    const subjectInput = document.getElementById('mata_pelajaran');
+    const roomInput = document.getElementById('ruang');
+    const notesInput = document.getElementById('notes');
+    const startTimeInput = document.getElementById('jam_mulai');
+    const endTimeInput = document.getElementById('jam_selesai');
+
+    // Counter elements
+    const kelasCount = document.getElementById('kelasCount');
+    const subjectCount = document.getElementById('subjectCount');
+    const roomCount = document.getElementById('roomCount');
+    const notesCount = document.getElementById('notesCount');
+    const durationElement = document.getElementById('duration');
+
+    // Character counters
+    if (kelasInput && kelasCount) {
+        kelasInput.addEventListener('input', function() {
+            kelasCount.textContent = this.value.length;
+        });
+    }
+
+    if (subjectInput && subjectCount) {
+        subjectInput.addEventListener('input', function() {
+            subjectCount.textContent = this.value.length;
+        });
+    }
+
+    if (roomInput && roomCount) {
+        roomInput.addEventListener('input', function() {
+            roomCount.textContent = this.value.length;
+        });
+    }
+
+    if (notesInput && notesCount) {
+        notesInput.addEventListener('input', function() {
+            notesCount.textContent = this.value.length;
+        });
+    }
+
+    // Duration calculation
+    function updateDuration() {
+        if (startTimeInput.value && endTimeInput.value) {
+            const start = new Date(`2000-01-01T${startTimeInput.value}:00`);
+            const end = new Date(`2000-01-01T${endTimeInput.value}:00`);
+
+            if (end > start) {
+                const diff = end - start;
+                const hours = Math.floor(diff / 3600000);
+                const minutes = Math.floor((diff % 3600000) / 60000);
+
+                let duration = '';
+                if (hours > 0) duration += `${hours} hour${hours > 1 ? 's' : ''}`;
+                if (minutes > 0) {
+                    if (duration) duration += ' ';
+                    duration += `${minutes} minute${minutes > 1 ? 's' : ''}`;
+                }
+
+                durationElement.textContent = duration || '0 minutes';
+                durationElement.style.color = '#22c55e';
+            } else {
+                durationElement.textContent = 'Invalid time range';
+                durationElement.style.color = '#ef4444';
             }
+        } else {
+            durationElement.textContent = '--';
+            durationElement.style.color = '#64748b';
+        }
+    }
+
+    if (startTimeInput && endTimeInput) {
+        startTimeInput.addEventListener('change', updateDuration);
+        endTimeInput.addEventListener('change', updateDuration);
+        updateDuration(); // Initial calculation
+    }
+
+    // Form validation and submission
+    form.addEventListener('submit', function(e) {
+        // Basic validation
+        let isValid = true;
+        const requiredFields = form.querySelectorAll('[required]');
+
+        requiredFields.forEach(field => {
+            if (!field.value.trim()) {
+                field.style.borderColor = '#ef4444';
+                isValid = false;
+            } else {
+                field.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+            }
+        });
+
+        // Time validation
+        if (startTimeInput.value && endTimeInput.value) {
+            const start = new Date(`2000-01-01T${startTimeInput.value}:00`);
+            const end = new Date(`2000-01-01T${endTimeInput.value}:00`);
+
+            if (end <= start) {
+                endTimeInput.style.borderColor = '#ef4444';
+                isValid = false;
+            }
+        }
+
+        if (!isValid) {
+            e.preventDefault();
+            return false;
+        }
+
+        // Show loading state
+        const submitBtn = form.querySelector('button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Schedule...';
         }
     });
 
-    // Add loading state to submit button
-    const form = document.querySelector('form');
-    const submitBtn = document.querySelector('button[type="submit"]');
+    // Auto-format inputs
+    if (kelasInput) {
+        kelasInput.addEventListener('input', function() {
+            // Auto-capitalize class names
+            this.value = this.value.replace(/\b\w/g, l => l.toUpperCase());
+        });
+    }
 
-    form.addEventListener('submit', function() {
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `
-            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            Creating Schedule...
-        `;
+    if (subjectInput) {
+        subjectInput.addEventListener('input', function() {
+            // Auto-capitalize subject names
+            this.value = this.value.replace(/\b\w/g, l => l.toUpperCase());
+        });
+    }
+
+    // Enhanced Action Buttons
+    const actionButtons = document.querySelectorAll('.glass-action-btn');
+    actionButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            if (this.closest('form')) {
+                const form = this.closest('form');
+                const originalContent = this.innerHTML;
+
+                form.addEventListener('submit', function(e) {
+                    button.disabled = true;
+                    button.classList.add('loading');
+                    button.innerHTML = '<i class="fas fa-spinner fa-spin text-white"></i>';
+
+                    // Restore button after 3 seconds if still on page
+                    setTimeout(() => {
+                        if (button) {
+                            button.disabled = false;
+                            button.classList.remove('loading');
+                            button.innerHTML = originalContent;
+                        }
+                    }, 3000);
+                });
+            }
+        });
     });
 });
 </script>
-@endsection

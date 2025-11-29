@@ -33,7 +33,7 @@ class UserViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val response = repository.login(email, password)
                 if (response.isSuccessful && response.body()?.success == true) {
-                    val user = response.body()?.data?.user
+                    val user = response.body()?.user
                     if (user != null) {
                         _loginStatus.value = LoginResult.Success(
                             UserApi(

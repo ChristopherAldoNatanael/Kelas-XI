@@ -47,16 +47,36 @@ class UserSeeder extends Seeder
             'is_banned' => false
         ]);
 
-        // Create siswa user
-        User::firstOrCreate([
-            'email' => 'siswa@example.com'
-        ], [
-            'name' => 'Siswa Test',
-            'email' => 'siswa@example.com',
-            'password' => Hash::make('password'),
-            'role' => 'siswa',
-            'is_banned' => false
-        ]);
+        // Create siswa users for different classes
+        $classes = \App\Models\ClassModel::all();
+
+        if ($classes->isNotEmpty()) {
+            // Create one siswa per class
+            foreach ($classes as $index => $class) {
+                $email = 'siswa' . ($index + 1) . '@example.com';
+                User::firstOrCreate([
+                    'email' => $email
+                ], [
+                    'name' => 'Siswa ' . $class->nama_kelas,
+                    'email' => $email,
+                    'password' => Hash::make('password'),
+                    'role' => 'siswa',
+                    'class_id' => $class->id,
+                    'is_banned' => false
+                ]);
+            }
+        } else {
+            // Fallback if no classes exist
+            User::firstOrCreate([
+                'email' => 'siswa@example.com'
+            ], [
+                'name' => 'Siswa Test',
+                'email' => 'siswa@example.com',
+                'password' => Hash::make('password'),
+                'role' => 'siswa',
+                'is_banned' => false
+            ]);
+        }
 
         $this->command->info('Users seeded successfully!');
         $this->command->info('Login credentials:');

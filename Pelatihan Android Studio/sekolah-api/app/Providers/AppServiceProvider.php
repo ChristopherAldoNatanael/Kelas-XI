@@ -58,7 +58,9 @@ class AppServiceProvider extends ServiceProvider
                 // Check if query might return too many rows
                 if (stripos($query->sql, 'count(*)') === false) {
                     Log::warning('Query without LIMIT detected', [
-                        'sql' => substr($query->sql, 0, 200)
+                        'sql' => $query->sql,
+                        'bindings' => $query->bindings,
+                        'trace' => json_encode(debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 10))
                     ]);
                 }
             }

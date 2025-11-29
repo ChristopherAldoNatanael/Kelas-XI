@@ -23,6 +23,7 @@ class WebAuthController extends Controller
 
         // Use direct Laravel authentication
         if (Auth::attempt($request->only('email', 'password'))) {
+            /** @var \App\Models\User $user */
             $user = Auth::user();
 
             // Update last login

@@ -17,8 +17,40 @@ class Subject extends Model
         'description',
         'credit_hours',
         'semester',
-        'status'
+        'status',
     ];
+
+    // Accessors & Mutators for Indonesian field names
+    public function getNamaAttribute(): string
+    {
+        return (string) ($this->getAttributes()['nama'] ?? '');
+    }
+
+    public function setNamaAttribute($value)
+    {
+        $this->attributes['nama'] = $value;
+    }
+
+    public function getKodeAttribute(): string
+    {
+        return (string) ($this->getAttributes()['kode'] ?? '');
+    }
+
+    public function setKodeAttribute($value)
+    {
+        $this->attributes['kode'] = $value;
+    }
+
+    // Backward compatibility accessor for nama_mapel
+    public function getNamaMapelAttribute(): string
+    {
+        return $this->nama;
+    }
+
+    public function setNamaMapelAttribute($value)
+    {
+        $this->attributes['nama'] = $value;
+    }
 
     protected $casts = [
         'created_at' => 'datetime',
@@ -28,18 +60,7 @@ class Subject extends Model
     // Relationships
     public function schedules(): HasMany
     {
-        return $this->hasMany(Schedule::class, 'mata_pelajaran', 'nama');
-    }
-
-    // Accessors for API compatibility
-    public function getNameAttribute()
-    {
-        return $this->nama;
-    }
-
-    public function getCodeAttribute()
-    {
-        return $this->kode;
+        return $this->hasMany(Schedule::class, 'subject_id');
     }
 
     // Scopes

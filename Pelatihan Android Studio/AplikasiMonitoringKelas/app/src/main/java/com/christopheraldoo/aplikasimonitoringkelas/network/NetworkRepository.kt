@@ -27,7 +27,9 @@ import com.christopheraldoo.aplikasimonitoringkelas.data.TodayKehadiranResponse
 import com.christopheraldoo.aplikasimonitoringkelas.data.KehadiranItem
 import com.christopheraldoo.aplikasimonitoringkelas.util.SessionManager
 import com.christopheraldoo.aplikasimonitoringkelas.utils.TokenManager
+import com.christopheraldoo.aplikasimonitoringkelas.cache.CacheManager
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -41,6 +43,7 @@ class NetworkRepository(private val context: Context) {
     private fun getApi() = RetrofitClient.getAuthenticatedInstance(context)
 
     private val apiService by lazy { RetrofitClient.createApiService(context) }
+    private val cacheManager by lazy { CacheManager(context) }
 
     // Request deduplication and sequential execution
     private val requestMutex = Mutex()
@@ -50,8 +53,7 @@ class NetworkRepository(private val context: Context) {
     suspend fun login(email: String, password: String): Pair<LoginResponse?, String?> {
         return withContext(Dispatchers.IO) {
             try {
-                val loginRequest = LoginRequest(email, password)
-                val response = apiService.login(loginRequest)
+                val response = apiService.login(email, password)
 
                 if (response.isSuccessful) {
                     Pair(response.body(), null)
@@ -127,8 +129,13 @@ class NetworkRepository(private val context: Context) {
     /**
      * Overload for ViewModel - returns Result type with deduplication and sequential calls
      */
-    suspend fun getSchedules(classId: Int? = null): Result<List<ScheduleApi>> {
+    suspend fun getSchedules(forceRefresh: Boolean = false, classId: Int? = null): Result<List<ScheduleApi>> {
         val requestKey = "getSchedules:$classId"
+
+        // If force refresh, cancel any ongoing request
+        if (forceRefresh) {
+            ongoingRequests.remove(requestKey)
+        }
 
         // Check if request is already ongoing
         ongoingRequests[requestKey]?.let { deferred ->
@@ -154,16 +161,107 @@ class NetworkRepository(private val context: Context) {
                         // Menggunakan endpoint baru yang lebih spesifik untuk siswa
                         val response = apiService.getMyWeeklySchedule("Bearer $token")
 
+                        Log.d("NetworkRepository", "API Response Code: ${response.code()}")
+                        Log.d("NetworkRepository", "API Response Success: ${response.isSuccessful}")
+                        Log.d("NetworkRepository", "API Body Success: ${response.body()?.success}")
+                        Log.d("NetworkRepository", "API Body Data: ${response.body()?.data}")
+
                         if (response.isSuccessful && response.body()?.success == true) {
-                            val schedules: List<ScheduleApi> = response.body()?.data?.data ?: emptyList<ScheduleApi>()
+                            // Response is now directly List<ScheduleApi>
+                            val schedules: List<ScheduleApi> = response.body()?.data ?: emptyList()
                             Log.d("NetworkRepository", "Successfully parsed ${schedules.size} schedules from new endpoint")
+                            
+                            // Log first few schedules for debugging
+                            schedules.take(3).forEach { schedule ->
+                                Log.d("NetworkRepository", "Schedule: ${schedule.className} - ${schedule.subjectName} (${schedule.dayOfWeek})")
+                            }
+                            
                             Result.success<List<ScheduleApi>>(schedules)
                         } else {
-                            Result.failure<List<ScheduleApi>>(Exception("HTTP ${response.code()}: ${response.message()}"))
+                            val errorMsg = "HTTP ${response.code()}: ${response.message()} | Body: ${response.errorBody()?.string()}"
+                            Log.e("NetworkRepository", errorMsg)
+                            Result.failure<List<ScheduleApi>>(Exception(errorMsg))
                         }
                     } catch (e: Exception) {
                         Log.e("NetworkRepository", "Get schedules error", e)
                         Result.failure<List<ScheduleApi>>(e)
+                    } finally {
+                        ongoingRequests.remove(requestKey)
+                    }
+                }
+            }
+        }
+
+        ongoingRequests[requestKey] = deferred
+        return deferred.await()
+    }
+
+    /**
+     * Get weekly schedule with teacher attendance status
+     * Uses the stable endpoint and calculates today locally
+     * Attendance status will be added in future when server endpoint is stable
+     */
+    suspend fun getSchedulesWithAttendance(forceRefresh: Boolean = false): Result<Pair<List<ScheduleApi>, String?>> {
+        val requestKey = "getSchedulesWithAttendance"
+
+        // If force refresh, cancel any ongoing request
+        if (forceRefresh) {
+            ongoingRequests.remove(requestKey)
+        }
+
+        // Check if request is already ongoing
+        ongoingRequests[requestKey]?.let { deferred ->
+            return try {
+                @Suppress("UNCHECKED_CAST")
+                (deferred as kotlinx.coroutines.Deferred<Result<Pair<List<ScheduleApi>, String?>>>).await()
+            } catch (e: Exception) {
+                ongoingRequests.remove(requestKey)
+                Result.failure(e)
+            }
+        }
+
+        // Create new request with mutex for sequential execution
+        val deferred = coroutineScope {
+            requestMutex.withLock {
+                async(Dispatchers.IO) {
+                    try {
+                        val token = SessionManager(context).getAuthToken()
+                        if (token.isNullOrEmpty()) {
+                            return@async Result.failure<Pair<List<ScheduleApi>, String?>>(Exception("Token tidak ditemukan"))
+                        }
+
+                        // Calculate today's day name in Indonesian
+                        val dayMap = mapOf(
+                            java.util.Calendar.MONDAY to "Senin",
+                            java.util.Calendar.TUESDAY to "Selasa",
+                            java.util.Calendar.WEDNESDAY to "Rabu",
+                            java.util.Calendar.THURSDAY to "Kamis",
+                            java.util.Calendar.FRIDAY to "Jumat",
+                            java.util.Calendar.SATURDAY to "Sabtu",
+                            java.util.Calendar.SUNDAY to "Minggu"
+                        )
+                        val todayDay = dayMap[java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)] ?: "Senin"
+
+                        // Use the endpoint WITH attendance status for JadwalScreen
+                        Log.d("NetworkRepository", "Using endpoint with attendance: siswa/weekly-schedule-attendance")
+                        val response = apiService.getWeeklyScheduleWithAttendance("Bearer $token")
+
+                        Log.d("NetworkRepository", "Schedule Response Code: ${response.code()}")
+
+                        if (response.isSuccessful && response.body()?.success == true) {
+                            val schedules = response.body()?.data ?: emptyList()
+                            val serverToday = response.body()?.today ?: todayDay
+                            Log.d("NetworkRepository", "Successfully parsed ${schedules.size} schedules with attendance, today=$serverToday")
+                            
+                            Result.success(Pair(schedules, serverToday))
+                        } else {
+                            val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                            Log.e("NetworkRepository", errorMsg)
+                            Result.failure(Exception(errorMsg))
+                        }
+                    } catch (e: Exception) {
+                        Log.e("NetworkRepository", "Get schedules with attendance error", e)
+                        Result.failure(e)
                     } finally {
                         ongoingRequests.remove(requestKey)
                     }
@@ -507,7 +605,7 @@ class NetworkRepository(private val context: Context) {
     suspend fun submitKehadiran(
         scheduleId: Int,
         tanggal: String,
-        guruHadir: Boolean,
+        status: String,
         catatan: String?
     ): Result<KehadiranSubmitResponse> {
         return withContext(Dispatchers.IO) {
@@ -520,7 +618,7 @@ class NetworkRepository(private val context: Context) {
                 val request = KehadiranSubmitRequest(
                     scheduleId = scheduleId,
                     tanggal = tanggal,
-                    guruHadir = guruHadir,
+                    status = status,
                     catatan = catatan ?: ""
                 )
 
@@ -543,10 +641,30 @@ class NetworkRepository(private val context: Context) {
     }
 
     /**
-     * Get kehadiran history with deduplication and sequential execution
+     * Get kehadiran history with pagination, caching, deduplication and sequential execution
      */
-    suspend fun getKehadiranHistory(): Result<KehadiranHistoryResponse> {
-        val requestKey = "getKehadiranHistory"
+    suspend fun getKehadiranHistory(forceRefresh: Boolean = false, page: Int = 1, limit: Int = 20): Result<KehadiranHistoryResponse> {
+        val cacheKey = "kehadiran_history_page_$page"
+
+        // Check cache first (only for first page to avoid complexity)
+        if (!forceRefresh && page == 1) {
+            val cachedData = cacheManager.getData(
+                cacheKey,
+                object : TypeToken<KehadiranHistoryResponse>() {},
+                CacheManager.TTL_SHORT // 5 minutes for attendance data
+            )
+            if (cachedData != null) {
+                Log.d("NetworkRepository", "Returning cached kehadiran history")
+                return Result.success(cachedData)
+            }
+        }
+
+        val requestKey = "getKehadiranHistory:$page:$limit"
+
+        // If force refresh, cancel any ongoing request
+        if (forceRefresh) {
+            ongoingRequests.remove(requestKey)
+        }
 
         // Check if request is already ongoing
         ongoingRequests[requestKey]?.let { deferred ->
@@ -569,18 +687,22 @@ class NetworkRepository(private val context: Context) {
                             return@async Result.failure<KehadiranHistoryResponse>(Exception("Token tidak ditemukan"))
                         }
 
-                        val response = apiService.getKehadiranHistory("Bearer $token")
+                        val response = apiService.getKehadiranHistory("Bearer $token", page, limit)
                         if (response.isSuccessful) {
                             val body = response.body()
                             if (body != null && body.success) {
-                                // CRITICAL FIX: Handle empty data gracefully
+                                // Cache the response for first page
+                                if (page == 1) {
+                                    cacheManager.saveData(cacheKey, body, CacheManager.TTL_SHORT)
+                                }
                                 Result.success(body)
                             } else {
                                 // Return empty success response instead of error
                                 Result.success(KehadiranHistoryResponse(
                                     success = true,
                                     data = emptyList(),
-                                    total = 0
+                                    total = 0,
+                                    pagination = null
                                 ))
                             }
                         } else {
@@ -588,7 +710,8 @@ class NetworkRepository(private val context: Context) {
                             Result.success(KehadiranHistoryResponse(
                                 success = true,
                                 data = emptyList(),
-                                total = 0
+                                total = 0,
+                                pagination = null
                             ))
                         }
                     } catch (e: Exception) {
@@ -597,7 +720,8 @@ class NetworkRepository(private val context: Context) {
                         Result.success(KehadiranHistoryResponse(
                             success = true,
                             data = emptyList(),
-                            total = 0
+                            total = 0,
+                            pagination = null
                         ))
                     } finally {
                         ongoingRequests.remove(requestKey)
@@ -613,8 +737,13 @@ class NetworkRepository(private val context: Context) {
     /**
      * Get today's kehadiran status - SIMPLIFIED dengan error handling lebih baik
      */
-    suspend fun getTodayKehadiranStatus(): Result<TodayKehadiranResponse> {
+    suspend fun getTodayKehadiranStatus(forceRefresh: Boolean = false): Result<TodayKehadiranResponse> {
         val requestKey = "getTodayKehadiranStatus"
+
+        // If force refresh, cancel any ongoing request
+        if (forceRefresh) {
+            ongoingRequests.remove(requestKey)
+        }
 
         // Check if request is already ongoing
         ongoingRequests[requestKey]?.let { deferred ->

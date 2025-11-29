@@ -41,8 +41,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val (response, error) = networkRepository.login(email, password)
 
                 if (response != null && response.success == true) {
-                    val user = response.data?.user
-                    val token = response.data?.token
+                    val user = response.user
+                    val token = response.token
                     if (user != null && token != null) {
                         sessionManager.createLoginSession(
                             id = user.id.toLong(),

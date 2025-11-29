@@ -5,22 +5,25 @@ import android.os.Build
 
 object NetworkConfig {
     object BaseUrls {
-        // Different URLs for development and production
-        private const val LOCAL_URL = "http://10.0.2.2:8000/api/"  // For Android emulator
-        private const val DEVELOPMENT_URL = "http://192.168.1.11:8000/api/"  // For development on same network (updated IP)
-        const val PRODUCTION_URL = "https://your-production-domain.com/api/"  // Update to your actual production URL
+        // EMULATOR: 10.0.2.2 is Android Emulator's special IP to access host machine's localhost
+        // DEVICE: Use your actual PC's IP address on the same network
+        private const val EMULATOR_URL = "http://10.0.2.2:8000/api/"  // For Android Emulator
+        private const val DEVICE_URL = "http://10.56.235.141:8000/api/"  // For physical device on same network
+        const val PRODUCTION_URL = "https://your-production-domain.com/api/"
 
-        // Current PC IP - Updated for physical device connection
-        const val CURRENT_IP_URL = "http://192.168.40.158:8000/api/"
+        // Current active URL - CHANGE THIS based on your testing target
+        // Use EMULATOR_URL when testing on Android Emulator
+        // Use DEVICE_URL when testing on physical Android device
+        const val CURRENT_IP_URL = "http://10.0.2.2:8000/api/"  // ✅ USING EMULATOR IP
 
         // Use the appropriate URL based on runtime environment (emulator vs device)
         fun getDefault(context: Context): String {
-            return if (isRunningOnEmulator()) LOCAL_URL else CURRENT_IP_URL
+            return if (isRunningOnEmulator()) EMULATOR_URL else DEVICE_URL
         }
 
         // Public helpers for fallback probing
-        fun getEmulatorUrl(): String = LOCAL_URL
-        fun getDeviceLanUrl(): String = CURRENT_IP_URL
+        fun getEmulatorUrl(): String = EMULATOR_URL
+        fun getDeviceLanUrl(): String = DEVICE_URL
 
         // Helper to detect emulator reliably (support old and new emulator variants)
         private fun isRunningOnEmulator(): Boolean {

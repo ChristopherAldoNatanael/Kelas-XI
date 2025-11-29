@@ -54,6 +54,35 @@ class TeacherAttendance extends Model
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
+    
+    // Safeguard methods to safely get related data
+    public function getScheduleSafely()
+    {
+        try {
+            return $this->schedule;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('TeacherAttendance schedule relationship error', [
+                'attendance_id' => $this->id,
+                'schedule_id' => $this->schedule_id,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
+    
+    public function getGuruSafely()
+    {
+        try {
+            return $this->guru;
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::warning('TeacherAttendance guru relationship error', [
+                'attendance_id' => $this->id,
+                'guru_id' => $this->guru_id,
+                'error' => $e->getMessage()
+            ]);
+            return null;
+        }
+    }
 
     // Scopes
     public function scopeByDate($query, $date)

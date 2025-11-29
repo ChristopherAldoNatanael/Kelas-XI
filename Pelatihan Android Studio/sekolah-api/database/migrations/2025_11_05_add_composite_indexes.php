@@ -114,12 +114,23 @@ return new class extends Migration
      */
     private function indexExists(string $table, string $indexName): bool
     {
-        $indexes = DB::select("SHOW INDEX FROM {$table}");
-        foreach ($indexes as $index) {
-            if ($index->Key_name === $indexName) {
-                return true;
+        $connection = \DB::connection();
+        if ($connection->getDriverName() === 'sqlite') {
+            $indexes = $connection->select("PRAGMA index_list({$table})");
+            foreach ($indexes as $idx) {
+                if ($idx->name === $indexName) {
+                    return true;
+                }
             }
+            return false;
+        } else {
+            $indexes = $connection->select("SHOW INDEX FROM {$table}");
+            foreach ($indexes as $idx) {
+                if ($idx->Key_name === $indexName) {
+                    return true;
+                }
+            }
+            return false;
         }
-        return false;
     }
 };

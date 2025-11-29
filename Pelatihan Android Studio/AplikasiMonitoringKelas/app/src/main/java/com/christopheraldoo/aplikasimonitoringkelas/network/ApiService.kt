@@ -8,8 +8,12 @@ import retrofit2.http.*
 interface ApiService {
 
     // Authentication endpoints
+    @FormUrlEncoded
     @POST("auth/login")
-    suspend fun login(@Body loginRequest: LoginRequest): Response<LoginResponse>
+    suspend fun login(
+        @Field("email") email: String,
+        @Field("password") password: String
+    ): Response<LoginResponse>
 
     @POST("auth/logout")
     suspend fun logout(@Header("Authorization") token: String): Response<ApiResponse<JsonObject>>
@@ -133,11 +137,17 @@ interface ApiService {
         @Query("class_id") classId: Int? = null
     ): Response<ApiResponse<List<ScheduleApi>>>
 
-    // NEW: Student weekly schedule (auto-detect from user's class_id)
-    @GET("siswa/weekly-schedule")
+    // NEW: Student weekly schedule - FIXED endpoint (no middleware issues)
+    @GET("jadwal-siswa")
     suspend fun getMyWeeklySchedule(
         @Header("Authorization") token: String
-    ): Response<ApiResponse<StudentWeeklyScheduleResponse>>
+    ): Response<ApiResponse<List<ScheduleApi>>>
+
+    // NEW: Weekly schedule with teacher attendance status (for JadwalScreen)
+    @GET("siswa/weekly-schedule-attendance")
+    suspend fun getWeeklyScheduleWithAttendance(
+        @Header("Authorization") token: String
+    ): Response<WeeklyScheduleWithAttendanceResponse>
 
     // Public endpoints for fallback (no auth required)
     @GET("jadwal/hari-ini-public")
@@ -160,10 +170,12 @@ interface ApiService {
         @Body body: KehadiranSubmitRequest
     ): Response<KehadiranSubmitResponse>
 
-    // Get attendance history
+    // Get attendance history with pagination
     @GET("siswa/kehadiran/riwayat")
     suspend fun getKehadiranHistory(
-        @Header("Authorization") token: String
+        @Header("Authorization") token: String,
+        @Query("page") page: Int = 1,
+        @Query("limit") limit: Int = 20
     ): Response<KehadiranHistoryResponse>
 
     // Get today's attendance status

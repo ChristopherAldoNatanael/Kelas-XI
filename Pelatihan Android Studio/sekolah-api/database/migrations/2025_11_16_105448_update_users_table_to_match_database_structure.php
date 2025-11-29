@@ -12,14 +12,13 @@ return new class extends Migration
      */
     public function up(): void
     {
-        // Update users table to match new database structure
         Schema::table('users', function (Blueprint $table) {
-            // Rename 'nama' to 'name' if it exists
             if (Schema::hasColumn('users', 'nama')) {
                 $table->renameColumn('nama', 'name');
             }
-
-            // Drop columns that don't exist in new structure
+            if ($this->indexExists('users', 'idx_users_role_status')) {
+                $table->dropIndex('idx_users_role_status');
+            }
             if (Schema::hasColumn('users', 'status')) {
                 $table->dropColumn('status');
             }
@@ -38,8 +37,6 @@ return new class extends Migration
             if (Schema::hasColumn('users', 'deleted_at')) {
                 $table->dropColumn('deleted_at');
             }
-
-            // Add new columns that should exist
             if (!Schema::hasColumn('users', 'mata_pelajaran')) {
                 $table->string('mata_pelajaran')->nullable();
             }
@@ -47,9 +44,6 @@ return new class extends Migration
                 $table->boolean('is_banned')->default(false);
             }
         });
-
-        // Update role enum values
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin','siswa','kurikulum','kepala_sekolah') NOT NULL DEFAULT 'siswa'");
     }
 
     /**
@@ -57,27 +51,44 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            // Reverse the changes if needed
-            if (Schema::hasColumn('users', 'name')) {
-                $table->renameColumn('name', 'nama');
-            }
+        // Schema::table('users', function (Blueprint $table) {
+        //     if (Schema::hasColumn('users', 'name')) {
+        //         $table->renameColumn('name', 'nama');
+        //     }
+        //     $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
+        //     $table->string('avatar')->nullable();
+        //     $table->string('phone')->nullable();
+        //     $table->text('address')->nullable();
+        //     $table->timestamp('last_login_at')->nullable();
+        //     $table->softDeletes();
+        //     if (Schema::hasColumn('users', 'mata_pelajaran')) {
+        //         $table->dropColumn('mata_pelajaran');
+        //     }
+        //     if (Schema::hasColumn('users', 'is_banned')) {
+        //         $table->dropColumn('is_banned');
+        //     }
+        // });
+    }
 
-            $table->enum('status', ['active', 'inactive', 'suspended'])->default('active');
-            $table->string('avatar')->nullable();
-            $table->string('phone')->nullable();
-            $table->text('address')->nullable();
-            $table->timestamp('last_login_at')->nullable();
-            $table->softDeletes();
-
-            if (Schema::hasColumn('users', 'mata_pelajaran')) {
-                $table->dropColumn('mata_pelajaran');
+    private function indexExists(string $table, string $indexName): bool
+    {
+        $connection = \DB::connection();
+        if ($connection->getDriverName() === 'sqlite') {
+            $indexes = $connection->select("PRAGMA index_list({$table})");
+            foreach ($indexes as $idx) {
+                if ($idx->name === $indexName) {
+                    return true;
+                }
             }
-            if (Schema::hasColumn('users', 'is_banned')) {
-                $table->dropColumn('is_banned');
+            return false;
+        } else {
+            $indexes = $connection->select("SHOW INDEX FROM {$table}");
+            foreach ($indexes as $idx) {
+                if ($idx->Key_name === $indexName) {
+                    return true;
+                }
             }
-        });
-
-        DB::statement("ALTER TABLE users MODIFY COLUMN role ENUM('admin','kurikulum','siswa','kepala-sekolah') NOT NULL DEFAULT 'siswa'");
+            return false;
+        }
     }
 };

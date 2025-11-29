@@ -1,0 +1,5 @@
+nama,email,role,password,class_id,is_banned
+John Doe,john@example.com,admin,password123,,0
+Jane Smith,jane@example.com,siswa,password123,1,0
+Bob Johnson,bob@example.com,kurikulum,password123,,0
+Alice Brown,alice@example.com,siswa,password123,2,0

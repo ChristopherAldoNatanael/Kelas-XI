@@ -3,123 +3,379 @@
 @section('title', 'Schedule Details')
 
 @section('content')
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-4xl mx-auto">
-        <!-- Success Message with Animation -->
-        @if(session('success') && session('highlight_new'))
-            <div id="success-message" class="mb-8 bg-gradient-to-r from-green-400 to-green-600 text-white px-8 py-6 rounded-2xl shadow-2xl transform transition-all duration-500 ease-in-out">
-                <div class="flex items-center justify-between">
-                    <div class="flex items-center">
-                        <div class="flex-shrink-0">
-                            <div class="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                                <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
+<div class="min-h-screen">
+    <!-- Hero Header with Glass Morphism -->
+    <div class="relative overflow-hidden rounded-3xl mx-6 mb-8">
+        <!-- Background Layers -->
+        <div class="absolute inset-0 bg-gradient-to-br from-purple-900 via-purple-800 to-purple-900"></div>
+        <div class="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/10"></div>
+
+        <!-- Animated Background Elements -->
+        <div class="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl animate-pulse"></div>
+        <div class="absolute bottom-0 left-0 w-80 h-80 bg-violet-500/10 rounded-full blur-3xl animate-pulse" style="animation-delay: 2s;"></div>
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/5 rounded-full blur-2xl animate-pulse" style="animation-delay: 4s;"></div>
+
+        <!-- Glass Morphism Overlay -->
+        <div class="relative backdrop-blur-xl bg-white/5 border border-white/10 rounded-3xl p-8 md:p-12">
+            <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+                <div class="space-y-4">
+                    <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20">
+                        <div class="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                        <span class="text-white/90 text-sm font-medium">System Online</span>
+                    </div>
+
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-bold text-white mb-3 tracking-tight">
+                            Schedule Details
+                        </h1>
+                        <p class="text-white/70 text-lg md:text-xl leading-relaxed max-w-2xl">
+                            Complete information about this class schedule and academic session details.
+                        </p>
+                    </div>
+
+                    <div class="flex flex-wrap gap-4 pt-4">
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->mata_pelajaran }}</div>
+                            <div class="text-white/70 text-sm">Subject</div>
                         </div>
-                        <div class="ml-4">
-                            <h3 class="text-2xl font-bold">🎉 Schedule Created Successfully!</h3>
-                            <p class="mt-1 text-green-100 text-lg">{{ session('success') }}</p>
-
-
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->hari }}</div>
+                            <div class="text-white/70 text-sm">Day</div>
+                        </div>
+                        <div class="glass-stat-card">
+                            <div class="text-2xl font-bold text-white">{{ $schedule->jam_mulai }} - {{ $schedule->jam_selesai }}</div>
+                            <div class="text-white/70 text-sm">Time</div>
                         </div>
                     </div>
-                    <div class="ml-4">
-                        <button onclick="document.getElementById('success-message').remove()" class="text-green-200 hover:text-white transition-colors duration-200">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
+                </div>
+
+                <div class="lg:shrink-0">
+                    <div class="flex gap-3">
+                        <a href="{{ route('web-schedules.edit', $schedule->id) }}" class="glass-action-button group">
+                            <div class="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/20 border border-blue-400/20">
+                                <i class="fas fa-edit text-blue-300 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold">Edit Schedule</div>
+                                <div class="text-slate-300 text-sm">Modify details</div>
+                            </div>
+                        </a>
+                        <a href="{{ route('web-schedules.index') }}" class="glass-action-button group">
+                            <div class="p-3 rounded-xl bg-gradient-to-br from-slate-500/20 to-gray-500/20 border border-slate-400/20">
+                                <i class="fas fa-arrow-left text-slate-300 text-xl"></i>
+                            </div>
+                            <div>
+                                <div class="text-white font-semibold">Back to List</div>
+                                <div class="text-slate-300 text-sm">All schedules</div>
+                            </div>
+                        </a>
                     </div>
                 </div>
             </div>
-        @endif
+        </div>
+    </div>
 
-        <!-- Schedule Details Card -->
-        <div class="bg-white shadow-2xl rounded-2xl overflow-hidden transform transition-all duration-300 hover:shadow-3xl">
-            <!-- Header -->
-            <div class="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 px-8 py-6 text-white relative overflow-hidden">
-                <div class="absolute top-0 right-0 w-32 h-32 bg-white bg-opacity-10 rounded-full transform translate-x-16 -translate-y-16"></div>
-                <div class="absolute bottom-0 left-0 w-24 h-24 bg-white bg-opacity-10 rounded-full transform -translate-x-12 translate-y-12"></div>
-                <div class="relative z-10">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <h1 class="text-3xl font-bold mb-2 flex items-center">
-                                <div class="w-12 h-12 bg-white bg-opacity-20 rounded-xl flex items-center justify-center mr-4">
-                                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                    </svg>
-                                </div>
-                                Schedule Details
-                            </h1>
-                            <p class="text-blue-100 text-lg">Complete information about this class schedule</p>
-                        </div>
-                        <div class="hidden md:block">
-                            <div class="text-right">
-                                <div class="text-sm text-blue-100">Schedule ID</div>
-                                <div class="text-2xl font-bold">#{{ $schedule->id }}</div>
-                            </div>
-                        </div>
+    <!-- Success Message -->
+    @if(session('success') && session('highlight_new'))
+        <div class="mx-6 mb-6 glass-notification glass-notification-success">
+            <div class="flex items-center gap-3">
+                <div class="p-2 rounded-lg bg-green-500/20">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+                <span class="text-white">{{ session('success') }}</span>
+            </div>
+        </div>
+    @endif
+
+    <!-- Schedule Information Cards -->
+    <div class="px-6 space-y-6">
+        <!-- Quick Info Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Subject Card -->
+            <div class="glass-morphism-card p-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/20 border border-green-400/20">
+                        <i class="fas fa-book text-green-400 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Subject</h3>
+                        <p class="text-slate-300 font-semibold">{{ $schedule->mata_pelajaran }}</p>
+                        <p class="text-slate-400 text-sm">{{ $schedule->subject->nama ?? 'No additional info' }}</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Content -->
-            <div class="p-8">
-                <!-- Quick Info Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <!-- Subject Card -->
-                    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                                </svg>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-lg font-bold text-green-800">Mata Pelajaran</h3>
-                                <p class="text-green-700 font-semibold">{{ $schedule->mata_pelajaran }}</p>
-                                <p class="text-green-600 text-sm">{{ $schedule->subject->nama ?? '' }}</p>
-                            </div>
-                        </div>
+            <!-- Teacher Card -->
+            <div class="glass-morphism-card p-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 border border-purple-400/20">
+                        <i class="fas fa-chalkboard-teacher text-purple-400 text-xl"></i>
                     </div>
-
-                    <!-- Teacher Card -->
-                    <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                                </svg>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-lg font-bold text-purple-800">Guru</h3>
-                                <p class="text-purple-700 font-semibold">{{ $schedule->guru->name ?? 'N/A' }}</p>
-                                <p class="text-purple-600 text-sm">Teacher ID: {{ $schedule->guru_id }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Classroom Card -->
-                    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-6 border border-orange-200">
-                        <div class="flex items-center">
-                            <div class="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center">
-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                                </svg>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-lg font-bold text-orange-800">Ruang</h3>
-                                <p class="text-orange-700 font-semibold">{{ $schedule->ruang ?? 'N/A' }}</p>
-                                <p class="text-orange-600 text-sm">Room: {{ $schedule->ruang ?? 'Not specified' }}</p>
-                            </div>
-                        </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Teacher</h3>
+                        <p class="text-slate-300 font-semibold">{{ $schedule->guru->name ?? 'N/A' }}</p>
+                        <p class="text-slate-400 text-sm">ID: {{ $schedule->guru_id }}</p>
                     </div>
                 </div>
+            </div>
 
-                <!-- Detailed Information Grid -->
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-                    <!-- Schedule Info -->
-                    <div class="space-y-6">
-                        <h3 class="text-xl font-bold text-gray-800 flex items-center">
-                            <svg class="w-6 h-6 mr-3 text-blue-600" fill="none
+            <!-- Classroom Card -->
+            <div class="glass-morphism-card p-6">
+                <div class="flex items-center gap-4">
+                    <div class="p-3 rounded-xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 border border-orange-400/20">
+                        <i class="fas fa-map-marker-alt text-orange-400 text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-bold text-white">Room</h3>
+                        <p class="text-slate-300 font-semibold">{{ $schedule->ruang ?? 'N/A' }}</p>
+                        <p class="text-slate-400 text-sm">Classroom location</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Information Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Schedule Details -->
+            <div class="glass-morphism-card p-6">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-calendar-alt mr-3 text-purple-400"></i>
+                    Schedule Information
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Schedule ID</span>
+                        <span class="text-white font-semibold">#{{ $schedule->id }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Day</span>
+                        <span class="text-white font-semibold">{{ $schedule->hari }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Class</span>
+                        <span class="text-white font-semibold">{{ $schedule->kelas }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Start Time</span>
+                        <span class="text-white font-semibold">{{ $schedule->jam_mulai }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3">
+                        <span class="text-slate-300">End Time</span>
+                        <span class="text-white font-semibold">{{ $schedule->jam_selesai }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Additional Information -->
+            <div class="glass-morphism-card p-6">
+                <h3 class="text-xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-info-circle mr-3 text-blue-400"></i>
+                    Additional Details
+                </h3>
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Status</span>
+                        <span class="glass-status-badge glass-status-active">Active</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3 border-b border-white/10">
+                        <span class="text-slate-300">Created</span>
+                        <span class="text-white font-semibold">{{ $schedule->created_at ? $schedule->created_at->format('M d, Y') : 'N/A' }}</span>
+                    </div>
+                    <div class="flex justify-between items-center py-3">
+                        <span class="text-slate-300">Last Updated</span>
+                        <span class="text-white font-semibold">{{ $schedule->updated_at ? $schedule->updated_at->format('M d, Y') : 'N/A' }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-col sm:flex-row justify-center gap-4 pt-6">
+            <a href="{{ route('web-schedules.edit', $schedule->id) }}" class="glass-action-btn glass-action-primary">
+                <i class="fas fa-edit mr-2"></i>
+                Edit Schedule
+            </a>
+            <a href="{{ route('web-schedules.index') }}" class="glass-action-btn glass-action-secondary">
+                <i class="fas fa-arrow-left mr-2"></i>
+                Back to Schedules
+            </a>
+            <form method="POST" action="{{ route('web-schedules.destroy', $schedule->id) }}" class="inline">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="glass-action-btn glass-action-danger"
+                        onclick="return confirm('Are you sure you want to delete this schedule?')">
+                    <i class="fas fa-trash-alt mr-2"></i>
+                    Delete Schedule
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Glass Morphism Components */
+.glass-morphism-card {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.glass-morphism-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+/* Status Badges */
+.glass-status-badge {
+    padding: 0.375rem 0.75rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    border: 1px solid;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.glass-status-active {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+/* Action Buttons */
+.glass-action-btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-decoration: none;
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.glass-action-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.glass-action-primary {
+    background: rgba(147, 51, 234, 0.1);
+    border-color: rgba(147, 51, 234, 0.3);
+    color: #c084fc;
+}
+
+.glass-action-primary:hover {
+    background: rgba(147, 51, 234, 0.2);
+    border-color: rgba(147, 51, 234, 0.4);
+    color: #ddd6fe;
+}
+
+.glass-action-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    border-color: rgba(148, 163, 184, 0.3);
+    color: #94a3b8;
+}
+
+.glass-action-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    border-color: rgba(148, 163, 184, 0.4);
+    color: #cbd5e1;
+}
+
+.glass-action-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.glass-action-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #f87171;
+}
+
+/* Notifications */
+.glass-notification {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    backdrop-filter: blur(10px);
+    border: 1px solid;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.glass-notification-success {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+}
+
+/* Stat Cards */
+.glass-stat-card {
+    padding: 1rem;
+    border-radius: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    text-align: center;
+    min-width: 120px;
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .glass-morphism-card {
+        margin: 0 1rem;
+    }
+}
+
+/* Theme Detection */
+.dark {
+    /* Dark mode styles are default */
+}
+
+.light {
+    /* Light mode overrides */
+    color: #1f2937;
+}
+
+.light body {
+    background-color: #f9fafb;
+    color: #1f2937;
+}
+
+/* Print Styles */
+@media print {
+    .glass-morphism-card {
+        background: white !important;
+        border: 1px solid #e5e7eb !important;
+        box-shadow: none !important;
+    }
+}
+</style>
+@endsection
