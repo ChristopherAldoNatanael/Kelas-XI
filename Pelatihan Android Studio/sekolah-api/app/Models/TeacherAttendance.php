@@ -37,12 +37,12 @@ class TeacherAttendance extends Model
 
     public function guru(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class, 'guru_id');
+        return $this->belongsTo(User::class, 'guru_id');
     }
 
     public function guruAsli(): BelongsTo
     {
-        return $this->belongsTo(Teacher::class, 'guru_asli_id');
+        return $this->belongsTo(User::class, 'guru_asli_id');
     }
 
     public function createdBy(): BelongsTo
@@ -54,7 +54,7 @@ class TeacherAttendance extends Model
     {
         return $this->belongsTo(User::class, 'assigned_by');
     }
-    
+
     // Safeguard methods to safely get related data
     public function getScheduleSafely()
     {
@@ -69,7 +69,7 @@ class TeacherAttendance extends Model
             return null;
         }
     }
-    
+
     public function getGuruSafely()
     {
         try {

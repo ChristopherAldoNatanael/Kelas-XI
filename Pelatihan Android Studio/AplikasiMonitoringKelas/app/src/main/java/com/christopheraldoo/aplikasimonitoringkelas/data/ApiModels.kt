@@ -81,7 +81,11 @@ data class ScheduleItem(
     @SerializedName("teacherId") val teacherId: Int = 0,
     @SerializedName("submitted") val submitted: Boolean = false,
     @SerializedName("status") val status: String? = null,
-    @SerializedName("catatan") val catatan: String = ""
+    @SerializedName("catatan") val catatan: String = "",
+    // Teacher leave/izin info
+    @SerializedName("teacher_on_leave") val teacherOnLeave: Boolean = false,
+    @SerializedName("leave_reason") val leaveReason: String? = null,
+    @SerializedName("substitute_teacher") val substituteTeacher: String? = null
 ) {
     // Get schedule ID from either field
     fun getActualScheduleId(): Int = if (scheduleId > 0) scheduleId else _scheduleIdSnake

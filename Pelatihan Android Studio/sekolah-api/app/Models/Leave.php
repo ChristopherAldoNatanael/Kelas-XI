@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Teacher;
+use App\Models\User;
 
 class Leave extends Model
 {
@@ -20,6 +22,7 @@ class Leave extends Model
         'rejection_reason',
         'substitute_teacher_id',
         'attachment',
+        'notes',
         'approved_by',
         'approved_at',
         'created_by',
@@ -36,12 +39,12 @@ class Leave extends Model
     // Relationships
     public function teacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'teacher_id');
+        return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
     public function substituteTeacher(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'substitute_teacher_id');
+        return $this->belongsTo(Teacher::class, 'substitute_teacher_id');
     }
 
     public function approvedBy(): BelongsTo

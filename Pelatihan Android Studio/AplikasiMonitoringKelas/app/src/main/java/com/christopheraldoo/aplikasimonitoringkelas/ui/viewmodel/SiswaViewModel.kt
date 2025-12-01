@@ -194,15 +194,21 @@ class SiswaViewModel(private val repository: NetworkRepository) : ViewModel() {
                     
                     // Convert to ScheduleItem format for kehadiran
                     val scheduleItems = todaySchedules.sortedBy { it.period }.map { schedule ->
+                        // Check if teacher is on leave (izin)
+                        val isOnLeave = schedule.attendanceStatus?.lowercase() == "izin"
+                        
                         ScheduleItem(
                             scheduleId = schedule.id,
                             period = schedule.period,
                             time = "${schedule.startTime} - ${schedule.endTime}",
                             subject = schedule.subjectName ?: "Mata Pelajaran",
                             teacher = schedule.teacherName ?: "Guru",
-                            submitted = false,
-                            status = null,
-                            catatan = ""
+                            submitted = isOnLeave, // If teacher is on leave, mark as "submitted" (no action needed)
+                            status = if (isOnLeave) "izin" else null,
+                            catatan = schedule.attendanceCatatan ?: "",
+                            teacherOnLeave = isOnLeave,
+                            leaveReason = if (isOnLeave) schedule.attendanceCatatan else null,
+                            substituteTeacher = schedule.substituteTeacherName
                         )
                     }
                     

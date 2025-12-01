@@ -53,24 +53,37 @@ class SiswaKehadiranGuruController extends Controller
                 return response()->json(['success' => false, 'message' => 'No class assigned'], 400);
             }
 
+            // Get the class name from classes table
+            $userClass = \DB::selectOne("SELECT nama_kelas FROM classes WHERE id = ? LIMIT 1", [$classId]);
+            if (!$userClass) {
+                return response()->json(['success' => false, 'message' => 'Class not found'], 400);
+            }
+            $className = $userClass->nama_kelas;
+
             // Get today's day in Indonesian
-            $dayMap = ['Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
-                      'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu'];
+            $dayMap = [
+                'Monday' => 'Senin',
+                'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu',
+                'Thursday' => 'Kamis',
+                'Friday' => 'Jumat',
+                'Saturday' => 'Sabtu',
+                'Sunday' => 'Minggu'
+            ];
             $hariIni = $dayMap[date('l')] ?? date('l');
             $tanggalHariIni = date('Y-m-d');
 
-            // ULTRA SIMPLE query - no relationships, just basic fields
+            // FIXED: Use 'kelas' column with class NAME, not class_id
+            // Join with teachers table using guru_id
             $schedules = \DB::select("
-                SELECT s.id, s.jam_mulai, s.jam_selesai, s.mata_pelajaran, s.ruang,
-                       COALESCE(g.nama, 'Guru') as teacher_name,
-                       COALESCE(sub.nama, s.mata_pelajaran) as subject_name
+                SELECT s.id, s.jam_mulai, s.jam_selesai, s.mata_pelajaran, s.ruang, s.guru_id,
+                       COALESCE(t.nama, 'Guru') as teacher_name
                 FROM schedules s
-                LEFT JOIN users g ON s.guru_id = g.id
-                LEFT JOIN subjects sub ON s.subject_id = sub.id
-                WHERE s.class_id = ? AND s.hari = ?
+                LEFT JOIN teachers t ON s.guru_id = t.id
+                WHERE s.kelas = ? AND s.hari = ?
                 ORDER BY s.jam_mulai
                 LIMIT 20
-            ", [$classId, $hariIni]);
+            ", [$className, $hariIni]);
 
             // Get attendance data separately - ultra simple
             $scheduleIds = array_column($schedules, 'id');
@@ -88,23 +101,67 @@ class SiswaKehadiranGuruController extends Controller
                 }
             }
 
+            // Get teacher IDs for leave checking
+            $teacherIds = array_filter(array_column($schedules, 'guru_id'));
+            $teachersOnLeave = [];
+            if (!empty($teacherIds)) {
+                $leaveData = \DB::select("
+                    SELECT l.teacher_id, l.reason, l.custom_reason, l.substitute_teacher_id,
+                           COALESCE(t.nama, '') as substitute_name
+                    FROM leaves l
+                    LEFT JOIN teachers t ON l.substitute_teacher_id = t.id
+                    WHERE l.status = 'approved'
+                    AND l.start_date <= ?
+                    AND l.end_date >= ?
+                    AND l.teacher_id IN (" . str_repeat('?,', count($teacherIds) - 1) . "?)
+                ", array_merge([$tanggalHariIni, $tanggalHariIni], $teacherIds));
+
+                foreach ($leaveData as $leave) {
+                    $teachersOnLeave[$leave->teacher_id] = $leave;
+                }
+            }
+
             // Build ultra simple response
             $result = [];
             $periodNumber = 1;
             foreach ($schedules as $schedule) {
                 $attendance = $attendances[$schedule->id] ?? null;
+                $teacherLeave = $teachersOnLeave[$schedule->guru_id] ?? null;
+
+                // Determine if teacher is on approved leave
+                $isOnLeave = $teacherLeave !== null;
+                $leaveReason = null;
+                $substituteTeacher = null;
+
+                if ($isOnLeave) {
+                    // Get leave reason text
+                    $leaveReason = match ($teacherLeave->reason) {
+                        'sakit' => 'Guru sedang Sakit',
+                        'cuti_tahunan' => 'Guru sedang Cuti Tahunan',
+                        'urusan_keluarga' => 'Guru sedang Urusan Keluarga',
+                        'acara_resmi' => 'Guru sedang Acara Resmi',
+                        'lainnya' => 'Guru sedang ' . ($teacherLeave->custom_reason ?: 'Izin'),
+                        default => 'Guru sedang Izin'
+                    };
+                    $substituteTeacher = $teacherLeave->substitute_name ?: null;
+                }
 
                 $result[] = [
                     'schedule_id' => $schedule->id,
                     'period' => $periodNumber++,
                     'time' => ($schedule->jam_mulai ? date('H:i', strtotime($schedule->jam_mulai)) : '00:00') . ' - ' .
-                             ($schedule->jam_selesai ? date('H:i', strtotime($schedule->jam_selesai)) : '00:00'),
-                    'subject' => $schedule->subject_name ?: 'Mata Pelajaran',
+                        ($schedule->jam_selesai ? date('H:i', strtotime($schedule->jam_selesai)) : '00:00'),
+                    'subject' => $schedule->mata_pelajaran ?: 'Mata Pelajaran',
                     'teacher' => $schedule->teacher_name ?: 'Guru',
-                    'submitted' => $attendance !== null,
-                    'status' => $attendance ? $attendance->status : null,
-                    'catatan' => $attendance ? $attendance->keterangan : null,
+                    'teacherId' => (int) $schedule->guru_id,
+                    'submitted' => $isOnLeave ? true : ($attendance !== null),
+                    'status' => $isOnLeave ? 'izin' : ($attendance ? $attendance->status : null),
+                    'catatan' => $isOnLeave ? $leaveReason : ($attendance ? $attendance->keterangan : null),
                     'submitted_at' => $attendance ? $attendance->submitted_at : null,
+                    // New fields for leave info
+                    'teacher_on_leave' => $isOnLeave,
+                    'leave_reason' => $leaveReason,
+                    'substitute_teacher' => $substituteTeacher,
                 ];
             }
 
@@ -114,7 +171,6 @@ class SiswaKehadiranGuruController extends Controller
                 'hari' => $hariIni,
                 'schedules' => $result
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -145,18 +201,29 @@ class SiswaKehadiranGuruController extends Controller
             }
 
             $classId = $user->class_id;
+            if (!$classId) {
+                return response()->json(['success' => false, 'message' => 'No class assigned'], 400);
+            }
+
+            // Get the class name from classes table
+            $userClass = \DB::selectOne("SELECT nama_kelas FROM classes WHERE id = ? LIMIT 1", [$classId]);
+            if (!$userClass) {
+                return response()->json(['success' => false, 'message' => 'Class not found'], 400);
+            }
+            $className = $userClass->nama_kelas;
+
             $tanggal = date('Y-m-d');
             $jamMasuk = in_array($status, ['hadir', 'telat']) ? date('H:i:s') : null;
 
-            // ULTRA SIMPLE: Check if schedule belongs to student's class
-            $scheduleCheck = \DB::selectOne("
-                SELECT id FROM schedules
-                WHERE id = ? AND class_id = ?
+            // FIXED: Check if schedule belongs to student's class using 'kelas' column with class NAME
+            $scheduleData = \DB::selectOne("
+                SELECT id, guru_id FROM schedules
+                WHERE id = ? AND kelas = ?
                 LIMIT 1
-            ", [$scheduleId, $classId]);
+            ", [$scheduleId, $className]);
 
-            if (!$scheduleCheck) {
-                return response()->json(['success' => false, 'message' => 'Invalid schedule'], 403);
+            if (!$scheduleData) {
+                return response()->json(['success' => false, 'message' => 'Invalid schedule for your class'], 403);
             }
 
             // Check if attendance already exists
@@ -176,17 +243,14 @@ class SiswaKehadiranGuruController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Attendance updated successfully',
+                    'message' => 'Kehadiran guru berhasil diperbarui',
                     'data' => ['id' => $existing->id, 'schedule_id' => $scheduleId, 'status' => $status]
                 ]);
             } else {
-                // Insert new - get teacher_id from schedule
-                $teacherId = \DB::selectOne("
-                    SELECT COALESCE(guru_id, teacher_id) as teacher_id
-                    FROM schedules WHERE id = ? LIMIT 1
-                ", [$scheduleId])->teacher_id;
+                // Insert new - use guru_id from scheduleData that we already fetched
+                $teacherId = $scheduleData->guru_id;
 
-                $newId = \DB::insert("
+                \DB::insert("
                     INSERT INTO teacher_attendances
                     (schedule_id, guru_id, tanggal, jam_masuk, status, keterangan, created_by, created_at, updated_at)
                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
@@ -194,11 +258,10 @@ class SiswaKehadiranGuruController extends Controller
 
                 return response()->json([
                     'success' => true,
-                    'message' => 'Attendance submitted successfully',
+                    'message' => 'Kehadiran guru berhasil dilaporkan',
                     'data' => ['id' => \DB::getPdo()->lastInsertId(), 'schedule_id' => $scheduleId, 'status' => $status]
                 ], 201);
             }
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -224,56 +287,97 @@ class SiswaKehadiranGuruController extends Controller
                 return response()->json(['success' => false, 'message' => 'No class assigned'], 400);
             }
 
+            // Get the class name from classes table
+            $userClass = \DB::selectOne("SELECT nama_kelas FROM classes WHERE id = ? LIMIT 1", [$classId]);
+            if (!$userClass) {
+                return response()->json(['success' => false, 'message' => 'Class not found'], 400);
+            }
+            $className = $userClass->nama_kelas;
+
             // Ultra simple pagination
             $page = max(1, (int)$request->get('page', 1));
             $limit = min(max(1, (int)$request->get('limit', 20)), 50);
             $offset = ($page - 1) * $limit;
 
-            // ULTRA SIMPLE raw query - no relationships
+            // FIXED: Use 'kelas' column with class NAME, join with teachers table
             $riwayat = \DB::select("
                 SELECT ta.id, ta.tanggal, ta.status, ta.keterangan,
                        DATE_FORMAT(ta.created_at, '%H:%i') as submitted_at,
-                       s.mata_pelajaran, s.jam_mulai, s.jam_selesai, s.period,
-                       COALESCE(u.nama, 'Guru') as teacher_name
+                       s.mata_pelajaran, s.jam_mulai, s.jam_selesai, s.hari,
+                       COALESCE(t.nama, 'Guru') as teacher_name
                 FROM teacher_attendances ta
                 INNER JOIN schedules s ON ta.schedule_id = s.id
-                LEFT JOIN users u ON ta.guru_id = u.id
-                WHERE s.class_id = ?
-                ORDER BY ta.tanggal DESC, ta.created_at DESC
+                LEFT JOIN teachers t ON ta.guru_id = t.id
+                WHERE s.kelas = ?
+                ORDER BY ta.tanggal DESC, s.jam_mulai ASC
                 LIMIT ? OFFSET ?
-            ", [$classId, $limit, $offset]);
+            ", [$className, $limit, $offset]);
 
             // Get total count
             $total = \DB::selectOne("
                 SELECT COUNT(*) as total
                 FROM teacher_attendances ta
                 INNER JOIN schedules s ON ta.schedule_id = s.id
-                WHERE s.class_id = ?
-            ", [$classId])->total;
+                WHERE s.kelas = ?
+            ", [$className])->total;
 
-            // Format results - ultra simple
+            // Format results - calculate period based on order within same day
             $result = [];
-            $dayMap = ['Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu',
-                      'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu', 'Sunday' => 'Minggu'];
+            $dayMap = [
+                'Monday' => 'Senin',
+                'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu',
+                'Thursday' => 'Kamis',
+                'Friday' => 'Jumat',
+                'Saturday' => 'Sabtu',
+                'Sunday' => 'Minggu'
+            ];
 
+            // Group by tanggal to calculate period within same day
+            $groupedByDate = [];
             foreach ($riwayat as $item) {
-                $englishDay = date('l', strtotime($item->tanggal));
-                $hari = $dayMap[$englishDay] ?? $englishDay;
-
-                $result[] = [
-                    'id' => $item->id,
-                    'tanggal' => $item->tanggal,
-                    'day' => $hari,
-                    'period' => $item->period ?: 1,
-                    'time' => ($item->jam_mulai ? date('H:i', strtotime($item->jam_mulai)) : '00:00') . ' - ' .
-                             ($item->jam_selesai ? date('H:i', strtotime($item->jam_selesai)) : '00:00'),
-                    'subject' => $item->mata_pelajaran ?: 'Mata Pelajaran',
-                    'teacher' => $item->teacher_name ?: 'Guru',
-                    'status' => $item->status,
-                    'catatan' => $item->keterangan,
-                    'submitted_at' => $item->submitted_at,
-                ];
+                $groupedByDate[$item->tanggal][] = $item;
             }
+
+            foreach ($groupedByDate as $tanggal => $items) {
+                // Sort by jam_mulai to get correct period order
+                usort($items, function ($a, $b) {
+                    return strcmp($a->jam_mulai ?? '', $b->jam_mulai ?? '');
+                });
+
+                $periodCounter = 1;
+                foreach ($items as $item) {
+                    $englishDay = date('l', strtotime($item->tanggal));
+                    $hari = $item->hari ?? ($dayMap[$englishDay] ?? $englishDay);
+
+                    $result[] = [
+                        'id' => $item->id,
+                        'tanggal' => $item->tanggal,
+                        'day' => $hari,
+                        'hari' => $hari,
+                        'period' => $periodCounter++,
+                        'time' => ($item->jam_mulai ? date('H:i', strtotime($item->jam_mulai)) : '00:00') . ' - ' .
+                            ($item->jam_selesai ? date('H:i', strtotime($item->jam_selesai)) : '00:00'),
+                        'jam' => ($item->jam_mulai ? date('H:i', strtotime($item->jam_mulai)) : '00:00') . ' - ' .
+                            ($item->jam_selesai ? date('H:i', strtotime($item->jam_selesai)) : '00:00'),
+                        'subject' => $item->mata_pelajaran ?: 'Mata Pelajaran',
+                        'mapel' => $item->mata_pelajaran ?: 'Mata Pelajaran',
+                        'teacher' => $item->teacher_name ?: 'Guru',
+                        'guru' => $item->teacher_name ?: 'Guru',
+                        'status' => $item->status,
+                        'catatan' => $item->keterangan,
+                        'keterangan' => $item->keterangan,
+                        'submitted_at' => $item->submitted_at,
+                    ];
+                }
+            }
+
+            // Sort final result by tanggal DESC, then by jam
+            usort($result, function ($a, $b) {
+                $dateCompare = strcmp($b['tanggal'], $a['tanggal']); // DESC
+                if ($dateCompare !== 0) return $dateCompare;
+                return strcmp($a['time'], $b['time']); // ASC for time
+            });
 
             // Simple pagination info
             $totalPages = ceil($total / $limit);
@@ -290,7 +394,6 @@ class SiswaKehadiranGuruController extends Controller
                     'has_prev_page' => $page > 1
                 ]
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

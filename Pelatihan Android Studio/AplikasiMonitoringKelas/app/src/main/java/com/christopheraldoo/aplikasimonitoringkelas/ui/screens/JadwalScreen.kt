@@ -56,13 +56,15 @@ private object JadwalColors {
     // Teacher Attendance Status Colors
     val StatusHadir = Color(0xFF4CAF50)        // Green - Present
     val StatusHadirLight = Color(0xFFE8F5E9)
-    val StatusTelat = Color(0xFFFF9800)         // Orange - Late
+    val StatusTelat = Color(0xFFFF9800)         // Orange/Yellow - Late
     val StatusTelatLight = Color(0xFFFFF3E0)
     val StatusTidakHadir = Color(0xFFE53935)    // Red - Absent
     val StatusTidakHadirLight = Color(0xFFFFEBEE)
-    val StatusDiganti = Color(0xFF9C27B0)       // Purple - Substituted
-    val StatusDigantiLight = Color(0xFFF3E5F5)
-    val StatusMenunggu = Color(0xFF9E9E9E)      // Gray - Waiting for report
+    val StatusDiganti = Color(0xFF2196F3)       // Blue - Substituted
+    val StatusDigantiLight = Color(0xFFE3F2FD)
+    val StatusIzin = Color(0xFF9C27B0)          // Purple - On Leave/Permission
+    val StatusIzinLight = Color(0xFFF3E5F5)
+    val StatusMenunggu = Color(0xFF9E9E9E)      // Gray - Waiting/Pending
     val StatusMenungguLight = Color(0xFFF5F5F5)
     
     // Neutral colors
@@ -94,9 +96,23 @@ fun JadwalScreen(
 ) {
     val schedulesState by viewModel.schedulesState.collectAsState()
     var selectedDay by remember { mutableStateOf<String?>(null) }
+    var hasAutoSelectedToday by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         viewModel.loadSchedules()
+    }
+
+    // Auto-select today when data loads
+    LaunchedEffect(schedulesState) {
+        val state = schedulesState
+        if (state is SchedulesUiState.Success && !hasAutoSelectedToday) {
+            val todayDay = state.todayDay
+            // Check if today exists in the schedule
+            if (state.groupedByDay.keys.any { it.equals(todayDay, ignoreCase = true) }) {
+                selectedDay = state.groupedByDay.keys.find { it.equals(todayDay, ignoreCase = true) }
+                hasAutoSelectedToday = true
+            }
+        }
     }
 
     Box(
@@ -118,7 +134,10 @@ fun JadwalScreen(
                         totalSchedules = state.schedules.size,
                         selectedDay = selectedDay,
                         onDaySelected = { selectedDay = it },
-                        onRefresh = { viewModel.loadSchedules(forceRefresh = true) }
+                        onRefresh = { 
+                            hasAutoSelectedToday = false  // Reset to allow auto-select on refresh
+                            viewModel.loadSchedules(forceRefresh = true) 
+                        }
                     )
                 }
             }
@@ -581,6 +600,7 @@ private fun ScheduleCard(
         "telat" -> Triple(JadwalColors.StatusTelat, JadwalColors.StatusTelatLight, "TELAT")
         "tidak_hadir" -> Triple(JadwalColors.StatusTidakHadir, JadwalColors.StatusTidakHadirLight, "TIDAK HADIR")
         "diganti" -> Triple(JadwalColors.StatusDiganti, JadwalColors.StatusDigantiLight, "DIGANTI")
+        "izin" -> Triple(JadwalColors.StatusIzin, JadwalColors.StatusIzinLight, "IZIN")
         else -> if (schedule.isToday) {
             Triple(JadwalColors.StatusMenunggu, JadwalColors.StatusMenungguLight, "MENUNGGU")
         } else null
@@ -718,22 +738,124 @@ private fun ScheduleCard(
                     color = JadwalColors.StatusDigantiLight
                 ) {
                     Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             imageVector = Icons.Outlined.SwapHoriz,
                             contentDescription = null,
-                            modifier = Modifier.size(14.dp),
+                            modifier = Modifier.size(18.dp),
                             tint = JadwalColors.StatusDiganti
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Diganti oleh: ${schedule.substituteTeacherName}",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = JadwalColors.StatusDiganti
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column {
+                            Text(
+                                text = "Guru Pengganti",
+                                fontSize = 10.sp,
+                                color = JadwalColors.StatusDiganti.copy(alpha = 0.7f)
+                            )
+                            Text(
+                                text = schedule.substituteTeacherName!!,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = JadwalColors.StatusDiganti
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Show "Waiting for substitute" message if teacher is absent
+            if (schedule.attendanceStatus?.lowercase() == "tidak_hadir") {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = JadwalColors.StatusTidakHadirLight,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.HourglassEmpty,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = JadwalColors.StatusTidakHadir
                         )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "Guru Tidak Hadir",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = JadwalColors.StatusTidakHadir
+                            )
+                            Text(
+                                text = "Menunggu guru pengganti dari Waka Kurikulum",
+                                fontSize = 11.sp,
+                                color = JadwalColors.StatusTidakHadir.copy(alpha = 0.8f)
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Show "Teacher is on leave" info if status is "izin"
+            if (schedule.attendanceStatus?.lowercase() == "izin") {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = JadwalColors.StatusIzinLight,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.EventBusy,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                            tint = JadwalColors.StatusIzin
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Guru Sedang Izin",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = JadwalColors.StatusIzin
+                            )
+                            if (!schedule.substituteTeacherName.isNullOrEmpty()) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.SwapHoriz,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = JadwalColors.StatusIzin.copy(alpha = 0.8f)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Digantikan oleh: ${schedule.substituteTeacherName}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = JadwalColors.StatusIzin.copy(alpha = 0.9f)
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = "Menunggu guru pengganti dari Waka Kurikulum",
+                                    fontSize = 11.sp,
+                                    color = JadwalColors.StatusIzin.copy(alpha = 0.8f)
+                                )
+                            }
+                        }
                     }
                 }
             }

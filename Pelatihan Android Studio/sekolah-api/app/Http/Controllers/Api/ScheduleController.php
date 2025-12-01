@@ -1611,16 +1611,42 @@ class ScheduleController extends Controller
                     ->keyBy('schedule_id');
             }
 
+            // Get teacher IDs from schedules for leave checking
+            $teacherIds = $schedules->pluck('guru_id')->filter()->unique()->toArray();
+
+            // Get approved leaves for today - teacher is on leave if today falls within start_date and end_date
+            $teachersOnLeave = collect();
+            if (!empty($teacherIds)) {
+                $teachersOnLeave = DB::table('leaves')
+                    ->select(['teacher_id', 'reason', 'custom_reason', 'substitute_teacher_id'])
+                    ->where('status', 'approved')
+                    ->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today)
+                    ->whereIn('teacher_id', $teacherIds)
+                    ->get()
+                    ->keyBy('teacher_id');
+            }
+
             // Get substitute teacher names (guru_id is substitute when status is 'diganti')
             $substituteTeacherIds = $todayAttendance
                 ->filter(fn($a) => $a->status === 'diganti' && $a->guru_id)
                 ->pluck('guru_id')
                 ->unique()
                 ->toArray();
+
+            // Also get substitute teacher IDs from leaves
+            $leaveSubstituteIds = $teachersOnLeave
+                ->filter(fn($l) => $l->substitute_teacher_id)
+                ->pluck('substitute_teacher_id')
+                ->unique()
+                ->toArray();
+
+            $allSubstituteIds = array_unique(array_merge($substituteTeacherIds, $leaveSubstituteIds));
+
             $substituteTeachers = [];
-            if (!empty($substituteTeacherIds)) {
+            if (!empty($allSubstituteIds)) {
                 $substituteTeachers = DB::table('teachers')
-                    ->whereIn('id', $substituteTeacherIds)
+                    ->whereIn('id', $allSubstituteIds)
                     ->pluck('nama', 'id')
                     ->toArray();
             }
@@ -1638,12 +1664,33 @@ class ScheduleController extends Controller
 
                 $isToday = strtolower($item->hari ?? '') === strtolower($todayDayName);
                 $attendance = $todayAttendance->get($item->id);
+                $teacherLeave = $teachersOnLeave->get($item->guru_id);
 
                 $attendanceStatus = null;
                 $attendanceCatatan = null;
                 $substituteTeacherName = null;
 
-                if ($isToday && $attendance) {
+                // Priority: 1. Check if teacher is on approved leave, 2. Check attendance record
+                if ($isToday && $teacherLeave) {
+                    // Teacher is on approved leave today
+                    $attendanceStatus = 'izin';
+                    // Get leave reason
+                    $leaveReason = $teacherLeave->reason === 'lainnya'
+                        ? ($teacherLeave->custom_reason ?? 'Izin')
+                        : match ($teacherLeave->reason) {
+                            'sakit' => 'Sakit',
+                            'cuti_tahunan' => 'Cuti Tahunan',
+                            'urusan_keluarga' => 'Urusan Keluarga',
+                            'acara_resmi' => 'Acara Resmi',
+                            default => ucfirst($teacherLeave->reason ?? 'Izin')
+                        };
+                    $attendanceCatatan = "Guru sedang $leaveReason";
+
+                    // Get substitute teacher if assigned
+                    if ($teacherLeave->substitute_teacher_id) {
+                        $substituteTeacherName = $substituteTeachers[$teacherLeave->substitute_teacher_id] ?? null;
+                    }
+                } elseif ($isToday && $attendance) {
                     $attendanceStatus = $attendance->status;
                     $attendanceCatatan = $attendance->keterangan;
 
@@ -1707,7 +1754,8 @@ class ScheduleController extends Controller
      */
     public function myWeeklyScheduleWithAttendanceManualAuth(Request $request): JsonResponse
     {
-        @set_time_limit(10);
+        @set_time_limit(30); // Increased from 10 to prevent timeout
+        @ini_set('memory_limit', '128M'); // Ensure enough memory
 
         try {
             // Manual token validation (bypass Sanctum middleware)
@@ -1779,12 +1827,18 @@ class ScheduleController extends Controller
             ];
             $todayDayName = $dayMap[now()->format('l')] ?? now()->format('l');
 
-            Log::info('myWeeklyScheduleWithAttendanceManualAuth', [
-                'user_id' => $user->id,
-                'class_id' => $classId,
-                'class_name' => $className,
-                'today' => $todayDayName
-            ]);
+            // Cache key for this class's schedules (cache for 2 minutes)
+            $cacheKey = "weekly_schedule_v2_{$classId}_{$today}";
+
+            // Try to get from cache first
+            $cachedData = Cache::get($cacheKey);
+            if ($cachedData !== null) {
+                Log::info('myWeeklyScheduleWithAttendanceManualAuth - returning cached data', [
+                    'class_id' => $classId,
+                    'cache_key' => $cacheKey
+                ]);
+                return response()->json($cachedData, 200);
+            }
 
             // Get schedules with teacher info - SIMPLE query
             $schedules = DB::table('schedules')
@@ -1817,16 +1871,42 @@ class ScheduleController extends Controller
                     ->keyBy('schedule_id');
             }
 
+            // Get teacher IDs from schedules for leave checking
+            $teacherIds = $schedules->pluck('guru_id')->filter()->unique()->toArray();
+
+            // Get approved leaves for today - teacher is on leave if today falls within start_date and end_date
+            $teachersOnLeave = collect();
+            if (!empty($teacherIds)) {
+                $teachersOnLeave = DB::table('leaves')
+                    ->select(['teacher_id', 'reason', 'custom_reason', 'substitute_teacher_id'])
+                    ->where('status', 'approved')
+                    ->where('start_date', '<=', $today)
+                    ->where('end_date', '>=', $today)
+                    ->whereIn('teacher_id', $teacherIds)
+                    ->get()
+                    ->keyBy('teacher_id');
+            }
+
             // Get substitute teacher names (guru_id is substitute when status is 'diganti')
             $substituteTeacherIds = $todayAttendance
                 ->filter(fn($a) => $a->status === 'diganti' && $a->guru_id)
                 ->pluck('guru_id')
                 ->unique()
                 ->toArray();
+
+            // Also get substitute teacher IDs from leaves
+            $leaveSubstituteIds = $teachersOnLeave
+                ->filter(fn($l) => $l->substitute_teacher_id)
+                ->pluck('substitute_teacher_id')
+                ->unique()
+                ->toArray();
+
+            $allSubstituteIds = array_unique(array_merge($substituteTeacherIds, $leaveSubstituteIds));
+
             $substituteTeachers = [];
-            if (!empty($substituteTeacherIds)) {
+            if (!empty($allSubstituteIds)) {
                 $substituteTeachers = DB::table('teachers')
-                    ->whereIn('id', $substituteTeacherIds)
+                    ->whereIn('id', $allSubstituteIds)
                     ->pluck('nama', 'id')
                     ->toArray();
             }
@@ -1844,12 +1924,33 @@ class ScheduleController extends Controller
 
                 $isToday = strtolower($item->hari ?? '') === strtolower($todayDayName);
                 $attendance = $todayAttendance->get($item->id);
+                $teacherLeave = $teachersOnLeave->get($item->guru_id);
 
                 $attendanceStatus = null;
                 $attendanceCatatan = null;
                 $substituteTeacherName = null;
 
-                if ($isToday && $attendance) {
+                // Priority: 1. Check if teacher is on approved leave, 2. Check attendance record
+                if ($isToday && $teacherLeave) {
+                    // Teacher is on approved leave today
+                    $attendanceStatus = 'izin';
+                    // Get leave reason
+                    $leaveReason = $teacherLeave->reason === 'lainnya'
+                        ? ($teacherLeave->custom_reason ?? 'Izin')
+                        : match ($teacherLeave->reason) {
+                            'sakit' => 'Sakit',
+                            'cuti_tahunan' => 'Cuti Tahunan',
+                            'urusan_keluarga' => 'Urusan Keluarga',
+                            'acara_resmi' => 'Acara Resmi',
+                            default => ucfirst($teacherLeave->reason ?? 'Izin')
+                        };
+                    $attendanceCatatan = "Guru sedang $leaveReason";
+
+                    // Get substitute teacher if assigned
+                    if ($teacherLeave->substitute_teacher_id) {
+                        $substituteTeacherName = $substituteTeachers[$teacherLeave->substitute_teacher_id] ?? null;
+                    }
+                } elseif ($isToday && $attendance) {
                     $attendanceStatus = $attendance->status;
                     $attendanceCatatan = $attendance->keterangan;
 
@@ -1880,13 +1981,21 @@ class ScheduleController extends Controller
                 $period++;
             }
 
-            return response()->json([
+            // Prepare response data
+            $responseData = [
                 'success' => true,
                 'message' => 'Jadwal mingguan dengan status kehadiran berhasil dimuat',
                 'today' => $todayDayName,
                 'date' => $today,
                 'data' => $formattedData
-            ], 200);
+            ];
+
+            // Cache the result for 2 minutes
+            Cache::put($cacheKey, $responseData, 120);
+
+            return response()->json($responseData, 200, [
+                'Content-Type' => 'application/json; charset=utf-8'
+            ]);
         } catch (\Exception $e) {
             Log::error('myWeeklyScheduleWithAttendanceManualAuth error: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()

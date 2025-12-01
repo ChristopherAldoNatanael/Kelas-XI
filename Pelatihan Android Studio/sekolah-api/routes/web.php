@@ -176,6 +176,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('teacher-leaves/{id}', [WebTeacherLeaveController::class, 'destroy'])->name('teacher-leaves.destroy');
         Route::post('teacher-leaves/{id}/approve', [WebTeacherLeaveController::class, 'approve'])->name('teacher-leaves.approve');
         Route::post('teacher-leaves/{id}/reject', [WebTeacherLeaveController::class, 'reject'])->name('teacher-leaves.reject');
+        Route::get('teacher-leaves/export/pdf', [WebTeacherLeaveController::class, 'exportPdf'])->name('teacher-leaves.export.pdf');
+        Route::get('teacher-leaves/export/excel', [WebTeacherLeaveController::class, 'exportExcel'])->name('teacher-leaves.export.excel');
         Route::get('teacher-leaves/substitute-teachers', [WebTeacherLeaveController::class, 'getSubstituteTeachers'])->name('teacher-leaves.substitute-teachers');
     });
 });

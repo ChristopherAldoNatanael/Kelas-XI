@@ -71,6 +71,10 @@ private object KehadiranColors {
     val PurpleAccent = Color(0xFF7C4DFF)
     val PurpleLight = Color(0xFFEDE7F6)
     
+    // Teacher Leave/Izin colors
+    val IzinPurple = Color(0xFF9C27B0)
+    val IzinPurpleLight = Color(0xFFF3E5F5)
+    
     // Neutral colors
     val DarkText = Color(0xFF1A1A2E)
     val MediumText = Color(0xFF4A4A68)
@@ -377,8 +381,9 @@ private fun KehadiranStatusSummary(schedules: List<ScheduleItem>) {
     val hadirCount = schedules.count { it.submitted && it.status == "hadir" }
     val terlambatCount = schedules.count { it.submitted && (it.status == "terlambat" || it.status == "telat") }
     val tidakHadirCount = schedules.count { it.submitted && it.status == "tidak_hadir" }
+    val izinCount = schedules.count { it.teacherOnLeave || it.status == "izin" }
     
-    if (schedules.any { it.submitted }) {
+    if (schedules.any { it.submitted } || izinCount > 0) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -420,6 +425,12 @@ private fun KehadiranStatusSummary(schedules: List<ScheduleItem>) {
                         label = "Absen",
                         color = KehadiranColors.ErrorRed,
                         backgroundColor = KehadiranColors.ErrorRedLight
+                    )
+                    StatusSummaryItem(
+                        count = izinCount,
+                        label = "Izin",
+                        color = KehadiranColors.IzinPurple,
+                        backgroundColor = KehadiranColors.IzinPurpleLight
                     )
                 }
             }
@@ -472,7 +483,11 @@ private fun KehadiranScheduleCard(
 ) {
     var showDialog by remember { mutableStateOf(false) }
     
+    // Check if teacher is on leave
+    val isTeacherOnLeave = schedule.teacherOnLeave || schedule.status == "izin"
+    
     val borderColor = when {
+        isTeacherOnLeave -> KehadiranColors.IzinPurple
         !schedule.submitted -> KehadiranColors.WaitingYellow
         schedule.status == "hadir" -> KehadiranColors.SuccessGreen
         schedule.status == "terlambat" || schedule.status == "telat" -> KehadiranColors.WarningOrange
@@ -481,6 +496,7 @@ private fun KehadiranScheduleCard(
     }
     
     val backgroundColor = when {
+        isTeacherOnLeave -> KehadiranColors.IzinPurpleLight
         !schedule.submitted -> KehadiranColors.CardBackground
         schedule.status == "hadir" -> KehadiranColors.SuccessGreenLight
         schedule.status == "terlambat" || schedule.status == "telat" -> KehadiranColors.WarningOrangeLight
@@ -576,8 +592,71 @@ private fun KehadiranScheduleCard(
                 )
             }
             
-            // Catatan if exists
-            if (schedule.submitted && !schedule.catatan.isNullOrEmpty()) {
+            // Show Teacher On Leave Info
+            if (isTeacherOnLeave) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = KehadiranColors.IzinPurpleLight,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.EventBusy,
+                            contentDescription = null,
+                            modifier = Modifier.size(24.dp),
+                            tint = KehadiranColors.IzinPurple
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Guru Sedang Izin",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = KehadiranColors.IzinPurple
+                            )
+                            if (!schedule.leaveReason.isNullOrEmpty()) {
+                                Text(
+                                    text = schedule.leaveReason,
+                                    fontSize = 12.sp,
+                                    color = KehadiranColors.IzinPurple.copy(alpha = 0.8f)
+                                )
+                            }
+                            if (!schedule.substituteTeacher.isNullOrEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Outlined.SwapHoriz,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(14.dp),
+                                        tint = KehadiranColors.IzinPurple.copy(alpha = 0.8f)
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "Digantikan: ${schedule.substituteTeacher}",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = KehadiranColors.IzinPurple.copy(alpha = 0.9f)
+                                    )
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Menunggu guru pengganti",
+                                    fontSize = 11.sp,
+                                    color = KehadiranColors.IzinPurple.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Catatan if exists (and not on leave - leave shows its own info)
+            if (!isTeacherOnLeave && schedule.submitted && !schedule.catatan.isNullOrEmpty()) {
                 Spacer(modifier = Modifier.height(10.dp))
                 Surface(
                     shape = RoundedCornerShape(8.dp),
@@ -604,8 +683,8 @@ private fun KehadiranScheduleCard(
                 }
             }
             
-            // Action Button if not submitted
-            if (!schedule.submitted) {
+            // Action Button if not submitted and not on leave
+            if (!schedule.submitted && !isTeacherOnLeave) {
                 Spacer(modifier = Modifier.height(14.dp))
                 
                 Button(
@@ -655,7 +734,16 @@ private fun KehadiranScheduleCard(
 
 @Composable
 private fun KehadiranStatusBadge(schedule: ScheduleItem) {
+    // Check if teacher is on leave first
+    val isTeacherOnLeave = schedule.teacherOnLeave || schedule.status == "izin"
+    
     val (text, bgColor, textColor, icon) = when {
+        isTeacherOnLeave -> StatusBadgeConfig(
+            "IZIN",
+            KehadiranColors.IzinPurpleLight,
+            KehadiranColors.IzinPurple,
+            Icons.Outlined.EventBusy
+        )
         !schedule.submitted -> StatusBadgeConfig(
             "MENUNGGU",
             KehadiranColors.WaitingYellowLight,

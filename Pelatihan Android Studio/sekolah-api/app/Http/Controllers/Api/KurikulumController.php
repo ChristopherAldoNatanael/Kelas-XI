@@ -22,8 +22,7 @@ use Carbon\Carbon;
  * Handles schedule monitoring, teacher substitution, and attendance history
  */
 class KurikulumController extends Controller
-{
-    /**
+{    /**
      * Get dashboard overview - All classes with teacher attendance status
      * Cached for 30 seconds to reduce server load
      * 
@@ -60,7 +59,7 @@ class KurikulumController extends Controller
                     ->orderBy('major')
                     ->orderBy('nama_kelas')
                     ->get()
-                    ->map(function ($class) {
+                    ->map(function($class) {
                         return [
                             'id' => $class->id,
                             'name' => $class->nama_kelas,

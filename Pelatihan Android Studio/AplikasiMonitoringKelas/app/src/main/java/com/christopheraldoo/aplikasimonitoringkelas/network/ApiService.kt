@@ -163,23 +163,23 @@ interface ApiService {
 
     // ========== KEHADIRAN (ATTENDANCE) ENDPOINTS ==========
     
-    // Submit teacher attendance
-    @POST("siswa/kehadiran")
+    // Submit teacher attendance (siswa melaporkan kehadiran guru)
+    @POST("siswa/kehadiran-guru/submit")
     suspend fun submitKehadiran(
         @Header("Authorization") token: String,
         @Body body: KehadiranSubmitRequest
     ): Response<KehadiranSubmitResponse>
 
     // Get attendance history with pagination
-    @GET("siswa/kehadiran/riwayat")
+    @GET("siswa/kehadiran-guru/riwayat")
     suspend fun getKehadiranHistory(
         @Header("Authorization") token: String,
         @Query("page") page: Int = 1,
         @Query("limit") limit: Int = 20
     ): Response<KehadiranHistoryResponse>
 
-    // Get today's attendance status
-    @GET("siswa/kehadiran/today")
+    // Get today's GURU attendance status (siswa melaporkan kehadiran guru)
+    @GET("siswa/kehadiran-guru/today")
     suspend fun getTodayKehadiranStatus(
         @Header("Authorization") token: String
     ): Response<TodayKehadiranResponse>

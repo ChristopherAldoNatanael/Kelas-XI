@@ -199,10 +199,11 @@ class NetworkRepository(private val context: Context) {
     /**
      * Get weekly schedule with teacher attendance status
      * Uses the stable endpoint and calculates today locally
-     * Attendance status will be added in future when server endpoint is stable
+     * Includes retry mechanism for handling EOFException/parsing errors
      */
     suspend fun getSchedulesWithAttendance(forceRefresh: Boolean = false): Result<Pair<List<ScheduleApi>, String?>> {
         val requestKey = "getSchedulesWithAttendance"
+        val maxRetries = 3
 
         // If force refresh, cancel any ongoing request
         if (forceRefresh) {
@@ -224,47 +225,72 @@ class NetworkRepository(private val context: Context) {
         val deferred = coroutineScope {
             requestMutex.withLock {
                 async(Dispatchers.IO) {
-                    try {
-                        val token = SessionManager(context).getAuthToken()
-                        if (token.isNullOrEmpty()) {
-                            return@async Result.failure<Pair<List<ScheduleApi>, String?>>(Exception("Token tidak ditemukan"))
+                    var lastException: Exception? = null
+                    
+                    for (attempt in 1..maxRetries) {
+                        try {
+                            val token = SessionManager(context).getAuthToken()
+                            if (token.isNullOrEmpty()) {
+                                return@async Result.failure<Pair<List<ScheduleApi>, String?>>(Exception("Token tidak ditemukan"))
+                            }
+
+                            // Calculate today's day name in Indonesian
+                            val dayMap = mapOf(
+                                java.util.Calendar.MONDAY to "Senin",
+                                java.util.Calendar.TUESDAY to "Selasa",
+                                java.util.Calendar.WEDNESDAY to "Rabu",
+                                java.util.Calendar.THURSDAY to "Kamis",
+                                java.util.Calendar.FRIDAY to "Jumat",
+                                java.util.Calendar.SATURDAY to "Sabtu",
+                                java.util.Calendar.SUNDAY to "Minggu"
+                            )
+                            val todayDay = dayMap[java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)] ?: "Senin"
+
+                            // Use the endpoint WITH attendance status for JadwalScreen
+                            Log.d("NetworkRepository", "Attempt $attempt/$maxRetries: Using endpoint siswa/weekly-schedule-attendance")
+                            val response = apiService.getWeeklyScheduleWithAttendance("Bearer $token")
+
+                            Log.d("NetworkRepository", "Schedule Response Code: ${response.code()}")
+
+                            if (response.isSuccessful && response.body()?.success == true) {
+                                val schedules = response.body()?.data ?: emptyList()
+                                val serverToday = response.body()?.today ?: todayDay
+                                Log.d("NetworkRepository", "Successfully parsed ${schedules.size} schedules with attendance, today=$serverToday")
+                                
+                                return@async Result.success(Pair(schedules, serverToday))
+                            } else {
+                                val errorMsg = "HTTP ${response.code()}: ${response.message()}"
+                                Log.e("NetworkRepository", errorMsg)
+                                lastException = Exception(errorMsg)
+                            }
+                        } catch (e: java.io.EOFException) {
+                            Log.w("NetworkRepository", "EOFException on attempt $attempt/$maxRetries: ${e.message}")
+                            lastException = Exception("Data tidak lengkap, mencoba lagi...", e)
+                            if (attempt < maxRetries) {
+                                kotlinx.coroutines.delay(1000L * attempt)
+                            }
+                        } catch (e: com.google.gson.JsonSyntaxException) {
+                            Log.w("NetworkRepository", "JSON parsing error on attempt $attempt/$maxRetries: ${e.message}")
+                            lastException = Exception("Format data tidak valid", e)
+                            if (attempt < maxRetries) {
+                                kotlinx.coroutines.delay(1000L * attempt)
+                            }
+                        } catch (e: java.net.SocketTimeoutException) {
+                            Log.w("NetworkRepository", "Timeout on attempt $attempt/$maxRetries: ${e.message}")
+                            lastException = Exception("Koneksi timeout", e)
+                            if (attempt < maxRetries) {
+                                kotlinx.coroutines.delay(500L * attempt)
+                            }
+                        } catch (e: Exception) {
+                            Log.e("NetworkRepository", "Get schedules error on attempt $attempt/$maxRetries", e)
+                            lastException = e
+                            // For other exceptions, don't retry
+                            break
                         }
-
-                        // Calculate today's day name in Indonesian
-                        val dayMap = mapOf(
-                            java.util.Calendar.MONDAY to "Senin",
-                            java.util.Calendar.TUESDAY to "Selasa",
-                            java.util.Calendar.WEDNESDAY to "Rabu",
-                            java.util.Calendar.THURSDAY to "Kamis",
-                            java.util.Calendar.FRIDAY to "Jumat",
-                            java.util.Calendar.SATURDAY to "Sabtu",
-                            java.util.Calendar.SUNDAY to "Minggu"
-                        )
-                        val todayDay = dayMap[java.util.Calendar.getInstance().get(java.util.Calendar.DAY_OF_WEEK)] ?: "Senin"
-
-                        // Use the endpoint WITH attendance status for JadwalScreen
-                        Log.d("NetworkRepository", "Using endpoint with attendance: siswa/weekly-schedule-attendance")
-                        val response = apiService.getWeeklyScheduleWithAttendance("Bearer $token")
-
-                        Log.d("NetworkRepository", "Schedule Response Code: ${response.code()}")
-
-                        if (response.isSuccessful && response.body()?.success == true) {
-                            val schedules = response.body()?.data ?: emptyList()
-                            val serverToday = response.body()?.today ?: todayDay
-                            Log.d("NetworkRepository", "Successfully parsed ${schedules.size} schedules with attendance, today=$serverToday")
-                            
-                            Result.success(Pair(schedules, serverToday))
-                        } else {
-                            val errorMsg = "HTTP ${response.code()}: ${response.message()}"
-                            Log.e("NetworkRepository", errorMsg)
-                            Result.failure(Exception(errorMsg))
-                        }
-                    } catch (e: Exception) {
-                        Log.e("NetworkRepository", "Get schedules with attendance error", e)
-                        Result.failure(e)
-                    } finally {
-                        ongoingRequests.remove(requestKey)
                     }
+                    
+                    ongoingRequests.remove(requestKey)
+                    Result.failure(lastException ?: Exception("Gagal memuat jadwal setelah $maxRetries percobaan"))
                 }
             }
         }

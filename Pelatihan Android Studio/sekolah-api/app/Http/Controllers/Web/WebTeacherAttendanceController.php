@@ -19,41 +19,52 @@ use App\Exports\TeacherAttendanceExport;
 class WebTeacherAttendanceController extends Controller
 {
     /**
-     * Display teacher attendance index page
+     * Display teacher attendance index page - OPTIMIZED VERSION
      */
     public function index(Request $request)
     {
-        $subjects = Cache::remember('subjects_for_attendance', 3600, function () {
-            return Subject::select('id', 'nama')->get()->map(function ($subject) {
-                $subject->nama_mapel = $subject->nama; // Add backward compatibility
-                $subject->name = $subject->nama; // English alias
-                return $subject;
-            });
+        // Enhanced caching with better keys and longer cache times
+        $subjects = Cache::remember('attendance_subjects_v2', 7200, function () {
+            return Subject::select('id', 'nama')
+                ->orderBy('nama')
+                ->get()
+                ->map(function ($subject) {
+                    $subject->nama_mapel = $subject->nama;
+                    $subject->name = $subject->nama;
+                    return $subject;
+                });
         });
 
-        $teachers = Cache::remember('teachers_for_attendance', 3600, function () {
+        $teachers = Cache::remember('attendance_teachers_v2', 3600, function () {
             return User::where('role', '!=', 'siswa')
-                ->select('id', 'name')
+                ->select('id', 'name', 'email')
                 ->orderBy('name')
-                ->limit(100) // Add reasonable limit for substitute teachers list
                 ->get();
         });
 
-        return view('teacher-attendance.index', compact('subjects', 'teachers'));
+        // Add current date range for better UX
+        $defaultDateFrom = now()->startOfMonth()->format('Y-m-d');
+        $defaultDateTo = now()->format('Y-m-d');
+
+        return view('teacher-attendance.index', compact('subjects', 'teachers', 'defaultDateFrom', 'defaultDateTo'));
     }
 
     /**
-     * Get attendance data for AJAX requests
+     * Get attendance data for AJAX requests - OPTIMIZED VERSION
      */
     public function getData(Request $request): JsonResponse
     {
         try {
-            // Simple query without complex relationships first
+            // TEMPORARY: Remove all filters to debug
             $query = TeacherAttendance::query();
 
-            // Apply basic filters
+            // For debugging, let's see what records exist
+            \Log::info('Total teacher attendances in DB: ' . TeacherAttendance::count());
+
+            // Apply optimized filters - but make them optional for debugging
             if ($request->filled('date_from') && $request->filled('date_to')) {
                 $query->whereBetween('tanggal', [$request->date_from, $request->date_to]);
+                \Log::info('Filtering by date range: ' . $request->date_from . ' to ' . $request->date_to);
             } elseif ($request->filled('date_from')) {
                 $query->where('tanggal', '>=', $request->date_from);
             } elseif ($request->filled('date_to')) {
@@ -76,37 +87,99 @@ class WebTeacherAttendanceController extends Controller
                 }
             }
 
+            // Store search term for later use in relationship loading
+            $searchTerm = $request->filled('search') ? $request->search : null;
+
+            $perPage = min($request->get('per_page', 15), 50);
             $attendances = $query->orderBy('tanggal', 'desc')
-                ->orderBy('jam_masuk')
-                ->paginate($request->get('per_page', 15));
+                ->orderBy('jam_masuk', 'desc')
+                ->paginate($perPage);
 
-            // Add basic relationship data manually for now
+            \Log::info('Query returned ' . $attendances->total() . ' records');
+
+            // Add relationship data manually but optimized
+            $filteredAttendances = collect();
             foreach ($attendances as $attendance) {
-                $schedule = \DB::table('schedules')->where('id', $attendance->schedule_id)->first();
-                $guru = \DB::table('users')->where('id', $attendance->guru_id)->first();
-                $guruAsli = $attendance->guru_asli_id ? \DB::table('users')->where('id', $attendance->guru_asli_id)->first() : null;
+                // Use single optimized queries instead of multiple
+                $scheduleData = Cache::remember("schedule_{$attendance->schedule_id}", 3600, function () use ($attendance) {
+                    return DB::table('schedules')
+                        ->where('id', $attendance->schedule_id)
+                        ->select('id', 'mata_pelajaran', 'kelas', 'hari', 'jam_mulai', 'jam_selesai')
+                        ->first();
+                });
 
-                $attendance->schedule = $schedule ? (object)[
-                    'id' => $schedule->id,
-                    'mata_pelajaran' => $schedule->mata_pelajaran ?? 'N/A',
-                    'kelas' => $schedule->kelas ?? 'N/A'
+                $guruData = Cache::remember("user_{$attendance->guru_id}", 3600, function () use ($attendance) {
+                    return DB::table('users')
+                        ->where('id', $attendance->guru_id)
+                        ->select('id', 'name', 'email')
+                        ->first();
+                });
+
+                $guruAsliData = $attendance->guru_asli_id ?
+                    Cache::remember("user_{$attendance->guru_asli_id}", 3600, function () use ($attendance) {
+                        return DB::table('users')
+                            ->where('id', $attendance->guru_asli_id)
+                            ->select('id', 'name', 'email')
+                            ->first();
+                    }) : null;
+
+                // Apply search filter if provided (client-side filtering as fallback)
+                if ($searchTerm) {
+                    $searchMatch = false;
+                    if ($guruData && stripos($guruData->name, $searchTerm) !== false) {
+                        $searchMatch = true;
+                    }
+                    if ($scheduleData &&
+                        (stripos($scheduleData->mata_pelajaran, $searchTerm) !== false ||
+                         stripos($scheduleData->kelas, $searchTerm) !== false)) {
+                        $searchMatch = true;
+                    }
+                    if (!$searchMatch) {
+                        continue; // Skip this record if it doesn't match search
+                    }
+                }
+
+                // Format data to match frontend expectations
+                $attendance->schedule = $scheduleData ? (object)[
+                    'id' => $scheduleData->id,
+                    'mata_pelajaran' => $scheduleData->mata_pelajaran ?? 'N/A',
+                    'kelas' => $scheduleData->kelas ?? 'N/A',
+                    'hari' => $scheduleData->hari ?? 'N/A',
+                    'jam_mulai' => $scheduleData->jam_mulai ?? 'N/A',
+                    'jam_selesai' => $scheduleData->jam_selesai ?? 'N/A',
+                    'subject' => (object)['nama_mapel' => $scheduleData->mata_pelajaran ?? 'N/A'],
+                    'class_model' => (object)['nama_kelas' => $scheduleData->kelas ?? 'N/A']
                 ] : null;
 
-                $attendance->guru = $guru ? (object)[
-                    'id' => $guru->id,
-                    'name' => $guru->name ?? 'N/A'
+                $attendance->guru = $guruData ? (object)[
+                    'id' => $guruData->id,
+                    'name' => $guruData->name ?? 'N/A',
+                    'nama' => $guruData->name ?? 'N/A', // Add backward compatibility
+                    'email' => $guruData->email ?? 'N/A'
                 ] : null;
 
-                $attendance->guru_asli = $guruAsli ? (object)[
-                    'id' => $guruAsli->id,
-                    'name' => $guruAsli->name ?? 'N/A'
+                $attendance->guru_asli = $guruAsliData ? (object)[
+                    'id' => $guruAsliData->id,
+                    'name' => $guruAsliData->name ?? 'N/A',
+                    'nama' => $guruAsliData->name ?? 'N/A'
                 ] : null;
+
+                $filteredAttendances->push($attendance);
             }
+
+            // Replace attendances with filtered results
+            $attendances->setCollection($filteredAttendances);
+
+            // Cache statistics for 5 minutes
+            $cacheKey = 'attendance_stats_' . md5(serialize($request->all()));
+            $stats = Cache::remember($cacheKey, 300, function () use ($query) {
+                return $this->getOptimizedAttendanceStats($query);
+            });
 
             return response()->json([
                 'success' => true,
                 'data' => $attendances,
-                'stats' => $this->getAttendanceStats($query)
+                'stats' => $stats
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -119,7 +192,30 @@ class WebTeacherAttendanceController extends Controller
     }
 
     /**
-     * Get attendance statistics
+     * Get attendance statistics - OPTIMIZED VERSION
+     */
+    private function getOptimizedAttendanceStats($query)
+    {
+        // Use single query with conditional aggregation for better performance
+        $stats = (clone $query)->selectRaw('
+            COUNT(*) as total,
+            SUM(CASE WHEN status IN ("hadir", "diganti") THEN 1 ELSE 0 END) as present,
+            SUM(CASE WHEN status = "tidak_hadir" THEN 1 ELSE 0 END) as absent,
+            SUM(CASE WHEN status = "telat" THEN 1 ELSE 0 END) as late,
+            SUM(CASE WHEN status = "diganti" THEN 1 ELSE 0 END) as on_leave
+        ')->first();
+
+        return [
+            'total' => (int) $stats->total,
+            'present' => (int) $stats->present,
+            'absent' => (int) $stats->absent,
+            'late' => (int) $stats->late,
+            'on_leave' => (int) $stats->on_leave,
+        ];
+    }
+
+    /**
+     * Get attendance statistics - LEGACY VERSION (kept for compatibility)
      */
     private function getAttendanceStats($query)
     {

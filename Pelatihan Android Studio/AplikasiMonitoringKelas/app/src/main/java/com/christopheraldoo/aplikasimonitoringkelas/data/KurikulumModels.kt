@@ -236,17 +236,17 @@ data class DateRange(
 )
 
 data class ExportItem(
-    @SerializedName("tanggal") val tanggal: String,
-    @SerializedName("hari") val hari: String,
-    @SerializedName("jam_ke") val jamKe: Int,
-    @SerializedName("waktu") val waktu: String,
-    @SerializedName("kelas") val kelas: String,
-    @SerializedName("mata_pelajaran") val mataPelajaran: String,
-    @SerializedName("guru_asli") val guruAsli: String,
-    @SerializedName("guru_pengganti") val guruPengganti: String,
-    @SerializedName("status") val status: String,
-    @SerializedName("jam_masuk") val jamMasuk: String,
-    @SerializedName("keterangan") val keterangan: String
+    @SerializedName("tanggal") val tanggal: String? = null,
+    @SerializedName("hari") val hari: String? = null,
+    @SerializedName("jam_ke") val jamKe: String? = null,
+    @SerializedName("waktu") val waktu: String? = null,
+    @SerializedName("kelas") val kelas: String? = null,
+    @SerializedName("mata_pelajaran") val mataPelajaran: String? = null,
+    @SerializedName("guru_asli") val guruAsli: String? = null,
+    @SerializedName("guru_pengganti") val guruPengganti: String? = null,
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("jam_masuk") val jamMasuk: String? = null,
+    @SerializedName("keterangan") val keterangan: String? = null
 )
 
 // === CLASS STUDENTS ===

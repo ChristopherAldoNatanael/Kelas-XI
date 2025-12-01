@@ -1202,11 +1202,10 @@ private fun saveExportToFile(context: Context, data: List<ExportItem>) {
         
         FileWriter(file).use { writer ->
             // Header
-            writer.append("Tanggal,Hari,Jam Ke,Waktu,Kelas,Mata Pelajaran,Guru Asli,Guru Pengganti,Status,Jam Masuk,Keterangan\n")
-              // Data
+            writer.append("Tanggal,Hari,Jam Ke,Waktu,Kelas,Mata Pelajaran,Guru Asli,Guru Pengganti,Status,Jam Masuk,Keterangan\n")              // Data
             data.forEach { item ->
-                writer.append("${item.tanggal},${item.hari},${item.jamKe},${item.waktu},${item.kelas},")
-                writer.append("${item.mataPelajaran},${item.guruAsli},${item.guruPengganti},")
+                writer.append("${item.tanggal ?: ""},${item.hari ?: ""},${item.jamKe ?: ""},${item.waktu ?: ""},${item.kelas ?: ""},")
+                writer.append("${item.mataPelajaran ?: ""},${item.guruAsli ?: ""},${item.guruPengganti ?: ""},")
                 writer.append("${item.status ?: "pending"},${item.jamMasuk ?: ""},${item.keterangan ?: ""}\n")
             }
         }
