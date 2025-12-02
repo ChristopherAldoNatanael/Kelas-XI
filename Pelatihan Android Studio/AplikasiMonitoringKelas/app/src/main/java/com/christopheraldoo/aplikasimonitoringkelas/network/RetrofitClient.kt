@@ -4,6 +4,8 @@ import android.content.Context
 import android.util.Log
 import com.christopheraldoo.aplikasimonitoringkelas.util.SessionManager
 import com.christopheraldoo.aplikasimonitoringkelas.utils.TokenManager
+import com.google.gson.Gson
+import com.google.gson.GsonBuilder
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.Response
@@ -94,6 +96,12 @@ object RetrofitClient {
     private const val TAG = "RetrofitClient"
     private val selectedBaseUrlRef = AtomicReference<String?>(null)
 
+    // Lenient Gson configuration to handle malformed JSON
+    private val gson: Gson = GsonBuilder()
+        .setLenient()
+        .serializeNulls()
+        .create()
+
     private fun ensureResolvedBaseUrl(context: Context): String {
         selectedBaseUrlRef.get()?.let { return it }
 
@@ -132,7 +140,7 @@ object RetrofitClient {
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(getOkHttpClient(context))
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(ApiService::class.java)
     }
@@ -154,7 +162,7 @@ object RetrofitClient {
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(client)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(ApiService::class.java)
     }
@@ -166,7 +174,7 @@ object RetrofitClient {
         return Retrofit.Builder()
             .baseUrl(baseUrl)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
             .create(ApiService::class.java)
     }

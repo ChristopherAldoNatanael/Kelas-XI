@@ -911,10 +911,19 @@ class NetworkRepository(private val context: Context) {
     suspend fun getKurikulumDashboard(
         day: String? = null,
         classId: Int? = null,
-        subjectId: Int? = null
+        subjectId: Int? = null,
+        weekOffset: Int? = null,
+        forceRefresh: Boolean = false
     ): com.christopheraldoo.aplikasimonitoringkelas.data.KurikulumDashboardResponse = withContext(Dispatchers.IO) {
         try {
-            val response = getApi().getKurikulumDashboard(getAuthToken(), day, classId, subjectId)
+            val response = getApi().getKurikulumDashboard(
+                getAuthToken(), 
+                day, 
+                classId, 
+                subjectId,
+                weekOffset,
+                if (forceRefresh) true else null
+            )
             if (response.isSuccessful && response.body() != null) {
                 response.body()!!
             } else {
@@ -1188,6 +1197,89 @@ class NetworkRepository(private val context: Context) {
                 classInfo = com.christopheraldoo.aplikasimonitoringkelas.data.ClassInfo(0, "Unknown"),
                 totalStudents = 0,
                 students = emptyList()
+            )
+        }
+    }
+
+    // Get Pending Attendances
+    suspend fun getPendingAttendances(
+        date: String? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getPendingAttendances(getAuthToken(), date)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
+                    success = false,
+                    message = "Gagal memuat data pending: ${response.message()}",
+                    data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
+                        date = "",
+                        day = "",
+                        totalPending = 0,
+                        groupedByClass = emptyList(),
+                        allPending = emptyList()
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getPendingAttendances error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
+                    date = "",
+                    day = "",
+                    totalPending = 0,
+                    groupedByClass = emptyList(),
+                    allPending = emptyList()
+                )
+            )
+        }
+    }
+
+    // Confirm Single Attendance
+    suspend fun confirmAttendance(
+        request: com.christopheraldoo.aplikasimonitoringkelas.data.ConfirmAttendanceRequest
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.ConfirmAttendanceResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().confirmAttendance(getAuthToken(), request)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.ConfirmAttendanceResponse(
+                    success = false,
+                    message = "Gagal konfirmasi kehadiran: ${response.message()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "confirmAttendance error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.ConfirmAttendanceResponse(
+                success = false,
+                message = "Error: ${e.message}"
+            )
+        }
+    }
+
+    // Bulk Confirm Attendances
+    suspend fun bulkConfirmAttendance(
+        request: com.christopheraldoo.aplikasimonitoringkelas.data.BulkConfirmRequest
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.BulkConfirmResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().bulkConfirmAttendance(getAuthToken(), request)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.BulkConfirmResponse(
+                    success = false,
+                    message = "Gagal konfirmasi kehadiran: ${response.message()}"
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "bulkConfirmAttendance error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.BulkConfirmResponse(
+                success = false,
+                message = "Error: ${e.message}"
             )
         }
     }

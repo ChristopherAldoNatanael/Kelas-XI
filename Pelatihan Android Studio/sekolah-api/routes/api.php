@@ -255,4 +255,9 @@ Route::prefix('kurikulum')->group(function () {
     // Filter data - classes and teachers list
     Route::get('filter/classes', [KurikulumController::class, 'getClasses']);
     Route::get('filter/teachers', [KurikulumController::class, 'getTeachers']);
+
+    // Pending attendance management
+    Route::get('pending', [KurikulumController::class, 'getPendingAttendances']);
+    Route::post('confirm-attendance', [KurikulumController::class, 'confirmAttendance']);
+    Route::post('bulk-confirm', [KurikulumController::class, 'bulkConfirmAttendance']);
 });

@@ -48,14 +48,21 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
     private val _substituteState = MutableStateFlow<SubstituteUiState>(SubstituteUiState.Idle)
     val substituteState: StateFlow<SubstituteUiState> = _substituteState.asStateFlow()
     
+    // Pending Attendance State
+    private val _pendingState = MutableStateFlow<PendingAttendanceUiState>(PendingAttendanceUiState.Loading)
+    val pendingState: StateFlow<PendingAttendanceUiState> = _pendingState.asStateFlow()
+    
+    // Confirm Attendance State
+    private val _confirmState = MutableStateFlow<ConfirmAttendanceUiState>(ConfirmAttendanceUiState.Idle)
+    val confirmState: StateFlow<ConfirmAttendanceUiState> = _confirmState.asStateFlow()
+    
     // Filter Data
     private val _filterClasses = MutableStateFlow<List<FilterClass>>(emptyList())
     val filterClasses: StateFlow<List<FilterClass>> = _filterClasses.asStateFlow()
     
     private val _filterTeachers = MutableStateFlow<List<FilterTeacher>>(emptyList())
     val filterTeachers: StateFlow<List<FilterTeacher>> = _filterTeachers.asStateFlow()
-    
-    // Current filters
+      // Current filters
     private val _selectedDay = MutableStateFlow<String?>(null)
     val selectedDay: StateFlow<String?> = _selectedDay.asStateFlow()
     
@@ -65,6 +72,10 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
     private val _selectedStatus = MutableStateFlow<String?>(null)
     val selectedStatus: StateFlow<String?> = _selectedStatus.asStateFlow()
     
+    // Week offset: 0 = minggu ini, -1 = minggu lalu, dst.
+    private val _weekOffset = MutableStateFlow(0)
+    val weekOffset: StateFlow<Int> = _weekOffset.asStateFlow()
+    
     // Auto-refresh job
     private var autoRefreshJob: Job? = null
     
@@ -72,26 +83,39 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
     // DASHBOARD FUNCTIONS
     // ===============================================
     
-    fun loadDashboard(day: String? = null, classId: Int? = null, subjectId: Int? = null) {
+    fun setWeekOffset(offset: Int) {
+        _weekOffset.value = offset
+    }
+    
+    fun loadDashboard(day: String? = null, classId: Int? = null, subjectId: Int? = null, forceRefresh: Boolean = false) {
         viewModelScope.launch {
             _dashboardState.value = DashboardUiState.Loading
             try {
-                val response = repository.getKurikulumDashboard(day, classId, subjectId)
+                val response = repository.getKurikulumDashboard(
+                    day = day,
+                    classId = classId,
+                    subjectId = subjectId,
+                    weekOffset = _weekOffset.value,
+                    forceRefresh = forceRefresh
+                )
                 if (response.success) {
                     // Check if requires class filter
                     if (response.requiresClassFilter) {
                         _dashboardState.value = DashboardUiState.RequiresClassFilter(
                             date = response.date,
                             day = response.day,
-                            availableClasses = response.availableClasses ?: emptyList()
+                            availableClasses = response.availableClasses ?: emptyList(),
+                            weekInfo = response.weekInfo
                         )
                     } else {
                         _dashboardState.value = DashboardUiState.Success(
-                            date = response.date,
+                            date = response.targetDate ?: response.date,
                             day = response.day,
                             stats = response.stats,
                             schedules = response.data,
-                            groupedByClass = response.groupedByClass ?: emptyMap()
+                            groupedByClass = response.groupedByClass ?: emptyMap(),
+                            weekInfo = response.weekInfo,
+                            isFutureDate = response.isFutureDate
                         )
                     }
                 } else {
@@ -145,8 +169,10 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                         date = response.date,
                         day = response.day,
                         currentTime = response.currentTime,
+                        summary = response.summary,
                         statusCounts = response.statusCounts,
                         alertClasses = response.alertClasses,
+                        groupedByClass = response.groupedByClass ?: emptyList(),
                         classes = response.data
                     )
                 } else {
@@ -366,6 +392,108 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
     }
     
     // ===============================================
+    // PENDING ATTENDANCE FUNCTIONS
+    // ===============================================
+    
+    fun loadPendingAttendances(date: String? = null) {
+        viewModelScope.launch {
+            _pendingState.value = PendingAttendanceUiState.Loading
+            try {
+                val response = repository.getPendingAttendances(date)
+                if (response.success && response.data != null) {
+                    val data = response.data
+                    if (data.totalPending > 0) {
+                        _pendingState.value = PendingAttendanceUiState.Success(
+                            date = data.date,
+                            day = data.day,
+                            totalPending = data.totalPending,
+                            groupedByClass = data.groupedByClass,
+                            allPending = data.allPending
+                        )
+                    } else {
+                        _pendingState.value = PendingAttendanceUiState.Empty(
+                            date = data.date,
+                            day = data.day
+                        )
+                    }
+                } else {
+                    _pendingState.value = PendingAttendanceUiState.Error(
+                        response.message ?: "Gagal memuat data pending"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error loading pending attendances", e)
+                _pendingState.value = PendingAttendanceUiState.Error(
+                    e.message ?: "Terjadi kesalahan"
+                )
+            }
+        }
+    }
+    
+    fun confirmAttendance(attendanceId: Int, status: String, keterangan: String? = null) {
+        viewModelScope.launch {
+            _confirmState.value = ConfirmAttendanceUiState.Confirming
+            try {
+                val request = ConfirmAttendanceRequest(
+                    attendanceId = attendanceId,
+                    status = status,
+                    keterangan = keterangan
+                )
+                val response = repository.confirmAttendance(request)
+                if (response.success) {
+                    _confirmState.value = ConfirmAttendanceUiState.Success(
+                        response.message ?: "Kehadiran berhasil dikonfirmasi"
+                    )
+                    // Reload pending list
+                    loadPendingAttendances()
+                } else {
+                    _confirmState.value = ConfirmAttendanceUiState.Error(
+                        response.message ?: "Gagal mengkonfirmasi kehadiran"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error confirming attendance", e)
+                _confirmState.value = ConfirmAttendanceUiState.Error(
+                    e.message ?: "Terjadi kesalahan"
+                )
+            }
+        }
+    }
+    
+    fun bulkConfirmAttendance(attendanceIds: List<Int>, status: String) {
+        viewModelScope.launch {
+            _confirmState.value = ConfirmAttendanceUiState.Confirming
+            try {
+                val request = BulkConfirmRequest(
+                    attendanceIds = attendanceIds,
+                    status = status
+                )
+                val response = repository.bulkConfirmAttendance(request)
+                if (response.success) {
+                    _confirmState.value = ConfirmAttendanceUiState.Success(
+                        response.message ?: "Kehadiran berhasil dikonfirmasi"
+                    )
+                    // Reload pending list
+                    loadPendingAttendances()
+                } else {
+                    _confirmState.value = ConfirmAttendanceUiState.Error(
+                        response.message ?: "Gagal mengkonfirmasi kehadiran"
+                    )
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error bulk confirming attendance", e)
+                _confirmState.value = ConfirmAttendanceUiState.Error(
+                    e.message ?: "Terjadi kesalahan"
+                )
+            }
+        }
+    }
+    
+    fun resetConfirmState() {
+        _confirmState.value = ConfirmAttendanceUiState.Idle
+    }
+    
+    // ===============================================
     // CLEANUP
     // ===============================================
     
@@ -384,14 +512,17 @@ sealed class DashboardUiState {
     data class RequiresClassFilter(
         val date: String,
         val day: String,
-        val availableClasses: List<AvailableClass>
+        val availableClasses: List<AvailableClass>,
+        val weekInfo: WeekInfo? = null
     ) : DashboardUiState()
     data class Success(
         val date: String,
         val day: String,
         val stats: DashboardStats,
         val schedules: List<ScheduleOverview>,
-        val groupedByClass: Map<String, List<ScheduleOverview>>
+        val groupedByClass: Map<String, List<ScheduleOverview>>,
+        val weekInfo: WeekInfo? = null,
+        val isFutureDate: Boolean = false
     ) : DashboardUiState()
     data class Error(val message: String) : DashboardUiState()
 }
@@ -402,8 +533,10 @@ sealed class ClassManagementUiState {
         val date: String,
         val day: String,
         val currentTime: String,
+        val summary: ClassManagementSummary?,
         val statusCounts: StatusCounts,
         val alertClasses: List<ClassScheduleItem>,
+        val groupedByClass: List<ClassGroup>,
         val classes: List<ClassScheduleItem>
     ) : ClassManagementUiState()
     data class Error(val message: String) : ClassManagementUiState()
@@ -443,4 +576,24 @@ sealed class ExportUiState {
     object Exporting : ExportUiState()
     data class Success(val data: List<ExportItem>, val totalRecords: Int) : ExportUiState()
     data class Error(val message: String) : ExportUiState()
+}
+
+sealed class PendingAttendanceUiState {
+    object Loading : PendingAttendanceUiState()
+    data class Success(
+        val date: String,
+        val day: String,
+        val totalPending: Int,
+        val groupedByClass: List<PendingClassGroup>,
+        val allPending: List<PendingAttendanceItem>
+    ) : PendingAttendanceUiState()
+    data class Empty(val date: String, val day: String) : PendingAttendanceUiState()
+    data class Error(val message: String) : PendingAttendanceUiState()
+}
+
+sealed class ConfirmAttendanceUiState {
+    object Idle : ConfirmAttendanceUiState()
+    object Confirming : ConfirmAttendanceUiState()
+    data class Success(val message: String) : ConfirmAttendanceUiState()
+    data class Error(val message: String) : ConfirmAttendanceUiState()
 }

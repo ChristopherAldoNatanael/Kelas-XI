@@ -5,10 +5,26 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\Teacher;
+use App\Models\User;
+use App\Models\Schedule;
 
 class TeacherAttendance extends Model
 {
     use HasFactory;
+
+    // Status constants
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_HADIR = 'hadir';
+    public const STATUS_TELAT = 'telat';
+    public const STATUS_TIDAK_HADIR = 'tidak_hadir';
+    public const STATUS_DIGANTI = 'diganti';
+    public const STATUS_IZIN = 'izin';
+
+    // Default attributes - status default adalah 'pending'
+    protected $attributes = [
+        'status' => 'pending',
+    ];
 
     protected $fillable = [
         'schedule_id',
@@ -37,12 +53,12 @@ class TeacherAttendance extends Model
 
     public function guru(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'guru_id');
+        return $this->belongsTo(Teacher::class, 'guru_id');
     }
 
     public function guruAsli(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'guru_asli_id');
+        return $this->belongsTo(Teacher::class, 'guru_asli_id');
     }
 
     public function createdBy(): BelongsTo

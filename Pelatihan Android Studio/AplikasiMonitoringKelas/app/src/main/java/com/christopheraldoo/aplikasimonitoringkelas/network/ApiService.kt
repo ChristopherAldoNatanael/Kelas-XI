@@ -228,7 +228,9 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Query("day") day: String? = null,
         @Query("class_id") classId: Int? = null,
-        @Query("subject_id") subjectId: Int? = null
+        @Query("subject_id") subjectId: Int? = null,
+        @Query("week_offset") weekOffset: Int? = null,
+        @Query("refresh") refresh: Boolean? = null
     ): Response<KurikulumDashboardResponse>
     
     // Class management - Sort and filter classes by teacher status
@@ -303,4 +305,25 @@ interface ApiService {
     suspend fun getFilterTeachers(
         @Header("Authorization") token: String
     ): Response<FilterTeachersResponse>
+    
+    // Get pending attendances for confirmation
+    @GET("kurikulum/pending")
+    suspend fun getPendingAttendances(
+        @Header("Authorization") token: String,
+        @Query("date") date: String? = null
+    ): Response<PendingAttendanceResponse>
+    
+    // Confirm single pending attendance
+    @POST("kurikulum/confirm-attendance")
+    suspend fun confirmAttendance(
+        @Header("Authorization") token: String,
+        @Body request: ConfirmAttendanceRequest
+    ): Response<ConfirmAttendanceResponse>
+    
+    // Bulk confirm pending attendances
+    @POST("kurikulum/bulk-confirm")
+    suspend fun bulkConfirmAttendance(
+        @Header("Authorization") token: String,
+        @Body request: BulkConfirmRequest
+    ): Response<BulkConfirmResponse>
 }

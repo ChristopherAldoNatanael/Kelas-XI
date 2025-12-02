@@ -10,6 +10,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +43,7 @@ fun KurikulumDashboardScreen(
     val selectedDay by viewModel.selectedDay.collectAsState()
     val filterClasses by viewModel.filterClasses.collectAsState()
     val selectedClassId by viewModel.selectedClassId.collectAsState()
+    val weekOffset by viewModel.weekOffset.collectAsState()
     
     var showFilterDialog by remember { mutableStateOf(false) }
     var selectedFilterClass by remember { mutableStateOf<Int?>(null) }
@@ -62,6 +65,17 @@ fun KurikulumDashboardScreen(
             else -> "Senin"
         }
     }
+      // Get current day number (1=Monday...7=Sunday)
+    val currentDayNumber = remember {
+        val calendar = java.util.Calendar.getInstance()
+        val dow = calendar.get(java.util.Calendar.DAY_OF_WEEK)
+        // Convert Java's Sunday=1...Saturday=7 to Monday=1...Sunday=7
+        if (dow == java.util.Calendar.SUNDAY) 7 else dow - 1
+    }
+    
+    // Show ALL days (Senin-Sabtu) for kurikulum to see full schedule
+    // The backend will mark future dates appropriately
+    val availableDays = days
     
     // Effective selected day (use current day if none selected)
     val effectiveDay = selectedDay ?: currentDayOfWeek
@@ -91,14 +105,17 @@ fun KurikulumDashboardScreen(
                 DashboardHeader(
                     date = state.date,
                     day = state.day,
-                    stats = state.stats
+                    stats = state.stats,
+                    weekInfo = state.weekInfo,
+                    isFutureDate = state.isFutureDate
                 )
             }
             is DashboardUiState.RequiresClassFilter -> {
                 DashboardHeader(
                     date = state.date,
                     day = state.day,
-                    stats = DashboardStats()
+                    stats = DashboardStats(),
+                    weekInfo = state.weekInfo
                 )
             }
             else -> {
@@ -109,19 +126,32 @@ fun KurikulumDashboardScreen(
                 )
             }
         }
-          // Day filter chips
+        
+        // Week selector
+        WeekSelector(
+            weekOffset = weekOffset,
+            onWeekChange = { newOffset ->
+                viewModel.setWeekOffset(newOffset)
+                // Reset to first available day when changing week
+                val dayToSelect = if (newOffset == 0) currentDayOfWeek else "Senin"
+                viewModel.setSelectedDay(dayToSelect)
+                viewModel.loadDashboard(day = dayToSelect, classId = selectedFilterClass ?: selectedClassId, forceRefresh = true)
+            }
+        )
+        
+        // Day filter chips
         LazyRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(days) { day ->
+            items(availableDays) { day ->
                 FilterChip(
                     selected = effectiveDay == day,
                     onClick = {
                         viewModel.setSelectedDay(day)
-                        viewModel.loadDashboard(day = day, classId = selectedFilterClass ?: selectedClassId)
+                        viewModel.loadDashboard(day = day, classId = selectedFilterClass ?: selectedClassId, forceRefresh = true)
                     },
                     label = { Text(day) },
                     colors = FilterChipDefaults.filterChipColors(
@@ -222,10 +252,71 @@ fun KurikulumDashboardScreen(
 }
 
 @Composable
+private fun WeekSelector(
+    weekOffset: Int,
+    onWeekChange: (Int) -> Unit
+) {
+    val weekLabel = when (weekOffset) {
+        0 -> "Minggu Ini"
+        -1 -> "Minggu Lalu"
+        else -> "Minggu ${kotlin.math.abs(weekOffset)} yang lalu"
+    }
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {            // Previous week button
+            IconButton(
+                onClick = { onWeekChange(weekOffset - 1) }
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                    contentDescription = "Minggu Sebelumnya"
+                )
+            }
+            
+            // Week label
+            Text(
+                text = weekLabel,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Medium
+            )
+            
+            // Next week button (disabled if already current week)
+            IconButton(
+                onClick = { if (weekOffset < 0) onWeekChange(weekOffset + 1) },
+                enabled = weekOffset < 0
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = "Minggu Berikutnya",
+                    tint = if (weekOffset < 0) 
+                        MaterialTheme.colorScheme.onSurfaceVariant 
+                    else 
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun DashboardHeader(
     date: String,
     day: String,
-    stats: DashboardStats
+    stats: DashboardStats,
+    weekInfo: WeekInfo? = null,
+    isFutureDate: Boolean = false
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -254,6 +345,22 @@ private fun DashboardHeader(
                             color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
                         )
                     }
+                    // Show week info
+                    if (weekInfo != null) {
+                        Text(
+                            text = weekInfo.weekLabel,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.6f)
+                        )
+                    }
+                    // Show future date warning
+                    if (isFutureDate) {
+                        Text(
+                            text = "⚠️ Tanggal ini belum terjadi",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFFFF9800)
+                        )
+                    }
                 }
                 
                 // Refresh indicator
@@ -276,8 +383,7 @@ private fun DashboardHeader(
             }
             
             Spacer(modifier = Modifier.height(12.dp))
-            
-            // Stats cards
+              // Stats cards
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -299,6 +405,12 @@ private fun DashboardHeader(
                     count = stats.tidakHadir,
                     label = "Tidak Hadir",
                     color = Color(0xFFF44336)
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    count = stats.izin,
+                    label = "Izin",
+                    color = Color(0xFF9C27B0)
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
@@ -356,6 +468,7 @@ private fun StatusLegend() {
         LegendItem(color = Color(0xFF4CAF50), label = "Hadir")
         LegendItem(color = Color(0xFFFFC107), label = "Telat")
         LegendItem(color = Color(0xFFF44336), label = "Tidak Hadir")
+        LegendItem(color = Color(0xFF9C27B0), label = "Izin")
         LegendItem(color = Color(0xFF9E9E9E), label = "Pending")
         LegendItem(color = Color(0xFF2196F3), label = "Diganti")
     }
@@ -430,11 +543,11 @@ private fun ClassScheduleCard(
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
                 )
-                
-                // Status summary for this class
+                  // Status summary for this class
                 val hadirCount = schedules.count { it.status == "hadir" }
                 val telatCount = schedules.count { it.status == "telat" }
                 val tidakHadirCount = schedules.count { it.status == "tidak_hadir" }
+                val izinCount = schedules.count { it.status == "izin" || it.teacherOnLeave }
                 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (hadirCount > 0) {
@@ -445,6 +558,9 @@ private fun ClassScheduleCard(
                     }
                     if (tidakHadirCount > 0) {
                         StatusBadge(count = tidakHadirCount, color = Color(0xFFF44336))
+                    }
+                    if (izinCount > 0) {
+                        StatusBadge(count = izinCount, color = Color(0xFF9C27B0))
                     }
                 }
             }
@@ -486,12 +602,19 @@ private fun ScheduleItem(
     schedule: ScheduleOverview,
     onClick: () -> Unit
 ) {
-    val statusColor = when (schedule.statusColor ?: "gray") {
-        "green" -> Color(0xFF4CAF50)
-        "yellow" -> Color(0xFFFFC107)
-        "red" -> Color(0xFFF44336)
-        "blue" -> Color(0xFF2196F3)
-        else -> Color(0xFF9E9E9E)
+    // Check if teacher is on leave
+    val isTeacherOnLeave = schedule.teacherOnLeave || schedule.status == "izin"
+    
+    val statusColor = when {
+        isTeacherOnLeave -> Color(0xFF9C27B0) // Purple for leave
+        else -> when (schedule.statusColor ?: "gray") {
+            "green" -> Color(0xFF4CAF50)
+            "yellow" -> Color(0xFFFFC107)
+            "red" -> Color(0xFFF44336)
+            "blue" -> Color(0xFF2196F3)
+            "purple" -> Color(0xFF9C27B0)
+            else -> Color(0xFF9E9E9E)
+        }
     }
     
     Row(
@@ -507,8 +630,8 @@ private fun ScheduleItem(
                 .size(36.dp)
                 .clip(CircleShape)
                 .background(statusColor.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
-        ) {            Text(
+            contentAlignment = Alignment.Center        ) {
+            Text(
                 text = (schedule.period ?: 0).toString(),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.Bold,
@@ -557,21 +680,24 @@ private fun ScheduleItem(
                 Row(
                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                                        Box(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)                ) {
+                    Box(
                         modifier = Modifier
                             .size(8.dp)
                             .clip(CircleShape)
                             .background(statusColor)
                     )
                     Text(
-                        text = when (schedule.status ?: "pending") {
-                            "hadir" -> "Hadir"
-                            "telat" -> "Telat"
-                            "tidak_hadir" -> "Tidak Hadir"
-                            "diganti" -> "Diganti"
-                            else -> "Pending"
+                        text = when {
+                            isTeacherOnLeave -> "Izin"
+                            else -> when (schedule.status ?: "pending") {
+                                "hadir" -> "Hadir"
+                                "telat" -> "Telat"
+                                "tidak_hadir" -> "Tidak Hadir"
+                                "diganti" -> "Diganti"
+                                "izin" -> "Izin"
+                                else -> "Pending"
+                            }
                         },
                         style = MaterialTheme.typography.labelSmall,
                         color = statusColor,
@@ -589,11 +715,22 @@ private fun ScheduleItem(
                 )
             }
             
+            // Show leave reason if teacher is on leave
+            if (isTeacherOnLeave && schedule.leaveReason != null) {
+                Text(
+                    text = schedule.leaveReason,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF9C27B0),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            
             if (schedule.substituteTeacher != null) {
                 Text(
                     text = "→ ${schedule.substituteTeacher}",
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF2196F3),
+                    color = if (isTeacherOnLeave) Color(0xFF9C27B0) else Color(0xFF2196F3),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )

@@ -64,7 +64,7 @@ class TeacherAttendanceController extends Controller
             'guru_id' => 'required|exists:users,id',
             'tanggal' => 'required|date',
             'jam_masuk' => 'nullable|date_format:H:i:s',
-            'status' => 'required|in:hadir,telat,tidak_hadir,diganti',
+            'status' => 'required|in:hadir,telat,tidak_hadir,diganti,pending,izin',
             'keterangan' => 'nullable|string|max:500',
             'guru_asli_id' => 'nullable|exists:users,id',
         ]);

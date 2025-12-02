@@ -25,6 +25,7 @@ import com.christopheraldoo.aplikasimonitoringkelas.ui.AppTheme
 import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.kurikulum.KurikulumClassManagementScreen
 import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.kurikulum.KurikulumDashboardScreen
 import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.kurikulum.KurikulumHistoryScreen
+import com.christopheraldoo.aplikasimonitoringkelas.ui.screens.kurikulum.KurikulumPendingScreen
 import com.christopheraldoo.aplikasimonitoringkelas.ui.viewmodel.KurikulumViewModel
 import com.christopheraldoo.aplikasimonitoringkelas.util.SessionManager
 import kotlinx.coroutines.launch
@@ -60,6 +61,7 @@ sealed class KurikulumNavItem(
 ) {
     object Dashboard : KurikulumNavItem("dashboard", "Dashboard", Icons.Default.Dashboard)
     object ClassManagement : KurikulumNavItem("class_management", "Kelas", Icons.Default.Class)
+    object Pending : KurikulumNavItem("pending", "Pending", Icons.Default.HourglassEmpty)
     object History : KurikulumNavItem("history", "Riwayat", Icons.Default.History)
 }
 
@@ -83,6 +85,7 @@ fun KurikulumMainApp(
     val navigationItems = listOf(
         KurikulumNavItem.Dashboard,
         KurikulumNavItem.ClassManagement,
+        KurikulumNavItem.Pending,
         KurikulumNavItem.History
     )
     
@@ -106,6 +109,7 @@ fun KurikulumMainApp(
                         when (navController.currentDestination?.route) {
                             KurikulumNavItem.Dashboard.route -> viewModel.loadDashboard()
                             KurikulumNavItem.ClassManagement.route -> viewModel.loadClassManagement()
+                            KurikulumNavItem.Pending.route -> viewModel.loadPendingAttendances()
                             KurikulumNavItem.History.route -> viewModel.loadHistory(refresh = true)
                         }
                     }) {
@@ -183,6 +187,12 @@ fun KurikulumMainApp(
             
             composable(KurikulumNavItem.ClassManagement.route) {
                 KurikulumClassManagementScreen(
+                    viewModel = viewModel
+                )
+            }
+            
+            composable(KurikulumNavItem.Pending.route) {
+                KurikulumPendingScreen(
                     viewModel = viewModel
                 )
             }
