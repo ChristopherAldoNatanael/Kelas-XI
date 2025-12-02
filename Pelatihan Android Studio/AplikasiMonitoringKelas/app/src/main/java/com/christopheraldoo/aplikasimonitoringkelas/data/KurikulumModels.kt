@@ -354,7 +354,10 @@ data class PendingAttendanceResponse(
 data class PendingAttendanceData(
     @SerializedName("date") val date: String,
     @SerializedName("day") val day: String,
+    @SerializedName("current_time") val currentTime: String? = null,
     @SerializedName("total_pending") val totalPending: Int,
+    @SerializedName("belum_lapor_count") val belumLaporCount: Int = 0,
+    @SerializedName("pending_count") val pendingCount: Int = 0,
     @SerializedName("grouped_by_class") val groupedByClass: List<PendingClassGroup>,
     @SerializedName("all_pending") val allPending: List<PendingAttendanceItem>
 )
@@ -363,11 +366,13 @@ data class PendingClassGroup(
     @SerializedName("class_name") val className: String,
     @SerializedName("class_id") val classId: Int? = null,
     @SerializedName("total_pending") val totalPending: Int,
+    @SerializedName("belum_lapor_count") val belumLaporCount: Int = 0,
+    @SerializedName("pending_count") val pendingCount: Int = 0,
     @SerializedName("schedules") val schedules: List<PendingAttendanceItem>
 )
 
 data class PendingAttendanceItem(
-    @SerializedName("id") val id: Int,
+    @SerializedName("id") val id: Int? = null, // null jika belum ada attendance
     @SerializedName("schedule_id") val scheduleId: Int,
     @SerializedName("date") val date: String,
     @SerializedName("day") val day: String,
@@ -380,15 +385,20 @@ data class PendingAttendanceItem(
     @SerializedName("teacher_id") val teacherId: Int,
     @SerializedName("teacher_name") val teacherName: String,
     @SerializedName("teacher_nip") val teacherNip: String? = null,
-    @SerializedName("status") val status: String,
+    @SerializedName("status") val status: String, // "pending" atau "belum_lapor"
     @SerializedName("keterangan") val keterangan: String? = null,
-    @SerializedName("created_at") val createdAt: String
+    @SerializedName("has_attendance") val hasAttendance: Boolean = false,
+    @SerializedName("is_past_schedule") val isPastSchedule: Boolean = false,
+    @SerializedName("is_current_period") val isCurrentPeriod: Boolean = false,
+    @SerializedName("created_at") val createdAt: String? = null
 )
 
 data class ConfirmAttendanceRequest(
-    @SerializedName("attendance_id") val attendanceId: Int,
+    @SerializedName("attendance_id") val attendanceId: Int? = null,
+    @SerializedName("schedule_id") val scheduleId: Int? = null,
     @SerializedName("status") val status: String,
-    @SerializedName("keterangan") val keterangan: String? = null
+    @SerializedName("keterangan") val keterangan: String? = null,
+    @SerializedName("date") val date: String? = null
 )
 
 data class ConfirmAttendanceResponse(

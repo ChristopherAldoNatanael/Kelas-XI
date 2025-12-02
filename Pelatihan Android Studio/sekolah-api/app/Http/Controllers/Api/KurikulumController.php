@@ -140,7 +140,7 @@ class KurikulumController extends Controller
                 'week_start' => $startOfThisWeek->format('Y-m-d'),
                 'week_end' => $endOfThisWeek->format('Y-m-d'),
                 'week_label' => $filterWeekOffset == 0 ? 'Minggu Ini' : ($filterWeekOffset == -1 ? 'Minggu Lalu' :
-                        'Minggu ' . abs($filterWeekOffset) . ' yang lalu'),
+                    'Minggu ' . abs($filterWeekOffset) . ' yang lalu'),
                 'is_current_week' => $filterWeekOffset == 0,
                 'is_future_date' => $isFutureDate,
             ];
@@ -1123,13 +1123,14 @@ class KurikulumController extends Controller
     }
 
     /**
-     * Get all pending attendances for confirmation
+     * Get all schedules without attendance (belum ada kehadiran) for today
+     * Kurikulum can assign attendance status directly
      */
     public function getPendingAttendances(Request $request): JsonResponse
     {
         try {
             $targetDate = $request->get('date', Carbon::now()->format('Y-m-d'));
-            $dayName = Carbon::parse($targetDate)->isoFormat('dddd');
+            $dayName = Carbon::parse($targetDate)->format('l');
 
             // Map Indonesian day names
             $dayMap = [
@@ -1143,14 +1144,16 @@ class KurikulumController extends Controller
             ];
             $hari = $dayMap[$dayName] ?? $dayName;
 
-            // Get schedules for today
+            $currentTime = Carbon::now()->format('H:i:s');
+
+            // Get all schedules for today
             $schedules = Schedule::with(['guru:id,nama,nip', 'class', 'subject:id,nama'])
                 ->where('hari', $hari)
+                ->orderBy('kelas')
                 ->orderBy('jam_mulai')
                 ->get();
 
             $result = [];
-            $controller = $this;
 
             foreach ($schedules as $schedule) {
                 // Check existing attendance
@@ -1158,50 +1161,68 @@ class KurikulumController extends Controller
                     ->where('tanggal', $targetDate)
                     ->first();
 
-                // Only include pending status
-                if ($attendance && $attendance->status === 'pending') {
-                    $jamMulai = $controller->extractTimeOnly($schedule->jam_mulai);
-                    $jamSelesai = $controller->extractTimeOnly($schedule->jam_selesai);
-                    $jamMasuk = $controller->extractTimeOnly($attendance->jam_masuk);
+                $jamMulai = $this->extractTimeOnly($schedule->jam_mulai);
+                $jamSelesai = $this->extractTimeOnly($schedule->jam_selesai);
+
+                // Include schedules that:
+                // 1. Have NO attendance record at all (belum dilaporkan)
+                // 2. Have attendance with 'pending' status (sudah dilaporkan siswa, menunggu konfirmasi)
+                if (!$attendance || $attendance->status === 'pending') {
+                    $isPastSchedule = $jamSelesai && $currentTime > $jamSelesai;
+                    $isCurrentPeriod = $jamMulai && $jamSelesai &&
+                        $currentTime >= $jamMulai && $currentTime <= $jamSelesai;
 
                     $result[] = [
-                        'id' => $attendance->id,
+                        'id' => $attendance->id ?? null, // null jika belum ada attendance
                         'schedule_id' => $schedule->id,
                         'date' => $targetDate,
                         'day' => $hari,
                         'time_start' => $jamMulai,
                         'time_end' => $jamSelesai,
-                        'arrival_time' => $jamMasuk,
+                        'arrival_time' => $attendance ? $this->extractTimeOnly($attendance->jam_masuk) : null,
                         'class_id' => $schedule->class->id ?? null,
-                        'class_name' => $schedule->class->nama_kelas ?? $schedule->kelas,
-                        'subject_name' => $schedule->subject->nama ?? $schedule->mata_pelajaran,
+                        'class_name' => $schedule->class->nama_kelas ?? $schedule->kelas ?? 'Unknown',
+                        'subject_name' => $schedule->subject->nama ?? $schedule->mata_pelajaran ?? 'Unknown',
                         'teacher_id' => $schedule->guru_id,
                         'teacher_name' => $schedule->guru->nama ?? 'Unknown',
-                        'teacher_nip' => $schedule->guru->nip ?? null,
-                        'status' => $attendance->status,
-                        'keterangan' => $attendance->keterangan,
-                        'created_at' => $attendance->created_at->toISOString()
+                        'teacher_nip' => $schedule->guru->nip ?? '',
+                        'status' => $attendance ? $attendance->status : 'belum_lapor', // belum_lapor = tidak ada attendance sama sekali
+                        'keterangan' => $attendance->keterangan ?? null,
+                        'has_attendance' => $attendance !== null,
+                        'is_past_schedule' => $isPastSchedule,
+                        'is_current_period' => $isCurrentPeriod,
+                        'created_at' => $attendance ? $attendance->created_at->toISOString() : null
                     ];
                 }
             }
 
             // Group by class
             $groupedByClass = collect($result)->groupBy('class_name')->map(function ($items, $className) {
+                $firstItem = $items->first();
                 return [
                     'class_name' => $className,
-                    'class_id' => $items->first()['class_id'],
+                    'class_id' => $firstItem['class_id'] ?? null,
                     'total_pending' => $items->count(),
+                    'belum_lapor_count' => $items->where('status', 'belum_lapor')->count(),
+                    'pending_count' => $items->where('status', 'pending')->count(),
                     'schedules' => $items->values()->toArray()
                 ];
             })->values();
 
+            // Summary counts
+            $belumLaporCount = collect($result)->where('status', 'belum_lapor')->count();
+            $pendingCount = collect($result)->where('status', 'pending')->count();
+
             return response()->json([
                 'success' => true,
-                'message' => 'Data kehadiran pending berhasil diambil',
+                'message' => 'Data jadwal yang belum ada kehadiran berhasil diambil',
                 'data' => [
                     'date' => $targetDate,
                     'day' => $hari,
+                    'current_time' => $currentTime,
                     'total_pending' => count($result),
+                    'belum_lapor_count' => $belumLaporCount,
+                    'pending_count' => $pendingCount,
                     'grouped_by_class' => $groupedByClass,
                     'all_pending' => $result
                 ]
@@ -1216,61 +1237,100 @@ class KurikulumController extends Controller
     }
 
     /**
-     * Confirm pending attendance to hadir/telat
+     * Set attendance status for a schedule (create new or update existing)
+     * Can be used for:
+     * 1. Schedules without any attendance (belum_lapor) - creates new attendance
+     * 2. Schedules with pending status - confirms attendance
      */
     public function confirmAttendance(Request $request): JsonResponse
     {
         try {
             $request->validate([
-                'attendance_id' => 'required|integer|exists:teacher_attendances,id',
-                'status' => 'required|in:hadir,telat',
-                'keterangan' => 'nullable|string|max:255'
+                'schedule_id' => 'required_without:attendance_id|integer',
+                'attendance_id' => 'required_without:schedule_id|integer',
+                'status' => 'required|in:hadir,telat,tidak_hadir',
+                'keterangan' => 'nullable|string|max:255',
+                'date' => 'nullable|date'
             ]);
 
-            $attendance = TeacherAttendance::findOrFail($request->attendance_id);
+            $targetDate = $request->get('date', Carbon::now()->format('Y-m-d'));
+            $kurikulumId = auth()->user()->id ?? null;
 
-            // Only allow confirmation of pending status
-            if ($attendance->status !== 'pending') {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Kehadiran ini sudah dikonfirmasi sebelumnya',
-                    'current_status' => $attendance->status
-                ], 400);
-            }
+            // If attendance_id is provided, update existing
+            if ($request->has('attendance_id') && $request->attendance_id) {
+                $attendance = TeacherAttendance::findOrFail($request->attendance_id);
 
-            // Determine final status based on arrival time vs schedule time
-            $schedule = $attendance->schedule;
-            $finalStatus = $request->status;
+                // Only allow update of pending status
+                if (!in_array($attendance->status, ['pending', 'belum_lapor'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Kehadiran ini sudah dikonfirmasi sebelumnya',
+                        'current_status' => $attendance->status
+                    ], 400);
+                }
 
-            if ($schedule && $attendance->jam_masuk) {
-                $jamMulai = $this->extractTimeOnly($schedule->jam_mulai);
-                $jamMasuk = $this->extractTimeOnly($attendance->jam_masuk);
+                $attendance->update([
+                    'status' => $request->status,
+                    'keterangan' => $request->keterangan ?? 'Dikonfirmasi oleh Kurikulum',
+                    'jam_masuk' => $attendance->jam_masuk ?? Carbon::now()->format('H:i:s')
+                ]);
 
-                if ($jamMulai && $jamMasuk) {
-                    $scheduledTime = Carbon::parse($jamMulai);
-                    $actualTime = Carbon::parse($jamMasuk);
+                $schedule = $attendance->schedule;
+            } else {
+                // Create new attendance for schedule
+                $schedule = Schedule::findOrFail($request->schedule_id);
 
-                    // Auto-detect telat if arrival > scheduled + 5 minutes
-                    if ($actualTime->gt($scheduledTime->copy()->addMinutes(5))) {
-                        $finalStatus = 'telat';
-                    }
+                // Check if attendance already exists
+                $existingAttendance = TeacherAttendance::where('schedule_id', $schedule->id)
+                    ->where('tanggal', $targetDate)
+                    ->first();
+
+                if ($existingAttendance && !in_array($existingAttendance->status, ['pending'])) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Kehadiran untuk jadwal ini sudah ada',
+                        'current_status' => $existingAttendance->status
+                    ], 400);
+                }
+
+                if ($existingAttendance) {
+                    // Update existing pending
+                    $existingAttendance->update([
+                        'status' => $request->status,
+                        'keterangan' => $request->keterangan ?? 'Dikonfirmasi oleh Kurikulum',
+                        'jam_masuk' => $existingAttendance->jam_masuk ?? Carbon::now()->format('H:i:s')
+                    ]);
+                    $attendance = $existingAttendance;
+                } else {
+                    // Create new attendance
+                    $attendance = TeacherAttendance::create([
+                        'schedule_id' => $schedule->id,
+                        'guru_id' => $schedule->guru_id,
+                        'tanggal' => $targetDate,
+                        'jam_masuk' => Carbon::now()->format('H:i:s'),
+                        'status' => $request->status,
+                        'keterangan' => $request->keterangan ?? 'Dibuat oleh Kurikulum',
+                        'created_by' => $kurikulumId
+                    ]);
                 }
             }
 
-            $attendance->update([
-                'status' => $finalStatus,
-                'keterangan' => $request->keterangan ?? $attendance->keterangan
-            ]);
+            // Get related data for response
+            $schedule = $schedule ?? $attendance->schedule;
+            $teacher = Teacher::find($schedule->guru_id);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Kehadiran berhasil dikonfirmasi',
+                'message' => 'Kehadiran berhasil ' . ($request->has('attendance_id') ? 'dikonfirmasi' : 'dibuat'),
                 'data' => [
                     'id' => $attendance->id,
-                    'status' => $finalStatus,
-                    'teacher_name' => $attendance->guru->nama ?? 'Unknown',
-                    'class_name' => $attendance->schedule->class->nama_kelas ?? 'Unknown',
-                    'subject_name' => $attendance->schedule->subject->nama ?? 'Unknown'
+                    'schedule_id' => $schedule->id,
+                    'status' => $attendance->status,
+                    'teacher_id' => $schedule->guru_id,
+                    'teacher_name' => $teacher->nama ?? 'Unknown',
+                    'class_name' => $schedule->class->nama_kelas ?? $schedule->kelas ?? 'Unknown',
+                    'subject_name' => $schedule->subject->nama ?? $schedule->mata_pelajaran ?? 'Unknown',
+                    'keterangan' => $attendance->keterangan
                 ]
             ]);
         } catch (\Exception $e) {

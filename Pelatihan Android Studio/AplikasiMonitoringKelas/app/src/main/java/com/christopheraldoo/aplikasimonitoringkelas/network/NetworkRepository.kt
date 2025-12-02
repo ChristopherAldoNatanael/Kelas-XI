@@ -1283,4 +1283,88 @@ class NetworkRepository(private val context: Context) {
             )
         }
     }
+
+    // ===============================================
+    // KEPALA SEKOLAH API FUNCTIONS
+    // ===============================================
+
+    // Get Kepala Sekolah Dashboard Overview
+    suspend fun getKepsekDashboard(
+        weekOffset: Int? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.KepalaSekolahDashboardResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKepsekDashboard(getAuthToken(), weekOffset)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.KepalaSekolahDashboardResponse(
+                    success = false,
+                    message = "Gagal memuat dashboard: ${response.message()}",
+                    data = null
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKepsekDashboard error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.KepalaSekolahDashboardResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = null
+            )
+        }
+    }
+
+    // Get Kepala Sekolah Attendance List
+    suspend fun getKepsekAttendances(
+        status: String? = null,
+        weekOffset: Int? = null,
+        className: String? = null,
+        teacherId: Int? = null,
+        date: String? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.KepsekAttendanceListResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKepsekAttendances(getAuthToken(), status, weekOffset, className, teacherId, date)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.KepsekAttendanceListResponse(
+                    success = false,
+                    message = "Gagal memuat data kehadiran: ${response.message()}",
+                    data = null
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKepsekAttendances error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.KepsekAttendanceListResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = null
+            )
+        }
+    }
+
+    // Get Kepala Sekolah Teacher Performance
+    suspend fun getKepsekTeacherPerformance(
+        weekOffset: Int? = null,
+        sortBy: String? = null
+    ): com.christopheraldoo.aplikasimonitoringkelas.data.TeacherPerformanceResponse = withContext(Dispatchers.IO) {
+        try {
+            val response = getApi().getKepsekTeacherPerformance(getAuthToken(), weekOffset, sortBy)
+            if (response.isSuccessful && response.body() != null) {
+                response.body()!!
+            } else {
+                com.christopheraldoo.aplikasimonitoringkelas.data.TeacherPerformanceResponse(
+                    success = false,
+                    message = "Gagal memuat performa guru: ${response.message()}",
+                    data = null
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("NetworkRepo", "getKepsekTeacherPerformance error: ${e.message}", e)
+            com.christopheraldoo.aplikasimonitoringkelas.data.TeacherPerformanceResponse(
+                success = false,
+                message = "Error: ${e.message}",
+                data = null
+            )
+        }
+    }
 }

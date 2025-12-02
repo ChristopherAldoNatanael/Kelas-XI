@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\TeacherAttendanceController;
 use App\Http\Controllers\Api\SiswaKehadiranController;
 use App\Http\Controllers\Api\SiswaKehadiranGuruController;
 use App\Http\Controllers\Api\KurikulumController;
+use App\Http\Controllers\Api\KepalaSekolahController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -260,4 +261,24 @@ Route::prefix('kurikulum')->group(function () {
     Route::get('pending', [KurikulumController::class, 'getPendingAttendances']);
     Route::post('confirm-attendance', [KurikulumController::class, 'confirmAttendance']);
     Route::post('bulk-confirm', [KurikulumController::class, 'bulkConfirmAttendance']);
+});
+
+// ===============================================
+// KEPALA SEKOLAH ROUTES - Dashboard & Reports
+// ===============================================
+Route::prefix('kepala-sekolah')->group(function () {
+    // Main Dashboard with weekly comparison
+    Route::get('dashboard', [KepalaSekolahController::class, 'dashboardOverview']);
+
+    // Detailed attendance list with filters
+    Route::get('attendance', [KepalaSekolahController::class, 'attendanceList']);
+
+    // Teachers on leave with substitutes
+    Route::get('teachers-on-leave', [KepalaSekolahController::class, 'teachersOnLeaveList']);
+
+    // Teacher performance ranking
+    Route::get('teacher-performance', [KepalaSekolahController::class, 'teacherPerformance']);
+
+    // All schedules with attendance status (for Jadwal page)
+    Route::get('schedules-attendance', [KepalaSekolahController::class, 'schedulesWithAttendance']);
 });

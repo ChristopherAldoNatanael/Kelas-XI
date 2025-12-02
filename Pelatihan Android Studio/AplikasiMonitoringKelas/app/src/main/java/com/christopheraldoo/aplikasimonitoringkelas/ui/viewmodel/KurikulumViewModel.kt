@@ -394,8 +394,7 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
     // ===============================================
     // PENDING ATTENDANCE FUNCTIONS
     // ===============================================
-    
-    fun loadPendingAttendances(date: String? = null) {
+      fun loadPendingAttendances(date: String? = null) {
         viewModelScope.launch {
             _pendingState.value = PendingAttendanceUiState.Loading
             try {
@@ -406,7 +405,10 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                         _pendingState.value = PendingAttendanceUiState.Success(
                             date = data.date,
                             day = data.day,
+                            currentTime = data.currentTime,
                             totalPending = data.totalPending,
+                            belumLaporCount = data.belumLaporCount,
+                            pendingCount = data.pendingCount,
                             groupedByClass = data.groupedByClass,
                             allPending = data.allPending
                         )
@@ -430,25 +432,39 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
         }
     }
     
-    fun confirmAttendance(attendanceId: Int, status: String, keterangan: String? = null) {
+    /**
+     * Set attendance status for a schedule
+     * Works for both:
+     * - schedules without attendance (belum_lapor) - uses scheduleId
+     * - schedules with pending status - uses attendanceId
+     */
+    fun setAttendanceStatus(
+        scheduleId: Int? = null,
+        attendanceId: Int? = null, 
+        status: String, 
+        keterangan: String? = null,
+        date: String? = null
+    ) {
         viewModelScope.launch {
             _confirmState.value = ConfirmAttendanceUiState.Confirming
             try {
                 val request = ConfirmAttendanceRequest(
                     attendanceId = attendanceId,
+                    scheduleId = scheduleId,
                     status = status,
-                    keterangan = keterangan
+                    keterangan = keterangan,
+                    date = date
                 )
                 val response = repository.confirmAttendance(request)
                 if (response.success) {
                     _confirmState.value = ConfirmAttendanceUiState.Success(
-                        response.message ?: "Kehadiran berhasil dikonfirmasi"
+                        response.message ?: "Kehadiran berhasil disimpan"
                     )
                     // Reload pending list
                     loadPendingAttendances()
                 } else {
                     _confirmState.value = ConfirmAttendanceUiState.Error(
-                        response.message ?: "Gagal mengkonfirmasi kehadiran"
+                        response.message ?: "Gagal menyimpan kehadiran"
                     )
                 }
             } catch (e: Exception) {
@@ -583,7 +599,10 @@ sealed class PendingAttendanceUiState {
     data class Success(
         val date: String,
         val day: String,
+        val currentTime: String? = null,
         val totalPending: Int,
+        val belumLaporCount: Int = 0,
+        val pendingCount: Int = 0,
         val groupedByClass: List<PendingClassGroup>,
         val allPending: List<PendingAttendanceItem>
     ) : PendingAttendanceUiState()

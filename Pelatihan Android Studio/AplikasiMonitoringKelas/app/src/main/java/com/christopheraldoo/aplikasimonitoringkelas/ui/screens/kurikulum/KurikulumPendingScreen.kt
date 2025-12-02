@@ -172,6 +172,8 @@ fun KurikulumPendingScreen(
                         date = state.date,
                         day = state.day,
                         totalPending = state.totalPending,
+                        belumLaporCount = state.belumLaporCount,
+                        pendingCount = state.pendingCount,
                         groupedByClass = state.groupedByClass,
                         selectedItems = selectedItems,
                         onItemSelect = { id ->
@@ -308,19 +310,23 @@ fun KurikulumPendingScreen(
         )
     }
     
-    // Single Confirm Dialog
+    // Single Confirm Dialog - Updated to handle both cases
     showSingleConfirmDialog?.let { item ->
         AlertDialog(
             onDismissRequest = { showSingleConfirmDialog = null },
             icon = { 
                 Icon(
-                    Icons.Default.Person,
+                    if (item.hasAttendance) Icons.Default.HowToReg else Icons.Default.PersonAdd,
                     null,
-                    tint = Color(0xFF7C4DFF),
+                    tint = if (item.status == "pending") Color(0xFFFF9800) else Color(0xFF7C4DFF),
                     modifier = Modifier.size(32.dp)
                 )
             },
-            title = { Text("Konfirmasi Kehadiran") },
+            title = { 
+                Text(
+                    if (item.hasAttendance) "Konfirmasi Kehadiran" else "Set Kehadiran"
+                ) 
+            },
             text = {
                 Column {
                     Text(
@@ -334,55 +340,140 @@ fun KurikulumPendingScreen(
                         color = Color.Gray,
                         fontSize = 14.sp
                     )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Outlined.Schedule,
+                            null,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            "Jadwal: ${item.timeStart ?: "-"} - ${item.timeEnd ?: "-"}",
+                            fontSize = 13.sp,
+                            color = Color.Gray
+                        )
+                    }
                     if (item.arrivalTime != null) {
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                Icons.Outlined.Schedule,
+                                Icons.Default.Login,
                                 null,
-                                tint = Color(0xFF7C4DFF),
+                                tint = Color(0xFF4CAF50),
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 "Jam masuk: ${item.arrivalTime}",
-                                fontSize = 14.sp,
-                                color = Color(0xFF7C4DFF)
+                                fontSize = 13.sp,
+                                color = Color(0xFF4CAF50)
+                            )
+                        }
+                    }
+                    
+                    // Status indicator
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Surface(
+                        color = when(item.status) {
+                            "pending" -> Color(0xFFFF9800).copy(alpha = 0.1f)
+                            else -> Color(0xFF9E9E9E).copy(alpha = 0.1f)
+                        },
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                if (item.status == "pending") Icons.Default.HourglassEmpty else Icons.Default.Help,
+                                null,
+                                tint = if (item.status == "pending") Color(0xFFFF9800) else Color(0xFF9E9E9E),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                when(item.status) {
+                                    "pending" -> "Menunggu konfirmasi (dilaporkan siswa)"
+                                    else -> "Belum ada laporan kehadiran"
+                                },
+                                fontSize = 12.sp,
+                                color = if (item.status == "pending") Color(0xFFFF9800) else Color(0xFF9E9E9E)
                             )
                         }
                     }
                 }
             },
             confirmButton = {
-                Row {
-                    FilledTonalButton(
-                        onClick = {
-                            viewModel.confirmAttendance(item.id, "hadir")
-                            showSingleConfirmDialog = null
-                        },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color(0xFF4CAF50).copy(alpha = 0.1f),
-                            contentColor = Color(0xFF4CAF50)
-                        )
+                Column {
+                    // Row untuk Hadir dan Telat
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Hadir")
+                        FilledTonalButton(
+                            onClick = {
+                                viewModel.setAttendanceStatus(
+                                    scheduleId = if (!item.hasAttendance) item.scheduleId else null,
+                                    attendanceId = if (item.hasAttendance) item.id else null,
+                                    status = "hadir",
+                                    date = item.date
+                                )
+                                showSingleConfirmDialog = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color(0xFF4CAF50).copy(alpha = 0.15f),
+                                contentColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Icon(Icons.Default.Check, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Hadir")
+                        }
+                        FilledTonalButton(
+                            onClick = {
+                                viewModel.setAttendanceStatus(
+                                    scheduleId = if (!item.hasAttendance) item.scheduleId else null,
+                                    attendanceId = if (item.hasAttendance) item.id else null,
+                                    status = "telat",
+                                    date = item.date
+                                )
+                                showSingleConfirmDialog = null
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.filledTonalButtonColors(
+                                containerColor = Color(0xFFFF9800).copy(alpha = 0.15f),
+                                contentColor = Color(0xFFFF9800)
+                            )
+                        ) {
+                            Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Telat")
+                        }
                     }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    FilledTonalButton(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    // Tombol Tidak Hadir
+                    OutlinedButton(
                         onClick = {
-                            viewModel.confirmAttendance(item.id, "telat")
+                            viewModel.setAttendanceStatus(
+                                scheduleId = if (!item.hasAttendance) item.scheduleId else null,
+                                attendanceId = if (item.hasAttendance) item.id else null,
+                                status = "tidak_hadir",
+                                date = item.date
+                            )
                             showSingleConfirmDialog = null
                         },
-                        colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Color(0xFFFF9800).copy(alpha = 0.1f),
-                            contentColor = Color(0xFFFF9800)
-                        )
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = Color(0xFFF44336)
+                        ),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFF44336).copy(alpha = 0.5f))
                     ) {
-                        Icon(Icons.Default.Schedule, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Telat")
+                        Text("Tidak Hadir")
                     }
                 }
             },
@@ -418,6 +509,8 @@ private fun PendingContent(
     date: String,
     day: String,
     totalPending: Int,
+    belumLaporCount: Int = 0,
+    pendingCount: Int = 0,
     groupedByClass: List<PendingClassGroup>,
     selectedItems: Set<Int>,
     onItemSelect: (Int) -> Unit,
@@ -437,50 +530,110 @@ private fun PendingContent(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFF3E0)
+                    containerColor = Color(0xFFF3E5F5)
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFF9800)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.Default.HourglassEmpty,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(28.dp)
-                        )
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFF7C4DFF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Assignment,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                "$totalPending Jadwal Perlu Kehadiran",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 18.sp,
+                                color = Color(0xFF4A148C)
+                            )
+                            Text(
+                                "$day, $date",
+                                color = Color(0xFF7C4DFF),
+                                fontSize = 14.sp
+                            )
+                        }
+                        IconButton(onClick = onRefresh) {
+                            Icon(
+                                Icons.Default.Refresh,
+                                contentDescription = "Refresh",
+                                tint = Color(0xFF7C4DFF)
+                            )
+                        }
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "$totalPending Menunggu Konfirmasi",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            color = Color(0xFFE65100)
-                        )
-                        Text(
-                            "$day, $date",
-                            color = Color(0xFFFF9800),
-                            fontSize = 14.sp
-                        )
-                    }
-                    IconButton(onClick = onRefresh) {
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Refresh",
-                            tint = Color(0xFFFF9800)
-                        )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Breakdown counts
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Belum dilaporkan
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFF9E9E9E).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "$belumLaporCount",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFF616161)
+                                )
+                                Text(
+                                    "Belum Lapor",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF9E9E9E)
+                                )
+                            }
+                        }
+                        
+                        // Pending (dilaporkan siswa)
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = Color(0xFFFF9800).copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(12.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    "$pendingCount",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 20.sp,
+                                    color = Color(0xFFE65100)
+                                )
+                                Text(
+                                    "Dilaporkan Siswa",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFFFF9800)
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -513,8 +666,9 @@ private fun ClassGroupCard(
     onItemClick: (PendingAttendanceItem) -> Unit
 ) {
     var expanded by remember { mutableStateOf(true) }
-    val allIds = classGroup.schedules.map { it.id }
-    val allSelected = allIds.all { selectedItems.contains(it) }
+    // Only include items with valid id for selection
+    val selectableIds = classGroup.schedules.filter { it.id != null }.mapNotNull { it.id }
+    val allSelected = selectableIds.isNotEmpty() && selectableIds.all { selectedItems.contains(it) }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -530,24 +684,42 @@ private fun ClassGroupCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Checkbox(
-                    checked = allSelected,
-                    onCheckedChange = { onSelectAll(allIds) },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF7C4DFF)
+                if (selectableIds.isNotEmpty()) {
+                    Checkbox(
+                        checked = allSelected,
+                        onCheckedChange = { onSelectAll(selectableIds) },
+                        colors = CheckboxDefaults.colors(
+                            checkedColor = Color(0xFF7C4DFF)
+                        )
                     )
-                )
+                } else {
+                    Spacer(modifier = Modifier.width(12.dp))
+                }
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         classGroup.className,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp
                     )
-                    Text(
-                        "${classGroup.totalPending} guru menunggu konfirmasi",
-                        color = Color.Gray,
-                        fontSize = 12.sp
-                    )
+                    Row {
+                        if (classGroup.belumLaporCount > 0) {
+                            Text(
+                                "${classGroup.belumLaporCount} belum lapor",
+                                color = Color(0xFF9E9E9E),
+                                fontSize = 12.sp
+                            )
+                        }
+                        if (classGroup.belumLaporCount > 0 && classGroup.pendingCount > 0) {
+                            Text(" • ", color = Color.Gray, fontSize = 12.sp)
+                        }
+                        if (classGroup.pendingCount > 0) {
+                            Text(
+                                "${classGroup.pendingCount} pending",
+                                color = Color(0xFFFF9800),
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
                 }
                 Icon(
                     if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
@@ -564,8 +736,8 @@ private fun ClassGroupCard(
                     classGroup.schedules.forEach { item ->
                         PendingItemRow(
                             item = item,
-                            isSelected = selectedItems.contains(item.id),
-                            onSelect = { onItemSelect(item.id) },
+                            isSelected = item.id != null && selectedItems.contains(item.id),
+                            onSelect = { item.id?.let { onItemSelect(it) } },
                             onClick = { onItemClick(item) }
                         )
                     }
@@ -582,6 +754,11 @@ private fun PendingItemRow(
     onSelect: () -> Unit,
     onClick: () -> Unit
 ) {
+    val statusColor = when(item.status) {
+        "pending" -> Color(0xFFFF9800)
+        else -> Color(0xFF9E9E9E) // belum_lapor
+    }
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -601,13 +778,33 @@ private fun PendingItemRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Checkbox(
-                checked = isSelected,
-                onCheckedChange = { onSelect() },
-                colors = CheckboxDefaults.colors(
-                    checkedColor = Color(0xFF7C4DFF)
+            // Status indicator dot instead of checkbox for items without attendance
+            if (item.hasAttendance && item.id != null) {
+                Checkbox(
+                    checked = isSelected,
+                    onCheckedChange = { onSelect() },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = Color(0xFF7C4DFF)
+                    )
                 )
-            )
+            } else {
+                // Status dot for belum_lapor
+                Box(
+                    modifier = Modifier
+                        .padding(12.dp)
+                        .size(20.dp)
+                        .clip(CircleShape)
+                        .background(statusColor.copy(alpha = 0.2f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(CircleShape)
+                            .background(statusColor)
+                    )
+                }
+            }
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -624,29 +821,69 @@ private fun PendingItemRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // Status label
+                Spacer(modifier = Modifier.height(4.dp))
+                Surface(
+                    color = statusColor.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(4.dp)
+                ) {
+                    Text(
+                        when(item.status) {
+                            "pending" -> "Menunggu konfirmasi"
+                            else -> "Belum dilaporkan"
+                        },
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        fontSize = 10.sp,
+                        color = statusColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
             
             Column(horizontalAlignment = Alignment.End) {
                 Surface(
-                    color = Color(0xFFFF9800).copy(alpha = 0.1f),
+                    color = Color(0xFF2196F3).copy(alpha = 0.1f),
                     shape = RoundedCornerShape(4.dp)
                 ) {
                     Text(
                         "${item.timeStart ?: ""} - ${item.timeEnd ?: ""}",
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontSize = 11.sp,
-                        color = Color(0xFFFF9800),
+                        color = Color(0xFF2196F3),
                         fontWeight = FontWeight.Medium
                     )
                 }
                 if (item.arrivalTime != null) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        "Masuk: ${item.arrivalTime}",
-                        fontSize = 10.sp,
-                        color = Color(0xFF7C4DFF)
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Default.Login,
+                            null,
+                            tint = Color(0xFF4CAF50),
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(2.dp))
+                        Text(
+                            item.arrivalTime,
+                            fontSize = 10.sp,
+                            color = Color(0xFF4CAF50)
+                        )
+                    }
                 }
+                if (item.isCurrentPeriod) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        color = Color(0xFFF44336).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(4.dp)
+                    ) {
+                        Text(
+                            "Sedang berlangsung",
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                            fontSize = 9.sp,
+                            color = Color(0xFFF44336),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }                }
             }
         }
     }

@@ -326,4 +326,47 @@ interface ApiService {
         @Header("Authorization") token: String,
         @Body request: BulkConfirmRequest
     ): Response<BulkConfirmResponse>
+    
+    // ========== KEPALA SEKOLAH ENDPOINTS ==========
+    
+    // Dashboard overview with weekly comparison
+    @GET("kepala-sekolah/dashboard")
+    suspend fun getKepsekDashboard(
+        @Header("Authorization") token: String,
+        @Query("week_offset") weekOffset: Int? = null
+    ): Response<KepalaSekolahDashboardResponse>
+    
+    // Detailed attendance list with filters
+    @GET("kepala-sekolah/attendance")
+    suspend fun getKepsekAttendances(
+        @Header("Authorization") token: String,
+        @Query("status") status: String? = null,
+        @Query("week_offset") weekOffset: Int? = null,
+        @Query("class_name") className: String? = null,
+        @Query("teacher_id") teacherId: Int? = null,
+        @Query("date") date: String? = null
+    ): Response<KepsekAttendanceListResponse>
+    
+    // Teachers on leave list
+    @GET("kepala-sekolah/teachers-on-leave")
+    suspend fun getKepsekTeachersOnLeave(
+        @Header("Authorization") token: String,
+        @Query("week_offset") weekOffset: Int? = null
+    ): Response<ApiResponse<List<TeacherOnLeave>>>
+    
+    // Teacher performance ranking
+    @GET("kepala-sekolah/teacher-performance")
+    suspend fun getKepsekTeacherPerformance(
+        @Header("Authorization") token: String,
+        @Query("week_offset") weekOffset: Int? = null,
+        @Query("sort_by") sortBy: String? = null
+    ): Response<TeacherPerformanceResponse>
+    
+    // All schedules with attendance status for a specific day
+    @GET("kepala-sekolah/schedules-attendance")
+    suspend fun getKepsekSchedulesWithAttendance(
+        @Header("Authorization") token: String,
+        @Query("week_offset") weekOffset: Int? = null,
+        @Query("day") day: String? = null
+    ): Response<KepsekScheduleWithAttendanceResponse>
 }
