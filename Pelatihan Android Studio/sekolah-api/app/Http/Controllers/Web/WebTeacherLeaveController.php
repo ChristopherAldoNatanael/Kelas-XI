@@ -688,11 +688,11 @@ class WebTeacherLeaveController extends Controller
             ->where('status', 'approved')
             ->where(function ($query) use ($startDate, $endDate) {
                 $query->whereBetween('start_date', [$startDate, $endDate])
-                      ->orWhereBetween('end_date', [$startDate, $endDate])
-                      ->orWhere(function ($subQuery) use ($startDate, $endDate) {
-                          $subQuery->where('start_date', '<=', $startDate)
-                                   ->where('end_date', '>=', $endDate);
-                      });
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function ($subQuery) use ($startDate, $endDate) {
+                        $subQuery->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                    });
             })
             ->count();
 
@@ -707,11 +707,26 @@ class WebTeacherLeaveController extends Controller
         $startDate = \Carbon\Carbon::parse($leave->start_date);
         $endDate = \Carbon\Carbon::parse($leave->end_date);
 
+        // Map English day names to Indonesian
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+
         // Create attendance records for each day of the leave
         for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
-            // Find schedules for this teacher on this date
+            // Get Indonesian day name from date
+            $dayNameEnglish = $date->format('l'); // Monday, Tuesday, etc.
+            $dayNameIndonesian = $dayMap[$dayNameEnglish] ?? $dayNameEnglish;
+
+            // Find schedules for this teacher on this day of week (using 'hari' column)
             $schedules = Schedule::where('guru_id', $leave->teacher_id)
-                ->where('tanggal', $date->format('Y-m-d'))
+                ->where('hari', $dayNameIndonesian)
                 ->get();
 
             foreach ($schedules as $schedule) {
@@ -724,29 +739,15 @@ class WebTeacherLeaveController extends Controller
                     [
                         'guru_id' => $leave->teacher_id,
                         'guru_asli_id' => null, // No substitute for regular leave
-                        'status' => 'tidak_hadir', // Mark as absent due to leave
+                        'status' => 'izin', // Mark as on leave
                         'keterangan' => 'Izin: ' . $leave->reason . ($leave->custom_reason ? ' - ' . $leave->custom_reason : ''),
                         'created_by' => auth()->id(),
                     ]
                 );
             }
 
-            // If no schedules found for this date, still create a leave record
-            if ($schedules->isEmpty()) {
-                TeacherAttendance::updateOrCreate(
-                    [
-                        'schedule_id' => null, // No specific schedule
-                        'tanggal' => $date->format('Y-m-d'),
-                        'guru_id' => $leave->teacher_id,
-                    ],
-                    [
-                        'guru_asli_id' => null,
-                        'status' => 'tidak_hadir',
-                        'keterangan' => 'Izin: ' . $leave->reason . ($leave->custom_reason ? ' - ' . $leave->custom_reason : ''),
-                        'created_by' => auth()->id(),
-                    ]
-                );
-            }
+            // Note: We don't create attendance records if no schedules exist for that day
+            // This is intentional - attendance records are tied to specific schedules
         }
     }
 
@@ -755,25 +756,49 @@ class WebTeacherLeaveController extends Controller
      */
     private function assignSubstituteTeacher(Leave $leave)
     {
-        $schedules = Schedule::where('guru_id', $leave->teacher_id)
-            ->whereBetween('tanggal', [$leave->start_date, $leave->end_date])
-            ->get();
+        $startDate = \Carbon\Carbon::parse($leave->start_date);
+        $endDate = \Carbon\Carbon::parse($leave->end_date);
 
-        foreach ($schedules as $schedule) {
-            // Update the existing attendance record to show substitute teacher
-            TeacherAttendance::updateOrCreate(
-                [
-                    'schedule_id' => $schedule->id,
-                    'tanggal' => $schedule->tanggal,
-                ],
-                [
-                    'guru_id' => $leave->substitute_teacher_id,
-                    'guru_asli_id' => $leave->teacher_id,
-                    'status' => 'diganti',
-                    'keterangan' => 'Pengganti ' . ($leave->teacher ? $leave->teacher->nama : 'Unknown Teacher') . ' - Izin: ' . $leave->reason,
-                    'created_by' => auth()->id(),
-                ]
-            );
+        // Map English day names to Indonesian
+        $dayMap = [
+            'Monday' => 'Senin',
+            'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu',
+            'Thursday' => 'Kamis',
+            'Friday' => 'Jumat',
+            'Saturday' => 'Sabtu',
+            'Sunday' => 'Minggu',
+        ];
+
+        // Get all schedules for this teacher
+        $teacherSchedules = Schedule::where('guru_id', $leave->teacher_id)->get();
+
+        // For each day in the leave period, find matching schedules by day of week
+        for ($date = $startDate->copy(); $date->lte($endDate); $date->addDay()) {
+            $dayNameEnglish = $date->format('l');
+            $dayNameIndonesian = $dayMap[$dayNameEnglish] ?? $dayNameEnglish;
+
+            // Filter schedules that match this day
+            $matchingSchedules = $teacherSchedules->filter(function ($schedule) use ($dayNameIndonesian) {
+                return $schedule->hari === $dayNameIndonesian;
+            });
+
+            foreach ($matchingSchedules as $schedule) {
+                // Update the existing attendance record to show substitute teacher
+                TeacherAttendance::updateOrCreate(
+                    [
+                        'schedule_id' => $schedule->id,
+                        'tanggal' => $date->format('Y-m-d'),
+                    ],
+                    [
+                        'guru_id' => $leave->substitute_teacher_id,
+                        'guru_asli_id' => $leave->teacher_id,
+                        'status' => 'diganti',
+                        'keterangan' => 'Pengganti ' . ($leave->teacher ? $leave->teacher->nama : 'Unknown Teacher') . ' - Izin: ' . $leave->reason,
+                        'created_by' => auth()->id(),
+                    ]
+                );
+            }
         }
     }
 

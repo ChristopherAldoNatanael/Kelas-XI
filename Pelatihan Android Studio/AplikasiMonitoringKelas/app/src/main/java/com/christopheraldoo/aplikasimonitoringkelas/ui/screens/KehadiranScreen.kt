@@ -737,6 +737,9 @@ private fun KehadiranStatusBadge(schedule: ScheduleItem) {
     // Check if teacher is on leave first
     val isTeacherOnLeave = schedule.teacherOnLeave || schedule.status == "izin"
     
+    // Normalize status to lowercase for comparison
+    val normalizedStatus = schedule.status?.lowercase()?.trim()
+    
     val (text, bgColor, textColor, icon) = when {
         isTeacherOnLeave -> StatusBadgeConfig(
             "IZIN",
@@ -744,35 +747,36 @@ private fun KehadiranStatusBadge(schedule: ScheduleItem) {
             KehadiranColors.IzinPurple,
             Icons.Outlined.EventBusy
         )
-        !schedule.submitted -> StatusBadgeConfig(
+        // If not submitted OR (submitted but status is null/empty), show MENUNGGU
+        !schedule.submitted || normalizedStatus.isNullOrEmpty() -> StatusBadgeConfig(
             "MENUNGGU",
             KehadiranColors.WaitingYellowLight,
             KehadiranColors.WaitingYellow,
             Icons.Outlined.Pending
         )
-        schedule.status == "hadir" -> StatusBadgeConfig(
+        normalizedStatus == "hadir" -> StatusBadgeConfig(
             "HADIR",
             KehadiranColors.SuccessGreenLight,
             KehadiranColors.SuccessGreen,
             Icons.Default.CheckCircle
         )
-        schedule.status == "terlambat" || schedule.status == "telat" -> StatusBadgeConfig(
+        normalizedStatus == "terlambat" || normalizedStatus == "telat" -> StatusBadgeConfig(
             "TERLAMBAT",
             KehadiranColors.WarningOrangeLight,
             KehadiranColors.WarningOrange,
             Icons.Default.WatchLater
         )
-        schedule.status == "tidak_hadir" -> StatusBadgeConfig(
+        normalizedStatus == "tidak_hadir" || normalizedStatus == "tidak hadir" || normalizedStatus == "alfa" -> StatusBadgeConfig(
             "TIDAK HADIR",
             KehadiranColors.ErrorRedLight,
             KehadiranColors.ErrorRed,
             Icons.Default.Cancel
         )
         else -> StatusBadgeConfig(
-            "UNKNOWN",
-            KehadiranColors.DividerColor,
-            KehadiranColors.MediumText,
-            Icons.Outlined.Help
+            "MENUNGGU",
+            KehadiranColors.WaitingYellowLight,
+            KehadiranColors.WaitingYellow,
+            Icons.Outlined.Pending
         )
     }
     

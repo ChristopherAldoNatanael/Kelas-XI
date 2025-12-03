@@ -88,7 +88,26 @@ data class ClassManagementResponse(
     @SerializedName("status_counts") val statusCounts: StatusCounts,
     @SerializedName("alert_classes") val alertClasses: List<ClassScheduleItem>,
     @SerializedName("grouped_by_class") val groupedByClass: List<ClassGroup>? = null,
+    @SerializedName("present_teachers_by_period") val presentTeachersByPeriod: List<PeriodTeacherInfo>? = null,
     @SerializedName("data") val data: List<ClassScheduleItem>
+)
+
+// Present teachers info per period
+data class PeriodTeacherInfo(
+    @SerializedName("start_time") val startTime: String? = null,
+    @SerializedName("end_time") val endTime: String? = null,
+    @SerializedName("is_current") val isCurrent: Boolean = false,
+    @SerializedName("total_present") val totalPresent: Int = 0,
+    @SerializedName("total_scheduled") val totalScheduled: Int = 0,
+    @SerializedName("teachers") val teachers: List<PresentTeacher> = emptyList()
+)
+
+data class PresentTeacher(
+    @SerializedName("teacher_id") val teacherId: Int? = null,
+    @SerializedName("teacher_name") val teacherName: String = "Unknown",
+    @SerializedName("status") val status: String? = null,
+    @SerializedName("class_name") val className: String? = null,
+    @SerializedName("subject_name") val subjectName: String? = null
 )
 
 data class ClassManagementSummary(
@@ -358,8 +377,8 @@ data class PendingAttendanceData(
     @SerializedName("total_pending") val totalPending: Int,
     @SerializedName("belum_lapor_count") val belumLaporCount: Int = 0,
     @SerializedName("pending_count") val pendingCount: Int = 0,
-    @SerializedName("grouped_by_class") val groupedByClass: List<PendingClassGroup>,
-    @SerializedName("all_pending") val allPending: List<PendingAttendanceItem>
+    @SerializedName("grouped_by_class") val groupedByClass: List<PendingClassGroup>? = null, // Nullable karena Gson tidak support default value
+    @SerializedName("all_pending") val allPending: List<PendingAttendanceItem>? = null // Optional - removed from backend response
 )
 
 data class PendingClassGroup(
@@ -368,7 +387,7 @@ data class PendingClassGroup(
     @SerializedName("total_pending") val totalPending: Int,
     @SerializedName("belum_lapor_count") val belumLaporCount: Int = 0,
     @SerializedName("pending_count") val pendingCount: Int = 0,
-    @SerializedName("schedules") val schedules: List<PendingAttendanceItem>
+    @SerializedName("schedules") val schedules: List<PendingAttendanceItem> = emptyList()
 )
 
 data class PendingAttendanceItem(
@@ -416,8 +435,14 @@ data class ConfirmAttendanceResult(
 )
 
 data class BulkConfirmRequest(
-    @SerializedName("attendance_ids") val attendanceIds: List<Int>,
+    @SerializedName("attendance_ids") val attendanceIds: List<Int>? = null, // For items with existing attendance records
+    @SerializedName("schedule_items") val scheduleItems: List<BulkConfirmScheduleItem>? = null, // For items without attendance records
     @SerializedName("status") val status: String
+)
+
+data class BulkConfirmScheduleItem(
+    @SerializedName("schedule_id") val scheduleId: Int,
+    @SerializedName("date") val date: String
 )
 
 data class BulkConfirmResponse(

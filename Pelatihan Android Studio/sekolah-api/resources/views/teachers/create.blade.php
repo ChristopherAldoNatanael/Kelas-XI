@@ -310,6 +310,7 @@
     </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Theme Detection
@@ -366,15 +367,83 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Form submission with loading state
+    // Form submission with AJAX
     if (form) {
         form.addEventListener('submit', function(e) {
+            e.preventDefault();
+
             const submitBtn = form.querySelector('button[type="submit"]');
-            if (submitBtn) {
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Teacher...';
-                submitBtn.disabled = true;
-                submitBtn.classList.add('loading');
-            }
+            const originalText = submitBtn.innerHTML;
+
+            // Set loading state
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating Teacher...';
+            submitBtn.disabled = true;
+            submitBtn.classList.add('loading');
+
+            // Prepare form data
+            const formData = new FormData(form);
+
+            // Send AJAX request
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                }
+            })
+            .then(response => {
+                return response.json().then(data => {
+                    return { ok: response.ok, status: response.status, data: data };
+                });
+            })
+            .then(result => {
+                if (result.ok && result.data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Success!',
+                        text: result.data.message || 'Teacher created successfully!',
+                        confirmButtonText: 'OK'
+                    }).then(() => {
+                        window.location.href = '{{ route("web-teachers.index") }}';
+                    });
+                } else {
+                    // Handle validation errors (422) or other errors
+                    let errorMessage = result.data.message || 'Failed to create teacher.';
+                    
+                    // If there are validation errors, display them
+                    if (result.data.errors) {
+                        const errorList = [];
+                        for (const field in result.data.errors) {
+                            const fieldErrors = result.data.errors[field];
+                            fieldErrors.forEach(err => errorList.push(err));
+                        }
+                        errorMessage = errorList.join('<br>');
+                    }
+
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Error!',
+                        html: errorMessage,
+                        confirmButtonText: 'OK'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error!',
+                    text: 'An unexpected error occurred. Please try again.',
+                    confirmButtonText: 'OK'
+                });
+            })
+            .finally(() => {
+                // Reset button state
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+                submitBtn.classList.remove('loading');
+            });
         });
     }
 

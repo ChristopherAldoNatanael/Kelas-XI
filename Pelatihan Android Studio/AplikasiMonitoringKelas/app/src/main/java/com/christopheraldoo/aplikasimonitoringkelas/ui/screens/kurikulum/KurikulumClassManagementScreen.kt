@@ -88,8 +88,7 @@ fun KurikulumClassManagementScreen(
                     onRetry = { viewModel.loadClassManagement() }
                 )
             }
-            
-            is ClassManagementUiState.Success -> {
+              is ClassManagementUiState.Success -> {
                 Column(modifier = Modifier.fillMaxSize()) {
                     // Header with summary
                     HeaderSection(
@@ -101,11 +100,12 @@ fun KurikulumClassManagementScreen(
                     )
                     
                     // Content
-                    if (state.groupedByClass.isEmpty()) {
+                    if (state.groupedByClass.isEmpty() && state.presentTeachersByPeriod.isEmpty()) {
                         EmptyState()
                     } else {
                         ClassGroupList(
                             groupedClasses = state.groupedByClass,
+                            presentTeachersByPeriod = state.presentTeachersByPeriod,
                             onAssignSubstitute = { scheduleItem ->
                                 selectedScheduleItem = scheduleItem
                                 viewModel.loadAvailableSubstitutes(
@@ -306,6 +306,7 @@ private fun SummaryCard(
 @Composable
 private fun ClassGroupList(
     groupedClasses: List<ClassGroup>,
+    presentTeachersByPeriod: List<PeriodTeacherInfo>,
     onAssignSubstitute: (ClassScheduleItem) -> Unit
 ) {
     LazyColumn(
@@ -313,15 +314,274 @@ private fun ClassGroupList(
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Present Teachers Section (collapsible)
+        if (presentTeachersByPeriod.isNotEmpty()) {
+            item {
+                PresentTeachersSection(presentTeachersByPeriod = presentTeachersByPeriod)
+            }
+        }
+        
+        // Class Groups with issues
         items(groupedClasses, key = { it.className }) { classGroup ->
             ClassGroupCard(
                 classGroup = classGroup,
                 onAssignSubstitute = onAssignSubstitute
             )
         }
-        
-        item {
+          item {
             Spacer(modifier = Modifier.height(80.dp)) // Space for bottom nav
+        }
+    }
+}
+
+@Composable
+private fun PresentTeachersSection(
+    presentTeachersByPeriod: List<PeriodTeacherInfo>
+) {
+    var expanded by remember { mutableStateOf(false) }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Column {
+            // Header - clickable to expand/collapse
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded },
+                color = GreenSuccess.copy(alpha = 0.05f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(
+                            shape = CircleShape,
+                            color = GreenSuccess.copy(alpha = 0.1f)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Groups,
+                                contentDescription = null,
+                                tint = GreenSuccess,
+                                modifier = Modifier
+                                    .padding(10.dp)
+                                    .size(24.dp)
+                            )
+                        }
+                        
+                        Spacer(modifier = Modifier.width(12.dp))
+                        
+                        Column {
+                            Text(
+                                text = "Guru Hadir per Jam",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1A237E)
+                            )
+                            Text(
+                                text = "Lihat guru yang sudah hadir",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
+                    
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Total present badge
+                        val totalPresent = presentTeachersByPeriod.sumOf { it.totalPresent }
+                        val totalScheduled = presentTeachersByPeriod.sumOf { it.totalScheduled }
+                        
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = GreenSuccess
+                        ) {
+                            Text(
+                                text = "$totalPresent/$totalScheduled hadir",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                            )
+                        }
+                        
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                            contentDescription = if (expanded) "Collapse" else "Expand",
+                            tint = Color.Gray
+                        )
+                    }
+                }
+            }
+            
+            // Expandable content - list of periods with present teachers
+            AnimatedVisibility(
+                visible = expanded,
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    presentTeachersByPeriod.forEach { period ->
+                        PeriodTeachersCard(periodInfo = period)
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun PeriodTeachersCard(
+    periodInfo: PeriodTeacherInfo
+) {
+    val timeRange = if (periodInfo.startTime != null && periodInfo.endTime != null) {
+        "${periodInfo.startTime} - ${periodInfo.endTime}"
+    } else {
+        "Tidak diketahui"
+    }
+    
+    var showTeachers by remember { mutableStateOf(periodInfo.isCurrent) }
+    
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { showTeachers = !showTeachers },
+        shape = RoundedCornerShape(12.dp),
+        color = if (periodInfo.isCurrent) GreenSuccess.copy(alpha = 0.1f) else Color(0xFFF8FAFC),
+        border = if (periodInfo.isCurrent) {
+            androidx.compose.foundation.BorderStroke(1.dp, GreenSuccess.copy(alpha = 0.3f))
+        } else {
+            androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+        }
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Outlined.Schedule,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (periodInfo.isCurrent) GreenSuccess else Color(0xFF64748B)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = timeRange,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (periodInfo.isCurrent) FontWeight.SemiBold else FontWeight.Normal,
+                        color = if (periodInfo.isCurrent) GreenSuccess else Color(0xFF1E293B)
+                    )
+                    
+                    if (periodInfo.isCurrent) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = GreenSuccess
+                        ) {
+                            Text(
+                                text = "SEKARANG",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = GreenSuccess.copy(alpha = 0.15f)
+                    ) {
+                        Text(
+                            text = "${periodInfo.totalPresent}/${periodInfo.totalScheduled}",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = GreenSuccess,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.width(4.dp))
+                    
+                    Icon(
+                        imageVector = if (showTeachers) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = Color.Gray
+                    )
+                }
+            }
+            
+            // Show teachers list when expanded
+            AnimatedVisibility(
+                visible = showTeachers && periodInfo.teachers.isNotEmpty(),
+                enter = expandVertically() + fadeIn(),
+                exit = shrinkVertically() + fadeOut()
+            ) {
+                Column(
+                    modifier = Modifier.padding(top = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    periodInfo.teachers.forEach { teacher ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (teacher.status == "hadir") GreenSuccess else OrangeWarning
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = teacher.teacherName,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color(0xFF1E293B),
+                                modifier = Modifier.weight(1f)
+                            )
+                            Text(
+                                text = "${teacher.className} - ${teacher.subjectName}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = Color(0xFF64748B),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+            
+            // Empty state for period
+            if (showTeachers && periodInfo.teachers.isEmpty()) {
+                Text(
+                    text = "Belum ada guru yang hadir",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
         }
     }
 }

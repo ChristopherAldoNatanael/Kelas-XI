@@ -173,6 +173,7 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                         statusCounts = response.statusCounts,
                         alertClasses = response.alertClasses,
                         groupedByClass = response.groupedByClass ?: emptyList(),
+                        presentTeachersByPeriod = response.presentTeachersByPeriod ?: emptyList(),
                         classes = response.data
                     )
                 } else {
@@ -401,7 +402,10 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                 val response = repository.getPendingAttendances(date)
                 if (response.success && response.data != null) {
                     val data = response.data
-                    if (data.totalPending > 0) {
+                    val groupedList = data.groupedByClass ?: emptyList()
+                    val allPendingList = data.allPending ?: emptyList()
+                    
+                    if (data.totalPending > 0 || groupedList.isNotEmpty()) {
                         _pendingState.value = PendingAttendanceUiState.Success(
                             date = data.date,
                             day = data.day,
@@ -409,8 +413,8 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                             totalPending = data.totalPending,
                             belumLaporCount = data.belumLaporCount,
                             pendingCount = data.pendingCount,
-                            groupedByClass = data.groupedByClass,
-                            allPending = data.allPending
+                            groupedByClass = groupedList,
+                            allPending = allPendingList
                         )
                     } else {
                         _pendingState.value = PendingAttendanceUiState.Empty(
@@ -437,8 +441,7 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
      * Works for both:
      * - schedules without attendance (belum_lapor) - uses scheduleId
      * - schedules with pending status - uses attendanceId
-     */
-    fun setAttendanceStatus(
+     */    fun setAttendanceStatus(
         scheduleId: Int? = null,
         attendanceId: Int? = null, 
         status: String, 
@@ -446,6 +449,7 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
         date: String? = null
     ) {
         viewModelScope.launch {
+            Log.d(TAG, "setAttendanceStatus called: scheduleId=$scheduleId, attendanceId=$attendanceId, status=$status, date=$date")
             _confirmState.value = ConfirmAttendanceUiState.Confirming
             try {
                 val request = ConfirmAttendanceRequest(
@@ -455,7 +459,9 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
                     keterangan = keterangan,
                     date = date
                 )
+                Log.d(TAG, "Sending confirm request: $request")
                 val response = repository.confirmAttendance(request)
+                Log.d(TAG, "Confirm response: success=${response.success}, message=${response.message}")
                 if (response.success) {
                     _confirmState.value = ConfirmAttendanceUiState.Success(
                         response.message ?: "Kehadiran berhasil disimpan"
@@ -476,12 +482,24 @@ class KurikulumViewModel(private val repository: NetworkRepository) : ViewModel(
         }
     }
     
-    fun bulkConfirmAttendance(attendanceIds: List<Int>, status: String) {
+    fun bulkConfirmAttendance(items: List<PendingAttendanceItem>, status: String) {
         viewModelScope.launch {
             _confirmState.value = ConfirmAttendanceUiState.Confirming
             try {
+                // Separate items into those with attendance records and those without
+                val itemsWithAttendance = items.filter { it.id != null }
+                val itemsWithoutAttendance = items.filter { it.id == null }
+                
+                val attendanceIds = itemsWithAttendance.mapNotNull { it.id }
+                val scheduleItems = itemsWithoutAttendance.map { 
+                    BulkConfirmScheduleItem(scheduleId = it.scheduleId, date = it.date)
+                }
+                
+                Log.d(TAG, "bulkConfirmAttendance: ${attendanceIds.size} with attendance, ${scheduleItems.size} without")
+                
                 val request = BulkConfirmRequest(
-                    attendanceIds = attendanceIds,
+                    attendanceIds = attendanceIds.ifEmpty { null },
+                    scheduleItems = scheduleItems.ifEmpty { null },
                     status = status
                 )
                 val response = repository.bulkConfirmAttendance(request)
@@ -553,6 +571,7 @@ sealed class ClassManagementUiState {
         val statusCounts: StatusCounts,
         val alertClasses: List<ClassScheduleItem>,
         val groupedByClass: List<ClassGroup>,
+        val presentTeachersByPeriod: List<PeriodTeacherInfo>,
         val classes: List<ClassScheduleItem>
     ) : ClassManagementUiState()
     data class Error(val message: String) : ClassManagementUiState()
@@ -603,8 +622,8 @@ sealed class PendingAttendanceUiState {
         val totalPending: Int,
         val belumLaporCount: Int = 0,
         val pendingCount: Int = 0,
-        val groupedByClass: List<PendingClassGroup>,
-        val allPending: List<PendingAttendanceItem>
+        val groupedByClass: List<PendingClassGroup> = emptyList(),
+        val allPending: List<PendingAttendanceItem> = emptyList() // Optional - may be empty
     ) : PendingAttendanceUiState()
     data class Empty(val date: String, val day: String) : PendingAttendanceUiState()
     data class Error(val message: String) : PendingAttendanceUiState()

@@ -79,7 +79,7 @@ Route::middleware('auth:sanctum')->get('/test-auth', function (Request $request)
 // Debug endpoint for schedule issues
 Route::get('/debug-schedule', function () {
     try {
-        $schedules = \App\Models\Schedule::select('id', 'hari', 'kelas', 'mata_pelajaran')->limit(5)->get();
+        $schedules = \App\Models\Schedule::select(['id', 'hari', 'kelas', 'mata_pelajaran'])->limit(5)->get();
         return response()->json([
             'success' => true,
             'count' => $schedules->count(),

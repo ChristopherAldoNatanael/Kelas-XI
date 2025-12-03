@@ -31,7 +31,7 @@
             <div class="info-row">
                 <span class="label">Tanggal Selesai:</span> {{ $leave->end_date }}
             </div>
-            @if($substituteTeacher)
+            @if($substituteTeacher && isset($substituteTeacher->name))
             <div class="info-row">
                 <span class="label">Guru Pengganti:</span> {{ $substituteTeacher->name }}
             </div>

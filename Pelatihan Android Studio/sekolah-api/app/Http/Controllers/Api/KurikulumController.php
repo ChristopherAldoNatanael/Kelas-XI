@@ -33,6 +33,13 @@ class KurikulumController extends Controller
             return null;
         }
 
+        // Handle Carbon/DateTime objects
+        if ($timeValue instanceof \DateTime || $timeValue instanceof Carbon) {
+            return $timeValue->format('H:i:s');
+        }
+
+        // Convert to string if not already
+        $timeValue = (string) $timeValue;
         $timeValue = trim($timeValue);
 
         // If it looks like a datetime (contains space and has date format)
@@ -401,7 +408,7 @@ class KurikulumController extends Controller
      * Returns all classes but only shows teachers with tidak_hadir or telat status
      * Grouped by class for easy management
      */
-    public function classManagement(Request $request): JsonResponse
+    public function classManagement(Request $request)
     {
         try {
             $today = Carbon::now()->format('Y-m-d');
@@ -578,6 +585,37 @@ class KurikulumController extends Controller
             // Classes with alert (no teacher > 15 minutes)
             $alertClasses = $result->where('no_teacher_alert', true)->values();
 
+            // Get present teachers per time slot (for kurikulum to see who's available)
+            $presentTeachersByPeriod = [];
+            $timeSlots = $result->pluck('start_time')->unique()->filter()->values();
+
+            foreach ($timeSlots as $startTime) {
+                $presentTeachers = $result
+                    ->where('start_time', $startTime)
+                    ->whereIn('status', ['hadir', 'telat'])
+                    ->map(function ($item) {
+                        return [
+                            'teacher_id' => $item['teacher_id'],
+                            'teacher_name' => $item['teacher_name'],
+                            'status' => $item['status'],
+                            'class_name' => $item['class_name'],
+                            'subject_name' => $item['subject_name'],
+                        ];
+                    })
+                    ->values();
+
+                $endTime = $result->where('start_time', $startTime)->first()['end_time'] ?? null;
+
+                $presentTeachersByPeriod[] = [
+                    'start_time' => $startTime,
+                    'end_time' => $endTime,
+                    'is_current' => $startTime && $endTime && $currentTime >= $startTime && $currentTime <= $endTime,
+                    'total_present' => $presentTeachers->count(),
+                    'total_scheduled' => $result->where('start_time', $startTime)->count(),
+                    'teachers' => $presentTeachers,
+                ];
+            }
+
             // Summary for quick view
             $summary = [
                 'total_classes_need_attention' => $groupedByClass->count(),
@@ -589,7 +627,10 @@ class KurikulumController extends Controller
                 'alert_count' => $alertClasses->count(),
             ];
 
-            return response()->json([
+            // Check if request wants lightweight response (for mobile)
+            $lightweight = $request->boolean('lightweight', false);
+
+            $responseData = [
                 'success' => true,
                 'message' => 'Data manajemen kelas berhasil diambil',
                 'date' => $today,
@@ -598,8 +639,19 @@ class KurikulumController extends Controller
                 'summary' => $summary,
                 'status_counts' => $allStatusCounts,
                 'alert_classes' => $alertClasses,
-                'grouped_by_class' => $groupedByClass,
+                'grouped_by_class' => $groupedByClass, // Always include - needed for display
+                // Only include present_teachers_by_period if not lightweight mode (reduces ~8KB)
+                'present_teachers_by_period' => $lightweight ? [] : $presentTeachersByPeriod,
                 'data' => $needsAttention
+            ];
+
+            // Use raw JSON response with explicit encoding to prevent stream issues
+            $jsonContent = json_encode($responseData, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+            return response($jsonContent, 200, [
+                'Content-Type' => 'application/json',
+                'Content-Length' => strlen($jsonContent),
+                'Connection' => 'close'
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -1081,7 +1133,7 @@ class KurikulumController extends Controller
     public function getClasses(): JsonResponse
     {
         try {
-            $classes = ClassModel::select('id', 'nama_kelas', 'level', 'major')
+            $classes = ClassModel::select(['id', 'nama_kelas', 'level', 'major'])
                 ->orderBy('level')
                 ->orderBy('nama_kelas')
                 ->get();
@@ -1105,7 +1157,7 @@ class KurikulumController extends Controller
     public function getTeachers(): JsonResponse
     {
         try {
-            $teachers = Teacher::select('id', 'nama', 'nip')
+            $teachers = Teacher::select(['id', 'nama', 'nip'])
                 ->orderBy('nama')
                 ->get();
 
@@ -1147,7 +1199,7 @@ class KurikulumController extends Controller
             $currentTime = Carbon::now()->format('H:i:s');
 
             // Get all schedules for today
-            $schedules = Schedule::with(['guru:id,nama,nip', 'class', 'subject:id,nama'])
+            $schedules = Schedule::with(['guru:id,nama,nip'])
                 ->where('hari', $hari)
                 ->orderBy('kelas')
                 ->orderBy('jam_mulai')
@@ -1172,62 +1224,110 @@ class KurikulumController extends Controller
                     $isCurrentPeriod = $jamMulai && $jamSelesai &&
                         $currentTime >= $jamMulai && $currentTime <= $jamSelesai;
 
+                    // Safely extract class info (avoid relationship issues)
+                    $classId = null;
+                    $className = $schedule->kelas ?? 'Unknown';
+                    try {
+                        if ($schedule->class_id) {
+                            $classId = (int) $schedule->class_id;
+                        }
+                        // Try to get class name from relationship
+                        $classRelation = $schedule->class;
+                        if ($classRelation && isset($classRelation->nama_kelas)) {
+                            $className = (string) $classRelation->nama_kelas;
+                            $classId = (int) $classRelation->id;
+                        }
+                    } catch (\Exception $e) {
+                        // Use fallback values
+                    }
+
+                    // Safely extract subject name
+                    $subjectName = $schedule->mata_pelajaran ?? 'Unknown';
+                    try {
+                        $subjectRelation = $schedule->subject;
+                        if ($subjectRelation && isset($subjectRelation->nama)) {
+                            $subjectName = (string) $subjectRelation->nama;
+                        }
+                    } catch (\Exception $e) {
+                        // Use fallback value
+                    }
+
+                    // Safely extract teacher info
+                    $teacherName = 'Unknown';
+                    $teacherNip = '';
+                    try {
+                        if ($schedule->guru) {
+                            $teacherName = (string) ($schedule->guru->nama ?? 'Unknown');
+                            $teacherNip = (string) ($schedule->guru->nip ?? '');
+                        }
+                    } catch (\Exception $e) {
+                        // Use fallback values
+                    }
+
                     $result[] = [
-                        'id' => $attendance->id ?? null, // null jika belum ada attendance
-                        'schedule_id' => $schedule->id,
-                        'date' => $targetDate,
-                        'day' => $hari,
-                        'time_start' => $jamMulai,
-                        'time_end' => $jamSelesai,
+                        'id' => $attendance ? (int) $attendance->id : null,
+                        'schedule_id' => (int) $schedule->id,
+                        'date' => (string) $targetDate,
+                        'day' => (string) $hari,
+                        'time_start' => $jamMulai ? (string) $jamMulai : null,
+                        'time_end' => $jamSelesai ? (string) $jamSelesai : null,
                         'arrival_time' => $attendance ? $this->extractTimeOnly($attendance->jam_masuk) : null,
-                        'class_id' => $schedule->class->id ?? null,
-                        'class_name' => $schedule->class->nama_kelas ?? $schedule->kelas ?? 'Unknown',
-                        'subject_name' => $schedule->subject->nama ?? $schedule->mata_pelajaran ?? 'Unknown',
-                        'teacher_id' => $schedule->guru_id,
-                        'teacher_name' => $schedule->guru->nama ?? 'Unknown',
-                        'teacher_nip' => $schedule->guru->nip ?? '',
-                        'status' => $attendance ? $attendance->status : 'belum_lapor', // belum_lapor = tidak ada attendance sama sekali
-                        'keterangan' => $attendance->keterangan ?? null,
+                        'class_id' => $classId,
+                        'class_name' => (string) $className,
+                        'subject_name' => (string) $subjectName,
+                        'teacher_id' => (int) $schedule->guru_id,
+                        'teacher_name' => (string) $teacherName,
+                        'teacher_nip' => (string) $teacherNip,
+                        'status' => $attendance ? (string) $attendance->status : 'belum_lapor',
+                        'keterangan' => $attendance && $attendance->keterangan ? (string) $attendance->keterangan : null,
                         'has_attendance' => $attendance !== null,
-                        'is_past_schedule' => $isPastSchedule,
-                        'is_current_period' => $isCurrentPeriod,
+                        'is_past_schedule' => (bool) $isPastSchedule,
+                        'is_current_period' => (bool) $isCurrentPeriod,
                         'created_at' => $attendance ? $attendance->created_at->toISOString() : null
                     ];
                 }
             }
 
-            // Group by class
+            // Group by class (with schedules for proper UI display)
             $groupedByClass = collect($result)->groupBy('class_name')->map(function ($items, $className) {
                 $firstItem = $items->first();
                 return [
-                    'class_name' => $className,
-                    'class_id' => $firstItem['class_id'] ?? null,
-                    'total_pending' => $items->count(),
-                    'belum_lapor_count' => $items->where('status', 'belum_lapor')->count(),
-                    'pending_count' => $items->where('status', 'pending')->count(),
-                    'schedules' => $items->values()->toArray()
+                    'class_name' => (string) $className,
+                    'class_id' => isset($firstItem['class_id']) ? (int) $firstItem['class_id'] : null,
+                    'total_pending' => (int) $items->count(),
+                    'belum_lapor_count' => (int) $items->where('status', 'belum_lapor')->count(),
+                    'pending_count' => (int) $items->where('status', 'pending')->count(),
+                    'schedules' => $items->values()->toArray() // Include schedules for UI
                 ];
-            })->values();
+            })->values()->toArray();
 
             // Summary counts
-            $belumLaporCount = collect($result)->where('status', 'belum_lapor')->count();
-            $pendingCount = collect($result)->where('status', 'pending')->count();
+            $belumLaporCount = (int) collect($result)->where('status', 'belum_lapor')->count();
+            $pendingCount = (int) collect($result)->where('status', 'pending')->count();
 
+            // Build response data - LIMIT to prevent JSON truncation
+            $responseData = [
+                'date' => (string) $targetDate,
+                'day' => (string) $hari,
+                'current_time' => (string) $currentTime,
+                'total_pending' => (int) count($result),
+                'belum_lapor_count' => (int) $belumLaporCount,
+                'pending_count' => (int) $pendingCount,
+                'grouped_by_class' => $groupedByClass
+                // Removed 'all_pending' to reduce response size
+            ];
+
+            // Return with proper JSON encoding options
             return response()->json([
                 'success' => true,
                 'message' => 'Data jadwal yang belum ada kehadiran berhasil diambil',
-                'data' => [
-                    'date' => $targetDate,
-                    'day' => $hari,
-                    'current_time' => $currentTime,
-                    'total_pending' => count($result),
-                    'belum_lapor_count' => $belumLaporCount,
-                    'pending_count' => $pendingCount,
-                    'grouped_by_class' => $groupedByClass,
-                    'all_pending' => $result
-                ]
-            ]);
+                'data' => $responseData
+            ], 200, [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         } catch (\Exception $e) {
+            \Log::error('getPendingAttendances error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengambil data kehadiran pending',
@@ -1245,9 +1345,28 @@ class KurikulumController extends Controller
     public function confirmAttendance(Request $request): JsonResponse
     {
         try {
+            // Log incoming request for debugging
+            \Log::info('confirmAttendance called', [
+                'all_input' => $request->all(),
+                'schedule_id' => $request->schedule_id,
+                'attendance_id' => $request->attendance_id,
+                'status' => $request->status,
+                'date' => $request->date
+            ]);
+
+            // Handle null values as if they don't exist
+            $scheduleId = $request->schedule_id ?: null;
+            $attendanceId = $request->attendance_id ?: null;
+
+            // Merge cleaned values back for validation
+            $request->merge([
+                'schedule_id' => $scheduleId,
+                'attendance_id' => $attendanceId,
+            ]);
+
             $request->validate([
-                'schedule_id' => 'required_without:attendance_id|integer',
-                'attendance_id' => 'required_without:schedule_id|integer',
+                'schedule_id' => 'required_without:attendance_id|nullable|integer',
+                'attendance_id' => 'required_without:schedule_id|nullable|integer',
                 'status' => 'required|in:hadir,telat,tidak_hadir',
                 'keterangan' => 'nullable|string|max:255',
                 'date' => 'nullable|date'
@@ -1255,6 +1374,13 @@ class KurikulumController extends Controller
 
             $targetDate = $request->get('date', Carbon::now()->format('Y-m-d'));
             $kurikulumId = auth()->user()->id ?? null;
+
+            \Log::info('confirmAttendance processing', [
+                'targetDate' => $targetDate,
+                'kurikulumId' => $kurikulumId,
+                'has_attendance_id' => $request->has('attendance_id') && $request->attendance_id,
+                'has_schedule_id' => $request->has('schedule_id') && $request->schedule_id
+            ]);
 
             // If attendance_id is provided, update existing
             if ($request->has('attendance_id') && $request->attendance_id) {
@@ -1285,6 +1411,12 @@ class KurikulumController extends Controller
                     ->where('tanggal', $targetDate)
                     ->first();
 
+                \Log::info('Existing attendance check', [
+                    'schedule_id' => $schedule->id,
+                    'targetDate' => $targetDate,
+                    'existingAttendance' => $existingAttendance ? $existingAttendance->toArray() : null
+                ]);
+
                 if ($existingAttendance && !in_array($existingAttendance->status, ['pending'])) {
                     return response()->json([
                         'success' => false,
@@ -1295,6 +1427,7 @@ class KurikulumController extends Controller
 
                 if ($existingAttendance) {
                     // Update existing pending
+                    \Log::info('Updating existing attendance', ['id' => $existingAttendance->id]);
                     $existingAttendance->update([
                         'status' => $request->status,
                         'keterangan' => $request->keterangan ?? 'Dikonfirmasi oleh Kurikulum',
@@ -1303,6 +1436,11 @@ class KurikulumController extends Controller
                     $attendance = $existingAttendance;
                 } else {
                     // Create new attendance
+                    \Log::info('Creating new attendance', [
+                        'schedule_id' => $schedule->id,
+                        'guru_id' => $schedule->guru_id,
+                        'status' => $request->status
+                    ]);
                     $attendance = TeacherAttendance::create([
                         'schedule_id' => $schedule->id,
                         'guru_id' => $schedule->guru_id,
@@ -1312,6 +1450,7 @@ class KurikulumController extends Controller
                         'keterangan' => $request->keterangan ?? 'Dibuat oleh Kurikulum',
                         'created_by' => $kurikulumId
                     ]);
+                    \Log::info('Attendance created', ['id' => $attendance->id]);
                 }
             }
 
@@ -1344,66 +1483,169 @@ class KurikulumController extends Controller
 
     /**
      * Bulk confirm multiple pending attendances
+     * Supports both:
+     * - attendance_ids: for items with existing attendance records (status: pending)
+     * - schedule_items: for items without attendance records (status: belum_lapor)
      */
     public function bulkConfirmAttendance(Request $request): JsonResponse
     {
         try {
+            \Log::info('bulkConfirmAttendance called', [
+                'all_input' => $request->all()
+            ]);
+
             $request->validate([
-                'attendance_ids' => 'required|array|min:1',
+                'attendance_ids' => 'nullable|array',
                 'attendance_ids.*' => 'integer|exists:teacher_attendances,id',
+                'schedule_items' => 'nullable|array',
+                'schedule_items.*.schedule_id' => 'required_with:schedule_items|integer|exists:schedules,id',
+                'schedule_items.*.date' => 'required_with:schedule_items|date',
                 'status' => 'required|in:hadir,telat'
             ]);
 
+            // Ensure at least one of attendance_ids or schedule_items is provided
+            if (empty($request->attendance_ids) && empty($request->schedule_items)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Harus menyertakan attendance_ids atau schedule_items'
+                ], 422);
+            }
+
             $confirmed = 0;
+            $created = 0;
             $skipped = 0;
             $results = [];
+            $kurikulumId = auth()->user()->id ?? null;
 
-            foreach ($request->attendance_ids as $attendanceId) {
-                $attendance = TeacherAttendance::find($attendanceId);
+            // Process existing attendance records (pending status)
+            if (!empty($request->attendance_ids)) {
+                foreach ($request->attendance_ids as $attendanceId) {
+                    $attendance = TeacherAttendance::find($attendanceId);
 
-                if (!$attendance || $attendance->status !== 'pending') {
-                    $skipped++;
-                    continue;
-                }
+                    if (!$attendance || $attendance->status !== 'pending') {
+                        $skipped++;
+                        \Log::info('Skipped attendance', ['id' => $attendanceId, 'reason' => $attendance ? 'status not pending: ' . $attendance->status : 'not found']);
+                        continue;
+                    }
 
-                // Determine final status
-                $schedule = $attendance->schedule;
-                $finalStatus = $request->status;
+                    // Determine final status
+                    $schedule = $attendance->schedule;
+                    $finalStatus = $request->status;
 
-                if ($schedule && $attendance->jam_masuk) {
-                    $jamMulai = $this->extractTimeOnly($schedule->jam_mulai);
-                    $jamMasuk = $this->extractTimeOnly($attendance->jam_masuk);
+                    if ($schedule && $attendance->jam_masuk) {
+                        $jamMulai = $this->extractTimeOnly($schedule->jam_mulai);
+                        $jamMasuk = $this->extractTimeOnly($attendance->jam_masuk);
 
-                    if ($jamMulai && $jamMasuk) {
-                        $scheduledTime = Carbon::parse($jamMulai);
-                        $actualTime = Carbon::parse($jamMasuk);
+                        if ($jamMulai && $jamMasuk) {
+                            $scheduledTime = Carbon::parse($jamMulai);
+                            $actualTime = Carbon::parse($jamMasuk);
 
-                        if ($actualTime->gt($scheduledTime->copy()->addMinutes(5))) {
-                            $finalStatus = 'telat';
+                            if ($actualTime->gt($scheduledTime->copy()->addMinutes(5))) {
+                                $finalStatus = 'telat';
+                            }
                         }
                     }
+
+                    $attendance->update(['status' => $finalStatus]);
+                    $confirmed++;
+
+                    $results[] = [
+                        'id' => $attendance->id,
+                        'status' => $finalStatus,
+                        'teacher_name' => $attendance->guru->nama ?? 'Unknown',
+                        'action' => 'confirmed'
+                    ];
                 }
+            }
 
-                $attendance->update(['status' => $finalStatus]);
-                $confirmed++;
+            // Process schedule items without attendance records (belum_lapor status)
+            if (!empty($request->schedule_items)) {
+                foreach ($request->schedule_items as $item) {
+                    $scheduleId = $item['schedule_id'];
+                    $targetDate = $item['date'];
 
-                $results[] = [
-                    'id' => $attendance->id,
-                    'status' => $finalStatus,
-                    'teacher_name' => $attendance->guru->nama ?? 'Unknown'
-                ];
+                    $schedule = Schedule::find($scheduleId);
+                    if (!$schedule) {
+                        $skipped++;
+                        \Log::info('Skipped schedule item', ['schedule_id' => $scheduleId, 'reason' => 'schedule not found']);
+                        continue;
+                    }
+
+                    // Check if attendance already exists
+                    $existingAttendance = TeacherAttendance::where('schedule_id', $scheduleId)
+                        ->where('tanggal', $targetDate)
+                        ->first();
+
+                    if ($existingAttendance) {
+                        // If it exists and is pending, confirm it
+                        if ($existingAttendance->status === 'pending') {
+                            $existingAttendance->update(['status' => $request->status]);
+                            $confirmed++;
+                            $results[] = [
+                                'id' => $existingAttendance->id,
+                                'status' => $request->status,
+                                'teacher_name' => $existingAttendance->guru->nama ?? 'Unknown',
+                                'action' => 'confirmed'
+                            ];
+                        } else {
+                            $skipped++;
+                            \Log::info('Skipped schedule item', ['schedule_id' => $scheduleId, 'reason' => 'already has status: ' . $existingAttendance->status]);
+                        }
+                        continue;
+                    }
+
+                    // Create new attendance record
+                    $attendance = TeacherAttendance::create([
+                        'schedule_id' => $scheduleId,
+                        'guru_id' => $schedule->guru_id,
+                        'tanggal' => $targetDate,
+                        'jam_masuk' => Carbon::now()->format('H:i:s'),
+                        'status' => $request->status,
+                        'keterangan' => 'Dikonfirmasi oleh Kurikulum',
+                        'created_by' => $kurikulumId
+                    ]);
+
+                    $created++;
+                    $results[] = [
+                        'id' => $attendance->id,
+                        'status' => $attendance->status,
+                        'teacher_name' => $schedule->guru->nama ?? 'Unknown',
+                        'action' => 'created'
+                    ];
+                }
+            }
+
+            $totalProcessed = $confirmed + $created;
+            $message = "Berhasil memproses $totalProcessed kehadiran";
+            if ($confirmed > 0) {
+                $message .= " ($confirmed dikonfirmasi";
+                if ($created > 0) {
+                    $message .= ", $created dibuat)";
+                } else {
+                    $message .= ")";
+                }
+            } elseif ($created > 0) {
+                $message .= " ($created dibuat)";
+            }
+            if ($skipped > 0) {
+                $message .= ", $skipped dilewati";
             }
 
             return response()->json([
                 'success' => true,
-                'message' => "Berhasil mengkonfirmasi $confirmed kehadiran" . ($skipped > 0 ? ", $skipped dilewati" : ""),
+                'message' => $message,
                 'data' => [
                     'confirmed_count' => $confirmed,
+                    'created_count' => $created,
                     'skipped_count' => $skipped,
                     'results' => $results
                 ]
             ]);
         } catch (\Exception $e) {
+            \Log::error('bulkConfirmAttendance error', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
             return response()->json([
                 'success' => false,
                 'message' => 'Gagal mengkonfirmasi kehadiran',

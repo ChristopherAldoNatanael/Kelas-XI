@@ -373,14 +373,12 @@ fun KepsekDashboardContent(viewModel: KepalaSekolahViewModel) {
 
 // === NEW: Teachers Attendance Today Section ===
 @Composable
-fun TeachersAttendanceTodaySection(attendanceToday: com.christopheraldoo.aplikasimonitoringkelas.data.TeachersAttendanceToday) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+fun TeachersAttendanceTodaySection(attendanceToday: com.christopheraldoo.aplikasimonitoringkelas.data.TeachersAttendanceToday) {    var selectedTab by remember { mutableIntStateOf(0) }
     val tabs = listOf(
         Triple("Hadir", attendanceToday.summary.present, ColorHadir),
         Triple("Terlambat", attendanceToday.summary.late, ColorTelat),
         Triple("Tidak Hadir", attendanceToday.summary.absent, ColorTidakHadir),
-        Triple("Izin", attendanceToday.summary.onLeave, ColorIzin),
-        Triple("Pending", attendanceToday.summary.pending, Color.Gray)
+        Triple("Izin", attendanceToday.summary.onLeave, ColorIzin)
     )
     
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -440,14 +438,12 @@ fun TeachersAttendanceTodaySection(attendanceToday: com.christopheraldoo.aplikas
         }
         
         Spacer(modifier = Modifier.height(12.dp))
-        
-        // Teacher List based on selected tab
+          // Teacher List based on selected tab
         val teachersList = when (selectedTab) {
             0 -> attendanceToday.teachersPresent
             1 -> attendanceToday.teachersLate
             2 -> attendanceToday.teachersAbsent
             3 -> attendanceToday.teachersOnLeaveToday
-            4 -> attendanceToday.teachersPending
             else -> emptyList()
         }
         

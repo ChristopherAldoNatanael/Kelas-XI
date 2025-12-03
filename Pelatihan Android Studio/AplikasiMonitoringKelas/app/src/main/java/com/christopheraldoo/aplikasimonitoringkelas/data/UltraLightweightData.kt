@@ -8,10 +8,13 @@ import com.google.gson.annotations.SerializedName
 
 // Jadwal Hari Ini Ultra Lightweight
 data class JadwalHariIni(
-    @SerializedName("periode") val periode: Int,
+    @SerializedName("periode") val periode: Int = 0,
     @SerializedName("waktu") val waktu: String,
     @SerializedName("mapel") val mapel: String?,
-    @SerializedName("guru") val guru: String?
+    @SerializedName("guru") val guru: String?,
+    @SerializedName("guru_izin") val guruIzin: Boolean = false,
+    @SerializedName("guru_pengganti") val guruPengganti: String? = null,
+    @SerializedName("alasan_izin") val alasanIzin: String? = null
 )
 
 // Riwayat Kehadiran Ultra Lightweight

@@ -29,6 +29,7 @@ import com.christopheraldoo.aplikasimonitoringkelas.util.SessionManager
 import com.christopheraldoo.aplikasimonitoringkelas.utils.TokenManager
 import com.christopheraldoo.aplikasimonitoringkelas.cache.CacheManager
 import com.google.gson.JsonObject
+import kotlinx.coroutines.delay
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -1201,41 +1202,61 @@ class NetworkRepository(private val context: Context) {
         }
     }
 
-    // Get Pending Attendances
+    // Get Pending Attendances with retry logic for JSON parsing errors
     suspend fun getPendingAttendances(
         date: String? = null
     ): com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse = withContext(Dispatchers.IO) {
-        try {
-            val response = getApi().getPendingAttendances(getAuthToken(), date)
-            if (response.isSuccessful && response.body() != null) {
-                response.body()!!
-            } else {
-                com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
-                    success = false,
-                    message = "Gagal memuat data pending: ${response.message()}",
-                    data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
-                        date = "",
-                        day = "",
-                        totalPending = 0,
-                        groupedByClass = emptyList(),
-                        allPending = emptyList()
+        var lastException: Exception? = null
+        val maxRetries = 3
+        
+        for (attempt in 1..maxRetries) {
+            try {
+                val response = getApi().getPendingAttendances(getAuthToken(), date)
+                if (response.isSuccessful && response.body() != null) {
+                    return@withContext response.body()!!
+                } else {
+                    return@withContext com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
+                        success = false,
+                        message = "Gagal memuat data pending: ${response.message()}",
+                        data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
+                            date = "",
+                            day = "",
+                            totalPending = 0,
+                            groupedByClass = emptyList(),
+                            allPending = emptyList()
+                        )
                     )
-                )
+                }
+            } catch (e: Exception) {
+                lastException = e
+                Log.w("NetworkRepo", "getPendingAttendances attempt $attempt failed: ${e.message}")
+                
+                // Check if it's a JSON parsing error - retry with delay
+                val isJsonError = e.message?.contains("Expected") == true || 
+                                  e.message?.contains("End of input") == true ||
+                                  e.message?.contains("JsonSyntax") == true
+                
+                if (isJsonError && attempt < maxRetries) {
+                    Log.d("NetworkRepo", "JSON parsing error, retrying in ${attempt * 1000}ms...")
+                    delay(attempt * 1000L) // Exponential backoff
+                    continue
+                }
+                break
             }
-        } catch (e: Exception) {
-            Log.e("NetworkRepo", "getPendingAttendances error: ${e.message}", e)
-            com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
-                success = false,
-                message = "Error: ${e.message}",
-                data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
-                    date = "",
-                    day = "",
-                    totalPending = 0,
-                    groupedByClass = emptyList(),
-                    allPending = emptyList()
-                )
-            )
         }
+        
+        Log.e("NetworkRepo", "getPendingAttendances failed after $maxRetries attempts", lastException)
+        com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceResponse(
+            success = false,
+            message = "Error setelah $maxRetries percobaan: ${lastException?.message}",
+            data = com.christopheraldoo.aplikasimonitoringkelas.data.PendingAttendanceData(
+                date = "",
+                day = "",
+                totalPending = 0,
+                groupedByClass = emptyList(),
+                allPending = emptyList()
+            )
+        )
     }
 
     // Confirm Single Attendance

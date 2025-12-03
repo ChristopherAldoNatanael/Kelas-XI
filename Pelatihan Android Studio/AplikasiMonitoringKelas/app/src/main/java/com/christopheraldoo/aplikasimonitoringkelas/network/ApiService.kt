@@ -237,7 +237,8 @@ interface ApiService {
     @GET("kurikulum/classes")
     suspend fun getKurikulumClasses(
         @Header("Authorization") token: String,
-        @Query("status") status: String? = null
+        @Query("status") status: String? = null,
+        @Query("lightweight") lightweight: Boolean = true // Default to lightweight for mobile
     ): Response<ClassManagementResponse>
     
     // Get available substitute teachers

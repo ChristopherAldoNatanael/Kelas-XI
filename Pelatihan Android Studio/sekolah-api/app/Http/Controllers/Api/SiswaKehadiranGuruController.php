@@ -182,7 +182,7 @@ class SiswaKehadiranGuruController extends Controller
     /**
      * POST /api/siswa/kehadiran-guru/submit
      * ULTRA LIGHTWEIGHT - Siswa melaporkan kehadiran guru
-     * Status awal = 'pending', harus dikonfirmasi oleh Kurikulum
+     * Status langsung tercatat (hadir/telat/tidak_hadir) tanpa menunggu konfirmasi
      */
     public function submitKehadiran(Request $request): JsonResponse
     {
@@ -227,17 +227,12 @@ class SiswaKehadiranGuruController extends Controller
                 return response()->json(['success' => false, 'message' => 'Invalid schedule for your class'], 403);
             }
 
-            // Determine initial status:
-            // - Jika tidak_hadir → langsung tidak_hadir (perlu guru pengganti)
-            // - Jika hadir/telat → status pending dulu, menunggu konfirmasi Kurikulum
-            $initialStatus = ($statusReport === 'tidak_hadir') ? 'tidak_hadir' : 'pending';
-            $keteranganFinal = $catatan;
-
-            // Tambahkan info apa yang dilaporkan siswa ke keterangan
-            if ($initialStatus === 'pending') {
-                $reportLabel = ($statusReport === 'hadir') ? 'Hadir' : 'Telat';
-                $keteranganFinal = "Siswa melaporkan: $reportLabel" . ($catatan ? " - $catatan" : "");
-            }
+            // Langsung gunakan status yang dilaporkan siswa tanpa pending
+            // - hadir → langsung hadir
+            // - telat → langsung telat  
+            // - tidak_hadir → langsung tidak_hadir
+            $initialStatus = $statusReport;
+            $keteranganFinal = $catatan ?: null;
 
             // Check if attendance already exists
             $existing = \DB::selectOne("
@@ -262,11 +257,16 @@ class SiswaKehadiranGuruController extends Controller
                     WHERE id = ?
                 ", [$initialStatus, $keteranganFinal, $jamMasuk, $existing->id]);
 
+                $statusLabel = match ($initialStatus) {
+                    'hadir' => 'Hadir',
+                    'telat' => 'Telat',
+                    'tidak_hadir' => 'Tidak Hadir',
+                    default => $initialStatus
+                };
+
                 return response()->json([
                     'success' => true,
-                    'message' => $initialStatus === 'pending'
-                        ? 'Laporan kehadiran guru diterima, menunggu konfirmasi Kurikulum'
-                        : 'Laporan ketidakhadiran guru berhasil',
+                    'message' => "Kehadiran guru berhasil dicatat: $statusLabel",
                     'data' => ['id' => $existing->id, 'schedule_id' => $scheduleId, 'status' => $initialStatus]
                 ]);
             } else {
@@ -279,11 +279,16 @@ class SiswaKehadiranGuruController extends Controller
                     VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
                 ", [$scheduleId, $teacherId, $tanggal, $jamMasuk, $initialStatus, $keteranganFinal, $user->id]);
 
+                $statusLabel = match ($initialStatus) {
+                    'hadir' => 'Hadir',
+                    'telat' => 'Telat',
+                    'tidak_hadir' => 'Tidak Hadir',
+                    default => $initialStatus
+                };
+
                 return response()->json([
                     'success' => true,
-                    'message' => $initialStatus === 'pending'
-                        ? 'Laporan kehadiran guru diterima, menunggu konfirmasi Kurikulum'
-                        : 'Laporan ketidakhadiran guru berhasil',
+                    'message' => "Kehadiran guru berhasil dicatat: $statusLabel",
                     'data' => ['id' => \DB::getPdo()->lastInsertId(), 'schedule_id' => $scheduleId, 'status' => $initialStatus]
                 ], 201);
             }

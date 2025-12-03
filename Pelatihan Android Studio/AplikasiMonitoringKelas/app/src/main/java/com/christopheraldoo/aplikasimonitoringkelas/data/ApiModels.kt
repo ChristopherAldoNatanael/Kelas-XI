@@ -60,14 +60,15 @@ data class KehadiranItem(
 data class TodayKehadiranResponse(
     @SerializedName("success") val success: Boolean,
     @SerializedName("tanggal") val tanggal: String,
-    // Support both camelCase and snake_case
+    // Support both camelCase and snake_case and Indonesian (hari)
     @SerializedName("dayOfWeek") val dayOfWeek: String = "",
     @SerializedName("day_of_week") private val _dayOfWeekSnake: String? = null,
+    @SerializedName("hari") private val _hari: String? = null,
     @SerializedName("kelas") val kelas: String? = null,
     @SerializedName("schedules") val schedules: List<ScheduleItem>,
     @SerializedName("message") val message: String? = null
 ) {
-    fun getDay(): String = dayOfWeek.ifEmpty { _dayOfWeekSnake ?: "" }
+    fun getDay(): String = dayOfWeek.ifEmpty { _dayOfWeekSnake ?: _hari ?: "" }
 }
 
 data class ScheduleItem(

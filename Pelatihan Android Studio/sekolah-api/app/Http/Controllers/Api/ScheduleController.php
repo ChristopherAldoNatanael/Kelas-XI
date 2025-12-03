@@ -1293,11 +1293,21 @@ class ScheduleController extends Controller
                     'today' => $today
                 ]);
 
+                // Get today's date for leave check
+                $todayDate = now()->toDateString();
+
                 $query = DB::table('schedules as s')
                     ->select([
                         DB::raw("CONCAT(s.jam_mulai, '-', s.jam_selesai) as waktu"),
                         's.mata_pelajaran as mapel',
-                        't.nama as guru'
+                        't.nama as guru',
+                        's.guru_id',
+                        // Check if teacher is on leave today
+                        DB::raw("(SELECT l.id FROM leaves l WHERE l.teacher_id = s.guru_id AND l.status = 'approved' AND l.start_date <= '{$todayDate}' AND l.end_date >= '{$todayDate}' LIMIT 1) as leave_id"),
+                        // Get substitute teacher name if exists
+                        DB::raw("(SELECT st.nama FROM leaves l JOIN teachers st ON l.substitute_teacher_id = st.id WHERE l.teacher_id = s.guru_id AND l.status = 'approved' AND l.start_date <= '{$todayDate}' AND l.end_date >= '{$todayDate}' AND l.substitute_teacher_id IS NOT NULL LIMIT 1) as guru_pengganti"),
+                        // Get leave reason
+                        DB::raw("(SELECT l.reason FROM leaves l WHERE l.teacher_id = s.guru_id AND l.status = 'approved' AND l.start_date <= '{$todayDate}' AND l.end_date >= '{$todayDate}' LIMIT 1) as alasan_izin")
                     ])
                     ->leftJoin('teachers as t', 's.guru_id', '=', 't.id')
                     ->where('s.kelas', $userClass->nama_kelas)
@@ -1312,6 +1322,18 @@ class ScheduleController extends Controller
 
                 try {
                     $result = $query->get();
+
+                    // Transform result to add teacher_on_leave flag
+                    $result = $result->map(function ($item) {
+                        return [
+                            'waktu' => $item->waktu,
+                            'mapel' => $item->mapel,
+                            'guru' => $item->guru,
+                            'guru_izin' => !empty($item->leave_id),
+                            'guru_pengganti' => $item->guru_pengganti,
+                            'alasan_izin' => $item->alasan_izin,
+                        ];
+                    });
 
                     Log::info('siswaJadwalHariIni query executed', [
                         'result_count' => $result->count(),

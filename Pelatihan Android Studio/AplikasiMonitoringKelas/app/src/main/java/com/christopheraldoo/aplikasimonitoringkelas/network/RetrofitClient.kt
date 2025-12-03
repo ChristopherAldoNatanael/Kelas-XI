@@ -7,8 +7,10 @@ import com.christopheraldoo.aplikasimonitoringkelas.utils.TokenManager
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -97,9 +99,9 @@ object RetrofitClient {
     private val selectedBaseUrlRef = AtomicReference<String?>(null)
 
     // Lenient Gson configuration to handle malformed JSON
+    // Note: serializeNulls removed to avoid sending null fields that can cause validation issues
     private val gson: Gson = GsonBuilder()
         .setLenient()
-        .serializeNulls()
         .create()
 
     private fun ensureResolvedBaseUrl(context: Context): String {
@@ -128,9 +130,10 @@ object RetrofitClient {
             .addInterceptor(RetryInterceptor(maxRetries = 3)) // Auto-retry on EOF/timeout
             .addInterceptor(loggingInterceptor)
             .addInterceptor(AuthInterceptor(context))
-            .connectTimeout(45, TimeUnit.SECONDS)  // Increased for slow connections
-            .readTimeout(90, TimeUnit.SECONDS)     // Significantly increased for large JSON responses
-            .writeTimeout(45, TimeUnit.SECONDS)    // Increased for large uploads
+            // Removed BufferResponseInterceptor - causes stream closed issues
+            .connectTimeout(60, TimeUnit.SECONDS)  // Increased for slow connections
+            .readTimeout(120, TimeUnit.SECONDS)    // Significantly increased for large JSON responses
+            .writeTimeout(60, TimeUnit.SECONDS)    // Increased for large uploads
             .retryOnConnectionFailure(true)
             .build()
     }

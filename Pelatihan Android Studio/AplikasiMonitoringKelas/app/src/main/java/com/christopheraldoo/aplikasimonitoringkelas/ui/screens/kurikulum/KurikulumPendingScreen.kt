@@ -41,8 +41,11 @@ fun KurikulumPendingScreen(
     val pendingState by viewModel.pendingState.collectAsState()
     val confirmState by viewModel.confirmState.collectAsState()
     
-    // Track selected items for bulk confirm
-    var selectedItems by remember { mutableStateOf(setOf<Int>()) }
+    // Snackbar state for feedback
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    // Track selected items for bulk confirm - now stores full items
+    var selectedItems by remember { mutableStateOf(setOf<PendingAttendanceItem>()) }
     var showBulkConfirmDialog by remember { mutableStateOf(false) }
     var showSingleConfirmDialog by remember { mutableStateOf<PendingAttendanceItem?>(null) }
     
@@ -57,12 +60,23 @@ fun KurikulumPendingScreen(
         }
     }
     
-    // Handle confirm state changes
+    // Handle confirm state changes with Snackbar feedback
     LaunchedEffect(confirmState) {
         when (confirmState) {
             is ConfirmAttendanceUiState.Success -> {
                 selectedItems = emptySet()
-                delay(1500)
+                showSingleConfirmDialog = null
+                snackbarHostState.showSnackbar(
+                    message = (confirmState as ConfirmAttendanceUiState.Success).message,
+                    duration = SnackbarDuration.Short
+                )
+                viewModel.resetConfirmState()
+            }
+            is ConfirmAttendanceUiState.Error -> {
+                snackbarHostState.showSnackbar(
+                    message = "Error: ${(confirmState as ConfirmAttendanceUiState.Error).message}",
+                    duration = SnackbarDuration.Long
+                )
                 viewModel.resetConfirmState()
             }
             else -> {}
@@ -156,6 +170,16 @@ fun KurikulumPendingScreen(
                     Text("Konfirmasi ${selectedItems.size} Terpilih")
                 }
             }
+        },
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (data.visuals.message.startsWith("Error"))
+                        Color(0xFFF44336) else Color(0xFF4CAF50),
+                    contentColor = Color.White
+                )
+            }
         }
     ) { paddingValues ->
         Box(
@@ -176,16 +200,17 @@ fun KurikulumPendingScreen(
                         pendingCount = state.pendingCount,
                         groupedByClass = state.groupedByClass,
                         selectedItems = selectedItems,
-                        onItemSelect = { id ->
-                            selectedItems = if (selectedItems.contains(id)) {
-                                selectedItems - id
+                        onItemSelect = { item ->
+                            selectedItems = if (selectedItems.any { it.scheduleId == item.scheduleId && it.date == item.date }) {
+                                selectedItems.filter { it.scheduleId != item.scheduleId || it.date != item.date }.toSet()
                             } else {
-                                selectedItems + id
+                                selectedItems + item
                             }
                         },
                         onSelectAll = { items ->
-                            selectedItems = if (selectedItems.containsAll(items)) {
-                                selectedItems - items.toSet()
+                            val allSelected = items.all { item -> selectedItems.any { it.scheduleId == item.scheduleId && it.date == item.date } }
+                            selectedItems = if (allSelected) {
+                                selectedItems.filter { selected -> items.none { it.scheduleId == selected.scheduleId && it.date == selected.date } }.toSet()
                             } else {
                                 selectedItems + items
                             }
@@ -267,8 +292,7 @@ fun KurikulumPendingScreen(
             }
         }
     }
-    
-    // Bulk Confirm Dialog
+      // Bulk Confirm Dialog
     if (showBulkConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showBulkConfirmDialog = false },
@@ -454,7 +478,7 @@ fun KurikulumPendingScreen(
                         }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
-                    // Tombol Tidak Hadir
+                    // Tombol Tidak Hadir (sederhana - guru pengganti di halaman Kelas)
                     OutlinedButton(
                         onClick = {
                             viewModel.setAttendanceStatus(
@@ -475,6 +499,16 @@ fun KurikulumPendingScreen(
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Tidak Hadir")
                     }
+                    
+                    // Info untuk assign guru pengganti
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "💡 Untuk menugaskan guru pengganti, buka halaman Kelas",
+                        fontSize = 11.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             },
             dismissButton = {
@@ -512,9 +546,9 @@ private fun PendingContent(
     belumLaporCount: Int = 0,
     pendingCount: Int = 0,
     groupedByClass: List<PendingClassGroup>,
-    selectedItems: Set<Int>,
-    onItemSelect: (Int) -> Unit,
-    onSelectAll: (List<Int>) -> Unit,
+    selectedItems: Set<PendingAttendanceItem>,
+    onItemSelect: (PendingAttendanceItem) -> Unit,
+    onSelectAll: (List<PendingAttendanceItem>) -> Unit,
     onItemClick: (PendingAttendanceItem) -> Unit,
     onRefresh: () -> Unit
 ) {
@@ -660,15 +694,17 @@ private fun PendingContent(
 @Composable
 private fun ClassGroupCard(
     classGroup: PendingClassGroup,
-    selectedItems: Set<Int>,
-    onItemSelect: (Int) -> Unit,
-    onSelectAll: (List<Int>) -> Unit,
+    selectedItems: Set<PendingAttendanceItem>,
+    onItemSelect: (PendingAttendanceItem) -> Unit,
+    onSelectAll: (List<PendingAttendanceItem>) -> Unit,
     onItemClick: (PendingAttendanceItem) -> Unit
 ) {
     var expanded by remember { mutableStateOf(true) }
-    // Only include items with valid id for selection
-    val selectableIds = classGroup.schedules.filter { it.id != null }.mapNotNull { it.id }
-    val allSelected = selectableIds.isNotEmpty() && selectableIds.all { selectedItems.contains(it) }
+    // All items are now selectable (both pending and belum_lapor)
+    val selectableItems = classGroup.schedules
+    val allSelected = selectableItems.isNotEmpty() && selectableItems.all { item -> 
+        selectedItems.any { it.scheduleId == item.scheduleId && it.date == item.date }
+    }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -684,10 +720,10 @@ private fun ClassGroupCard(
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (selectableIds.isNotEmpty()) {
+                if (selectableItems.isNotEmpty()) {
                     Checkbox(
                         checked = allSelected,
-                        onCheckedChange = { onSelectAll(selectableIds) },
+                        onCheckedChange = { onSelectAll(selectableItems) },
                         colors = CheckboxDefaults.colors(
                             checkedColor = Color(0xFF7C4DFF)
                         )
@@ -736,8 +772,8 @@ private fun ClassGroupCard(
                     classGroup.schedules.forEach { item ->
                         PendingItemRow(
                             item = item,
-                            isSelected = item.id != null && selectedItems.contains(item.id),
-                            onSelect = { item.id?.let { onItemSelect(it) } },
+                            isSelected = selectedItems.any { it.scheduleId == item.scheduleId && it.date == item.date },
+                            onSelect = { onItemSelect(item) },
                             onClick = { onItemClick(item) }
                         )
                     }
@@ -778,33 +814,23 @@ private fun PendingItemRow(
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Status indicator dot instead of checkbox for items without attendance
-            if (item.hasAttendance && item.id != null) {
-                Checkbox(
-                    checked = isSelected,
-                    onCheckedChange = { onSelect() },
-                    colors = CheckboxDefaults.colors(
-                        checkedColor = Color(0xFF7C4DFF)
-                    )
+            // Always show checkbox for all items (both pending and belum_lapor)
+            Checkbox(
+                checked = isSelected,
+                onCheckedChange = { onSelect() },
+                colors = CheckboxDefaults.colors(
+                    checkedColor = Color(0xFF7C4DFF)
                 )
-            } else {
-                // Status dot for belum_lapor
-                Box(
-                    modifier = Modifier
-                        .padding(12.dp)
-                        .size(20.dp)
-                        .clip(CircleShape)
-                        .background(statusColor.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(statusColor)
-                    )
-                }
-            }
+            )
+            
+            // Status indicator dot
+            Box(
+                modifier = Modifier
+                    .size(12.dp)
+                    .clip(CircleShape)
+                    .background(statusColor)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(

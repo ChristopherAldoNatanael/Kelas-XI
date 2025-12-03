@@ -34,6 +34,10 @@ class WebTeacherController extends Controller
     public function store(Request $request)
     {
         try {
+            Log::info('Teacher creation attempt', [
+                'data' => $request->all(),
+            ]);
+
             $validated = $request->validate([
                 'nama' => 'required|string|max:255',
                 'nip' => 'required|string|max:50|unique:teachers',
@@ -46,10 +50,55 @@ class WebTeacherController extends Controller
                 'status' => 'required|in:active,inactive,retired'
             ]);
 
-            Teacher::create($validated);
+            Log::info('Teacher validation passed', ['validated' => $validated]);
+
+            $teacher = Teacher::create($validated);
+
+            Log::info('Teacher created successfully', [
+                'teacher_id' => $teacher->id,
+                'nama' => $teacher->nama,
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Teacher created successfully: ' . $teacher->nama,
+                    'teacher' => $teacher
+                ]);
+            }
 
             return redirect()->route('web-teachers.index')->with('success', 'Teacher created successfully.');
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            Log::error('Teacher validation failed', [
+                'errors' => $e->errors(),
+                'input' => $request->all()
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed.',
+                    'errors' => $e->errors()
+                ], 422);
+            }
+
+            return back()
+                ->withErrors($e->errors())
+                ->withInput();
         } catch (\Exception $e) {
+            Log::error('Teacher creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'input' => $request->all()
+            ]);
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to create teacher: ' . $e->getMessage()
+                ], 500);
+            }
+
             return back()->withErrors('Failed to create teacher: ' . $e->getMessage())->withInput();
         }
     }

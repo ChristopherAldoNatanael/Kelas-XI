@@ -402,40 +402,49 @@ document.addEventListener('DOMContentLoaded', function() {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                 }
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
+            .then(response => {
+                return response.json().then(data => {
+                    return { ok: response.ok, status: response.status, data: data };
+                });
+            })
+            .then(result => {
+                if (result.ok && result.data.success) {
                     Swal.fire({
                         icon: 'success',
                         title: 'Success!',
-                        text: data.message || 'User created successfully!',
+                        text: result.data.message || 'User created successfully!',
                         confirmButtonText: 'OK'
                     }).then(() => {
                         window.location.href = '{{ route("web-users.index") }}';
                     });
                 } else {
+                    // Handle validation errors (422) or other errors
+                    let errorMessage = result.data.message || 'Failed to create user.';
+                    
+                    // If there are validation errors, display them
+                    if (result.data.errors) {
+                        const errorList = [];
+                        for (const field in result.data.errors) {
+                            const fieldErrors = result.data.errors[field];
+                            fieldErrors.forEach(err => errorList.push(err));
+                        }
+                        errorMessage = errorList.join('<br>');
+                    }
+
                     Swal.fire({
                         icon: 'error',
                         title: 'Error!',
-                        text: data.message || 'Failed to create user.',
+                        html: errorMessage,
                         confirmButtonText: 'OK'
                     });
                 }
             })
             .catch(error => {
                 console.error('Error:', error);
-                let errorMessage = 'An unexpected error occurred.';
-
-                // Try to parse validation errors
-                if (error.response && error.response.data && error.response.data.errors) {
-                    const errors = error.response.data.errors;
-                    errorMessage = Object.values(errors).flat().join('\n');
-                }
-
                 Swal.fire({
                     icon: 'error',
                     title: 'Error!',
-                    text: errorMessage,
+                    text: 'An unexpected error occurred. Please try again.',
                     confirmButtonText: 'OK'
                 });
             })

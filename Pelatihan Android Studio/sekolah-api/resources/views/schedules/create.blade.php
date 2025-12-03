@@ -1,3 +1,6 @@
+@php
+/** @var \Illuminate\Support\ViewErrorBag $errors */
+@endphp
 @extends('layouts.app')
 
 @section('title', 'Create Schedule')
