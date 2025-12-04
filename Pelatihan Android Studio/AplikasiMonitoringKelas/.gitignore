@@ -1,6 +1,5 @@
 *.iml
 .gradle
-/local.properties
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -12,4 +11,36 @@
 /captures
 .externalNativeBuild
 .cxx
+app/build/
+
+# ========== FILE PRIVATE/RAHASIA ==========
+# Local configuration (berisi SDK path)
 local.properties
+
+# Keystore untuk signing APK (SANGAT RAHASIA)
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# Google Services (API keys)
+google-services.json
+app/google-services.json
+
+# Firebase
+firebase.json
+.firebaserc
+
+# API Keys & Secrets
+secrets.properties
+api-keys.properties
+*.secret
+
+# Database lokal
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup

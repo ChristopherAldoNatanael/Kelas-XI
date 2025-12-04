@@ -22,3 +22,41 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# ========== FILE PRIVATE/RAHASIA ==========
+# Environment files (berisi password, API keys, dll)
+.env.*
+!.env.example
+
+# Database SQLite (berisi data user)
+database/*.sqlite
+database/*.sqlite3
+database/database.sqlite
+
+# Storage uploads (data pribadi user)
+storage/app/public/*
+!storage/app/public/.gitignore
+
+# Backup files
+*.bak
+*.backup
+*.sql
+
+# Cache & Sessions
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/views/.gitignore
+
+# SSL Certificates
+*.pem
+*.key
+*.crt
+*.p12
+
+# IDE & Editor
+*.swp
+*.swo
+*~
