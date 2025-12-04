@@ -1,0 +1,10 @@
+# VS Code settings (pribadi per user)
+.vscode/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
