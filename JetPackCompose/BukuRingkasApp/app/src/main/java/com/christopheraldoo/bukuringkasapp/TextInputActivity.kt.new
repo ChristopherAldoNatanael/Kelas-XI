@@ -1,0 +1,327 @@
+package com.christopheraldoo.bukuringkasapp
+
+import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.view.View
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
+import androidx.lifecycle.lifecycleScope
+import com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
+import com.christopheraldoo.bukuringkasapp.data.model.HistoryItem
+import com.google.gson.Gson
+import kotlinx.coroutines.launch
+
+class TextInputActivity : AppCompatActivity() {
+
+    private lateinit var database: AppDatabase
+    private lateinit var summarizer: Summarizer
+    private val gson = Gson()
+
+    private lateinit var inputText: EditText
+    private lateinit var summarizeButton: Button
+    private lateinit var clearButton: Button
+    private lateinit var resultCard: CardView
+    private lateinit var resultTitle: TextView
+    private lateinit var resultContent: TextView
+    private lateinit var progressBar: ProgressBar
+    private lateinit var savedIndicator: TextView
+
+    // New UI elements for feedback and regeneration
+    private lateinit var summaryActions: LinearLayout
+    private lateinit var regenerateButton: Button
+    private lateinit var editButton: Button
+    private lateinit var feedbackSection: LinearLayout
+    private lateinit var feedbackInput: EditText
+    private lateinit var sendFeedbackButton: Button
+
+    // Store current summary data for regeneration
+    private var currentOriginalText: String = ""
+    private var currentSummaryResult: SummaryResult? = null
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_text_input)
+        database = AppDatabase.getDatabase(this)
+        summarizer = Summarizer(applicationContext)
+
+        setupToolbar()
+        setupViews()
+        setupEventListeners()
+    }
+
+    private fun setupToolbar() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Input Teks Manual"
+    }
+
+    private fun setupViews() {
+        inputText = findViewById(R.id.inputText)
+        summarizeButton = findViewById(R.id.summarizeButton)
+        clearButton = findViewById(R.id.clearButton)
+        resultCard = findViewById(R.id.resultCard)
+        resultTitle = findViewById(R.id.resultTitle)
+        resultContent = findViewById(R.id.resultContent)
+        progressBar = findViewById(R.id.progressBar)
+        savedIndicator = findViewById(R.id.savedIndicator)
+
+        // New UI elements
+        summaryActions = findViewById(R.id.summaryActions)
+        regenerateButton = findViewById(R.id.regenerateButton)
+        editButton = findViewById(R.id.editButton)
+        feedbackSection = findViewById(R.id.feedbackSection)
+        feedbackInput = findViewById(R.id.feedbackInput)
+        sendFeedbackButton = findViewById(R.id.sendFeedbackButton)
+
+        // Initial visibility
+        resultCard.visibility = View.GONE
+        summaryActions.visibility = View.GONE
+        feedbackSection.visibility = View.GONE
+        savedIndicator.visibility = View.GONE
+    }
+
+    private fun setupEventListeners() {
+        summarizeButton.setOnClickListener {
+            val text = inputText.text.toString().trim()
+            if (text.isNotEmpty()) {
+                processText(text)
+                currentOriginalText = text
+            } else {
+                Toast.makeText(this, "Teks tidak boleh kosong", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        clearButton.setOnClickListener {
+            inputText.setText("")
+            resultCard.visibility = View.GONE
+            summaryActions.visibility = View.GONE
+            feedbackSection.visibility = View.GONE
+            savedIndicator.visibility = View.GONE
+            currentOriginalText = ""
+            currentSummaryResult = null
+        }
+
+        regenerateButton.setOnClickListener {
+            if (currentOriginalText.isNotEmpty()) {
+                // Show quality enhancement options
+                showEnhanceDialog()
+            }
+        }
+
+        editButton.setOnClickListener {
+            // Show edit dialog with current summary
+            if (currentSummaryResult != null) {
+                showEditSummaryDialog(currentSummaryResult!!)
+            }
+        }
+
+        sendFeedbackButton.setOnClickListener {
+            val feedback = feedbackInput.text.toString().trim()
+            if (feedback.isNotEmpty()) {
+                sendFeedback(feedback)
+            } else {
+                Toast.makeText(this, "Masukkan feedback dulu", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // Input text listener untuk enable/disable tombol
+        inputText.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                summarizeButton.isEnabled = !s.isNullOrBlank()
+            }
+        })
+    }
+
+    private fun processText(text: String) {
+        // Show loading
+        progressBar.visibility = View.VISIBLE
+        resultCard.visibility = View.GONE
+        summaryActions.visibility = View.GONE
+        feedbackSection.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val result = summarizer.summarizeText(text)
+
+                if (result.status == "success" && result.ringkasan != null) {
+                    // Tampilkan hasil ringkasan
+                    resultTitle.text = result.topik ?: "Ringkasan Materi"
+                    resultContent.text = result.ringkasan.konsepUtama
+                    resultCard.visibility = View.VISIBLE
+                    summaryActions.visibility = View.VISIBLE
+                    feedbackSection.visibility = View.VISIBLE
+
+                    // Simpan hasil untuk regenerate
+                    currentSummaryResult = result
+                    
+                    // Simpan ke database
+                    saveToHistory(result)
+                } else {
+                    Toast.makeText(
+                        this@TextInputActivity,
+                        result.errorMessage ?: "Gagal membuat ringkasan",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@TextInputActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun showEnhanceDialog() {
+        val options = arrayOf("Lebih Ringkas", "Lebih Detail", "Tambah Contoh", "Gunakan Poin-poin")
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Perbaiki Ringkasan")
+            .setItems(options) { _, which ->
+                val enhancementType = when (which) {
+                    0 -> "ringkas" // Lebih Ringkas
+                    1 -> "detail" // Lebih Detail
+                    2 -> "contoh" // Tambah Contoh
+                    3 -> "poin" // Gunakan Poin-poin
+                    else -> "ringkas"
+                }
+                
+                enhanceSummary(enhancementType)
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun enhanceSummary(type: String) {
+        if (currentOriginalText.isEmpty()) {
+            Toast.makeText(this, "Tidak ada teks untuk ditingkatkan", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Tampilkan loading
+        progressBar.visibility = View.VISIBLE
+        
+        // Tambahkan petunjuk ke teks asli
+        val enhancedText = when (type) {
+            "ringkas" -> "$currentOriginalText\n\n[BUAT LEBIH RINGKAS DAN PADAT]"
+            "detail" -> "$currentOriginalText\n\n[TAMBAHKAN LEBIH BANYAK DETAIL]"
+            "contoh" -> "$currentOriginalText\n\n[TAMBAHKAN CONTOH KONKRET]"
+            "poin" -> "$currentOriginalText\n\n[GUNAKAN FORMAT POIN-POIN]"
+            else -> currentOriginalText
+        }
+        
+        lifecycleScope.launch {
+            try {
+                val result = summarizer.summarizeText(enhancedText)
+                
+                if (result.status == "success" && result.ringkasan != null) {
+                    // Update hasil ringkasan
+                    resultTitle.text = "Ringkasan yang Ditingkatkan"
+                    resultContent.text = result.ringkasan.konsepUtama
+                    resultCard.visibility = View.VISIBLE
+                    
+                    // Update untuk penggunaan berikutnya
+                    currentSummaryResult = result
+                } else {
+                    Toast.makeText(
+                        this@TextInputActivity,
+                        result.errorMessage ?: "Gagal meningkatkan ringkasan",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@TextInputActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun showEditSummaryDialog(result: SummaryResult) {
+        val editText = EditText(this)
+        editText.setText(result.ringkasan?.konsepUtama)
+        editText.setLines(10)
+        editText.gravity = android.view.Gravity.TOP or android.view.Gravity.START
+        
+        val layout = LinearLayout(this)
+        layout.orientation = LinearLayout.VERTICAL
+        layout.setPadding(20, 20, 20, 20)
+        layout.addView(editText)
+        
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("Edit Ringkasan")
+            .setView(layout)
+            .setPositiveButton("Simpan") { _, _ ->
+                val editedSummary = editText.text.toString().trim()
+                if (editedSummary.isNotEmpty() && currentSummaryResult != null) {
+                    val newSummary = currentSummaryResult!!.copy()
+                    val newRingkasan = newSummary.ringkasan!!.copy(konsepUtama = editedSummary)
+                    val updatedResult = newSummary.copy(ringkasan = newRingkasan)
+                    
+                    resultContent.text = editedSummary
+                    currentSummaryResult = updatedResult
+                    
+                    // Simpan yang sudah diedit
+                    lifecycleScope.launch {
+                        saveToHistory(updatedResult, true)
+                    }
+                }
+            }
+            .setNegativeButton("Batal", null)
+            .show()
+    }
+
+    private fun sendFeedback(feedback: String) {
+        Toast.makeText(this, "Terima kasih atas feedback Anda!", Toast.LENGTH_SHORT).show()
+        feedbackInput.setText("")
+        feedbackSection.visibility = View.GONE
+        
+        // Di aplikasi sebenarnya, kirim feedback ke server
+        // Untuk sementara kita hanya log
+        println("FEEDBACK: $feedback")
+    }
+
+    private suspend fun saveToHistory(summaryResult: SummaryResult, isEdited: Boolean = false) {
+        try {
+            val historyItem = HistoryItem(
+                id = UUID.randomUUID().toString(),
+                title = summaryResult.topik ?: "Ringkasan",
+                subject = summaryResult.mataPelajaran ?: "Umum",
+                grade = summaryResult.kelas ?: 10,
+                timestamp = System.currentTimeMillis(),
+                content = gson.toJson(summaryResult.ringkasan),
+                type = "summary"
+            )
+            
+            database.historyDao().insert(historyItem)
+            savedIndicator.visibility = View.VISIBLE
+            
+            if (isEdited) {
+                Toast.makeText(this, "Ringkasan yang diedit disimpan", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Ringkasan disimpan", Toast.LENGTH_SHORT).show()
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        onBackPressed()
+        return true
+    }
+}

@@ -246,7 +246,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="8dp"
                             android:background="@drawable/button_primary"
-                            android:text="📤 Kirim Feedback & Ringkas Ulang"
+                            android:text="📤 Kirim Feedback &amp; Ringkas Ulang"
                             android:textColor="@color/white"
                             android:textSize="12sp" />
 

@@ -1,0 +1,224 @@
+package com.christopheraldoo.bukuringkasapp
+
+import android.Manifest
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.os.Bundle
+import android.provider.MediaStore
+import android.view.View
+import android.widget.*
+import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import com.google.gson.Gson
+import kotlinx.coroutines.launch
+
+class CameraActivity : AppCompatActivity() {
+
+    private lateinit var database: com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
+    private lateinit var summarizer: Summarizer
+    private val gson = Gson()
+
+    private lateinit var cameraPreview: ImageView
+    private lateinit var captureButton: Button
+    private lateinit var ocrTextView: TextView
+    private lateinit var summarizeButton: Button
+    private lateinit var resultCard: CardView
+    private lateinit var resultContent: TextView
+    private lateinit var progressBar: ProgressBar
+    
+    private val CAMERA_PERMISSION_CODE = 100
+    private val CAMERA_REQUEST_CODE = 200
+    
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_camera)
+        database = com.christopheraldoo.bukuringkasapp.data.model.AppDatabase.getDatabase(this)
+        summarizer = Summarizer(applicationContext)
+
+        setupToolbar()
+        setupViews()
+        setupEventListeners()
+        checkCameraPermission()
+    }
+
+    private fun setupToolbar() {
+        val toolbar = findViewById<androidx.appcompat.widget.Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        supportActionBar?.title = "Scan Buku Pelajaran"
+    }
+
+    private fun setupViews() {
+        cameraPreview = findViewById(R.id.cameraPreview)
+        captureButton = findViewById(R.id.captureButton)
+        ocrTextView = findViewById(R.id.ocrTextView)
+        summarizeButton = findViewById(R.id.summarizeButton)
+        resultCard = findViewById(R.id.resultCard)
+        resultContent = findViewById(R.id.resultContent)
+        progressBar = findViewById(R.id.progressBar)
+
+        // Sembunyikan hasil awalnya
+        resultCard.visibility = View.GONE
+        summarizeButton.visibility = View.GONE
+    }
+
+    private fun setupEventListeners() {
+        captureButton.setOnClickListener {
+            dispatchTakePictureIntent()
+        }
+
+        summarizeButton.setOnClickListener {
+            val ocrText = ocrTextView.text.toString().trim()
+            if (ocrText.isNotEmpty()) {
+                processText(ocrText)
+            } else {
+                Toast.makeText(this, "Tidak ada teks untuk diringkas", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun checkCameraPermission() {
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.CAMERA),
+                CAMERA_PERMISSION_CODE
+            )
+        }
+    }
+
+    private fun dispatchTakePictureIntent() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
+        try {
+            startActivityForResult(takePictureIntent, CAMERA_REQUEST_CODE)
+        } catch (e: Exception) {
+            Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == CAMERA_REQUEST_CODE && resultCode == RESULT_OK) {
+            val imageBitmap = data?.extras?.get("data") as Bitmap
+            cameraPreview.setImageBitmap(imageBitmap)
+
+            // Proses OCR dari bitmap
+            performOCR(imageBitmap)
+        }
+    }
+
+    private fun performOCR(bitmap: Bitmap) {
+        // Tampilkan loading
+        progressBar.visibility = View.VISIBLE
+
+        // Di thread background (ViewModel lebih baik untuk production code)
+        lifecycleScope.launch {
+            try {
+                val ocrService = com.christopheraldoo.bukuringkasapp.data.repository.OcrService(this@CameraActivity)
+                val result = ocrService.extractTextFromBitmap(bitmap)
+
+                result.fold(
+                    onSuccess = { text ->
+                        // Tampilkan teks hasil OCR
+                        ocrTextView.text = ocrService.cleanOcrText(text)
+                        
+                        // Tampilkan tombol summarize
+                        summarizeButton.visibility = View.VISIBLE
+                    },
+                    onFailure = { error ->
+                        Toast.makeText(
+                            this@CameraActivity,
+                            "OCR Error: ${error.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                )
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@CameraActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private fun processText(text: String) {
+        // Show loading
+        progressBar.visibility = View.VISIBLE
+        resultCard.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val result = summarizer.summarizeText(text)
+
+                if (result.status == "success" && result.ringkasan != null) {
+                    // Tampilkan hasil ringkasan
+                    resultContent.text = result.ringkasan.konsepUtama
+                    resultCard.visibility = View.VISIBLE
+
+                    // Simpan ke database
+                    saveToHistory(result)
+                } else {
+                    Toast.makeText(
+                        this@CameraActivity,
+                        result.errorMessage ?: "Gagal membuat ringkasan",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@CameraActivity,
+                    "Error: ${e.message}",
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                progressBar.visibility = View.GONE
+            }
+        }
+    }
+
+    private suspend fun saveToHistory(summaryResult: SummaryResult) {
+        try {
+            val historyItem = com.christopheraldoo.bukuringkasapp.data.model.HistoryItem(
+                id = UUID.randomUUID().toString(),
+                title = summaryResult.topik ?: "Ringkasan",
+                subject = summaryResult.mataPelajaran ?: "Umum",
+                grade = summaryResult.kelas ?: 10,
+                timestamp = System.currentTimeMillis(),
+                content = gson.toJson(summaryResult.ringkasan),
+                type = "summary"
+            )
+            
+            database.historyDao().insert(historyItem)
+            Toast.makeText(this, "Ringkasan disimpan", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            Toast.makeText(this, "Gagal menyimpan: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == CAMERA_PERMISSION_CODE) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                Toast.makeText(this, "Camera permission granted", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Camera permission denied", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+}

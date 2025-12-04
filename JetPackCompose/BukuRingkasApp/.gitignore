@@ -13,3 +13,19 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# API Keys dan file sensitif
+*.env
+.env
+.env.local
+.env.production
+api_keys.txt
+secrets.properties
+config.properties
+
+# File backup editor
+*~
+*.swp
+*.swo
+.vscode/
+*.bak

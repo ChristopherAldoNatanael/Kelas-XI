@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "587040277945",
+    "project_id": "bukuringkasapp",
+    "storage_bucket": "bukuringkasapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:587040277945:android:50df2fb0bfcd12dff0e268",
+        "android_client_info": {
+          "package_name": "com.christopheraldoo.bukuringkasapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "587040277945-0a9djri7h8n3pcoke3dkqaud6234q4l8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.christopheraldoo.bukuringkasapp",
+            "certificate_hash": "3cff248cfae5e734820452428066b00782af7192"
+          }
+        },
+        {
+          "client_id": "587040277945-pn42eg93jk9d6uftf60v2norjinj766p.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCQwSx8zdP5K1qB1khq-7A7iLon1cfRwYw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "587040277945-pn42eg93jk9d6uftf60v2norjinj766p.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

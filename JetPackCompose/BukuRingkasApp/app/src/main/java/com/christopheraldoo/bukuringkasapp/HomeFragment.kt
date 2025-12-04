@@ -11,6 +11,7 @@ import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
 import kotlinx.coroutines.launch
 
 class HomeFragment : Fragment() {
@@ -61,28 +62,28 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             val historyDao = database.historyDao()
-            val history = historyDao.getAllHistory()
+            historyDao.getAll().collect { history ->
+                if (history.isNotEmpty()) {
+                    val latestItem = history.first()
+                    latestSummaryCard.visibility = View.VISIBLE
 
-            if (history.isNotEmpty()) {
-                val latestItem = history.first()
-                latestSummaryCard.visibility = View.VISIBLE
+                    try {
+                        val gson = com.google.gson.Gson()
+                        val ringkasan = gson.fromJson(latestItem.content, RingkasanMateri::class.java)
 
-                try {
-                    val gson = com.google.gson.Gson()
-                    val ringkasan = gson.fromJson(latestItem.summaryData, RingkasanMateri::class.java)
+                        summaryTitle.text = ringkasan?.topik ?: "Ringkasan"
+                        summarySubject.text = "${latestItem.subject} • Kelas ${latestItem.grade ?: "X"}"
+                        summaryContent.text = ringkasan?.konsepUtama?.take(120) + if ((ringkasan?.konsepUtama?.length ?: 0) > 120) "..." else ""
 
-                    summaryTitle.text = ringkasan?.topik ?: "Ringkasan"
-                    summarySubject.text = "${latestItem.subject} • Kelas ${latestItem.grade ?: "X"}"
-                    summaryContent.text = ringkasan?.konsepUtama?.take(120) + if ((ringkasan?.konsepUtama?.length ?: 0) > 120) "..." else ""
-
-                    latestSummaryCard.setOnClickListener {
-                        startActivity(Intent(requireContext(), HistoryActivity::class.java))
+                        latestSummaryCard.setOnClickListener {
+                            startActivity(Intent(requireContext(), HistoryActivity::class.java))
+                        }
+                    } catch (e: Exception) {
+                        latestSummaryCard.visibility = View.GONE
                     }
-                } catch (e: Exception) {
+                } else {
                     latestSummaryCard.visibility = View.GONE
                 }
-            } else {
-                latestSummaryCard.visibility = View.GONE
             }
         }
     }

@@ -1,5 +1,9 @@
 package com.christopheraldoo.bukuringkasapp
 
+import com.christopheraldoo.bukuringkasapp.data.repository.OpenAIRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 data class RingkasanMateri(
     val mataPelajaran: String,
     val topik: String,
@@ -30,11 +34,24 @@ data class SummaryResult(
     val errorMessage: String?
 )
 
-class Summarizer {
+class Summarizer(private val context: android.content.Context) {
 
-    fun summarizeText(inputText: String): SummaryResult {
+    private val repository = OpenAIRepository(context)
+
+    suspend fun summarizeText(inputText: String): SummaryResult = withContext(Dispatchers.IO) {
+        // Check if API key is configured
+        if (!repository.isApiKeyConfigured()) {
+            return@withContext SummaryResult(
+                status = "error",
+                mataPelajaran = null,
+                kelas = null,
+                topik = null,
+                ringkasan = null,
+                errorMessage = "API Key belum dikonfigurasi. Silakan atur API Key di halaman Pengaturan."
+            )
+        }
         if (inputText.isBlank()) {
-            return SummaryResult(
+            return@withContext SummaryResult(
                 status = "error",
                 mataPelajaran = null,
                 kelas = null,
@@ -46,7 +63,7 @@ class Summarizer {
 
         // Cek panjang teks
         if (inputText.length > 5000) {
-            return SummaryResult(
+            return@withContext SummaryResult(
                 status = "error",
                 mataPelajaran = null,
                 kelas = null,
@@ -61,7 +78,7 @@ class Summarizer {
         // Cek kualitas OCR (jika terlalu banyak karakter aneh)
         val ocrQuality = checkOcrQuality(inputText, cleanedText)
         if (ocrQuality < 0.7) {
-            return SummaryResult(
+            return@withContext SummaryResult(
                 status = "error",
                 mataPelajaran = null,
                 kelas = null,
@@ -74,7 +91,7 @@ class Summarizer {
         // Deteksi mata pelajaran
         val subject = detectSubject(cleanedText)
         if (subject.first.isEmpty()) {
-            return SummaryResult(
+            return@withContext SummaryResult(
                 status = "error",
                 mataPelajaran = null,
                 kelas = null,
@@ -88,10 +105,36 @@ class Summarizer {
         val grade = detectGrade(cleanedText)
 
         // Deteksi topik
-        val topic = detectTopic(cleanedText)
+        val topic = detectTopic(cleanedText)        // Coba API untuk ringkasan - ONLINE ONLY!
+        val apiSummary = try {
+            val result = repository.summarizeText(cleanedText)
+            if (result.isSuccess) {
+                result.getOrNull()
+            } else {
+                // TIDAK ADA FALLBACK - HARUS ONLINE!
+                return@withContext SummaryResult(
+                    status = "error",
+                    mataPelajaran = null,
+                    kelas = null,
+                    topik = null,
+                    ringkasan = null,
+                    errorMessage = "APLIKASI MEMERLUKAN KONEKSI INTERNET! ${result.exceptionOrNull()?.message ?: "Koneksi gagal"}"
+                )
+            }
+        } catch (e: Exception) {
+            // TIDAK ADA FALLBACK - HARUS ONLINE!
+            return@withContext SummaryResult(
+                status = "error",
+                mataPelajaran = null,
+                kelas = null,
+                topik = null,
+                ringkasan = null,
+                errorMessage = "APLIKASI MEMERLUKAN KONEKSI INTERNET! Error: ${e.message}"
+            )
+        }
 
-        // Konsep utama: ambil beberapa kalimat pertama yang tidak mengandung rumus
-        val mainConcept = extractMainConcept(cleanedText)
+        // Konsep utama: HANYA dari API
+        val mainConcept = apiSummary ?: "Gagal mendapatkan ringkasan dari API"
 
         // Poin penting: ekstrak lembaga atau definisi
         val keyPoints = extractKeyPoints(cleanedText)
@@ -115,7 +158,7 @@ class Summarizer {
             kataKunci = keywords
         )
 
-        return SummaryResult(
+        return@withContext SummaryResult(
             status = "success",
             mataPelajaran = subject.first,
             kelas = grade,

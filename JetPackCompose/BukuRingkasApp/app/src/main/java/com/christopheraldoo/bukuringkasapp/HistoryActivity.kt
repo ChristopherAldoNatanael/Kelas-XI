@@ -11,6 +11,8 @@ import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
+import com.christopheraldoo.bukuringkasapp.data.model.HistoryItem
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -61,12 +63,12 @@ class HistoryActivity : AppCompatActivity() {
     private fun loadHistory() {
         lifecycleScope.launch {
             val historyDao = database.historyDao()
-            val history = historyDao.getAllHistory()
-
-            if (history.isEmpty()) {
-                showEmptyState()
-            } else {
-                showHistoryList(history)
+            val history = historyDao.getAll().collect { historyList ->
+                if (historyList.isEmpty()) {
+                    showEmptyState()
+                } else {
+                    showHistoryList(historyList)
+                }
             }
         }
     }
@@ -88,7 +90,7 @@ class HistoryActivity : AppCompatActivity() {
     private fun showSummaryDetail(item: HistoryItem) {
         try {
             val gson = Gson()
-            val ringkasan = gson.fromJson(item.summaryData, RingkasanMateri::class.java)
+            val ringkasan = gson.fromJson(item.content, RingkasanMateri::class.java)
 
             val message = buildSummaryMessage(ringkasan)
             showDetailDialog(item.title, message)
@@ -155,7 +157,7 @@ class HistoryActivity : AppCompatActivity() {
     private fun clearHistory() {
         lifecycleScope.launch {
             val historyDao = database.historyDao()
-            historyDao.clearHistory()
+            historyDao.deleteAll()
             loadHistory()
         }
     }
@@ -196,7 +198,7 @@ class HistoryActivity : AppCompatActivity() {
             fun bind(item: HistoryItem) {
                 titleTextView.text = item.title
                 subjectTextView.text = "${item.subject} • Kelas ${item.grade ?: "X"}"
-                dateTextView.text = dateFormat.format(Date(item.createdDate))
+                dateTextView.text = dateFormat.format(Date(item.createdAt))
 
                 cardView.setOnClickListener {
                     onItemClick(item)

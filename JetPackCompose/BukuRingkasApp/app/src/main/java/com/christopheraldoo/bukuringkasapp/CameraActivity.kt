@@ -16,9 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
-class CameraActivity : AppCompatActivity() {
-
-    private lateinit var database: AppDatabase
+class CameraActivity : AppCompatActivity() {    private lateinit var database: com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
     private lateinit var summarizer: Summarizer
     private val gson = Gson()
 
@@ -29,16 +27,15 @@ class CameraActivity : AppCompatActivity() {
     private lateinit var resultCard: CardView
     private lateinit var resultContent: TextView
     private lateinit var progressBar: ProgressBar
-
+    
     private val CAMERA_PERMISSION_CODE = 100
     private val CAMERA_REQUEST_CODE = 200
-
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_camera)
-
-        database = AppDatabase.getDatabase(this)
-        summarizer = Summarizer()
+        database = com.christopheraldoo.bukuringkasapp.data.model.AppDatabase.getDatabase(this)
+        summarizer = Summarizer(applicationContext)
 
         setupToolbar()
         setupViews()
@@ -204,12 +201,13 @@ class CameraActivity : AppCompatActivity() {
         result.ringkasan?.let { ringkasan ->
             lifecycleScope.launch {
                 try {
-                    val historyItem = HistoryItem(
+                    val historyItem = com.christopheraldoo.bukuringkasapp.data.model.HistoryItem(
                         title = "Scan ${ringkasan.topik.take(20)}...",
+                        type = "summary",
                         subject = result.mataPelajaran ?: "Buku Pelajaran",
-                        grade = result.kelas,
-                        createdDate = System.currentTimeMillis(),
-                        summaryData = gson.toJson(ringkasan)
+                        grade = result.kelas ?: 10,
+                        content = gson.toJson(ringkasan),
+                        createdAt = System.currentTimeMillis()
                     )
                     database.historyDao().insert(historyItem)
                     Toast.makeText(this@CameraActivity, "Ringkasan tersimpan", Toast.LENGTH_SHORT).show()

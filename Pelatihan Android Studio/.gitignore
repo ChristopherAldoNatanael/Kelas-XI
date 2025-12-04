@@ -1,10 +1,68 @@
-# VS Code settings (pribadi per user)
+# ========== IDE & EDITOR ==========
 .vscode/
+.idea/
+*.iml
 
-# OS generated files
+# ========== OS FILES ==========
 .DS_Store
 Thumbs.db
-
-# Backup files
 *.bak
 *.backup
+
+# ========== ANDROID PROJECT FILES (PRIVATE) ==========
+# Local configuration
+**/local.properties
+
+# Keystore (SANGAT RAHASIA)
+**/*.jks
+**/*.keystore
+**/keystore.properties
+**/signing.properties
+
+# Google Services & Firebase
+**/google-services.json
+**/firebase.json
+**/.firebaserc
+
+# Build files
+**/build/
+**/.gradle/
+**/.externalNativeBuild/
+**/.cxx/
+**/captures/
+
+# ========== LARAVEL/PHP PROJECT FILES (PRIVATE) ==========
+# Environment (berisi password & API keys)
+**/.env
+**/.env.*
+!**/.env.example
+
+# Vendor & Node modules
+**/vendor/
+**/node_modules/
+
+# Database
+**/*.sqlite
+**/*.sqlite3
+**/database/database.sqlite
+
+# Storage
+**/storage/logs/*.log
+**/storage/framework/cache/*
+**/storage/framework/sessions/*
+**/storage/framework/views/*
+
+# Public build
+**/public/build/
+**/public/hot
+**/public/storage
+
+# ========== SECURITY FILES ==========
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+**/secrets.properties
+**/api-keys.properties
+**/*.secret
+**/*.sql

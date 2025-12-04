@@ -8,6 +8,8 @@ import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.lifecycle.lifecycleScope
+import com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
+import com.christopheraldoo.bukuringkasapp.data.model.HistoryItem
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 
@@ -24,9 +26,7 @@ class TextInputActivity : AppCompatActivity() {
     private lateinit var resultTitle: TextView
     private lateinit var resultContent: TextView
     private lateinit var progressBar: ProgressBar
-    private lateinit var savedIndicator: TextView
-
-    // New UI elements for feedback and regeneration
+    private lateinit var savedIndicator: TextView    // New UI elements for feedback and regeneration
     private lateinit var summaryActions: LinearLayout
     private lateinit var regenerateButton: Button
     private lateinit var editButton: Button
@@ -37,13 +37,12 @@ class TextInputActivity : AppCompatActivity() {
     // Store current summary data for regeneration
     private var currentOriginalText: String = ""
     private var currentSummaryResult: SummaryResult? = null
-
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_text_input)
-
         database = AppDatabase.getDatabase(this)
-        summarizer = Summarizer()
+        summarizer = Summarizer(applicationContext)
 
         setupToolbar()
         setupViews()
@@ -211,9 +210,8 @@ class TextInputActivity : AppCompatActivity() {
                     val historyItem = HistoryItem(
                         title = ringkasan.topik,
                         subject = result.mataPelajaran ?: "Unknown",
-                        grade = result.kelas,
-                        createdDate = System.currentTimeMillis(),
-                        summaryData = gson.toJson(ringkasan)
+                        grade = result.kelas ?: 10,
+                        content = gson.toJson(ringkasan)
                     )
                     database.historyDao().insert(historyItem)
                     savedIndicator.visibility = View.VISIBLE
@@ -315,9 +313,16 @@ class TextInputActivity : AppCompatActivity() {
 
     private fun enhanceOriginalTextWithFeedback(originalText: String, feedback: String): String {
         // Simple enhancement: append feedback as additional context
-        return if (feedback.contains("tambahkan", "tambah", "plus", "ditambah", ignoreCase = true) ||
-                   feedback.contains("kurang", "hapus", "remove", ignoreCase = true) ||
-                   feedback.contains("perbaiki", "koreksi", "fix", ignoreCase = true)) {
+        return if (feedback.contains("tambahkan", ignoreCase = true) ||
+                   feedback.contains("tambah", ignoreCase = true) ||
+                   feedback.contains("plus", ignoreCase = true) ||
+                   feedback.contains("ditambah", ignoreCase = true) ||
+                   feedback.contains("kurang", ignoreCase = true) ||
+                   feedback.contains("hapus", ignoreCase = true) ||
+                   feedback.contains("remove", ignoreCase = true) ||
+                   feedback.contains("perbaiki", ignoreCase = true) ||
+                   feedback.contains("koreksi", ignoreCase = true) ||
+                   feedback.contains("fix", ignoreCase = true)) {
 
             // For edit requests, combine original text with feedback
             "$originalText\n\n---\nFEEDBACK UNTUK PERBAIKAN:\n$feedback"

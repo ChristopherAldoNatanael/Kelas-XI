@@ -23,6 +23,8 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.christopheraldoo.bukuringkasapp.data.model.AppDatabase
+import com.christopheraldoo.bukuringkasapp.data.model.HistoryItem
 import com.google.gson.Gson
 import kotlinx.coroutines.launch
 import java.io.File
@@ -46,19 +48,16 @@ class MultiImageCameraActivity : AppCompatActivity() {
 
     private val selectedImages = mutableListOf<Uri>()
     private lateinit var imageAdapter: ImageAdapter
-    private lateinit var currentPhotoUri: Uri
-
-    // Activity result launchers
+    private lateinit var currentPhotoUri: Uri    // Activity result launchers
     private lateinit var cameraLauncher: ActivityResultLauncher<Uri>
     private lateinit var galleryLauncher: ActivityResultLauncher<String>
     private lateinit var permissionLauncher: ActivityResultLauncher<Array<String>>
-
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_multi_image_camera)
-
         database = AppDatabase.getDatabase(this)
-        summarizer = Summarizer()
+        summarizer = Summarizer(applicationContext)
 
         setupToolbar()
         setupViews()
@@ -353,9 +352,8 @@ class MultiImageCameraActivity : AppCompatActivity() {
                     val historyItem = HistoryItem(
                         title = "Multi-Scan: ${ringkasan.topik.take(30)}...",
                         subject = result.mataPelajaran ?: "Multi-Image Scan",
-                        grade = result.kelas,
-                        createdDate = System.currentTimeMillis(),
-                        summaryData = gson.toJson(ringkasan)
+                        grade = result.kelas ?: 10,
+                        content = gson.toJson(ringkasan)
                     )
                     database.historyDao().insert(historyItem)
                     Toast.makeText(this@MultiImageCameraActivity, "Ringkasan tersimpan", Toast.LENGTH_SHORT).show()

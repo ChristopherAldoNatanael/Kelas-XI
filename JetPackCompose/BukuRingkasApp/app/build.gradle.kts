@@ -1,7 +1,18 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    id("kotlin-kapt")
+    id("com.google.gms.google-services")
+}
+
+// Load properties from local.properties
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -16,11 +27,18 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Add Hugging Face token to BuildConfig
+        buildConfigField("String", "HF_TOKEN", "\"${localProperties.getProperty("hf_token", "")}\"")
     }
 
     buildFeatures {
-        compose = false
-        viewBinding = true
+        compose = true
+        buildConfig = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
     }
 
     buildTypes {
@@ -32,38 +50,81 @@ android {
             )
         }
     }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+
     kotlinOptions {
         jvmTarget = "1.8"
+        freeCompilerArgs += "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api"
+        freeCompilerArgs += "-opt-in=androidx.compose.foundation.ExperimentalFoundationApi"
     }
 }
 
 dependencies {
+    // Core Android
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.activity)
+    implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.cardview)
-    implementation(libs.androidx.recyclerview)
-    implementation(libs.androidx.room.runtime)
-    implementation(libs.androidx.room.ktx)
-    implementation(libs.gson)
-    kapt(libs.androidx.room.compiler)
 
-    // Camera dependencies
+    // Jetpack Compose
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    implementation(libs.androidx.compose.navigation)
+
+    // Compose Debug
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
+
+    // Camera & ML Kit
     implementation(libs.androidx.camera.core)
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    
+    // Preferences
+    implementation("androidx.preference:preference-ktx:1.2.1")
 
-    // ML Kit for text recognition
-    implementation(libs.google.mlkit.text.recognition)
+    // Google ML Kit for Text Recognition (Standalone)
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.0")
+    implementation("com.google.mlkit:text-recognition:16.0.0-beta6")
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.0-beta6")
+    implementation("com.google.mlkit:text-recognition-devanagari:16.0.0-beta6")
 
+    // Room Database
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    kapt(libs.androidx.room.compiler)
+
+    // Network & API
+    implementation(libs.gson)
+    implementation(libs.squareup.retrofit2)
+    implementation(libs.squareup.retrofit2.converter.gson)
+    implementation(libs.squareup.okhttp3.logging.interceptor)
+
+    // Image Loading
+    implementation(libs.coil.compose)
+
+    // Accompanist (for permissions)
+    implementation(libs.accompanist.permissions)
+
+    // Test Dependencies
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
