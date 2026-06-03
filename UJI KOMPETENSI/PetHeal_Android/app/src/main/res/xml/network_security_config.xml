@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <!-- 10.0.2.2 = host machine dari Android Emulator (AVD) -->
+        <domain includeSubdomains="true">10.0.2.2</domain>
+        <!-- Ganti dengan IP HP fisik / laptop di WiFi yg sama -->
+        <domain includeSubdomains="true">localhost</domain>
+    </domain-config>
+</network-security-config>

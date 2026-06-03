@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(php *)",
+      "Bash(copy *)",
+      "Bash(gradlew.bat *)",
+      "Bash(dir *)",
+      "Bash(diagnose_payment.bat)",
+      "Bash(curl *)",
+      "Bash(powershell *)",
+      "Bash(gradlew *)",
+      "Bash(findstr *)",
+      "Bash(select-object *)",
+      "Bash(exist *)",
+      "Bash(echo *)",
+      "Bash(composer *)",
+      "Bash(del *)",
+      "Bash(keytool *)",
+      "Bash(netstat *)"
+    ]
+  },
+  "$version": 3
+}

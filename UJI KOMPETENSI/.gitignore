@@ -1,0 +1,27 @@
+# Environment and secret files
+**/.env
+**/.env.*
+!**/.env.example
+**/*.key
+**/*.pem
+**/*.p12
+**/*.pfx
+**/*service-account*.json
+**/*firebase-adminsdk*.json
+**/google-services.json
+**/local.properties
+**/secrets.json
+**/secret*.json
+**/*apikey*
+
+# Logs and local artifacts
+*.log
+**/*.log
+*.tmp
+*.cache
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+/.idea
+/.vscode

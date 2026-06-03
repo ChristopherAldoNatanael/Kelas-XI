@@ -1,0 +1,38 @@
+## ==========================================
+## PETHEAL LOCAL PROPERTIES EXAMPLE
+## ==========================================
+## INSTRUCTIONS FOR NGROK SETUP:
+## 
+## 1. Start your Laravel backend:
+##    cd PetHeal_Backend
+##    php artisan serve --port=8000
+##
+## 2. Start ngrok to expose port 8000:
+##    ngrok http 8000
+##
+## 3. Copy the ngrok URL shown (e.g., https://abc123.ngrok-free.app)
+##
+## 4. Update BACKEND_BASE_URL below with YOUR ngrok URL + /api/
+##    Example: https://abc123.ngrok-free.app/api/
+##
+## 5. Make sure PetHeal_Backend/.env APP_URL uses the SAME ngrok URL
+##
+## IMPORTANT: 
+## - ALWAYS use HTTPS for ngrok URLs
+## - ALWAYS include trailing slash (/) at the end
+## - BOTH .env and local.properties must use the SAME ngrok URL
+## - This prevents ALL IP-related errors
+## ==========================================
+
+# NGROK URL (RECOMMENDED - NO IP ERRORS):
+BACKEND_BASE_URL=https://your-ngrok-url.ngrok-free.app/api/
+
+# Local Emulator (ONLY if NOT using ngrok):
+# BACKEND_BASE_URL=http://10.0.2.2:8000/api/
+
+# Midtrans Configuration
+MIDTRANS_CLIENT_KEY=your-midtrans-client-key-here
+MIDTRANS_MERCHANT_ID=your-midtrans-merchant-id-here
+
+# Google OAuth Configuration
+GOOGLE_CLIENT_ID=your-google-client-id-here
