@@ -19,12 +19,12 @@ php artisan serve --host=127.0.0.1 --port=8000
 
 ```powershell
 # Cek apakah ngrok masih jalan — buka browser:
-# https://radia-unswaggering-lisandra.ngrok-free.dev/api/doctors
+# https://envious-reselect-darn.ngrok-free.dev/api/doctors
 # Harus dapat response JSON (bukan halaman error ngrok)
 ```
 
 > Kalau ngrok MATI → jalankan: `ngrok http 8000`  
-> Lalu update `BASE_URL` di `AppModule.kt` → rebuild APK
+> Lalu update `BACKEND_BASE_URL` di `PetHeal_Android/local.properties` → rebuild APK
 
 ### 3. Jalankan Health Check (opsional tapi disarankan)
 
@@ -57,7 +57,7 @@ http://127.0.0.1:8000/admin
 
 ```kotlin
 // AppModule.kt line 24 — ganti URL ini:
-private const val BASE_URL = "https://URL_NGROK_BARU/"
+private const val BASE_URL = "https://URL_NGROK_BARU/api/"
 ```
 
 Lalu Build → Run di Android Studio.
@@ -124,11 +124,12 @@ php artisan migrate:status   # cek apakah semua migrasi sudah run
 ## ⚠️ SATU-SATUNYA RISIKO: NGROK URL
 
 Ngrok free tier URL bisa **berubah setiap kali restart**.  
-URL saat ini: `https://radia-unswaggering-lisandra.ngrok-free.dev/`
+URL saat ini: `https://envious-reselect-darn.ngrok-free.dev/`
 
 **Kalau URL berubah**, harus update di:
 
-1. `PetHeal_Android/app/src/main/java/.../di/AppModule.kt` → `BASE_URL`
+1. `PetHeal_Android/local.properties` → `BACKEND_BASE_URL`
+2. `PetHeal_Android/app/src/main/java/.../di/AppModule.kt` → rebuild APK after the config update
 2. Rebuild & install APK ke HP
 
 ---

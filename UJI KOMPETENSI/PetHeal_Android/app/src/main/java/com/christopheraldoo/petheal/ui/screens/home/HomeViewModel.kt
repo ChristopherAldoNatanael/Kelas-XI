@@ -57,9 +57,7 @@ class HomeViewModel @Inject constructor(
         // ... (photo observer) ...
         viewModelScope.launch {
             preferencesManager.userPhoto.collect { photo ->
-                if (photo != null) {
-                    _uiState.value = _uiState.value.copy(userPhoto = photo)
-                }
+                _uiState.value = _uiState.value.copy(userPhoto = photo)
             }
         }
         // ... (notification observer) ...

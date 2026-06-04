@@ -141,9 +141,10 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    fun logout(fcmToken: String? = null) {
+    fun logout(fcmToken: String? = null, onLoggedOut: () -> Unit = {}) {
         viewModelScope.launch {
             authRepository.logout(fcmToken)
+            onLoggedOut()
         }
     }
 

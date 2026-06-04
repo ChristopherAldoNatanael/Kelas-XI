@@ -419,8 +419,8 @@ fun PetHealNavHost(
                         },
                         onNavigateBack = { navController.popBackStack() },
                         onBookingUpdated = {
-                            // Refresh bookings after successful payment
-                            Log.d("PaymentNav", "Booking updated, refreshing bookings list")
+                            Log.d("PaymentNav", "Booking updated, requesting bookings refresh")
+                            paymentNavViewModel.notifyBookingUpdated()
                         }
                     )
                 }

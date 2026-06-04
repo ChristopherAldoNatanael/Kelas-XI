@@ -262,7 +262,7 @@ fun HomeScreen(
                                     )
                                     Text(
                                         text = if (uiState.upcomingBooking != null)
-                                            "${uiState.upcomingBooking!!.doctor?.specialization ?: "Veterinarian"} • General Checkup"
+                                            "${uiState.upcomingBooking!!.doctor?.specialization ?: "Veterinarian"} • Medical Checkup"
                                         else "Book an appointment",
                                         fontSize = 12.sp, color = textSecondary
                                     )

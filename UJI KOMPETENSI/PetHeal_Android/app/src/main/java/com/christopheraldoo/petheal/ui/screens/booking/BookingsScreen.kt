@@ -508,7 +508,7 @@ private fun BookingCard(
                 }
             }
             // Payment info
-            if (booking.paymentMethod != null || booking.paymentStatus != null) {
+            if (booking.paymentMethodId != null || booking.paymentStatus != null) {
                 Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
                 Row(
                     Modifier.fillMaxWidth(),
@@ -833,7 +833,7 @@ fun BookingDetailScreen(
                                 DetailRow(Icons.Filled.Notes, "Notes", booking?.notes ?: "", textPrimary, textSecondary)
                             }
                             // Payment info
-                            if (booking?.paymentMethod != null || booking?.paymentType != null) {
+                            if (booking?.paymentMethodId != null || booking?.paymentType != null) {
                                 Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
                                 DetailRow(
                                     if (booking?.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
@@ -1047,20 +1047,13 @@ fun CreateBookingScreen(
         }
     }
 
-    // Categories definition
-    val categories = listOf(
-        Triple("Vaccination",      Icons.Filled.Vaccines,        Color(0xFF16A34A)),
-        Triple("General Checkup",  Icons.Filled.MonitorHeart,    Color(0xFF2563EB)),
-        Triple("Grooming",         Icons.Filled.ContentCut,      Color(0xFFEA580C)),
-        Triple("Surgery",          Icons.Filled.MedicalServices, Color(0xFFDC2626))
-    )
-
     // Progress step
     val step = when {
         state.selectedPetId == null                          -> 1
-        state.selectedTime  == null                          -> 2
-        state.selectedPaymentMethod == null                  -> 3
-        else                                                -> 5
+        state.selectedServiceId == null                      -> 2
+        state.selectedTime  == null                          -> 3
+        state.selectedPaymentMethod == null                  -> 4
+        else                                                 -> 5
     }
 
     Box(Modifier.fillMaxSize().background(bg)) {
@@ -1233,58 +1226,75 @@ fun CreateBookingScreen(
 
                 // ── Section 2: Category Grid ───────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Service Category", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                    val catBgs = listOf(
-                        Pair(Color(0xFFDCFCE7), Color(0x2216A34A)),
-                        Pair(Color(0xFFDBEAFE), Color(0x222563EB)),
-                        Pair(Color(0xFFFFEDD5), Color(0x22EA580C)),
-                        Pair(Color(0xFFFEE2E2), Color(0x22DC2626))
-                    )
-                    val rows = categories.chunked(2)
-                    rows.forEachIndexed { rowIdx, rowCats ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            rowCats.forEachIndexed { colIdx, (name, icon, iconColor) ->
-                                val idx = rowIdx * 2 + colIdx
-                                val selected = state.selectedCategory == name
-                                val (bgLight, bgDark) = catBgs[idx]
-                                Card(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .clip(RoundedCornerShape(16.dp))
-                                        .clickable { viewModel.selectCategory(name) }
-                                        .then(if (selected) Modifier.border(2.dp, BkPrimary, RoundedCornerShape(16.dp)) else Modifier),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (selected)
-                                            BkPrimary.copy(alpha = 0.1f)
-                                        else if (isDark) BkSurfaceDark else BkSurfaceLight
-                                    ),
-                                    elevation = CardDefaults.cardElevation(if (selected) 0.dp else 2.dp)
-                                ) {
-                                    Box {
-                                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Box(
-                                                Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
-                                                    .background(if (isDark) bgDark else bgLight),
-                                                contentAlignment = Alignment.Center
-                                            ) { Icon(icon, null, tint = iconColor, modifier = Modifier.size(24.dp)) }
-                                            Text(name, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                                            Text(
-                                                when (name) {
-                                                    "Vaccination"     -> "Annual shots & boosters"
-                                                    "General Checkup" -> "Health & wellness"
-                                                    "Grooming"        -> "Bath, hair & nails"
-                                                    else              -> "Spay, neuter & more"
-                                                },
-                                                fontSize = 11.sp, color = textSecondary
-                                            )
-                                        }
-                                        if (selected) {
-                                            Icon(Icons.Filled.CheckCircle, null, tint = BkPrimary,
-                                                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(20.dp))
+                    Text("Choose Service", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    if (state.services.isEmpty()) {
+                        Box(
+                            Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Loading services...", fontSize = 14.sp, color = textSecondary)
+                        }
+                    } else {
+                        val serviceRows = state.services.chunked(2)
+                        serviceRows.forEachIndexed { rowIdx, rowServices ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                rowServices.forEachIndexed { colIdx, service ->
+                                    val selected = state.selectedServiceId == service.id
+                                    val paletteIndex = (rowIdx * 2 + colIdx) % 4
+                                    val (bgLight, bgDark) = when (paletteIndex) {
+                                        0 -> Pair(Color(0xFFDCFCE7), Color(0x2216A34A))
+                                        1 -> Pair(Color(0xFFDBEAFE), Color(0x222563EB))
+                                        2 -> Pair(Color(0xFFFFEDD5), Color(0x22EA580C))
+                                        else -> Pair(Color(0xFFFEE2E2), Color(0x22DC2626))
+                                    }
+                                    Card(
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .clickable { viewModel.selectService(service) }
+                                            .then(if (selected) Modifier.border(2.dp, BkPrimary, RoundedCornerShape(16.dp)) else Modifier),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (selected) BkPrimary.copy(alpha = 0.1f) else if (isDark) BkSurfaceDark else BkSurfaceLight
+                                        ),
+                                        elevation = CardDefaults.cardElevation(if (selected) 0.dp else 2.dp)
+                                    ) {
+                                        Box {
+                                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                                Box(
+                                                    Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
+                                                        .background(if (isDark) bgDark else bgLight),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(Icons.Filled.MedicalServices, null, tint = BkPrimary, modifier = Modifier.size(24.dp))
+                                                }
+                                                Text(service.name ?: "Service", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                                                Text(
+                                                    service.description ?: (service.category ?: "Pet care service"),
+                                                    fontSize = 11.sp,
+                                                    color = textSecondary,
+                                                    maxLines = 2,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                                Text(
+                                                    "Rp ${String.format("%,.0f", service.price ?: 0.0).replace(",", ".")}",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (selected) BkPrimary else textPrimary
+                                                )
+                                            }
+                                            if (selected) {
+                                                Icon(
+                                                    Icons.Filled.CheckCircle,
+                                                    null,
+                                                    tint = BkPrimary,
+                                                    modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(20.dp)
+                                                )
+                                            }
                                         }
                                     }
                                 }
+                                repeat(2 - rowServices.size) { Box(modifier = Modifier.weight(1f)) }
                             }
                         }
                     }
@@ -1575,7 +1585,7 @@ fun CreateBookingScreen(
                         onClick = { viewModel.createBooking(doctorId) },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = !state.isLoading && state.selectedPetId != null && state.selectedTime != null && state.selectedPaymentMethod != null,
+                        enabled = !state.isLoading && state.selectedPetId != null && state.selectedServiceId != null && state.selectedTime != null && state.selectedPaymentMethod != null,
                         colors = ButtonDefaults.buttonColors(containerColor = BkPrimary, contentColor = BkPrimaryFg),
                         elevation = ButtonDefaults.buttonElevation(6.dp)
                     ) {

@@ -66,8 +66,7 @@ fun ProfileScreen(
                 TextButton(
                     onClick = {
                         showLogoutDialog = false
-                        viewModel.logout()
-                        onLogout()
+                        viewModel.logout(onLoggedOut = onLogout)
                     }
                 ) {
                     Text("Log Out", color = Color(0xFFFF6B6B), fontWeight = FontWeight.SemiBold)

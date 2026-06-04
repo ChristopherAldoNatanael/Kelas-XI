@@ -29,9 +29,18 @@ import javax.inject.Singleton
 object AppModule {
     // Backend URL loaded from BuildConfig (set in build.gradle.kts from local.properties)
     private val BASE_URL = BuildConfig.BACKEND_BASE_URL
+    private val STORAGE_BASE_URL = normalizeStorageBaseUrl(BASE_URL)
 
     /** Full URL prefix for Laravel public storage files */
-    val STORAGE_URL = "${BASE_URL}storage/"
+    val STORAGE_URL = "${STORAGE_BASE_URL}storage/"
+
+    private fun normalizeStorageBaseUrl(rawBaseUrl: String): String {
+        val trimmed = rawBaseUrl.trim().trimEnd('/')
+        return when {
+            trimmed.endsWith("/api", ignoreCase = true) -> trimmed.removeSuffix("/api") + "/"
+            else -> "$trimmed/"
+        }
+    }
 
     @Provides
     @Singleton

@@ -42,7 +42,7 @@ echo.
 
 echo.
 echo [3/6] Testing ngrok payment endpoint...
-curl -s -o nul -w "HTTP Status: %%{http_code}" -X POST "https://radia-unswaggering-lisandra.ngrok-free.dev/api/payment/snap-token" ^
+curl -s -o nul -w "HTTP Status: %%{http_code}" -X POST "https://envious-reselect-darn.ngrok-free.dev/api/payment/snap-token" ^
   -H "Content-Type: application/json" ^
   -H "Authorization: Bearer test" ^
   -d "{\"transaction_details\":{\"order_id\":\"test-001\",\"gross_amount\":100000}}"

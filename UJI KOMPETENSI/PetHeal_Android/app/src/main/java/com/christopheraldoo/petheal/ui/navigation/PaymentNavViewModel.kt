@@ -6,6 +6,7 @@ import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.BookingRepository
+import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,7 +25,8 @@ data class PaymentNavState(
 @HiltViewModel
 class PaymentNavViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val bookingRefreshManager: BookingRefreshManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PaymentNavState())
@@ -56,5 +58,9 @@ class PaymentNavViewModel @Inject constructor(
                 user = user
             )
         }
+    }
+
+    fun notifyBookingUpdated() {
+        bookingRefreshManager.requestRefresh()
     }
 }

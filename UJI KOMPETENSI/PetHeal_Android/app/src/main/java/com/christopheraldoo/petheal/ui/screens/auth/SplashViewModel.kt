@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.ui.screens.auth
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
+import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
 import com.christopheraldoo.petheal.data.repository.DeviceTokenRepository
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SplashViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
-    private val deviceTokenRepository: DeviceTokenRepository
+    private val deviceTokenRepository: DeviceTokenRepository,
+    private val networkInterceptor: NetworkInterceptor
 ) : ViewModel() {
 
     val isLoggedIn: Flow<Boolean> = preferencesManager.isLoggedIn
@@ -46,6 +48,7 @@ class SplashViewModel @Inject constructor(
             val loggedIn = preferencesManager.isLoggedIn.first()
             if (loggedIn) {
                 try {
+                    preferencesManager.authToken.first()?.let { networkInterceptor.updateToken(it) }
                     val token = FirebaseMessaging.getInstance().token.await()
                     deviceTokenRepository.saveDeviceToken(token, "android")
                 } catch (_: Exception) {

@@ -8,7 +8,7 @@ import com.christopheraldoo.petheal.di.AppModule
  *
  * Backend now stores relative paths like "pets/filename.jpg".
  * This function prepends STORAGE_URL so the full URL becomes:
- *   https://radia-unswaggering-lisandra.ngrok-free.dev/storage/pets/filename.jpg
+ *   https://envious-reselect-darn.ngrok-free.dev/storage/pets/filename.jpg
  *
  * If the value is already a full URL (starts with http), it is returned as-is.
  * If null / blank, returns null so callers can show a placeholder.

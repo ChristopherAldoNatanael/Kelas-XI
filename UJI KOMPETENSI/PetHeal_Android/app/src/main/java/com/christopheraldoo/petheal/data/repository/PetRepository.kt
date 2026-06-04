@@ -139,12 +139,13 @@ class PetRepository @Inject constructor(
                     val photoResp = apiService.uploadPetPhoto(id, MultipartBody.Part.createFormData(
                         "photo", photoFile.name, photoFile.asRequestBody("image/*".toMediaTypeOrNull())
                     ))
-                    if (photoResp.isSuccessful) {
+                    if (photoResp.isSuccessful && photoResp.body()?.success == true) {
                         val updatedPet = response.body()?.data
                         if (updatedPet != null) Result.Success(updatedPet) else Result.Error("Failed to update pet")
                     } else {
-                        val updatedPet = response.body()?.data
-                        Result.Success(updatedPet ?: Pet())
+                        val photoError = photoResp.body()?.message ?: "Failed to upload pet photo"
+                        logError("uploadPetPhoto($id)", photoResp.code(), photoResp.body()?.message)
+                        Result.Error(photoError)
                     }
                 } else {
                     logError("updatePet($id)", response.code(), response.body()?.message)

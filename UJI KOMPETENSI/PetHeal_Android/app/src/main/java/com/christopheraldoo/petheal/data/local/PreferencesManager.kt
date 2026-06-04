@@ -8,9 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,7 +78,11 @@ class PreferencesManager @Inject constructor(
             preferences[KEY_USER_ID] = userId.toString()
             preferences[KEY_USER_EMAIL] = email
             preferences[KEY_USER_NAME] = name
-            photo?.let { preferences[KEY_USER_PHOTO] = it }
+            if (photo.isNullOrBlank()) {
+                preferences.remove(KEY_USER_PHOTO)
+            } else {
+                preferences[KEY_USER_PHOTO] = photo
+            }
             preferences[KEY_IS_LOGGED_IN] = "true"
         }
     }
@@ -97,14 +99,4 @@ class PreferencesManager @Inject constructor(
         }
     }
 
-    /**
-     * Get auth token synchronously (blocking).
-     * Use with caution - this will block the calling thread.
-     * Only use when absolutely necessary (e.g., in interceptors).
-     */
-    fun getAuthTokenSync(): String? {
-        return runBlocking {
-            authToken.first()
-        }
-    }
 }

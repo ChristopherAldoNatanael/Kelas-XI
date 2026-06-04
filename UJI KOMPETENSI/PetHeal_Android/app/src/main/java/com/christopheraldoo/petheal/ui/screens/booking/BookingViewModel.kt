@@ -7,6 +7,8 @@ import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
+import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
+import com.christopheraldoo.petheal.data.repository.ServiceRepository
 import com.christopheraldoo.petheal.data.repository.PaymentMethodRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -55,12 +57,14 @@ data class BookingDetailUiState(
 data class CreateBookingUiState(
     // Data
     val pets: List<Pet> = emptyList(),
+    val services: List<Service> = emptyList(),
     val slots: List<TimeSlot> = emptyList(),
     val doctor: Doctor? = null,
     val paymentMethods: List<PaymentMethod> = emptyList(),
     // Selections
     val selectedPetId: Int? = null,
-    val selectedCategory: String = "General Checkup",
+    val selectedServiceId: Int? = null,
+    val selectedServiceName: String = "",
     val selectedDate: LocalDate = LocalDate.now(),
     val selectedTime: String? = null,
     val selectedPaymentMethod: PaymentMethod? = null,
@@ -80,6 +84,8 @@ class BookingViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
     private val petRepository: PetRepository,
     private val doctorRepository: DoctorRepository,
+    private val bookingRefreshManager: BookingRefreshManager,
+    private val serviceRepository: ServiceRepository,
     private val paymentMethodRepository: PaymentMethodRepository
 ) : ViewModel() {
 
@@ -91,6 +97,19 @@ class BookingViewModel @Inject constructor(
 
     private val _createState = MutableStateFlow(CreateBookingUiState())
     val createState: StateFlow<CreateBookingUiState> = _createState.asStateFlow()
+
+    private var lastHandledRefreshVersion = 0L
+
+    init {
+        viewModelScope.launch {
+            bookingRefreshManager.refreshVersion.collect { version ->
+                if (version > 0 && version > lastHandledRefreshVersion) {
+                    lastHandledRefreshVersion = version
+                    loadBookings()
+                }
+            }
+        }
+    }
 
     fun loadBookings() {
         viewModelScope.launch {
@@ -272,6 +291,9 @@ class BookingViewModel @Inject constructor(
             // Load pets list
             val petsResult = petRepository.getPets()
             val pets = if (petsResult is Result.Success) petsResult.data else emptyList()
+            // Load services
+            val servicesResult = serviceRepository.getServices()
+            val services = if (servicesResult is Result.Success) servicesResult.data else emptyList()
             // Load doctor
             val doctorResult = doctorRepository.getDoctor(doctorId)
             val doctor = if (doctorResult is Result.Success) doctorResult.data else null
@@ -279,8 +301,15 @@ class BookingViewModel @Inject constructor(
             val paymentResult = paymentMethodRepository.getPaymentMethods()
             val paymentMethods = if (paymentResult is Result.Success) paymentResult.data else emptyList()
             _createState.value = _createState.value.copy(
-                isLoading = false, pets = pets, doctor = doctor, paymentMethods = paymentMethods
+                isLoading = false,
+                pets = pets,
+                services = services,
+                doctor = doctor,
+                paymentMethods = paymentMethods,
+                selectedServiceId = services.firstOrNull()?.id,
+                selectedServiceName = services.firstOrNull()?.name.orEmpty()
             )
+            services.firstOrNull()?.price?.let { setTotalAmount(it) }
             loadSlots(doctorId)
         }
     }
@@ -300,8 +329,13 @@ class BookingViewModel @Inject constructor(
         _createState.value = _createState.value.copy(selectedPetId = petId)
     }
 
-    fun selectCategory(category: String) {
-        _createState.value = _createState.value.copy(selectedCategory = category)
+    fun selectService(service: Service) {
+        _createState.value = _createState.value.copy(
+            selectedServiceId = service.id,
+            selectedServiceName = service.name.orEmpty(),
+            selectedPaymentMethod = null
+        )
+        service.price?.let { setTotalAmount(it) }
     }
 
     fun selectDate(date: LocalDate, doctorId: Int) {
@@ -335,6 +369,7 @@ class BookingViewModel @Inject constructor(
     fun createBooking(doctorId: Int) {
         val s = _createState.value
         val petId   = s.selectedPetId ?: return
+        val serviceId = s.selectedServiceId ?: return
         val time    = s.selectedTime  ?: return
         val dateStr = s.selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         viewModelScope.launch {
@@ -342,10 +377,11 @@ class BookingViewModel @Inject constructor(
             val req = BookingRequest(
                 petId       = petId,
                 doctorId    = doctorId,
+                serviceId   = serviceId,
                 bookingDate = dateStr,
                 bookingTime = time,
                 notes       = s.notes.ifBlank { null },
-                paymentMethod = s.selectedPaymentMethod?.name,
+                paymentMethodId = s.selectedPaymentMethod?.id,
                 paymentType = s.selectedPaymentType,
                 totalAmount = s.totalAmount,
                 dpAmount = s.dpAmount

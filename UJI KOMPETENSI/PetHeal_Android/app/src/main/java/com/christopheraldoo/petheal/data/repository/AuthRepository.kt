@@ -4,9 +4,11 @@ import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
+import com.christopheraldoo.petheal.data.repository.DeviceTokenRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,7 +23,9 @@ class AuthRepository @Inject constructor(
     private val apiService: ApiService,
     private val preferencesManager: PreferencesManager,
     private val firebaseAuth: FirebaseAuth,
-    private val networkInterceptor: NetworkInterceptor
+    private val networkInterceptor: NetworkInterceptor,
+    private val deviceTokenRepository: DeviceTokenRepository,
+    private val notificationRepository: NotificationRepository
 ) {
     init {
         // Pre-load token ke cache NetworkInterceptor saat app start
@@ -32,7 +36,45 @@ class AuthRepository @Inject constructor(
     private suspend fun saveTokenAndCache(token: String) {
         preferencesManager.saveAuthToken(token)
         networkInterceptor.updateToken(token)
-    }    suspend fun loginWithEmailPassword(email: String, password: String, fcmToken: String?): Result<AuthData> {
+    }
+
+    private fun errorMessageFrom(response: retrofit2.Response<*>?, fallback: String): String {
+        val rawErrorBody = runCatching { response?.errorBody()?.string() }.getOrNull()?.trim().orEmpty()
+        if (rawErrorBody.isNotBlank()) {
+            val parsedMessage = runCatching {
+                val json = JSONObject(rawErrorBody)
+                when {
+                    json.has("message") -> json.optString("message")
+                    json.has("error") -> json.optString("error")
+                    json.has("errors") -> json.optJSONObject("errors")
+                        ?.keys()
+                        ?.asSequence()
+                        ?.mapNotNull { key ->
+                            json.optJSONObject("errors")
+                                ?.optJSONArray(key)
+                                ?.optString(0)
+                        }
+                        ?.firstOrNull()
+                    else -> null
+                }
+            }.getOrNull()
+
+            if (!parsedMessage.isNullOrBlank()) return parsedMessage
+            return rawErrorBody
+        }
+
+        val bodyMessage = runCatching {
+            when (val body = response?.body()) {
+                is AuthResponse -> body.message
+                is MessageResponse -> body.message
+                else -> null
+            }
+        }.getOrNull()
+
+        return bodyMessage?.takeIf { it.isNotBlank() } ?: fallback
+    }
+
+    suspend fun loginWithEmailPassword(email: String, password: String, fcmToken: String?): Result<AuthData> {
         return try {
             val response = apiService.login(
                 EmailPasswordRequest(
@@ -57,7 +99,7 @@ class AuthRepository @Inject constructor(
                     Result.Error("Invalid response")
                 }
             } else {
-                Result.Error(response.body()?.message ?: "Login failed")
+                Result.Error(errorMessageFrom(response, "Login failed"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
@@ -92,7 +134,7 @@ class AuthRepository @Inject constructor(
                     Result.Error("Invalid response")
                 }
             } else {
-                Result.Error(response.body()?.message ?: "Registration failed")
+                Result.Error(errorMessageFrom(response, "Registration failed"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
@@ -123,7 +165,7 @@ class AuthRepository @Inject constructor(
                     Result.Error("Invalid response")
                 }
             } else {
-                Result.Error(response.body()?.message ?: "Login failed")
+                Result.Error(errorMessageFrom(response, "Login failed"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
@@ -155,7 +197,7 @@ class AuthRepository @Inject constructor(
                     Result.Error("Invalid response")
                 }
             } else {
-                Result.Error(response.body()?.message ?: "Registration failed")
+                Result.Error(errorMessageFrom(response, "Registration failed"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
@@ -164,7 +206,11 @@ class AuthRepository @Inject constructor(
 
     suspend fun logout(fcmToken: String?): Result<Unit> {
         return try {
+            val deviceToken = fcmToken ?: preferencesManager.fcmToken.first()
             val token = preferencesManager.authToken.first()
+            if (!deviceToken.isNullOrBlank()) {
+                deviceTokenRepository.removeDeviceToken(deviceToken)
+            }
             if (token != null) {
                 apiService.logout()
             }
@@ -172,15 +218,22 @@ class AuthRepository @Inject constructor(
             networkInterceptor.updateToken(null)
             // Sign out from Firebase
             firebaseAuth.signOut()
+            // Clear locally stored notifications for the current account
+            notificationRepository.clearAll()
             // Clear local data
             preferencesManager.clearAll()
 
             Result.Success(Unit)
         } catch (e: Exception) {
             android.util.Log.e("AuthRepository", "Logout API call failed: ${e.message}", e)
+            val deviceToken = runCatching { preferencesManager.fcmToken.first() }.getOrNull()
+            if (!deviceToken.isNullOrBlank()) {
+                runCatching { deviceTokenRepository.removeDeviceToken(deviceToken) }
+            }
             preferencesManager.clearAll()
             networkInterceptor.updateToken(null)
             firebaseAuth.signOut()
+            runCatching { notificationRepository.clearAll() }
 
             Result.Error("Failed to logout from server: ${e.message ?: "Unknown error"}")
         }
