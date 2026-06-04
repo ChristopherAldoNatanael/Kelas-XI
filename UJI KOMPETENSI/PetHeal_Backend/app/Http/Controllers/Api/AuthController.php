@@ -7,11 +7,13 @@ use App\Mail\PasswordResetMail;
 use App\Models\User;
 use App\Models\MedicalRecord;
 use App\Models\Booking;
+use App\Services\ImageService;
 use App\Services\FirebaseService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
@@ -410,6 +412,43 @@ class AuthController extends Controller
     }
 
     /**
+     * Verify reset code without changing password yet
+     */
+    public function verifyResetCode(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email|exists:users,email',
+            'code' => 'required|string',
+        ]);
+
+        $record = DB::table('password_reset_tokens')
+            ->where('email', $request->input('email'))
+            ->where('token', $request->input('code'))
+            ->first();
+
+        if (!$record) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid reset code',
+            ], 400);
+        }
+
+        $createdAt = \Carbon\Carbon::parse($record->created_at);
+        if ($createdAt->diffInMinutes(now()) > 15) {
+            DB::table('password_reset_tokens')->where('email', $request->input('email'))->delete();
+            return response()->json([
+                'success' => false,
+                'message' => 'Reset code has expired. Please request a new one.',
+            ], 400);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Reset code is valid',
+        ]);
+    }
+
+    /**
      * Reset password with code
      */
     public function resetPassword(Request $request)
@@ -452,6 +491,49 @@ class AuthController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Password reset successful',
+        ]);
+    }
+
+    /**
+     * Upload profile photo for the current user
+     */
+    public function uploadProfilePhoto(Request $request)
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpeg,png,jpg,webp|max:4096',
+        ]);
+
+        $user = $request->user();
+
+        if ($user->photo && !filter_var($user->photo, FILTER_VALIDATE_URL)) {
+            Storage::disk('public')->delete($user->photo);
+        }
+
+        $fileName = time() . '_' . uniqid() . '.jpg';
+        $relativePath = ImageService::process(
+            $request->file('photo'),
+            'users/' . $fileName,
+            800,
+            80
+        );
+
+        $user->photo = $relativePath;
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile photo updated successfully',
+            'data' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'role' => $user->role,
+                'photo' => $user->photo,
+                'phone' => $user->phone,
+                'firebase_uid' => $user->firebase_uid,
+                'created_at' => $user->created_at,
+                'updated_at' => $user->updated_at,
+            ],
         ]);
     }
 

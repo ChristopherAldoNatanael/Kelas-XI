@@ -2,11 +2,13 @@ package com.christopheraldoo.petheal.ui.screens.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -21,11 +23,13 @@ data class LoginUiState(
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
+    val authProvider: Flow<String?> = preferencesManager.authProvider
 
     fun loginWithEmailPassword(email: String, password: String) {
         viewModelScope.launch {
@@ -63,5 +67,11 @@ class LoginViewModel @Inject constructor(
 
     fun setError(message: String) {
         _uiState.value = LoginUiState(isLoading = false, error = message)
+    }
+
+    fun requestForgotPassword(email: String, onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            onResult(authRepository.requestForgotPassword(email))
+        }
     }
 }

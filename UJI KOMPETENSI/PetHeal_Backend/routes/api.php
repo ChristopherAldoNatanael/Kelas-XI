@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\PetController;
 use App\Http\Controllers\Api\VaccinationController;
@@ -25,7 +26,10 @@ Route::post('/auth/register-direct', [AuthController::class, 'registerDirect']);
 
 // Password reset (public)
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+Route::post('/auth/verify-reset-code', [AuthController::class, 'verifyResetCode']);
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
+
+Route::get('/health', [HealthController::class, 'index']);
 
 // Payment methods (public - no auth required)
 Route::get('/payment-methods', [App\Http\Controllers\Api\PaymentMethodController::class, 'index']);
@@ -43,6 +47,7 @@ Route::middleware([\App\Http\Middleware\ApiAuthenticate::class])->group(function
     Route::post('/auth/logout', [AuthController::class, 'logout']);
     Route::get('/auth/profile', [AuthController::class, 'profile']);
     Route::put('/auth/profile', [AuthController::class, 'updateProfile']);
+    Route::post('/auth/profile/photo', [AuthController::class, 'uploadProfilePhoto']);
     Route::delete('/auth/account', [AuthController::class, 'deleteAccount']);
 
     // Dashboard (personal stats)

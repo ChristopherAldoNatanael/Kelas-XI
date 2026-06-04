@@ -1,6 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.booking
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -124,6 +125,7 @@ fun BookingsScreen(
     val bg      = if (isDark) BkBgDark      else BkBgLight
     val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
     val textPrimary   = if (isDark) Color.White         else Color(0xFF0F172A)
+    val context = LocalContext.current
     val textSecondary = if (isDark) Color(0xFF94A3B8)   else Color(0xFF64748B)
     val border        = if (isDark) Color(0x1AFFFFFF)   else Color(0xFFF1F5F9)
 
@@ -1075,7 +1077,10 @@ fun CreateBookingScreen(
                             Icon(Icons.Filled.ArrowBack, null, tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                         Text("Book Appointment", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                        TextButton(onClick = { }) {
+                        val context = LocalContext.current
+                        TextButton(onClick = {
+                            Toast.makeText(context, "Help is coming soon", Toast.LENGTH_SHORT).show()
+                        }) {
                             Text("Help", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }

@@ -1,6 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,6 +65,7 @@ fun HomeScreen(
     val borderColor  = if (isDark) HomeBorderDark   else HomeBorderLight
     val textPrimary  = if (isDark) Color.White      else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val context = LocalContext.current
 
     Box(
         modifier = Modifier
@@ -345,7 +347,9 @@ fun HomeScreen(
                                 )
                             }
                             OutlinedIconButton(
-                                onClick = { },
+                                onClick = {
+                                    Toast.makeText(context, "Call support is coming soon", Toast.LENGTH_SHORT).show()
+                                },
                                 modifier = Modifier.size(42.dp),
                                 shape = RoundedCornerShape(8.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),

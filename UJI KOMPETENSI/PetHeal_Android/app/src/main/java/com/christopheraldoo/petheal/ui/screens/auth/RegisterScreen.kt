@@ -1,5 +1,8 @@
 package com.christopheraldoo.petheal.ui.screens.auth
 
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -18,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -28,6 +32,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.christopheraldoo.petheal.BuildConfig
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
+import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun RegisterScreen(
@@ -39,6 +52,7 @@ fun RegisterScreen(
     val isDark = isSystemInDarkTheme()
     val bgColor = if (isDark) AuthBgDark else AuthBgLight
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
 
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
@@ -46,6 +60,50 @@ fun RegisterScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+    var isGoogleSigningIn by remember { mutableStateOf(false) }
+
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID)
+            .requestEmail()
+            .build()
+        GoogleSignIn.getClient(context, gso)
+    }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        isGoogleSigningIn = false
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                googleSignInClient.signOut()
+                account.idToken?.let { oauthToken ->
+                    CoroutineScope(Dispatchers.Main).launch {
+                        try {
+                            val firebaseAuth = FirebaseAuth.getInstance()
+                            val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(oauthToken, null)
+                            val authResult = firebaseAuth.signInWithCredential(credential).await()
+                            val firebaseIdToken = authResult.user?.getIdToken(true)?.await()?.token
+                            if (firebaseIdToken != null) {
+                                viewModel.registerWithGoogleIdToken(
+                                    firebaseIdToken,
+                                    name.trim().ifBlank { account.displayName.orEmpty() }
+                                )
+                            } else {
+                                viewModel.setError("Failed to get Firebase ID token")
+                            }
+                        } catch (e: Exception) {
+                            viewModel.setError("Google sign-in failed: ${e.message}")
+                        }
+                    }
+                } ?: viewModel.setError("Google account has no ID token. Enable Google Sign-In in Firebase Console.")
+            } catch (e: ApiException) {
+                viewModel.setError("Google sign-in error (code ${e.statusCode})")
+            }
+        }
+    }
 
     val passwordsMatch = password == confirmPassword || confirmPassword.isEmpty()
 
@@ -295,7 +353,14 @@ fun RegisterScreen(
 
             // ── Google button ─────────────────────────────────────────
             OutlinedButton(
-                onClick = { },
+                onClick = {
+                    if (isGoogleSigningIn || uiState.isLoading) return@OutlinedButton
+                    viewModel.clearError()
+                    isGoogleSigningIn = true
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        googleLauncher.launch(googleSignInClient.signInIntent)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp,
@@ -303,12 +368,21 @@ fun RegisterScreen(
                 colors = ButtonDefaults.outlinedButtonColors(
                     containerColor = if (isDark) AuthSurfaceDark else Color.White,
                     contentColor = if (isDark) Color.White else Color(0xFF0F172A)
-                )
+                ),
+                enabled = !uiState.isLoading && !isGoogleSigningIn
             ) {
-                GoogleLogoIcon()
-                Spacer(modifier = Modifier.width(12.dp))
-                Text("Continue with Google",
-                    fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                if (isGoogleSigningIn) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(22.dp),
+                        color = AuthPrimary,
+                        strokeWidth = 2.5.dp
+                    )
+                } else {
+                    GoogleLogoIcon()
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text("Continue with Google",
+                        fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                }
             }
 
             // ── Error ─────────────────────────────────────────────────

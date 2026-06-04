@@ -19,13 +19,13 @@ interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body request: EmailPasswordRequest): Response<AuthResponse>
 
-    @POST("auth/register")
+    @POST("auth/register-direct")
     suspend fun register(@Body request: EmailRegisterRequest): Response<AuthResponse>
 
     @POST("auth/firebase-login")
     suspend fun firebaseLogin(@Body request: LoginRequest): Response<AuthResponse>
 
-    @POST("auth/firebase-register")
+    @POST("auth/register")
     suspend fun firebaseRegister(@Body request: FirebaseRegisterRequest): Response<AuthResponse>
 
     @POST("auth/logout")
@@ -137,7 +137,7 @@ interface ApiService {
     @POST("device-token")
     suspend fun saveDeviceToken(@Body request: DeviceTokenRequest): Response<DeviceTokenResponse>
 
-    @DELETE("device-token")
+    @HTTP(method = "DELETE", path = "device-token", hasBody = true)
     suspend fun removeDeviceToken(@Body request: DeviceTokenRequest): Response<DeviceTokenResponse>
 
     // ============= PAYMENT METHODS (PUBLIC - NO AUTH) =============

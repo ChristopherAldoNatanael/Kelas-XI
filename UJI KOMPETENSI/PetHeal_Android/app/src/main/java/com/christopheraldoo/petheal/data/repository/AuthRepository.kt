@@ -4,7 +4,6 @@ import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
-import com.christopheraldoo.petheal.data.repository.DeviceTokenRepository
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
@@ -36,6 +35,10 @@ class AuthRepository @Inject constructor(
     private suspend fun saveTokenAndCache(token: String) {
         preferencesManager.saveAuthToken(token)
         networkInterceptor.updateToken(token)
+    }
+
+    private suspend fun saveAuthProvider(provider: String) {
+        preferencesManager.saveAuthProvider(provider)
     }
 
     private fun errorMessageFrom(response: retrofit2.Response<*>?, fallback: String): String {
@@ -88,6 +91,7 @@ class AuthRepository @Inject constructor(
                 val authData = response.body()?.data
                 if (authData != null) {
                     saveTokenAndCache(authData.token)
+                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
                         email = authData.user.email ?: "",
@@ -123,6 +127,7 @@ class AuthRepository @Inject constructor(
                 val authData = response.body()?.data
                 if (authData != null) {
                     saveTokenAndCache(authData.token)
+                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
                         email = authData.user.email ?: "",
@@ -154,6 +159,7 @@ class AuthRepository @Inject constructor(
                 val authData = response.body()?.data
                 if (authData != null) {
                     saveTokenAndCache(authData.token)
+                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
                         email = authData.user.email ?: "",
@@ -186,6 +192,7 @@ class AuthRepository @Inject constructor(
                 val authData = response.body()?.data
                 if (authData != null) {
                     saveTokenAndCache(authData.token)
+                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
                         email = authData.user.email ?: "",
@@ -220,8 +227,8 @@ class AuthRepository @Inject constructor(
             firebaseAuth.signOut()
             // Clear locally stored notifications for the current account
             notificationRepository.clearAll()
-            // Clear local data
-            preferencesManager.clearAll()
+            // Clear only the session data; keep auth provider for login UX
+            preferencesManager.clearSession()
 
             Result.Success(Unit)
         } catch (e: Exception) {
@@ -230,7 +237,7 @@ class AuthRepository @Inject constructor(
             if (!deviceToken.isNullOrBlank()) {
                 runCatching { deviceTokenRepository.removeDeviceToken(deviceToken) }
             }
-            preferencesManager.clearAll()
+            preferencesManager.clearSession()
             networkInterceptor.updateToken(null)
             firebaseAuth.signOut()
             runCatching { notificationRepository.clearAll() }
@@ -285,5 +292,18 @@ class AuthRepository @Inject constructor(
     
     suspend fun getCurrentUserId(): Int? {
         return preferencesManager.userId.first()?.toIntOrNull()
+    }
+
+    suspend fun requestForgotPassword(email: String): Result<Unit> {
+        return try {
+            val response = apiService.forgotPassword(ForgotPasswordRequest(email = email))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(errorMessageFrom(response, "Failed to send reset code"))
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Network error")
+        }
     }
 }

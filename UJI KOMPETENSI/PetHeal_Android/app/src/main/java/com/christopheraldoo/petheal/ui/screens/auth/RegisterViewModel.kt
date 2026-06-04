@@ -54,4 +54,8 @@ class RegisterViewModel @Inject constructor(
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
     }
+
+    fun setError(message: String) {
+        _uiState.value = RegisterUiState(isLoading = false, error = message)
+    }
 }

@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -59,6 +60,7 @@ fun LoginScreen(
     viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val authProvider by viewModel.authProvider.collectAsState(initial = null)
     val isDark = isSystemInDarkTheme()
     val bgColor = if (isDark) AuthBgDark else AuthBgLight
     val focusManager = LocalFocusManager.current
@@ -67,9 +69,14 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var showForgotPasswordDialog by remember { mutableStateOf(false) }
+    var forgotPasswordEmail by remember { mutableStateOf("") }
+    var forgotPasswordMessage by remember { mutableStateOf<String?>(null) }
+    var isForgotPasswordLoading by remember { mutableStateOf(false) }
 
     // Google Sign-In client
-    val googleSignInClient = remember {        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+    val googleSignInClient = remember {
+        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
             .requestIdToken(BuildConfig.GOOGLE_CLIENT_ID)
             .requestEmail()
             .build()
@@ -235,15 +242,26 @@ fun LoginScreen(
             )
 
             // ── Forgot password ───────────────────────────────────────
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                TextButton(onClick = { }) {
-                    Text("Forgot Password?",
-                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                        color = AuthPrimary)
+            if (authProvider != PreferencesManager.AUTH_PROVIDER_GOOGLE) {
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                    TextButton(
+                        onClick = {
+                            forgotPasswordEmail = email.trim()
+                            forgotPasswordMessage = null
+                            showForgotPasswordDialog = true
+                        }
+                    ) {
+                        Text(
+                            "Forgot Password?",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = AuthPrimary
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
             // ── Login button ──────────────────────────────────────────
             Button(
@@ -332,6 +350,17 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth())
             }
 
+            forgotPasswordMessage?.let {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = it,
+                    color = AuthPrimary,
+                    fontSize = 12.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
             // ── Footer ────────────────────────────────────────────────
             Spacer(modifier = Modifier.height(40.dp))
             Row(
@@ -351,6 +380,73 @@ fun LoginScreen(
                         color = AuthPrimary)
                 }
             }
+        }
+
+        if (showForgotPasswordDialog) {
+            AlertDialog(
+                onDismissRequest = {
+                    if (!isForgotPasswordLoading) {
+                        showForgotPasswordDialog = false
+                    }
+                },
+                title = { Text("Reset Password") },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text(
+                            "Enter your email to receive a password reset code.",
+                            fontSize = 13.sp
+                        )
+                        OutlinedTextField(
+                            value = forgotPasswordEmail,
+                            onValueChange = { forgotPasswordEmail = it },
+                            singleLine = true,
+                            label = { Text("Email") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        enabled = !isForgotPasswordLoading && forgotPasswordEmail.isNotBlank(),
+                        onClick = {
+                            isForgotPasswordLoading = true
+                            viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
+                                isForgotPasswordLoading = false
+                                when (result) {
+                                    is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                                        forgotPasswordMessage = "Reset code sent to ${forgotPasswordEmail.trim()}."
+                                        showForgotPasswordDialog = false
+                                    }
+
+                                    is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                                        viewModel.setError(result.message)
+                                    }
+
+                                    else -> Unit
+                                }
+                            }
+                        }
+                    ) {
+                        if (isForgotPasswordLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = AuthPrimary
+                            )
+                        } else {
+                            Text("Send Code")
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        enabled = !isForgotPasswordLoading,
+                        onClick = { showForgotPasswordDialog = false }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
+            )
         }
     }
 }

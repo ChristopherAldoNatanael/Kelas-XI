@@ -19,6 +19,9 @@ class PreferencesManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
     companion object {
+        const val AUTH_PROVIDER_EMAIL_PASSWORD = "email_password"
+        const val AUTH_PROVIDER_GOOGLE = "google"
+
         private val KEY_AUTH_TOKEN = stringPreferencesKey("auth_token")
         private val KEY_USER_ID = stringPreferencesKey("user_id")
         private val KEY_USER_EMAIL = stringPreferencesKey("user_email")
@@ -26,6 +29,7 @@ class PreferencesManager @Inject constructor(
         private val KEY_USER_PHOTO = stringPreferencesKey("user_photo")
         private val KEY_IS_LOGGED_IN = stringPreferencesKey("is_logged_in")
         private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
+        private val KEY_AUTH_PROVIDER = stringPreferencesKey("auth_provider")
         private val KEY_HAS_SEEN_ONBOARDING = stringPreferencesKey("has_seen_onboarding")
     }
 
@@ -55,6 +59,10 @@ class PreferencesManager @Inject constructor(
 
     val fcmToken: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_FCM_TOKEN]
+    }
+
+    val authProvider: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_AUTH_PROVIDER]
     }
 
     val hasSeenOnboarding: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -87,9 +95,27 @@ class PreferencesManager @Inject constructor(
         }
     }
 
+    suspend fun saveAuthProvider(provider: String) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_AUTH_PROVIDER] = provider
+        }
+    }
+
     suspend fun saveFcmToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[KEY_FCM_TOKEN] = token
+        }
+    }
+
+    suspend fun clearSession() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_AUTH_TOKEN)
+            preferences.remove(KEY_USER_ID)
+            preferences.remove(KEY_USER_EMAIL)
+            preferences.remove(KEY_USER_NAME)
+            preferences.remove(KEY_USER_PHOTO)
+            preferences.remove(KEY_IS_LOGGED_IN)
+            preferences.remove(KEY_FCM_TOKEN)
         }
     }
 

@@ -606,7 +606,7 @@ fun PetDetailScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .clickable { /* TODO: Show options menu */ },
+                                .clickable { /* Options menu reserved for future actions */ },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(

@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
+import android.widget.Toast
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -13,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -27,6 +29,7 @@ fun PrivacySecurityScreen(
     val bgColor = if (isDark) Color(0xFF102216) else Color(0xFFF6F8F6)
     val textColor = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0F172A)
     val secondaryColor = if (isDark) Color(0xFF9DB9A6) else Color(0xFF64748B)
+    val context = LocalContext.current
 
     Scaffold(
         containerColor = bgColor,
@@ -54,19 +57,19 @@ fun PrivacySecurityScreen(
                 SettingsActionRow(
                     icon = Icons.Default.Fingerprint,
                     label = "Biometric Login",
-                    onClick = {}
+                    onClick = { Toast.makeText(context, "Biometric login is coming soon", Toast.LENGTH_SHORT).show() }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Key,
                     label = "Change Password",
-                    onClick = {}
+                    onClick = { Toast.makeText(context, "Change password is coming soon", Toast.LENGTH_SHORT).show() }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Security,
                     label = "Two-Factor Authentication",
-                    onClick = {}
+                    onClick = { Toast.makeText(context, "Two-factor authentication is coming soon", Toast.LENGTH_SHORT).show() }
                 )
             }
 
@@ -74,13 +77,13 @@ fun PrivacySecurityScreen(
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
                     label = "Manage Data Permissions",
-                    onClick = {}
+                    onClick = { Toast.makeText(context, "Data permissions is coming soon", Toast.LENGTH_SHORT).show() }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.ArrowBack,
                     label = "Clear Cache",
-                    onClick = {}
+                    onClick = { Toast.makeText(context, "Cache clearing is coming soon", Toast.LENGTH_SHORT).show() }
                 )
             }
         }

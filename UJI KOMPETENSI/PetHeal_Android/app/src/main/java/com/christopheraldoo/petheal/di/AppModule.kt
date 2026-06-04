@@ -106,7 +106,8 @@ object AppModule {
         // Only enable HTTP logging in debug builds
         if (BuildConfig.ENABLE_HTTP_LOGGING) {
             val loggingInterceptor = HttpLoggingInterceptor().apply {
-                level = HttpLoggingInterceptor.Level.BODY
+                level = HttpLoggingInterceptor.Level.HEADERS
+                redactHeader("Authorization")
             }
             builder.addInterceptor(loggingInterceptor)
         }
