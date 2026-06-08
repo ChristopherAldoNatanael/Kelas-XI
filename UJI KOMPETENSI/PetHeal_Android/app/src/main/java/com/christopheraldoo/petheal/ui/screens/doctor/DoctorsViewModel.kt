@@ -3,8 +3,11 @@ package com.christopheraldoo.petheal.ui.screens.doctor
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
+import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.Doctor
+import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.TimeSlot
+import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.Result
@@ -38,8 +41,13 @@ data class DoctorDetailUiState(
     val slots: List<TimeSlot> = emptyList(),
     val selectedDate: String = LocalDate.now().plusDays(1)
         .format(DateTimeFormatter.ofPattern("yyyy-MM-dd")),
+    val reviews: List<DoctorReview> = emptyList(),
+    val reviewableBookings: List<Booking> = emptyList(),
+    val averageRating: Double = 0.0,
+    val totalReviews: Int = 0,
     val isLoading: Boolean = false,
     val isSlotsLoading: Boolean = false,
+    val isSubmittingReview: Boolean = false,
     val error: String? = null
 )
 
@@ -47,6 +55,7 @@ data class DoctorDetailUiState(
 class DoctorsViewModel @Inject constructor(
     private val doctorRepository: DoctorRepository,
     private val petRepository: PetRepository,
+    private val bookingRepository: BookingRepository,
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
@@ -130,6 +139,8 @@ class DoctorsViewModel @Inject constructor(
 
             // Load slots untuk tanggal default
             loadSlots(doctorId, _detailState.value.selectedDate)
+            loadReviews(doctorId)
+            loadReviewableBookings(doctorId)
         }
     }
 
@@ -149,6 +160,57 @@ class DoctorsViewModel @Inject constructor(
                     isSlotsLoading = false
                 )
                 else -> _detailState.value = _detailState.value.copy(isSlotsLoading = false)
+            }
+        }
+    }
+
+    private fun loadReviews(doctorId: Int) {
+        viewModelScope.launch {
+            when (val result = doctorRepository.getDoctorReviews(doctorId)) {
+                is Result.Success -> _detailState.value = _detailState.value.copy(
+                    reviews = result.data.reviews.orEmpty(),
+                    averageRating = result.data.averageRating ?: 0.0,
+                    totalReviews = result.data.totalReviews ?: 0
+                )
+                else -> Unit
+            }
+        }
+    }
+
+    private fun loadReviewableBookings(doctorId: Int) {
+        viewModelScope.launch {
+            when (val result = bookingRepository.getBookings()) {
+                is Result.Success -> {
+                    val reviewedBookingIds = _detailState.value.reviews.mapNotNull { it.bookingId }.toSet()
+                    _detailState.value = _detailState.value.copy(
+                        reviewableBookings = result.data.filter { booking ->
+                            booking.doctorId == doctorId &&
+                                booking.status == "completed" &&
+                                booking.id != null &&
+                                booking.id !in reviewedBookingIds
+                        }
+                    )
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    fun submitReview(doctorId: Int, bookingId: Int, rating: Int, review: String?) {
+        viewModelScope.launch {
+            _detailState.value = _detailState.value.copy(isSubmittingReview = true, error = null)
+            when (val result = doctorRepository.submitDoctorReview(doctorId, bookingId, rating, review)) {
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(isSubmittingReview = false)
+                    loadReviews(doctorId)
+                    loadReviewableBookings(doctorId)
+                    refreshDoctorsInBackground()
+                }
+                is Result.Error -> _detailState.value = _detailState.value.copy(
+                    isSubmittingReview = false,
+                    error = result.message
+                )
+                else -> Unit
             }
         }
     }

@@ -16,7 +16,8 @@ import javax.inject.Inject
 data class NotificationsUiState(
     val notifications: List<AppNotification> = emptyList(),
     val unreadCount: Int = 0,
-    val isLoading: Boolean = false
+    val isLoading: Boolean = false,
+    val syncError: String? = null
 )
 
 @HiltViewModel
@@ -28,6 +29,7 @@ class NotificationsViewModel @Inject constructor(
     val uiState: StateFlow<NotificationsUiState> = _uiState.asStateFlow()
 
     init {
+        refresh()
         viewModelScope.launch {
             notificationRepository.notifications.collect { list ->
                 _uiState.value = _uiState.value.copy(
@@ -39,6 +41,26 @@ class NotificationsViewModel @Inject constructor(
         viewModelScope.launch {
             notificationRepository.unreadCount.collect { count ->
                 _uiState.value = _uiState.value.copy(unreadCount = count)
+            }
+        }
+    }
+
+    fun refresh() {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, syncError = null)
+            when (val result = notificationRepository.syncFromBackend()) {
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        syncError = result.message
+                    )
+                }
+
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    _uiState.value = _uiState.value.copy(isLoading = false, syncError = null)
+                }
+
+                else -> Unit
             }
         }
     }

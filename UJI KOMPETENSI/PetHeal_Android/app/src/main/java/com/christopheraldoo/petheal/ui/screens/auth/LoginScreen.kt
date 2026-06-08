@@ -6,7 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -47,9 +46,9 @@ import kotlinx.coroutines.tasks.await
 
 // ── Brand colors ──────────────────────────────────────────────────────────────
 internal val AuthPrimary        = Color(0xFF2BEE6C)
-internal val AuthBgDark         = Color(0xFF102216)
+internal val AuthBgDark         = Color(0xFFF6F8F6)
 internal val AuthBgLight        = Color(0xFFF6F8F6)
-internal val AuthSurfaceDark    = Color(0xFF1C271F)
+internal val AuthSurfaceDark    = Color.White
 internal val AuthBorderDark     = Color(0xFF3B5443)
 internal val AuthTextSecondary  = Color(0xFF9DB9A6)
 
@@ -61,7 +60,7 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val authProvider by viewModel.authProvider.collectAsState(initial = null)
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) AuthBgDark else AuthBgLight
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current

@@ -13,9 +13,9 @@ class WeightRecordController extends Controller
     /**
      * Get weight history for a pet.
      */
-    public function index(int $petId): JsonResponse
+    public function index(Request $request, int $petId): JsonResponse
     {
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         
         $records = $pet->weightRecords()
             ->chronological()
@@ -50,7 +50,7 @@ class WeightRecordController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
         
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         
         $record = $pet->weightRecords()->create([
             'weight' => $validated['weight'],
@@ -71,9 +71,9 @@ class WeightRecordController extends Controller
     /**
      * Delete a weight record.
      */
-    public function destroy(int $petId, int $recordId): JsonResponse
+    public function destroy(Request $request, int $petId, int $recordId): JsonResponse
     {
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         $record = $pet->weightRecords()->findOrFail($recordId);
         $record->delete();
         

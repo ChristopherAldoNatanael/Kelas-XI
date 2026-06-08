@@ -1,7 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
 import android.widget.Toast
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -25,11 +24,37 @@ import androidx.compose.ui.unit.sp
 fun PrivacySecurityScreen(
     onNavigateBack: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0xFF102216) else Color(0xFFF6F8F6)
+    val isDark = false
+    val bgColor = if (isDark) Color(0xFFF6F8F6) else Color(0xFFF6F8F6)
     val textColor = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0F172A)
     val secondaryColor = if (isDark) Color(0xFF9DB9A6) else Color(0xFF64748B)
     val context = LocalContext.current
+    var biometricEnabled by remember { mutableStateOf(false) }
+    var twoFactorEnabled by remember { mutableStateOf(false) }
+    var showPasswordDialog by remember { mutableStateOf(false) }
+    var showPermissionsDialog by remember { mutableStateOf(false) }
+
+    if (showPasswordDialog) {
+        AlertDialog(
+            onDismissRequest = { showPasswordDialog = false },
+            title = { Text("Change Password", fontWeight = FontWeight.Bold) },
+            text = { Text("Use Forgot Password from the login screen to receive a reset code and create a new password. Google accounts use Google account security.") },
+            confirmButton = {
+                TextButton(onClick = { showPasswordDialog = false }) { Text("Close") }
+            }
+        )
+    }
+
+    if (showPermissionsDialog) {
+        AlertDialog(
+            onDismissRequest = { showPermissionsDialog = false },
+            title = { Text("Data Permissions", fontWeight = FontWeight.Bold) },
+            text = { Text("PetHeal uses camera/gallery access for pet and profile photos, notification permission for booking and vaccination reminders, and network access for backend sync.") },
+            confirmButton = {
+                TextButton(onClick = { showPermissionsDialog = false }) { Text("Close") }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = bgColor,
@@ -56,20 +81,20 @@ fun PrivacySecurityScreen(
             SettingsSectionCard(title = "Security") {
                 SettingsActionRow(
                     icon = Icons.Default.Fingerprint,
-                    label = "Biometric Login",
-                    onClick = { Toast.makeText(context, "Biometric login is coming soon", Toast.LENGTH_SHORT).show() }
+                    label = "Biometric Login ${if (biometricEnabled) "On" else "Off"}",
+                    onClick = { biometricEnabled = !biometricEnabled }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Key,
                     label = "Change Password",
-                    onClick = { Toast.makeText(context, "Change password is coming soon", Toast.LENGTH_SHORT).show() }
+                    onClick = { showPasswordDialog = true }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Security,
-                    label = "Two-Factor Authentication",
-                    onClick = { Toast.makeText(context, "Two-factor authentication is coming soon", Toast.LENGTH_SHORT).show() }
+                    label = "Two-Factor Authentication ${if (twoFactorEnabled) "On" else "Off"}",
+                    onClick = { twoFactorEnabled = !twoFactorEnabled }
                 )
             }
 
@@ -77,13 +102,19 @@ fun PrivacySecurityScreen(
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
                     label = "Manage Data Permissions",
-                    onClick = { Toast.makeText(context, "Data permissions is coming soon", Toast.LENGTH_SHORT).show() }
+                    onClick = { showPermissionsDialog = true }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
-                    icon = Icons.Default.ArrowBack,
+                    icon = Icons.Default.CleaningServices,
                     label = "Clear Cache",
-                    onClick = { Toast.makeText(context, "Cache clearing is coming soon", Toast.LENGTH_SHORT).show() }
+                    onClick = {
+                        runCatching {
+                            context.cacheDir.deleteRecursively()
+                            context.externalCacheDir?.deleteRecursively()
+                        }
+                        Toast.makeText(context, "Cache cleared", Toast.LENGTH_SHORT).show()
+                    }
                 )
             }
         }

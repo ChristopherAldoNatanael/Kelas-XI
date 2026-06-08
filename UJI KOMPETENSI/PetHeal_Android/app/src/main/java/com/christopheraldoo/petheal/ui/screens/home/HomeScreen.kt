@@ -1,12 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
+import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,13 +40,13 @@ private const val TAG = "HomePhoto"
 
 // ── Brand tokens ─────────────────────────────────────────────────────────────
 private val HomePrimary       = Color(0xFF2BEE6C)
-private val HomeBgDark        = Color(0xFF102216)
+private val HomeBgDark        = Color(0xFFF6F8F6)
 private val HomeBgLight       = Color(0xFFF6F8F6)
-private val HomeSurfaceDark   = Color(0xFF1C2E22)
+private val HomeSurfaceDark   = Color.White
 private val HomeSurfaceLight  = Color(0xFFFFFFFF)
 private val HomeBorderDark    = Color(0x0DFFFFFF)   // white/5
 private val HomeBorderLight   = Color(0xFFE2E8F0)
-private val HomeTextSecondary = Color(0xFF9DB9A6)
+private val HomeTextSecondary = Color(0xFF64748B)
 
 @Composable
 fun HomeScreen(
@@ -58,7 +59,7 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ){
     val uiState by viewModel.uiState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
 
     val bgColor      = if (isDark) HomeBgDark      else HomeBgLight
     val surfaceColor = if (isDark) HomeSurfaceDark  else HomeSurfaceLight
@@ -348,7 +349,7 @@ fun HomeScreen(
                             }
                             OutlinedIconButton(
                                 onClick = {
-                                    Toast.makeText(context, "Call support is coming soon", Toast.LENGTH_SHORT).show()
+                                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+6281234567890")))
                                 },
                                 modifier = Modifier.size(42.dp),
                                 shape = RoundedCornerShape(8.dp),
@@ -707,7 +708,7 @@ private fun BookingCardSkeleton(
     surfaceColor: Color,
     borderColor: Color
 ) {
-    val skeletonColor = if (isDark) Color(0xFF2E4536) else Color(0xFFE2E8F0)
+    val skeletonColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFFE2E8F0)
     Card(
         modifier = Modifier.fillMaxWidth().height(160.dp),
         shape = RoundedCornerShape(16.dp),

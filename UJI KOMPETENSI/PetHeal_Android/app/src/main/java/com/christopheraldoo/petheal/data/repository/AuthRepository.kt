@@ -226,7 +226,7 @@ class AuthRepository @Inject constructor(
             // Sign out from Firebase
             firebaseAuth.signOut()
             // Clear locally stored notifications for the current account
-            notificationRepository.clearAll()
+            notificationRepository.clearLocal()
             // Clear only the session data; keep auth provider for login UX
             preferencesManager.clearSession()
 
@@ -240,7 +240,7 @@ class AuthRepository @Inject constructor(
             preferencesManager.clearSession()
             networkInterceptor.updateToken(null)
             firebaseAuth.signOut()
-            runCatching { notificationRepository.clearAll() }
+            runCatching { notificationRepository.clearLocal() }
 
             Result.Error("Failed to logout from server: ${e.message ?: "Unknown error"}")
         }

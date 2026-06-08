@@ -27,6 +27,88 @@ class PaymentController extends Controller
         return config('services.midtrans.server_key');
     }
 
+    private function isMidtransConfigured(): bool
+    {
+        return !empty($this->getServerKey()) && !empty($this->getSnapUrl()) && !empty($this->getApiUrl());
+    }
+
+    public function preflight()
+    {
+        try {
+            $mode = config('services.midtrans.is_production') ? 'production' : 'sandbox';
+            $checks = [
+                'server_key' => [
+                    'status' => !empty($this->getServerKey()) ? 'ok' : 'failed',
+                    'message' => !empty($this->getServerKey()) ? 'Server key configured' : 'MIDTRANS_SERVER_KEY is missing',
+                ],
+                'snap_url' => [
+                    'status' => !empty($this->getSnapUrl()) ? 'ok' : 'failed',
+                    'message' => $this->getSnapUrl() ?: 'Snap URL is missing',
+                ],
+                'api_url' => [
+                    'status' => !empty($this->getApiUrl()) ? 'ok' : 'failed',
+                    'message' => $this->getApiUrl() ?: 'API URL is missing',
+                ],
+                'mode' => [
+                    'status' => 'ok',
+                    'message' => $mode,
+                ],
+            ];
+
+            if (!$this->isMidtransConfigured()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment setup is incomplete. Check Midtrans environment values.',
+                    'data' => [
+                        'ready' => false,
+                        'mode' => $mode,
+                        'checks' => $checks,
+                    ],
+                ], 500);
+            }
+
+            $probe = Http::timeout(10)->withHeaders([
+                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
+                'Accept' => 'application/json',
+            ])->get($this->getApiUrl() . '/PETHEAL-PREFLIGHT-CHECK/status');
+
+            $midtransReachable = in_array($probe->status(), [200, 404], true);
+            $checks['midtrans_account'] = [
+                'status' => $midtransReachable ? 'ok' : 'failed',
+                'message' => $midtransReachable
+                    ? 'Midtrans API is reachable with the configured server key'
+                    : 'Midtrans rejected the configured server key or endpoint',
+                'status_code' => $probe->status(),
+            ];
+
+            return response()->json([
+                'success' => $midtransReachable,
+                'message' => $midtransReachable ? 'Payment setup ready' : 'Payment setup failed. Check Midtrans credentials.',
+                'data' => [
+                    'ready' => $midtransReachable,
+                    'mode' => $mode,
+                    'checks' => $checks,
+                ],
+            ], $midtransReachable ? 200 : 502);
+        } catch (\Throwable $e) {
+            Log::error('Exception in payment preflight', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Unable to verify payment setup: ' . $e->getMessage(),
+                'data' => [
+                    'ready' => false,
+                    'mode' => config('services.midtrans.is_production') ? 'production' : 'sandbox',
+                    'checks' => [],
+                ],
+            ], 500);
+        }
+    }
+
     /**
      * Create a Midtrans Snap token for a booking payment.
      *
@@ -44,6 +126,18 @@ class PaymentController extends Controller
                     'success' => false,
                     'message' => 'User not authenticated'
                 ], 401);
+            }
+
+            if (!$this->isMidtransConfigured()) {
+                Log::error('Midtrans configuration is missing', [
+                    'server_key_set' => !empty($this->getServerKey()),
+                    'snap_url' => $this->getSnapUrl(),
+                    'api_url' => $this->getApiUrl(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Midtrans configuration is incomplete. Please set MIDTRANS_SERVER_KEY and MIDTRANS_IS_PRODUCTION correctly.',
+                ], 500);
             }
 
             // Validate request
@@ -152,6 +246,17 @@ class PaymentController extends Controller
                 'message' => 'Invalid request data',
                 'errors' => $e->errors(),
             ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Throwable in createSnapToken', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error: ' . $e->getMessage(),
+            ], 500);
         } catch (\Exception $e) {
             Log::error('Exception in createSnapToken', [
                 'message' => $e->getMessage(),
@@ -248,6 +353,18 @@ class PaymentController extends Controller
                     'success' => false,
                     'message' => 'User not authenticated'
                 ], 401);
+            }
+
+            if (!$this->isMidtransConfigured()) {
+                Log::error('Midtrans configuration is missing for remaining payment', [
+                    'server_key_set' => !empty($this->getServerKey()),
+                    'snap_url' => $this->getSnapUrl(),
+                    'api_url' => $this->getApiUrl(),
+                ]);
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Midtrans configuration is incomplete. Please set MIDTRANS_SERVER_KEY and MIDTRANS_IS_PRODUCTION correctly.',
+                ], 500);
             }
 
             // Find booking
@@ -412,7 +529,7 @@ class PaymentController extends Controller
                 'message' => 'Failed to create snap token: ' . $errorMessage,
                 'detail' => $errorData['message'] ?? null,
             ], $response->status() === 404 ? 502 : $response->status());
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             Log::error('Exception in createRemainingPaymentSnapToken', [
                 'booking_id' => $bookingId,
                 'message' => $e->getMessage(),

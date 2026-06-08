@@ -34,7 +34,7 @@ import coil.compose.AsyncImage
 
 // ── Brand colors ────────────────────────────────────────────────────────────
 private val OnboardingPrimary   = Color(0xFF2BEE6C)
-private val OnboardingBgDark    = Color(0xFF102216)
+private val OnboardingBgDark    = Color(0xFFF6F8F6)
 private val OnboardingBgLight   = Color(0xFFF6F8F6)
 
 // ── Page data ────────────────────────────────────────────────────────────────
@@ -80,7 +80,7 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     var currentPage by remember { mutableIntStateOf(0) }
-    val isDark = androidx.compose.foundation.isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) OnboardingBgDark else OnboardingBgLight
 
     Box(

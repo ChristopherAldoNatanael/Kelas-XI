@@ -33,10 +33,11 @@ import com.christopheraldoo.petheal.util.buildPhotoUrl
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 private val Primary       = Color(0xFF2BEE6C)
 private val PrimaryFg     = Color(0xFF052E14)
-private val BgDark        = Color(0xFF102216)
-private val SurfaceDark   = Color(0xFF1C2E22)
-private val BorderDark    = Color(0xFF2E4536)
-private val TextSecDark   = Color(0xFF9DB9A6)
+private val BgDark        = Color(0xFFF6F8F6)
+private val SurfaceDark   = Color.White
+private val BorderDark    = Color(0xFFE2E8F0)
+private val TextPrimary   = Color(0xFF0F172A)
+private val TextSecDark   = Color(0xFF64748B)
 
 // ─── ProfileScreen ─────────────────────────────────────────────────────────────
 @Composable
@@ -58,7 +59,7 @@ fun ProfileScreen(
         AlertDialog(
             onDismissRequest = { showLogoutDialog = false },
             containerColor = SurfaceDark,
-            titleContentColor = Color.White,
+            titleContentColor = TextPrimary,
             textContentColor = TextSecDark,
             title = { Text("Log Out", fontWeight = FontWeight.Bold) },
             text = { Text("Are you sure you want to log out of your account?") },
@@ -169,7 +170,7 @@ fun ProfileScreen(
                     } else {
                         Text(
                             text = state.user?.name ?: "—",
-                            color = Color.White,
+                            color = TextPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -301,11 +302,11 @@ fun ProfileScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(16.dp),
-                containerColor = Color(0xFF3A1C1C),
-                contentColor = Color(0xFFFF9999),
+                containerColor = Color(0xFFFFEBEE),
+                contentColor = Color(0xFFDC2626),
                 dismissAction = {
                     IconButton(onClick = { viewModel.clearError() }) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color(0xFFFF9999))
+                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color(0xFFDC2626))
                     }
                 }
             ) {
@@ -354,13 +355,13 @@ fun EditProfileScreen(
                         Icon(
                             imageVector = Icons.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.White
+                            tint = TextPrimary
                         )
                     }
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = "Edit Profile",
-                        color = Color.White,
+                        color = TextPrimary,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -417,17 +418,17 @@ fun EditProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFF3A1C1C))
+                            .background(Color(0xFFFFEBEE))
                             .padding(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.ErrorOutline,
                             contentDescription = null,
-                            tint = Color(0xFFFF9999),
+                            tint = Color(0xFFDC2626),
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(err, color = Color(0xFFFF9999), fontSize = 13.sp)
+                        Text(err, color = Color(0xFFDC2626), fontSize = 13.sp)
                     }
                 }
 
@@ -522,7 +523,7 @@ private fun ProfileInfoRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(label, color = TextSecDark, fontSize = 11.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(2.dp))
-            Text(value, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(value, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -550,7 +551,7 @@ private fun ProfileActionRow(
             Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(12.dp))
-        Text(label, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        Text(label, color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
         Icon(
             imageVector = Icons.Filled.ChevronRight,
             contentDescription = null,
@@ -591,14 +592,14 @@ private fun EditField(
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
+                focusedTextColor = TextPrimary,
+                unfocusedTextColor = TextPrimary,
                 focusedBorderColor = Primary,
                 unfocusedBorderColor = BorderDark,
                 cursorColor = Primary,
                 focusedContainerColor = SurfaceDark,
                 unfocusedContainerColor = SurfaceDark,
-                disabledTextColor = if (readOnly) TextSecDark else Color.White,
+                disabledTextColor = if (readOnly) TextSecDark else TextPrimary,
                 disabledBorderColor = BorderDark,
                 disabledLeadingIconColor = TextSecDark
             ),

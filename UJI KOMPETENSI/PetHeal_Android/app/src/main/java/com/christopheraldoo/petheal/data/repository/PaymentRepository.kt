@@ -4,6 +4,7 @@ import android.util.Log
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
+import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -13,9 +14,47 @@ private const val TAG = "PaymentRepository"
 class PaymentRepository @Inject constructor(
     private val apiService: ApiService
 ) {
+    private fun extractErrorMessage(response: retrofit2.Response<*>): String? {
+        val errorBody = runCatching { response.errorBody()?.string() }.getOrNull()?.trim().orEmpty()
+        if (errorBody.isBlank()) return null
+
+        return runCatching {
+            if (errorBody.startsWith("{")) {
+                val json = JSONObject(errorBody)
+                when {
+                    json.optString("detail").isNotBlank() -> json.optString("detail")
+                    json.optString("message").isNotBlank() -> json.optString("message")
+                    json.optString("error").isNotBlank() -> json.optString("error")
+                    else -> errorBody
+                }
+            } else {
+                errorBody
+            }
+        }.getOrDefault(errorBody)
+    }
+
     /**
      * Create a Midtrans Snap token for a booking payment.
      */
+    suspend fun checkPaymentPreflight(): Result<PaymentPreflightData> {
+        return try {
+            val response = apiService.checkPaymentPreflight()
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data?.ready == true) {
+                Result.Success(body.data)
+            } else {
+                Result.Error(
+                    extractErrorMessage(response)
+                        ?: body?.message
+                        ?: "Payment setup is not ready. Please check Midtrans configuration."
+                )
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Payment preflight exception", e)
+            Result.Error("Unable to verify payment setup: ${e.message}")
+        }
+    }
+
     suspend fun createSnapToken(request: SnapTokenRequest): Result<SnapTokenData> {
         return try {
             if (BuildConfig.DEBUG) {
@@ -40,12 +79,14 @@ class PaymentRepository @Inject constructor(
                     Result.Error(rawBody?.message ?: "Backend returned error")
                 }
             } else {
+                val detailMessage = extractErrorMessage(response)
+
                 val errorMsg = when (response.code()) {
                     401 -> "Authentication failed. Please login again."
                     422 -> "Invalid payment data. Please check your booking details."
                     502 -> "Payment gateway configuration error. Please contact support."
-                    500 -> "Server error. Please try again later."
-                    else -> rawBody?.message ?: "Failed to create payment token (HTTP ${response.code()})"
+                    500 -> detailMessage ?: "Server error. Please try again later."
+                    else -> detailMessage ?: rawBody?.message ?: "Failed to create payment token (HTTP ${response.code()})"
                 }
                 Log.e(TAG, "HTTP error: $errorMsg, code: ${response.code()}")
                 Result.Error(errorMsg)
@@ -98,8 +139,9 @@ class PaymentRepository @Inject constructor(
                     Result.Error(rawBody?.message ?: "Failed to create remaining payment token")
                 }
             } else {
+                val detailMessage = extractErrorMessage(response)
                 Log.e(TAG, "createRemainingPaymentSnapToken failed: HTTP ${response.code()}")
-                Result.Error("Failed to create remaining payment token")
+                Result.Error(detailMessage ?: "Failed to create remaining payment token")
             }
         } catch (e: Exception) {
             Log.e(TAG, "createRemainingPaymentSnapToken exception", e)

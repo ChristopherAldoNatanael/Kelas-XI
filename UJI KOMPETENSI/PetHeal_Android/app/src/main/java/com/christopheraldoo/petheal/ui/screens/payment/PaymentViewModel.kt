@@ -57,6 +57,18 @@ class PaymentViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
+            when (val preflight = paymentRepository.checkPaymentPreflight()) {
+                is Result.Success -> Unit
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = preflight.message
+                    )
+                    return@launch
+                }
+                else -> Unit
+            }
+
             // Generate order ID
             val orderId = "BOOKING-${bookingId}-${System.currentTimeMillis()}"
 
@@ -448,6 +460,18 @@ class PaymentViewModel @Inject constructor(
     fun initiateRemainingPayment(bookingId: Int, user: User?) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            when (val preflight = paymentRepository.checkPaymentPreflight()) {
+                is Result.Success -> Unit
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = preflight.message
+                    )
+                    return@launch
+                }
+                else -> Unit
+            }
 
             // Generate order ID for remaining payment
             val orderId = "BOOKING-$bookingId-REMAINING-${System.currentTimeMillis()}"

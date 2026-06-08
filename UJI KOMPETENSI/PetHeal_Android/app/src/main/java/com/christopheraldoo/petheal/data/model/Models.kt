@@ -105,6 +105,98 @@ data class PetRequest(
     val photo: String? = null
 )
 
+// ============= PET HEALTH TRACKING MODELS =============
+data class Pagination(
+    @SerializedName("current_page") val currentPage: Int? = null,
+    @SerializedName("last_page") val lastPage: Int? = null,
+    @SerializedName("per_page") val perPage: Int? = null,
+    val total: Int? = null
+)
+
+data class WeightRecord(
+    val id: Int? = null,
+    @SerializedName("pet_id") val petId: Int? = null,
+    val weight: Double? = null,
+    @SerializedName("recorded_at") val recordedAt: String? = null,
+    val notes: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class WeightChange(
+    val absolute: Double? = null,
+    val percentage: Double? = null,
+    val trend: String? = null
+)
+
+data class WeightHistoryData(
+    @SerializedName("pet_id") val petId: Int? = null,
+    @SerializedName("pet_name") val petName: String? = null,
+    @SerializedName("current_weight") val currentWeight: Double? = null,
+    val records: List<WeightRecord>? = null,
+    @SerializedName("weight_change") val weightChange: WeightChange? = null,
+    val pagination: Pagination? = null
+)
+
+data class WeightHistoryResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: WeightHistoryData? = null
+)
+
+data class WeightRecordResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: WeightRecord? = null
+)
+
+data class WeightRecordRequest(
+    val weight: Double,
+    @SerializedName("recorded_at") val recordedAt: String? = null,
+    val notes: String? = null
+)
+
+data class Vaccination(
+    val id: Int? = null,
+    @SerializedName("pet_id") val petId: Int? = null,
+    @SerializedName("vaccine_name") val vaccineName: String? = null,
+    @SerializedName("batch_number") val batchNumber: String? = null,
+    @SerializedName("date_administered") val dateAdministered: String? = null,
+    @SerializedName("next_due_date") val nextDueDate: String? = null,
+    val veterinarian: String? = null,
+    val notes: String? = null,
+    @SerializedName("reminder_sent") val reminderSent: Boolean? = null,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class VaccinationData(
+    @SerializedName("pet_id") val petId: Int? = null,
+    @SerializedName("pet_name") val petName: String? = null,
+    val vaccinations: List<Vaccination>? = null,
+    @SerializedName("upcoming_due") val upcomingDue: List<Vaccination>? = null,
+    val pagination: Pagination? = null
+)
+
+data class VaccinationsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: VaccinationData? = null
+)
+
+data class VaccinationResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: Vaccination? = null
+)
+
+data class VaccinationRequest(
+    @SerializedName("vaccine_name") val vaccineName: String,
+    @SerializedName("batch_number") val batchNumber: String? = null,
+    @SerializedName("date_administered") val dateAdministered: String,
+    @SerializedName("next_due_date") val nextDueDate: String? = null,
+    val veterinarian: String? = null,
+    val notes: String? = null
+)
+
 // ============= SERVICE MODELS =============
 data class Service(
     val id: Int? = null,
@@ -138,6 +230,8 @@ data class Doctor(
     val photo: String? = null,
     @SerializedName("available_days") val availableDays: String? = null,
     @SerializedName("available_time") val availableTime: String? = null,
+    @SerializedName("average_rating") val averageRating: Double? = null,
+    @SerializedName("reviews_count") val reviewsCount: Int? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
@@ -162,6 +256,46 @@ data class SlotsResponse(
     val success: Boolean,
     val message: String? = null,
     val data: List<TimeSlot>? = null
+)
+
+data class DoctorReviewUser(
+    val id: Int? = null,
+    val name: String? = null
+)
+
+data class DoctorReview(
+    val id: Int? = null,
+    @SerializedName("doctor_id") val doctorId: Int? = null,
+    @SerializedName("user_id") val userId: Int? = null,
+    @SerializedName("booking_id") val bookingId: Int? = null,
+    val rating: Int? = null,
+    val review: String? = null,
+    val user: DoctorReviewUser? = null,
+    @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class DoctorReviewsData(
+    val reviews: List<DoctorReview>? = null,
+    @SerializedName("average_rating") val averageRating: Double? = null,
+    @SerializedName("total_reviews") val totalReviews: Int? = null
+)
+
+data class DoctorReviewsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: DoctorReviewsData? = null
+)
+
+data class DoctorReviewRequest(
+    @SerializedName("booking_id") val bookingId: Int,
+    val rating: Int,
+    val review: String? = null
+)
+
+data class DoctorReviewResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: DoctorReview? = null
 )
 
 // ============= BOOKING MODELS =============
@@ -264,11 +398,22 @@ data class AppNotification(
     val title: String,
     val body: String,
     val type: String,           // "booking_status" | "booking_reminder" | "vaccination_reminder" | "general"
-    val petName: String? = null,
+    @SerializedName("pet_name") val petName: String? = null,
     val status: String? = null,
     val date: String? = null,
     val timestamp: Long,        // epoch-ms
-    val isRead: Boolean = false
+    @SerializedName("is_read") val isRead: Boolean = false
+)
+
+data class NotificationsData(
+    val notifications: List<AppNotification> = emptyList(),
+    @SerializedName("unread_count") val unreadCount: Int = 0
+)
+
+data class NotificationsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: NotificationsData? = null
 )
 
 // ============= API RESPONSE WRAPPER =============

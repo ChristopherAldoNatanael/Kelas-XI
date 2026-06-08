@@ -67,6 +67,25 @@ data class SnapTokenData(
     val transactionId: String? = null
 )
 
+data class PaymentPreflightResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: PaymentPreflightData? = null
+)
+
+data class PaymentPreflightData(
+    val ready: Boolean = false,
+    val mode: String? = null,
+    val checks: Map<String, PaymentPreflightCheck>? = null
+)
+
+data class PaymentPreflightCheck(
+    val status: String? = null,
+    val message: String? = null,
+    @SerializedName("status_code")
+    val statusCode: Int? = null
+)
+
 // ============= MIDTRANS TRANSACTION STATUS MODELS =============
 
 data class TransactionStatusResponse(

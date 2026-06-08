@@ -15,7 +15,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -51,6 +50,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.model.Vaccination
+import com.christopheraldoo.petheal.data.model.WeightRecord
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.MediumImage
@@ -63,9 +64,9 @@ import java.util.Locale
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 private val PetPrimary       = Color(0xFF2BEE6C)
-private val PetBgDark        = Color(0xFF102216)
+private val PetBgDark        = Color(0xFFF6F8F6)
 private val PetBgLight       = Color(0xFFF6F8F6)
-private val PetSurfaceDark   = Color(0xFF1A2C20)
+private val PetSurfaceDark   = Color.White
 private val PetSurfaceLight  = Color(0xFFFFFFFF)
 private val PetMuted         = Color(0xFF61896F)
 
@@ -82,7 +83,7 @@ fun PetsScreen(
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor      = if (isDark) PetBgDark     else PetBgLight
     val surfaceColor = if (isDark) PetSurfaceDark else PetSurfaceLight
     val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
@@ -517,7 +518,7 @@ fun PetDetailScreen(
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor      = if (isDark) PetBgDark     else PetBgLight
     val surfaceColor = if (isDark) PetSurfaceDark else PetSurfaceLight
     val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
@@ -527,6 +528,30 @@ fun PetDetailScreen(
     LaunchedEffect(state.isDeleted) { if (state.isDeleted) onNavigateBack() }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showWeightDialog by remember { mutableStateOf(false) }
+    var showVaccinationDialog by remember { mutableStateOf(false) }
+
+    if (showWeightDialog) {
+        AddWeightDialog(
+            isLoading = state.isHealthActionLoading,
+            onDismiss = { showWeightDialog = false },
+            onSubmit = { weight, notes ->
+                viewModel.addWeightRecord(petId, weight, notes)
+                showWeightDialog = false
+            }
+        )
+    }
+
+    if (showVaccinationDialog) {
+        AddVaccinationDialog(
+            isLoading = state.isHealthActionLoading,
+            onDismiss = { showVaccinationDialog = false },
+            onSubmit = { name, date, nextDue, vet, notes ->
+                viewModel.addVaccination(petId, name, date, nextDue, vet, notes)
+                showVaccinationDialog = false
+            }
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -605,8 +630,7 @@ fun PetDetailScreen(
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { /* Options menu reserved for future actions */ },
+                                .clip(CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -663,7 +687,7 @@ fun PetDetailScreen(
                             Icon(
                                 Icons.Filled.Check,
                                 contentDescription = "Healthy",
-                                tint = Color(0xFF102216),
+                                tint = Color(0xFFF6F8F6),
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -805,6 +829,20 @@ fun PetDetailScreen(
                 Column(
                     modifier = Modifier.padding(horizontal = 16.dp)
                 ) {
+                    HealthTrackingSection(
+                        weightRecords = state.weightRecords,
+                        vaccinations = state.vaccinations,
+                        upcomingVaccinations = state.upcomingVaccinations,
+                        currentWeight = state.pet?.weight,
+                        weightTrend = state.weightChange?.trend,
+                        onAddWeight = { showWeightDialog = true },
+                        onAddVaccination = { showVaccinationDialog = true },
+                        surfaceColor = surfaceColor,
+                        textPrimary = textPrimary,
+                        textMuted = textMuted,
+                        modifier = Modifier.padding(bottom = 24.dp)
+                    )
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -924,6 +962,269 @@ fun PetDetailScreen(
             }
         }
     }
+}
+
+@Composable
+private fun HealthTrackingSection(
+    weightRecords: List<WeightRecord>,
+    vaccinations: List<Vaccination>,
+    upcomingVaccinations: List<Vaccination>,
+    currentWeight: Double?,
+    weightTrend: String?,
+    onAddWeight: () -> Unit,
+    onAddVaccination: () -> Unit,
+    surfaceColor: Color,
+    textPrimary: Color,
+    textMuted: Color,
+    modifier: Modifier = Modifier
+) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            "Health Tracking",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = textPrimary
+        )
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.FitnessCenter, null, tint = PetPrimary, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Weight Tracker", fontWeight = FontWeight.Bold, color = textPrimary)
+                        Text(
+                            currentWeight?.let { "Current: $it kg" } ?: "No weight recorded",
+                            fontSize = 13.sp,
+                            color = textMuted
+                        )
+                    }
+                    TextButton(onClick = onAddWeight) {
+                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add")
+                    }
+                }
+
+                weightTrend?.let {
+                    Text(
+                        text = "Trend: ${it.replaceFirstChar { c -> c.uppercaseChar() }}",
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(PetPrimary.copy(alpha = 0.12f))
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        color = PetPrimary,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (weightRecords.isEmpty()) {
+                    Text("Start tracking weight to monitor pet health over time.", fontSize = 13.sp, color = textMuted)
+                } else {
+                    weightRecords.take(3).forEach { record ->
+                        HealthMiniRow(
+                            title = "${record.weight ?: 0.0} kg",
+                            subtitle = listOfNotNull(record.recordedAt, record.notes).joinToString(" - ").ifBlank { "Weight record" },
+                            textPrimary = textPrimary,
+                            textMuted = textMuted
+                        )
+                    }
+                }
+            }
+        }
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = surfaceColor),
+            elevation = CardDefaults.cardElevation(0.dp)
+        ) {
+            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.MedicalServices, null, tint = PetPrimary, modifier = Modifier.size(24.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Vaccinations", fontWeight = FontWeight.Bold, color = textPrimary)
+                        Text(
+                            if (upcomingVaccinations.isNotEmpty()) "${upcomingVaccinations.size} upcoming due" else "No upcoming due",
+                            fontSize = 13.sp,
+                            color = textMuted
+                        )
+                    }
+                    TextButton(onClick = onAddVaccination) {
+                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Add")
+                    }
+                }
+
+                val preview = upcomingVaccinations.ifEmpty { vaccinations }.take(3)
+                if (preview.isEmpty()) {
+                    Text("Record vaccines here so reminders and pet history stay complete.", fontSize = 13.sp, color = textMuted)
+                } else {
+                    preview.forEach { vaccine ->
+                        HealthMiniRow(
+                            title = vaccine.vaccineName ?: "Vaccination",
+                            subtitle = buildString {
+                                vaccine.dateAdministered?.let { append("Given: $it") }
+                                vaccine.nextDueDate?.let {
+                                    if (isNotEmpty()) append(" - ")
+                                    append("Next: $it")
+                                }
+                            }.ifBlank { vaccine.veterinarian ?: "Vaccination record" },
+                            textPrimary = textPrimary,
+                            textMuted = textMuted
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthMiniRow(
+    title: String,
+    subtitle: String,
+    textPrimary: Color,
+    textMuted: Color
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(PetPrimary.copy(alpha = 0.06f))
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(8.dp)
+                .clip(CircleShape)
+                .background(PetPrimary)
+        )
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+            Text(subtitle, fontSize = 12.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
+private fun AddWeightDialog(
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (weight: Double, notes: String?) -> Unit
+) {
+    var weight by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    val parsedWeight = weight.toDoubleOrNull()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Weight Record", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { weight = it },
+                    label = { Text("Weight (kg)") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                )
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isLoading && parsedWeight != null && parsedWeight > 0.0,
+                onClick = { parsedWeight?.let { onSubmit(it, notes.trim().ifBlank { null }) } },
+                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
+            ) { Text(if (isLoading) "Saving..." else "Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun AddVaccinationDialog(
+    isLoading: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (name: String, date: String, nextDue: String?, veterinarian: String?, notes: String?) -> Unit
+) {
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
+    var name by remember { mutableStateOf("") }
+    var dateAdministered by remember { mutableStateOf(today) }
+    var nextDueDate by remember { mutableStateOf("") }
+    var veterinarian by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Add Vaccination", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Vaccine name") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = dateAdministered,
+                    onValueChange = { dateAdministered = it },
+                    label = { Text("Date administered (YYYY-MM-DD)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = nextDueDate,
+                    onValueChange = { nextDueDate = it },
+                    label = { Text("Next due date (optional)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = veterinarian,
+                    onValueChange = { veterinarian = it },
+                    label = { Text("Veterinarian (optional)") },
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes (optional)") },
+                    minLines = 2
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !isLoading && name.isNotBlank() && dateAdministered.isNotBlank(),
+                onClick = {
+                    onSubmit(
+                        name.trim(),
+                        dateAdministered.trim(),
+                        nextDueDate.trim().ifBlank { null },
+                        veterinarian.trim().ifBlank { null },
+                        notes.trim().ifBlank { null }
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
+            ) { Text(if (isLoading) "Saving..." else "Save") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Composable
@@ -1179,9 +1480,9 @@ private fun PetFormScreen(
     onSubmit: (name: String, species: String, breed: String?, gender: String?,
                dateOfBirth: String?, age: Int?, weight: Double?, photoFile: File?) -> Unit
 ) {    val context      = LocalContext.current
-    val isDark       = isSystemInDarkTheme()
+    val isDark       = false
     val bgColor      = if (isDark) PetBgDark     else PetBgLight
-    val surfaceColor = if (isDark) Color(0xFF1A2C20) else Color.White
+    val surfaceColor = if (isDark) Color.White else Color.White
     val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
     val textMuted    = if (isDark) Color(0xFF94A3B8) else Color(0xFF61896F)
     val borderColor  = if (isDark) Color(0x33FFFFFF) else Color(0xFFE2E8F0)
@@ -1514,7 +1815,7 @@ private fun PetFormScreen(
                                     .background(PetPrimary),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Filled.Edit, null, tint = Color(0xFF102216), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.Edit, null, tint = Color(0xFFF6F8F6), modifier = Modifier.size(18.dp))
                             }
                         } else {
                             Column(
@@ -1627,7 +1928,7 @@ private fun PetFormScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(g, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color(0xFF102216) else textMuted)
+                                            color = if (isSelected) Color(0xFFF6F8F6) else textMuted)
                                     }
                                 }
                             }
@@ -1740,15 +2041,15 @@ private fun PetFormScreen(
                 enabled = !isLoading && name.isNotBlank() && species.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPrimary,
-                    contentColor = Color(0xFF102216),
+                    contentColor = Color(0xFFF6F8F6),
                     disabledContainerColor = PetPrimary.copy(alpha = 0.4f),
-                    disabledContentColor = Color(0xFF102216).copy(alpha = 0.5f)
+                    disabledContentColor = Color(0xFFF6F8F6).copy(alpha = 0.5f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp),
-                        color = Color(0xFF102216), strokeWidth = 2.5.dp)
+                        color = Color(0xFFF6F8F6), strokeWidth = 2.5.dp)
                 } else {
                     Icon(Icons.Filled.Pets, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -1769,7 +2070,7 @@ private fun FormSection(
             label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSystemInDarkTheme()) Color(0xFF94A3B8) else Color(0xFF61896F),
+            color = if (false) Color(0xFF94A3B8) else Color(0xFF61896F),
             letterSpacing = 0.8.sp
         )
         content()

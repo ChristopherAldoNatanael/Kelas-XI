@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Firebase\JWT\JWT;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -157,6 +158,8 @@ class FCMService
 
     public function sendToUser(int $userId, string $title, string $body, array $data = []): bool
     {
+        $this->storeNotification($userId, $title, $body, $data);
+
         $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)
             ->pluck('token')
             ->toArray();
@@ -170,6 +173,24 @@ class FCMService
 
         // True if at least one device was reached successfully
         return in_array(true, $results, true);
+    }
+
+    private function storeNotification(int $userId, string $title, string $body, array $data = []): void
+    {
+        try {
+            Notification::create([
+                'user_id' => $userId,
+                'title' => $title,
+                'body' => $body,
+                'type' => $data['type'] ?? 'general',
+                'data' => $data,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Notification history store failed', [
+                'user_id' => $userId,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

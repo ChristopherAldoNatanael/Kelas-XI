@@ -17,6 +17,7 @@ class DoctorController extends Controller
     {
         $doctors = Cache::remember('active_doctors', 3600, function () {
             $doctors = Doctor::where('is_active', true)
+                ->withCount('reviews')
                 ->orderBy('name')
                 ->get();
 
@@ -39,7 +40,7 @@ class DoctorController extends Controller
      */
     public function show($id)
     {
-        $doctor = Doctor::find($id);
+        $doctor = Doctor::withCount('reviews')->find($id);
 
         if (!$doctor || !$doctor->is_active) {
             return response()->json([

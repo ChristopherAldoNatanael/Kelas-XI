@@ -7,7 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -63,9 +62,9 @@ private const val TAG = "BookingPhoto"
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 private val BkPrimary       = Color(0xFF2BEE6C)
 private val BkPrimaryFg     = Color(0xFF052E14)
-private val BkBgDark        = Color(0xFF102216)
+private val BkBgDark        = Color(0xFFF6F8F6)
 private val BkBgLight       = Color(0xFFF6F8F6)
-private val BkSurfaceDark   = Color(0xFF1A3322)
+private val BkSurfaceDark   = Color.White
 private val BkSurfaceLight  = Color(0xFFFFFFFF)
 
 // ── Helper: load doctor photo with ngrok header ─────────────────────────────
@@ -121,7 +120,7 @@ fun BookingsScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bg      = if (isDark) BkBgDark      else BkBgLight
     val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
     val textPrimary   = if (isDark) Color.White         else Color(0xFF0F172A)
@@ -313,7 +312,7 @@ private fun BookingFilterBottomSheet(
     onResetFilters: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) Color(0xFF1E293B) else Color.White
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
@@ -615,7 +614,7 @@ fun BookingDetailScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bg      = if (isDark) BkBgDark      else BkBgLight
     val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
     val textPrimary   = if (isDark) Color.White       else Color(0xFF0F172A)
@@ -787,7 +786,7 @@ fun BookingDetailScreen(
                         )
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.85f)), startY = 80f)))
                     } else {
-                        Box(Modifier.fillMaxSize().background(if (isDark) Color(0xFF1A2C20) else Color(0xFFE8F5E9))) {
+                        Box(Modifier.fillMaxSize().background(if (isDark) Color.White else Color(0xFFE8F5E9))) {
                             Icon(Icons.Filled.Person, null, tint = BkPrimary.copy(0.25f), modifier = Modifier.size(80.dp).align(Alignment.Center))
                         }
                     }
@@ -1031,7 +1030,7 @@ fun CreateBookingScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.createState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bg      = if (isDark) BkBgDark      else BkBgLight
     val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
     val textPrimary   = if (isDark) Color.White       else Color(0xFF0F172A)
@@ -1079,7 +1078,7 @@ fun CreateBookingScreen(
                         Text("Book Appointment", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         val context = LocalContext.current
                         TextButton(onClick = {
-                            Toast.makeText(context, "Help is coming soon", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Complete each step: service, pet, doctor, schedule, then payment.", Toast.LENGTH_LONG).show()
                         }) {
                             Text("Help", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
@@ -1131,7 +1130,7 @@ fun CreateBookingScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(CircleShape)
-                                    .background(if (isDark) Color(0xFF1A2C20) else Color(0xFFE8F5E9)),
+                                    .background(if (isDark) Color.White else Color(0xFFE8F5E9)),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val createBookingPhoto = buildPhotoUrl(doc.photo)

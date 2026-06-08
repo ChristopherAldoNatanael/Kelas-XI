@@ -193,4 +193,88 @@ class PetRepository @Inject constructor(
             Result.Error("Network error: ${e.message}")
         }
     }
+
+    suspend fun getWeightHistory(petId: Int): Result<WeightHistoryData> {
+        return try {
+            val response = apiService.getWeightHistory(petId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Weight history not found")
+            } else {
+                logError("getWeightHistory($petId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to get weight history"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getWeightHistory($petId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    suspend fun addWeightRecord(
+        petId: Int,
+        weight: Double,
+        recordedAt: String? = null,
+        notes: String? = null
+    ): Result<WeightRecord> {
+        return try {
+            val request = WeightRecordRequest(weight = weight, recordedAt = recordedAt, notes = notes)
+            val response = apiService.addWeightRecord(petId, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Failed to save weight record")
+            } else {
+                logError("addWeightRecord($petId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to save weight record"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "addWeightRecord($petId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    suspend fun getVaccinations(petId: Int): Result<VaccinationData> {
+        return try {
+            val response = apiService.getVaccinations(petId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Vaccination history not found")
+            } else {
+                logError("getVaccinations($petId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to get vaccinations"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getVaccinations($petId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    suspend fun addVaccination(
+        petId: Int,
+        vaccineName: String,
+        dateAdministered: String,
+        nextDueDate: String? = null,
+        veterinarian: String? = null,
+        notes: String? = null
+    ): Result<Vaccination> {
+        return try {
+            val request = VaccinationRequest(
+                vaccineName = vaccineName,
+                dateAdministered = dateAdministered,
+                nextDueDate = nextDueDate,
+                veterinarian = veterinarian,
+                notes = notes
+            )
+            val response = apiService.addVaccination(petId, request)
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Failed to save vaccination")
+            } else {
+                logError("addVaccination($petId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to save vaccination"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "addVaccination($petId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
 }

@@ -3,15 +3,35 @@ package com.christopheraldoo.petheal.ui.components
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.WifiOff
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,10 +43,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/**
- * Enhanced error state component with icon, title, message, and recovery actions.
- * Provides better UX than simple text-only error messages.
- */
 @Composable
 fun ErrorState(
     title: String,
@@ -34,13 +50,13 @@ fun ErrorState(
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Outlined.ErrorOutline,
     iconColor: Color = Color(0xFFEF4444),
-    backgroundColor: Color = Color(0xFFEF4444).copy(alpha = 0.1f),
+    backgroundColor: Color = Color(0xFFEF4444).copy(alpha = 0.10f),
     primaryActionText: String? = null,
     onPrimaryActionClick: (() -> Unit)? = null,
     secondaryActionText: String? = null,
     onSecondaryActionClick: (() -> Unit)? = null
 ) {
-    val animatedScale = animateFloatAsState(
+    val animatedScale by animateFloatAsState(
         targetValue = 1f,
         animationSpec = tween(durationMillis = 400),
         label = "error_scale"
@@ -54,13 +70,12 @@ fun ErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Error icon with animation
         Box(
             modifier = Modifier
                 .size(100.dp)
                 .clip(RoundedCornerShape(20.dp))
                 .background(backgroundColor)
-                .scale(animatedScale.value),
+                .scale(animatedScale),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -77,7 +92,7 @@ fun ErrorState(
             text = title,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.White,
+            color = Color(0xFF0F172A),
             textAlign = TextAlign.Center
         )
 
@@ -87,15 +102,13 @@ fun ErrorState(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF3A1C1C)
-            ),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
             shape = RoundedCornerShape(12.dp)
         ) {
             Text(
                 text = message,
                 fontSize = 14.sp,
-                color = Color(0xFFFF9999),
+                color = Color(0xFF475569),
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(16.dp)
@@ -104,7 +117,6 @@ fun ErrorState(
 
         Spacer(Modifier.height(24.dp))
 
-        // Primary action button
         if (primaryActionText != null && onPrimaryActionClick != null) {
             Button(
                 onClick = onPrimaryActionClick,
@@ -124,17 +136,16 @@ fun ErrorState(
             Spacer(Modifier.height(12.dp))
         }
 
-        // Secondary action button
         if (secondaryActionText != null && onSecondaryActionClick != null) {
             OutlinedButton(
                 onClick = onSecondaryActionClick,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF9DB9A6)
+                    contentColor = Color(0xFF0F172A)
                 ),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    Color(0xFF2E4536)
+                    Color(0xFFCBD5E1)
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -148,9 +159,6 @@ fun ErrorState(
     }
 }
 
-/**
- * Network error state with retry action.
- */
 @Composable
 fun NetworkErrorState(
     onRetry: () -> Unit,
@@ -165,13 +173,10 @@ fun NetworkErrorState(
         secondaryActionText = "Go Back",
         onSecondaryActionClick = onGoBack,
         iconColor = Color(0xFFF59E0B),
-        backgroundColor = Color(0xFFF59E0B).copy(alpha = 0.1f)
+        backgroundColor = Color(0xFFF59E0B).copy(alpha = 0.10f)
     )
 }
 
-/**
- * Generic server error state.
- */
 @Composable
 fun ServerErrorState(
     errorMessage: String = "Something went wrong on our end. Please try again later.",
@@ -187,13 +192,10 @@ fun ServerErrorState(
         secondaryActionText = if (onGoBack != null) "Go Back" else null,
         onSecondaryActionClick = onGoBack,
         iconColor = Color(0xFFEF4444),
-        backgroundColor = Color(0xFFEF4444).copy(alpha = 0.1f)
+        backgroundColor = Color(0xFFEF4444).copy(alpha = 0.10f)
     )
 }
 
-/**
- * Permission denied error state.
- */
 @Composable
 fun PermissionErrorState(
     onGrantPermission: () -> Unit,
@@ -208,6 +210,6 @@ fun PermissionErrorState(
         secondaryActionText = "Maybe Later",
         onSecondaryActionClick = onDismiss,
         iconColor = Color(0xFF3B82F6),
-        backgroundColor = Color(0xFF3B82F6).copy(alpha = 0.1f)
+        backgroundColor = Color(0xFF3B82F6).copy(alpha = 0.10f)
     )
 }

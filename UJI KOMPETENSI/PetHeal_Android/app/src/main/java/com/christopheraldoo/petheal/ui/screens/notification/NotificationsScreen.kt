@@ -34,11 +34,12 @@ import java.util.concurrent.TimeUnit
 // ── Colour tokens (match app-wide dark theme) ─────────────────────────────────
 private val NPrimary       = Color(0xFF2BEE6C)
 private val NPrimaryFg     = Color(0xFF052E14)
-private val NBgDark        = Color(0xFF102216)
-private val NSurfaceDark   = Color(0xFF1C2E22)
-private val NBorderDark    = Color(0xFF2E4536)
-private val NTextSec       = Color(0xFF9DB9A6)
-private val NUnread        = Color(0xFF1E3A2A)    // subtle green tint for unread row
+private val NBgDark        = Color(0xFFF6F8F6)
+private val NSurfaceDark   = Color.White
+private val NBorderDark    = Color(0xFFE2E8F0)
+private val TextPrimary    = Color(0xFF0F172A)
+private val NTextSec       = Color(0xFF64748B)
+private val NUnread        = Color(0xFFE8F5E9)    // subtle green tint for unread row
 
 @Composable
 fun NotificationsScreen(
@@ -57,7 +58,7 @@ fun NotificationsScreen(
             containerColor   = NSurfaceDark,
             title = {
                 Text("Clear All Notifications",
-                    color = Color.White, fontWeight = FontWeight.Bold)
+                    color = TextPrimary, fontWeight = FontWeight.Bold)
             },
             text = {
                 Text("This will permanently delete all notifications.",
@@ -93,12 +94,12 @@ fun NotificationsScreen(
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onNavigateBack) {
-                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "Notifications",
-                    color = Color.White,
+                    color = TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -209,7 +210,7 @@ private fun NotificationCard(
             ) {
                 Text(
                     text     = notification.title,
-                    color    = Color.White,
+                    color    = TextPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -280,7 +281,7 @@ private fun EmptyNotificationsState() {
             Spacer(Modifier.height(20.dp))
             Text(
                 text       = "No notifications yet",
-                color      = Color.White,
+                color      = TextPrimary,
                 fontSize   = 17.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -306,17 +307,17 @@ private fun notificationIcon(type: String): ImageVector = when (type) {
 }
 
 private fun notificationIconBg(type: String): Color = when (type) {
-    "booking_status"       -> Color(0xFF1A3320)
-    "booking_reminder"     -> Color(0xFF1A2B33)
-    "vaccination_reminder" -> Color(0xFF2A1A33)
-    else                   -> Color(0xFF1C2E22)
+    "booking_status"       -> Color(0xFFE8F5E9)
+    "booking_reminder"     -> Color(0xFFEFF6FF)
+    "vaccination_reminder" -> Color(0xFFF5F3FF)
+    else                   -> Color.White
 }
 
 private fun notificationIconTint(type: String): Color = when (type) {
     "booking_status"       -> Color(0xFF2BEE6C)
     "booking_reminder"     -> Color(0xFF4FC3F7)
     "vaccination_reminder" -> Color(0xFFCE93D8)
-    else                   -> Color(0xFF9DB9A6)
+    else                   -> Color(0xFF64748B)
 }
 
 private fun formatTimestamp(epochMs: Long): String {

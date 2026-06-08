@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\DeviceTokenController;
 use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MedicalRecordController;
+use App\Http\Controllers\Api\NotificationController;
 use App\Http\Controllers\Api\PetController;
 use App\Http\Controllers\Api\VaccinationController;
 use App\Http\Controllers\Api\WeightRecordController;
@@ -57,6 +58,12 @@ Route::middleware([\App\Http\Middleware\ApiAuthenticate::class])->group(function
     Route::post('/device-token', [DeviceTokenController::class, 'store']);
     Route::delete('/device-token', [DeviceTokenController::class, 'destroy']);
 
+    // Notification history routes
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markRead']);
+    Route::delete('/notifications', [NotificationController::class, 'clearAll']);
+
     // Pet routes — custom routes MUST come BEFORE apiResource
     Route::post('/pets/with-photo', [PetController::class, 'storeWithPhoto']);
     Route::post('/pets/{id}/photo', [PetController::class, 'uploadPhoto']);
@@ -87,6 +94,7 @@ Route::middleware([\App\Http\Middleware\ApiAuthenticate::class])->group(function
     Route::apiResource('medical-records', MedicalRecordController::class);
 
     // Payment routes (Midtrans integration)
+    Route::get('/payment/preflight', [App\Http\Controllers\Api\PaymentController::class, 'preflight']);
     Route::post('/payment/snap-token', [App\Http\Controllers\Api\PaymentController::class, 'createSnapToken']);
     Route::get('/payment/transaction-status/{orderId}', [App\Http\Controllers\Api\PaymentController::class, 'getTransactionStatus']);
     Route::post('/payment/remaining/{bookingId}', [App\Http\Controllers\Api\PaymentController::class, 'createRemainingPaymentSnapToken']);

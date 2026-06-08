@@ -86,6 +86,46 @@ class DoctorRepository @Inject constructor(
         }
     }
 
+    suspend fun getDoctorReviews(doctorId: Int): Result<DoctorReviewsData> {
+        return try {
+            val response = apiService.getDoctorReviews(doctorId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Reviews not found")
+            } else {
+                Log.e(TAG, "getDoctorReviews($doctorId) failed: ${response.body()?.message} (HTTP ${response.code()})")
+                Result.Error(response.body()?.message ?: "Failed to get doctor reviews")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getDoctorReviews($doctorId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    suspend fun submitDoctorReview(
+        doctorId: Int,
+        bookingId: Int,
+        rating: Int,
+        review: String?
+    ): Result<DoctorReview> {
+        return try {
+            val response = apiService.submitDoctorReview(
+                doctorId,
+                DoctorReviewRequest(bookingId = bookingId, rating = rating, review = review)
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                response.body()?.data?.let { Result.Success(it) }
+                    ?: Result.Error("Review was submitted but response was empty")
+            } else {
+                Log.e(TAG, "submitDoctorReview($doctorId) failed: ${response.body()?.message} (HTTP ${response.code()})")
+                Result.Error(response.body()?.message ?: "Failed to submit review")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "submitDoctorReview($doctorId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
     /** Panggil setelah booking berhasil dibuat agar cache diperbarui */
     fun invalidateCache() {
         cachedDoctors = null

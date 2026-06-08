@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -45,13 +44,13 @@ import java.time.format.DateTimeFormatter
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 private val MrPrimary       = Color(0xFF2BEE6C)
 private val MrPrimaryFg     = Color(0xFF052E14)
-private val MrBgDark        = Color(0xFF102216)
+private val MrBgDark        = Color(0xFFF6F8F6)
 private val MrBgLight       = Color(0xFFF6F8F6)
-private val MrSurfaceDark   = Color(0xFF1C2E22)
+private val MrSurfaceDark   = Color.White
 private val MrSurfaceLight  = Color(0xFFFFFFFF)
-private val MrBorderDark    = Color(0xFF2E4536)
+private val MrBorderDark    = Color(0xFFE2E8F0)
 private val MrBorderLight   = Color(0xFFE2E8F0)
-private val MrSecDark       = Color(0xFF9DB9A6)
+private val MrSecDark       = Color(0xFF64748B)
 
 // ── Helper: doctor photo ────────────────────────────────────────────────────
 @Composable
@@ -84,7 +83,7 @@ fun MedicalRecordsScreen(
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state  by viewModel.listState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
 
     val bg      = if (isDark) MrBgDark      else MrBgLight
     val surface = if (isDark) MrSurfaceDark else MrSurfaceLight
@@ -648,7 +647,7 @@ fun MedicalRecordDetailScreen(
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state  by viewModel.detailState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
 
     val bg      = if (isDark) MrBgDark      else MrBgLight
     val surface = if (isDark) MrSurfaceDark else MrSurfaceLight
@@ -729,7 +728,7 @@ fun MedicalRecordDetailScreen(
                                     modifier = Modifier
                                         .size(52.dp)
                                         .clip(CircleShape)
-                                        .background(if (isDark) Color(0xFF1A2C20) else Color(0xFFE8F5E9)),
+                                        .background(if (isDark) Color.White else Color(0xFFE8F5E9)),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     MrDocPhoto(url = doctor.photo, size = 52.dp)

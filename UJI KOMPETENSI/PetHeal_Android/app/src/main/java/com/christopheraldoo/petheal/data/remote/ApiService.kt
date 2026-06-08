@@ -84,6 +84,37 @@ interface ApiService {
     @DELETE("pets/{id}")
     suspend fun deletePet(@Path("id") id: Int): Response<MessageResponse>
 
+    // ============= PET HEALTH TRACKING =============
+    @GET("pets/{petId}/weight-history")
+    suspend fun getWeightHistory(@Path("petId") petId: Int): Response<WeightHistoryResponse>
+
+    @POST("pets/{petId}/weight-records")
+    suspend fun addWeightRecord(
+        @Path("petId") petId: Int,
+        @Body request: WeightRecordRequest
+    ): Response<WeightRecordResponse>
+
+    @DELETE("pets/{petId}/weight-records/{recordId}")
+    suspend fun deleteWeightRecord(
+        @Path("petId") petId: Int,
+        @Path("recordId") recordId: Int
+    ): Response<MessageResponse>
+
+    @GET("pets/{petId}/vaccinations")
+    suspend fun getVaccinations(@Path("petId") petId: Int): Response<VaccinationsResponse>
+
+    @POST("pets/{petId}/vaccinations")
+    suspend fun addVaccination(
+        @Path("petId") petId: Int,
+        @Body request: VaccinationRequest
+    ): Response<VaccinationResponse>
+
+    @DELETE("pets/{petId}/vaccinations/{vaccinationId}")
+    suspend fun deleteVaccination(
+        @Path("petId") petId: Int,
+        @Path("vaccinationId") vaccinationId: Int
+    ): Response<MessageResponse>
+
     // ============= SERVICES =============
     @GET("services")
     suspend fun getServices(): Response<ServicesResponse>
@@ -100,6 +131,15 @@ interface ApiService {
 
     @GET("doctors/{id}/slots")
     suspend fun getDoctorSlots(@Path("id") id: Int, @Query("date") date: String): Response<SlotsResponse>
+
+    @GET("doctors/{id}/reviews")
+    suspend fun getDoctorReviews(@Path("id") id: Int): Response<DoctorReviewsResponse>
+
+    @POST("doctors/{id}/reviews")
+    suspend fun submitDoctorReview(
+        @Path("id") id: Int,
+        @Body request: DoctorReviewRequest
+    ): Response<DoctorReviewResponse>
 
     // ============= BOOKINGS =============
     @GET("bookings")
@@ -140,11 +180,27 @@ interface ApiService {
     @HTTP(method = "DELETE", path = "device-token", hasBody = true)
     suspend fun removeDeviceToken(@Body request: DeviceTokenRequest): Response<DeviceTokenResponse>
 
+    // ============= NOTIFICATIONS =============
+    @GET("notifications")
+    suspend fun getNotifications(@Query("limit") limit: Int = 50): Response<NotificationsResponse>
+
+    @POST("notifications/{id}/read")
+    suspend fun markNotificationRead(@Path("id") id: String): Response<ApiResponse<AppNotification>>
+
+    @POST("notifications/read-all")
+    suspend fun markAllNotificationsRead(): Response<MessageResponse>
+
+    @DELETE("notifications")
+    suspend fun clearNotifications(): Response<MessageResponse>
+
     // ============= PAYMENT METHODS (PUBLIC - NO AUTH) =============
     @GET("payment-methods")
     suspend fun getPaymentMethods(): Response<PaymentMethodsResponse>
 
     // ============= MIDTRANS PAYMENT =============
+    @GET("payment/preflight")
+    suspend fun checkPaymentPreflight(): Response<PaymentPreflightResponse>
+
     @POST("payment/snap-token")
     suspend fun createSnapToken(@Body request: SnapTokenRequest): Response<SnapTokenResponse>
 

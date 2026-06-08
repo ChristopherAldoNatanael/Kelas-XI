@@ -13,9 +13,9 @@ class VaccinationController extends Controller
     /**
      * Get all vaccinations for a pet.
      */
-    public function index(int $petId): JsonResponse
+    public function index(Request $request, int $petId): JsonResponse
     {
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         
         $vaccinations = $pet->vaccinations()
             ->orderBy('date_administered', 'desc')
@@ -57,7 +57,7 @@ class VaccinationController extends Controller
             'notes' => 'nullable|string|max:500',
         ]);
         
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         
         $vaccination = $pet->vaccinations()->create($validated);
         
@@ -73,7 +73,7 @@ class VaccinationController extends Controller
      */
     public function update(Request $request, int $petId, int $vaccinationId): JsonResponse
     {
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         $vaccination = $pet->vaccinations()->findOrFail($vaccinationId);
         
         $validated = $request->validate([
@@ -98,9 +98,9 @@ class VaccinationController extends Controller
     /**
      * Delete a vaccination record.
      */
-    public function destroy(int $petId, int $vaccinationId): JsonResponse
+    public function destroy(Request $request, int $petId, int $vaccinationId): JsonResponse
     {
-        $pet = Pet::findOrFail($petId);
+        $pet = $request->user()->pets()->findOrFail($petId);
         $vaccination = $pet->vaccinations()->findOrFail($vaccinationId);
         $vaccination->delete();
         

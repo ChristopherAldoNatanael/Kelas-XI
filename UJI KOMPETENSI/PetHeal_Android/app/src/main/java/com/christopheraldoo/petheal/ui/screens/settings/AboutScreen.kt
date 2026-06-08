@@ -1,8 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
-import android.widget.Toast
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -26,11 +24,30 @@ import androidx.compose.ui.unit.sp
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) Color(0xFF102216) else Color(0xFFF6F8F6)
+    val isDark = false
+    val bgColor = if (isDark) Color(0xFFF6F8F6) else Color(0xFFF6F8F6)
     val textColor = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0F172A)
     val secondaryColor = if (isDark) Color(0xFF9DB9A6) else Color(0xFF64748B)
-    val context = LocalContext.current
+    var legalDialog by remember { mutableStateOf<String?>(null) }
+
+    legalDialog?.let { type ->
+        AlertDialog(
+            onDismissRequest = { legalDialog = null },
+            title = { Text(type, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    if (type == "Terms of Service") {
+                        "PetHeal helps users manage pet bookings, medical records, vaccination reminders, and payments. Users are responsible for keeping account and pet information accurate."
+                    } else {
+                        "PetHeal stores profile, pet, booking, notification, and payment-status data to run the service. Payment details are processed by Midtrans and are not stored as raw card data in the app."
+                    }
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { legalDialog = null }) { Text("Close") }
+            }
+        )
+    }
 
     Scaffold(
         containerColor = bgColor,
@@ -105,17 +122,13 @@ fun AboutScreen(
                 SettingsActionRow(
                     icon = Icons.Default.Info,
                     label = "Terms of Service",
-                    onClick = {
-                        Toast.makeText(context, "Terms of Service is coming soon", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { legalDialog = "Terms of Service" }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Info,
                     label = "Privacy Policy",
-                    onClick = {
-                        Toast.makeText(context, "Privacy Policy is coming soon", Toast.LENGTH_SHORT).show()
-                    }
+                    onClick = { legalDialog = "Privacy Policy" }
                 )
             }
 

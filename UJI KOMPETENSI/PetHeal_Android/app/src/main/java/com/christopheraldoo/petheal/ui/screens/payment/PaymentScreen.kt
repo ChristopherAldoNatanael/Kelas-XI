@@ -10,7 +10,6 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,9 +39,9 @@ private const val TAG = "PaymentScreen"
 
 // Brand tokens
 private val PayPrimary = Color(0xFF2BEE6C)
-private val PayBgDark = Color(0xFF102216)
+private val PayBgDark = Color(0xFFF6F8F6)
 private val PayBgLight = Color(0xFFF6F8F6)
-private val PaySurfaceDark = Color(0xFF1C2E22)
+private val PaySurfaceDark = Color.White
 private val PaySurfaceLight = Color(0xFFFFFFFF)
 
 /**
@@ -68,7 +67,7 @@ fun PaymentScreen(
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) PayBgDark else PayBgLight
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
@@ -302,7 +301,7 @@ fun PaymentResultDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) Color(0xFF1E293B) else Color.White
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
@@ -354,7 +353,16 @@ fun PaymentResultDialog(
                 }
                 
                 if (paymentType != null) {
-                    AssistChip(onClick = { }, label = { Text(text = paymentType.replace("_", " ").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Medium) }, leadingIcon = { Icon(Icons.Filled.Payment, contentDescription = null, modifier = Modifier.size(16.dp)) }, colors = AssistChipDefaults.assistChipColors(containerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)))
+                    Surface(shape = RoundedCornerShape(50), color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Filled.Payment, contentDescription = null, modifier = Modifier.size(16.dp), tint = textSecondary)
+                            Spacer(Modifier.width(6.dp))
+                            Text(text = paymentType.replace("_", " ").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.Medium, color = textSecondary)
+                        }
+                    }
                 }
                 
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
@@ -414,7 +422,7 @@ fun PaymentResultScreen(
     onNavigateToBookings: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val bgColor = if (isDark) PayBgDark else PayBgLight
     val surfaceColor = if (isDark) PaySurfaceDark else PaySurfaceLight
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)

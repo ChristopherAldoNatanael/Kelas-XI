@@ -1,7 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,15 +17,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 // Theme Colors
-private val SettingsBgDark = Color(0xFF102216)
-private val SettingsSurfaceDark = Color(0xFF1C2E22)
+private val SettingsBgDark = Color(0xFFF6F8F6)
+private val SettingsSurfaceDark = Color.White
 private val SettingsBorderDark = Color(0x1AFFFFFF)
 private val SettingsTextPrimary = Color(0xFFE8F5E9)
 private val SettingsTextSecondary = Color(0xFF9DB9A6)
 
 @Composable
 fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -55,7 +54,7 @@ fun SettingsActionRow(
     trailing: @Composable () -> Unit = {},
     onClick: () -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
+    val isDark = false
     val textColor = if (isDark) SettingsTextPrimary else Color(0xFF0F172A)
     
     Row(
