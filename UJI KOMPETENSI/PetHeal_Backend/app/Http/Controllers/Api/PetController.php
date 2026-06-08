@@ -14,15 +14,24 @@ class PetController extends Controller
      */
     public function index(Request $request)
     {
+        $perPage = min(max((int) $request->query('per_page', 50), 1), 100);
+
         $pets = $request->user()->pets()
             ->with(['medicalRecords' => function ($query) {
                 $query->latest()->limit(5);
             }])
-            ->get();
+            ->latest()
+            ->paginate($perPage);
 
         return response()->json([
             'success' => true,
-            'data' => $pets,
+            'data' => $pets->items(),
+            'pagination' => [
+                'current_page' => $pets->currentPage(),
+                'last_page' => $pets->lastPage(),
+                'per_page' => $pets->perPage(),
+                'total' => $pets->total(),
+            ],
         ]);
     }
 

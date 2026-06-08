@@ -18,11 +18,15 @@ class UserController extends Controller
         
         // Search functionality
         if ($request->filled('search')) {
-            $search = $request->input('search');
+            $search = trim((string) $request->input('search'));
             $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('email', 'like', "%{$search}%")
-                  ->orWhere('phone', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+
+                $q->orWhere('name', 'like', "{$search}%")
+                  ->orWhere('email', 'like', "{$search}%")
+                  ->orWhere('phone', 'like', "{$search}%");
             });
         }
         

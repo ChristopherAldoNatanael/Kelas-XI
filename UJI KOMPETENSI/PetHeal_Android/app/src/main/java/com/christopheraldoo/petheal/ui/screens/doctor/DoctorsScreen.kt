@@ -34,7 +34,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
-import coil.size.Size
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
@@ -79,7 +78,7 @@ private fun DocPhoto(
                     .diskCacheKey(fullUrl)
                     // Decode image at exact display size — avoids loading 2MB photo
                     // into memory when showing a 56dp circle
-                    .size(Size.ORIGINAL)
+                    .size(256, 256)
                     .crossfade(200)
                     .build(),
                 contentDescription = "Doctor Photo",
@@ -105,6 +104,7 @@ private fun PetPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
                 .data(fullUrl)
                 .memoryCachePolicy(CachePolicy.ENABLED)
                 .diskCachePolicy(CachePolicy.ENABLED)
+                .size(160, 160)
                 .crossfade(200)
                 .build(),
             contentDescription = "Pet Photo",

@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Storage;
 
 class DoctorController extends Controller
 {
+    private function refreshDoctorApiCache(): void
+    {
+        Cache::forever('active_doctors_version', now()->timestamp);
+    }
+
     /**
      * List all doctors
      */
@@ -84,6 +89,7 @@ class DoctorController extends Controller
         }
 
         $doctor = Doctor::create($data);
+        $this->refreshDoctorApiCache();
 
         AuditLog::log('doctor.create', "Created doctor {$doctor->name}", $doctor);
 
@@ -173,6 +179,7 @@ class DoctorController extends Controller
         }
 
         $doctor->update($data);
+        $this->refreshDoctorApiCache();
 
         AuditLog::log('doctor.update', "Updated doctor {$doctor->name}", $doctor);
 
@@ -194,6 +201,7 @@ class DoctorController extends Controller
         AuditLog::log('doctor.delete', "Deleted doctor {$doctor->name}", $doctor);
 
         $doctor->delete();
+        $this->refreshDoctorApiCache();
 
         return redirect()->route('admin.doctors.index')->with('success', 'Doctor deleted successfully');
     }

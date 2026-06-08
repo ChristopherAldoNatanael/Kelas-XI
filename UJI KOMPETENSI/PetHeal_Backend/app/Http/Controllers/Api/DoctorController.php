@@ -13,12 +13,26 @@ class DoctorController extends Controller
     /**
      * Get all active doctors
      */
-    public function index()
+    public function index(Request $request)
     {
-        $doctors = Cache::remember('active_doctors', 3600, function () {
-            $doctors = Doctor::where('is_active', true)
-                ->withCount('reviews')
-                ->orderBy('name')
+        $limit = min(max((int) $request->query('limit', 100), 1), 100);
+        $search = trim((string) $request->query('search', ''));
+        $cacheVersion = Cache::get('active_doctors_version', 1);
+        $cacheKey = 'active_doctors:v' . $cacheVersion . ':' . md5($limit . '|' . strtolower($search));
+
+        $doctors = Cache::remember($cacheKey, 900, function () use ($limit, $search) {
+            $query = Doctor::where('is_active', true)
+                ->withCount('reviews');
+
+            if ($search !== '') {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'like', "{$search}%")
+                        ->orWhere('specialization', 'like', "{$search}%");
+                });
+            }
+
+            $doctors = $query->orderBy('name')
+                ->limit($limit)
                 ->get();
 
             $doctors->transform(function ($doctor) {

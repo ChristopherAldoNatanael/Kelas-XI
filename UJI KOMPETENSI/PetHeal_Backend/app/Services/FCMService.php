@@ -127,7 +127,9 @@ class FCMService
             $response = Http::withToken($accessToken)->post($url, $payload);
 
             if ($response->successful()) {
-                Log::info('FCM: delivered to token ' . substr($deviceToken, 0, 20) . '…');
+                Log::info('FCM: delivered to device', [
+                    'token_hash' => hash('sha256', $deviceToken),
+                ]);
                 return true;
             }
 

@@ -45,15 +45,18 @@ class PaymentController extends Controller
 
         // Search by customer name, pet name, or booking ID
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim((string) $request->search);
             $query->where(function ($q) use ($search) {
-                $q->whereHas('user', function ($uq) use ($search) {
-                    $uq->where('name', 'like', "%{$search}%");
-                })
-                    ->orWhereHas('pet', function ($pq) use ($search) {
-                        $pq->where('name', 'like', "%{$search}%");
-                    })
-                    ->orWhere('id', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $q->orWhere('id', (int) $search);
+                }
+
+                $q->orWhereHas('user', function ($uq) use ($search) {
+                    $uq->where('name', 'like', "{$search}%")
+                        ->orWhere('email', 'like', "{$search}%");
+                })->orWhereHas('pet', function ($pq) use ($search) {
+                    $pq->where('name', 'like', "{$search}%");
+                });
             });
         }
 
@@ -145,9 +148,26 @@ class PaymentController extends Controller
     /**
      * Export payments as PDF
      */
-    public function exportPdf()
+    public function exportPdf(Request $request)
     {
-        $bookings = Booking::where('paid_amount', '>', 0)->with(['pet.user', 'doctor', 'service'])->latest()->limit(500)->get();
+        $validated = $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ]);
+
+        $query = Booking::where('paid_amount', '>', 0)
+            ->with(['pet.user', 'doctor', 'service'])
+            ->latest();
+
+        if (!empty($validated['from'])) {
+            $query->whereDate('updated_at', '>=', $validated['from']);
+        }
+
+        if (!empty($validated['to'])) {
+            $query->whereDate('updated_at', '<=', $validated['to']);
+        }
+
+        $bookings = $query->limit(200)->get();
         $html = view('admin.exports.payments_pdf', compact('bookings'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);

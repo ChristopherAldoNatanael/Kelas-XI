@@ -218,7 +218,7 @@ private fun PaymentWebView(
                         override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                             if (isProcessingCallback) return true
                             val url = request?.url?.toString() ?: return false
-                            Log.d(TAG, "WebView URL: $url")
+                            Log.d(TAG, "WebView navigated to payment URL")
 
                             // Check for petheal:// custom scheme (finish callback)
                             val isCustomScheme = url.startsWith("petheal://")
@@ -241,7 +241,7 @@ private fun PaymentWebView(
                                 val status = uri.getQueryParameter("transaction_status")
                                 val paymentType = uri.getQueryParameter("payment_type")
 
-                                Log.d(TAG, "Payment callback intercepted: orderId=$detectedOrderId, status=$status, url=$url")
+                                Log.d(TAG, "Payment callback intercepted: orderId=$detectedOrderId, status=$status")
                                 
                                 // Handle the payment result
                                 // This will trigger backend polling if status is unknown

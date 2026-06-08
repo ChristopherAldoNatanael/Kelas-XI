@@ -143,13 +143,50 @@ class PaymentController extends Controller
             // Validate request
             $validated = $request->validate([
                 'transaction_details' => 'required|array',
-                'transaction_details.order_id' => 'required|string',
+                'transaction_details.order_id' => 'required|string|regex:/^BOOKING-\d+-\d+$/',
                 'transaction_details.gross_amount' => 'required|numeric|min:1',
                 'customer_details' => 'nullable|array',
                 'item_details' => 'nullable|array',
                 'enabled_payments' => 'nullable|array',
                 'credit_card' => 'nullable|array',
             ]);
+
+            preg_match('/^BOOKING-(\d+)-\d+$/', $validated['transaction_details']['order_id'], $matches);
+            $bookingId = (int) ($matches[1] ?? 0);
+            $booking = $user->bookings()->find($bookingId);
+
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found',
+                ], 404);
+            }
+
+            if ($booking->payment_status === 'paid') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This booking is already paid',
+                ], 400);
+            }
+
+            $expectedAmount = $booking->payment_type === 'dp'
+                ? (int) round((float) $booking->dp_amount)
+                : (int) round((float) $booking->total_amount);
+            $requestedAmount = (int) round((float) $validated['transaction_details']['gross_amount']);
+
+            if ($requestedAmount !== $expectedAmount) {
+                Log::warning('Rejected snap token amount mismatch', [
+                    'user_id' => $user->id,
+                    'booking_id' => $booking->id,
+                    'requested_amount' => $requestedAmount,
+                    'expected_amount' => $expectedAmount,
+                ]);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Payment amount does not match booking amount',
+                ], 422);
+            }
 
             Log::info('Creating snap token', [
                 'user_id' => $user->id,
@@ -286,6 +323,21 @@ class PaymentController extends Controller
                     'success' => false,
                     'message' => 'User not authenticated'
                 ], 401);
+            }
+
+            if (!preg_match('/^BOOKING-(\d+)(?:-|$)/', $orderId, $matches)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid order ID',
+                ], 422);
+            }
+
+            $booking = $user->bookings()->find((int) $matches[1]);
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found',
+                ], 404);
             }
 
             Log::info('Checking transaction status', [

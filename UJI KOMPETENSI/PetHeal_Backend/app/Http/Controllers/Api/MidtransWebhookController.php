@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
 
@@ -35,14 +36,20 @@ class MidtransWebhookController extends Controller
         try {
             $payload = $request->all();
 
-            Log::info('Midtrans webhook received', $payload);
-
             $orderId = $payload['order_id'] ?? null;
             $transactionStatus = $payload['transaction_status'] ?? null;
             $statusCode = $payload['status_code'] ?? null;
             $grossAmount = $payload['gross_amount'] ?? null;
             $signatureKey = $payload['signature_key'] ?? null;
             $paymentType = $payload['payment_type'] ?? null;
+
+            Log::info('Midtrans webhook received', [
+                'order_id' => $orderId,
+                'transaction_status' => $transactionStatus,
+                'status_code' => $statusCode,
+                'gross_amount' => $grossAmount,
+                'payment_type' => $paymentType,
+            ]);
 
             if (!$orderId) {
                 return response()->json(['error' => 'Missing order_id'], 400);
@@ -57,8 +64,7 @@ class MidtransWebhookController extends Controller
             if ($signatureKey !== $expectedSignature) {
                 Log::warning('Invalid webhook signature', [
                     'order_id' => $orderId,
-                    'received' => $signatureKey,
-                    'expected' => $expectedSignature,
+                    'has_signature' => !empty($signatureKey),
                 ]);
                 return response()->json(['error' => 'Invalid signature'], 403);
             }
@@ -77,50 +83,66 @@ class MidtransWebhookController extends Controller
                 switch ($transactionStatus) {
                     case 'settlement':
                     case 'capture':
-                        // Payment successful
-                        $currentPaidAmount = $booking->paid_amount + $grossAmount;
-                        $remainingAmount = $booking->total_amount - $currentPaidAmount;
+                        $updateData = DB::transaction(function () use (
+                            $bookingId,
+                            $orderId,
+                            $transactionStatus,
+                            $paymentType,
+                            $grossAmount,
+                            $payload
+                        ) {
+                            $booking = Booking::whereKey($bookingId)->lockForUpdate()->firstOrFail();
 
-                        // Ensure remaining amount doesn't go below 0
-                        if ($remainingAmount < 0) {
-                            $remainingAmount = 0;
-                        }
+                            $created = DB::table('payment_events')->insertOrIgnore([
+                                'booking_id' => $booking->id,
+                                'order_id' => $orderId,
+                                'transaction_status' => $transactionStatus,
+                                'payment_type' => $paymentType,
+                                'gross_amount' => $grossAmount,
+                                'payload' => json_encode($payload),
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ]);
 
-                        $updateData = [
-                            'paid_amount' => $currentPaidAmount,
-                            'remaining_amount' => $remainingAmount,
-                        ];
-
-                        // Determine payment status
-                        if ($remainingAmount == 0) {
-                            // Fully paid
-                            $updateData['payment_status'] = 'paid';
-
-                            // If this was DP booking and now fully paid, update payment type
-                            if ($booking->payment_type === 'dp' && $booking->remaining_amount > 0) {
-                                Log::info('DP booking now fully paid', [
-                                    'booking_id' => $bookingId,
-                                    'first_payment' => $booking->paid_amount,
-                                    'second_payment' => $grossAmount,
-                                ]);
+                            if ($created === 0) {
+                                return null;
                             }
-                        } elseif ($booking->payment_type === 'dp' && $booking->paid_amount == 0) {
-                            // First DP payment
-                            $updateData['payment_status'] = 'dp_paid';
-                            $updateData['payment_type'] = 'dp';
-                        } else {
-                            // Partial payment (shouldn't happen often)
-                            $updateData['payment_status'] = 'partial';
-                        }
 
-                        $booking->update($updateData);
+                            $currentPaidAmount = (float) $booking->paid_amount + (float) $grossAmount;
+                            $remainingAmount = max(0, (float) $booking->total_amount - $currentPaidAmount);
+
+                            $updateData = [
+                                'paid_amount' => $currentPaidAmount,
+                                'remaining_amount' => $remainingAmount,
+                            ];
+
+                            if ($remainingAmount == 0) {
+                                $updateData['payment_status'] = 'paid';
+                            } elseif ($booking->payment_type === 'dp' && (float) $booking->paid_amount == 0) {
+                                $updateData['payment_status'] = 'dp_paid';
+                                $updateData['payment_type'] = 'dp';
+                            } else {
+                                $updateData['payment_status'] = 'partial';
+                            }
+
+                            $booking->update($updateData);
+
+                            return $updateData;
+                        });
+
+                        if ($updateData === null) {
+                            Log::info('Duplicate Midtrans payment event ignored', [
+                                'order_id' => $orderId,
+                                'booking_id' => $bookingId,
+                            ]);
+                            break;
+                        }
 
                         Log::info('Booking payment updated', [
                             'booking_id' => $bookingId,
                             'payment_status' => $updateData['payment_status'],
-                            'paid_amount' => $currentPaidAmount,
-                            'remaining_amount' => $remainingAmount,
-                            'total_amount' => $booking->total_amount,
+                            'paid_amount' => $updateData['paid_amount'],
+                            'remaining_amount' => $updateData['remaining_amount'],
                         ]);
                         break;
 

@@ -134,9 +134,24 @@ class BookingController extends Controller
     /**
      * Export bookings as PDF
      */
-    public function exportPdf()
+    public function exportPdf(Request $request)
     {
-        $bookings = Booking::with(['pet.user', 'doctor', 'service'])->latest()->limit(500)->get();
+        $validated = $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+        ]);
+
+        $query = Booking::with(['pet.user', 'doctor', 'service'])->latest();
+
+        if (!empty($validated['from'])) {
+            $query->whereDate('booking_date', '>=', $validated['from']);
+        }
+
+        if (!empty($validated['to'])) {
+            $query->whereDate('booking_date', '<=', $validated['to']);
+        }
+
+        $bookings = $query->limit(200)->get();
         $html = view('admin.exports.bookings_pdf', compact('bookings'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);

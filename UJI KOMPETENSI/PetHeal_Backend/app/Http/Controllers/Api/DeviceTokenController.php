@@ -19,11 +19,9 @@ class DeviceTokenController extends Controller
         ]);
 
         $deviceToken = DeviceToken::updateOrCreate(
+            ['token' => $request->input('token')],
             [
                 'user_id' => $request->user()->id,
-                'token' => $request->input('token'),
-            ],
-            [
                 'device_type' => $request->input('device_type', 'android'),
             ]
         );

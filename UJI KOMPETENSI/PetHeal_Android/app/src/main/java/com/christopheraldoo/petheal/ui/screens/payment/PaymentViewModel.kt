@@ -135,7 +135,7 @@ class PaymentViewModel @Inject constructor(
                     val token = result.data.token
                     val redirectUrl = result.data.redirectUrl
                     val transactionId = result.data.transactionId
-                    Log.d(TAG, "Snap token created. Token: ${token?.take(10)}..., redirectUrl: $redirectUrl, orderId: $orderId")
+                    Log.d(TAG, "Snap token created for orderId: $orderId")
 
                     // Store the order ID so it can be used when the payment callback is received
                     currentOrderId = orderId
@@ -483,7 +483,7 @@ class PaymentViewModel @Inject constructor(
                     val token = result.data.token
                     val redirectUrl = result.data.redirectUrl
                     val transactionId = result.data.transactionId
-                    Log.d(TAG, "Snap token created for remaining payment. Token: ${token?.take(10)}..., redirectUrl: $redirectUrl")
+                    Log.d(TAG, "Snap token created for remaining payment")
 
                     // Store the order ID so it can be used when the payment callback is received
                     currentOrderId = orderId

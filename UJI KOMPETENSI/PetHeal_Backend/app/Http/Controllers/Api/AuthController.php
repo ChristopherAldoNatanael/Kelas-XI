@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Mail\PasswordResetMail;
 use App\Models\User;
+use App\Models\DeviceToken;
 use App\Models\MedicalRecord;
 use App\Models\Booking;
 use App\Services\ImageService;
@@ -22,6 +23,23 @@ class AuthController extends Controller
     public function __construct(FirebaseService $firebaseService)
     {
         $this->firebaseService = $firebaseService;
+    }
+
+    private function syncDeviceToken(Request $request, User $user): void
+    {
+        $token = $request->input('fcm_token');
+
+        if (!$token) {
+            return;
+        }
+
+        DeviceToken::updateOrCreate(
+            ['token' => $token],
+            [
+                'user_id' => $user->id,
+                'device_type' => $request->input('device_type', 'android'),
+            ]
+        );
     }
 
     /**
@@ -52,17 +70,7 @@ class AuthController extends Controller
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         // Store FCM device token if provided
-        if ($request->has('fcm_token')) {
-            \App\Models\DeviceToken::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'token' => $request->input('fcm_token'),
-                ],
-                [
-                    'device_type' => $request->input('device_type', 'android'),
-                ]
-            );
-        }
+        $this->syncDeviceToken($request, $user);
 
         return response()->json([
             'success' => true,
@@ -117,13 +125,7 @@ class AuthController extends Controller
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         // Store FCM device token if provided
-        if ($request->has('fcm_token')) {
-            \App\Models\DeviceToken::create([
-                'user_id' => $user->id,
-                'token' => $request->input('fcm_token'),
-                'device_type' => $request->input('device_type', 'android'),
-            ]);
-        }
+        $this->syncDeviceToken($request, $user);
 
         return response()->json([
             'success' => true,
@@ -194,17 +196,7 @@ class AuthController extends Controller
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         // Store FCM device token if provided
-        if ($request->has('fcm_token')) {
-            \App\Models\DeviceToken::updateOrCreate(
-                [
-                    'user_id' => $user->id,
-                    'token' => $request->input('fcm_token'),
-                ],
-                [
-                    'device_type' => $request->input('device_type', 'android'),
-                ]
-            );
-        }
+        $this->syncDeviceToken($request, $user);
 
         return response()->json([
             'success' => true,
@@ -271,13 +263,7 @@ class AuthController extends Controller
         $token = $user->createToken('mobile-app')->plainTextToken;
 
         // Store FCM device token if provided
-        if ($request->has('fcm_token')) {
-            \App\Models\DeviceToken::create([
-                'user_id' => $user->id,
-                'token' => $request->input('fcm_token'),
-                'device_type' => $request->input('device_type', 'android'),
-            ]);
-        }
+        $this->syncDeviceToken($request, $user);
 
         return response()->json([
             'success' => true,
@@ -306,7 +292,9 @@ class AuthController extends Controller
 
         // Remove FCM token if provided
         if ($request->has('fcm_token')) {
-            \App\Models\DeviceToken::where('token', $request->input('fcm_token'))->delete();
+            DeviceToken::where('user_id', $request->user()->id)
+                ->where('token', $request->input('fcm_token'))
+                ->delete();
         }
 
         return response()->json([
@@ -388,15 +376,24 @@ class AuthController extends Controller
     public function forgotPassword(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
         ]);
 
         $email = $request->input('email');
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => true,
+                'message' => 'If your email is registered, you will receive a password reset code.'
+            ]);
+        }
+
         $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
 
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $email],
-            ['token' => $code, 'created_at' => now()]
+            ['token' => Hash::make($code), 'created_at' => now()]
         );
 
         try {
@@ -417,16 +414,15 @@ class AuthController extends Controller
     public function verifyResetCode(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
             'code' => 'required|string',
         ]);
 
         $record = DB::table('password_reset_tokens')
             ->where('email', $request->input('email'))
-            ->where('token', $request->input('code'))
             ->first();
 
-        if (!$record) {
+        if (!$record || !Hash::check($request->input('code'), $record->token)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid reset code',
@@ -454,7 +450,7 @@ class AuthController extends Controller
     public function resetPassword(Request $request)
     {
         $request->validate([
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
             'code' => 'required|string',
             'password' => 'required|string|min:8|confirmed',
         ]);
@@ -464,10 +460,9 @@ class AuthController extends Controller
 
         $record = DB::table('password_reset_tokens')
             ->where('email', $email)
-            ->where('token', $code)
             ->first();
 
-        if (!$record) {
+        if (!$record || !Hash::check($code, $record->token)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid reset code',
@@ -484,6 +479,15 @@ class AuthController extends Controller
         }
 
         $user = \App\Models\User::where('email', $email)->first();
+        if (!$user) {
+            DB::table('password_reset_tokens')->where('email', $email)->delete();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid reset code',
+            ], 400);
+        }
+
         $user->update(['password' => Hash::make($request->input('password'))]);
 
         DB::table('password_reset_tokens')->where('email', $email)->delete();
