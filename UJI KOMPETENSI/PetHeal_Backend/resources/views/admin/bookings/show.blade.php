@@ -301,6 +301,12 @@
                                 @endif
                             </p>
                         </div>
+                        <div>
+                            <span class="text-slate-400 text-sm">Payment Date</span>
+                            <p class="mt-1 font-semibold text-slate-800 dark:text-slate-200">
+                                {{ $booking->payment_date ? \Carbon\Carbon::parse($booking->payment_date)->format('d M Y H:i') : '-' }}
+                            </p>
+                        </div>
                     </div>
                     @if($booking->payment_method)
                         <div class="mt-4 pt-4 border-t border-slate-200/50">

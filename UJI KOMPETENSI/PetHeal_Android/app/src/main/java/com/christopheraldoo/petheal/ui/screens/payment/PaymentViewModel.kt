@@ -39,6 +39,24 @@ class PaymentViewModel @Inject constructor(
     private var currentOrderId: String? = null
     private var retryCount: Int = 0
 
+    private suspend fun syncPaymentStatus(orderId: String, maxRetries: Int = 2) {
+        repeat(maxRetries + 1) { attempt ->
+            when (val result = paymentRepository.syncBookingPaymentStatus(orderId)) {
+                is Result.Success -> {
+                    Log.d(TAG, "Backend payment status synced for orderId=$orderId")
+                    return
+                }
+                is Result.Error -> {
+                    Log.w(TAG, "Backend payment sync failed for orderId=$orderId (attempt ${attempt + 1}/${maxRetries + 1}): ${result.message}")
+                    if (attempt < maxRetries) {
+                        kotlinx.coroutines.delay(1200)
+                    }
+                }
+                else -> Unit
+            }
+        }
+    }
+
     /**
      * Initiate payment by creating a Midtrans Snap token.
      * @param booking The booking to pay for
@@ -186,6 +204,10 @@ class PaymentViewModel @Inject constructor(
                 else -> "failed"
             }
 
+            if (isSuccess) {
+                syncPaymentStatus(orderId)
+            }
+
             // If status is unknown, poll the backend for transaction status
             if (transactionStatus == null || mappedStatus == "unknown") {
                 Log.w(TAG, "Transaction status unknown, polling backend for orderId: $orderId")
@@ -234,6 +256,10 @@ class PaymentViewModel @Inject constructor(
                         isSuccess -> "success"
                         isPending -> "pending"
                         else -> "failed"
+                    }
+
+                    if (isSuccess) {
+                        syncPaymentStatus(orderId)
                     }
 
                     Log.d(TAG, "Transaction status poll success - status: $status, appStatus: $appStatus")
@@ -300,6 +326,10 @@ class PaymentViewModel @Inject constructor(
                         isSuccess -> "success"
                         isPending -> "pending"
                         else -> "failed"
+                    }
+
+                    if (isSuccess) {
+                        syncPaymentStatus(orderId)
                     }
 
                     _uiState.value = _uiState.value.copy(
@@ -387,7 +417,11 @@ class PaymentViewModel @Inject constructor(
                         isPending -> "pending"
                         else -> "failed"
                     }
-                    
+
+                    if (isSuccess) {
+                        syncPaymentStatus(orderId)
+                    }
+
                     // Show result dialog with the detected status
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,

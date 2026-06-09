@@ -86,6 +86,11 @@ data class PaymentPreflightCheck(
     val statusCode: Int? = null
 )
 
+data class PaymentSyncRequest(
+    @SerializedName("order_id")
+    val orderId: String
+)
+
 // ============= MIDTRANS TRANSACTION STATUS MODELS =============
 
 data class TransactionStatusResponse(
@@ -156,5 +161,7 @@ data class BookingPaymentStatusData(
     @SerializedName("paid_amount")
     val paidAmount: Double? = null,
     @SerializedName("remaining_amount")
-    val remainingAmount: Double? = null
+    val remainingAmount: Double? = null,
+    @SerializedName("payment_date")
+    val paymentDate: String? = null
 )

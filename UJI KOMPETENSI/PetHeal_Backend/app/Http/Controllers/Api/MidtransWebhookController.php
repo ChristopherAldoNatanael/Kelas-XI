@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
+use App\Services\PaymentStatusService;
 
 /**
  * Midtrans Webhook Handler
@@ -31,7 +31,7 @@ class MidtransWebhookController extends Controller
      * @param Request $request
      * @return \Illuminate\Http\JsonResponse
      */
-    public function handle(Request $request)
+    public function handle(Request $request, PaymentStatusService $paymentStatusService)
     {
         try {
             $payload = $request->all();
@@ -79,100 +79,47 @@ class MidtransWebhookController extends Controller
                     return response()->json(['error' => 'Booking not found'], 404);
                 }
 
-                // Update booking payment status based on Midtrans status
-                switch ($transactionStatus) {
-                    case 'settlement':
-                    case 'capture':
-                        $updateData = DB::transaction(function () use (
-                            $bookingId,
-                            $orderId,
-                            $transactionStatus,
-                            $paymentType,
-                            $grossAmount,
-                            $payload
-                        ) {
-                            $booking = Booking::whereKey($bookingId)->lockForUpdate()->firstOrFail();
+                $updateResult = $paymentStatusService->applyTransactionStatus(
+                    $booking,
+                    $orderId,
+                    (string) $transactionStatus,
+                    $paymentType,
+                    $grossAmount,
+                    $payload
+                );
 
-                            $created = DB::table('payment_events')->insertOrIgnore([
-                                'booking_id' => $booking->id,
-                                'order_id' => $orderId,
-                                'transaction_status' => $transactionStatus,
-                                'payment_type' => $paymentType,
-                                'gross_amount' => $grossAmount,
-                                'payload' => json_encode($payload),
-                                'created_at' => now(),
-                                'updated_at' => now(),
-                            ]);
+                if ($updateResult['duplicate'] ?? false) {
+                    Log::info('Duplicate Midtrans payment event ignored', [
+                        'order_id' => $orderId,
+                        'booking_id' => $bookingId,
+                    ]);
+                    return response()->json(['status' => 'ok']);
+                }
 
-                            if ($created === 0) {
-                                return null;
-                            }
+                $updatedBooking = $updateResult['booking'];
 
-                            $currentPaidAmount = (float) $booking->paid_amount + (float) $grossAmount;
-                            $remainingAmount = max(0, (float) $booking->total_amount - $currentPaidAmount);
-
-                            $updateData = [
-                                'paid_amount' => $currentPaidAmount,
-                                'remaining_amount' => $remainingAmount,
-                            ];
-
-                            if ($remainingAmount == 0) {
-                                $updateData['payment_status'] = 'paid';
-                            } elseif ($booking->payment_type === 'dp' && (float) $booking->paid_amount == 0) {
-                                $updateData['payment_status'] = 'dp_paid';
-                                $updateData['payment_type'] = 'dp';
-                            } else {
-                                $updateData['payment_status'] = 'partial';
-                            }
-
-                            $booking->update($updateData);
-
-                            return $updateData;
-                        });
-
-                        if ($updateData === null) {
-                            Log::info('Duplicate Midtrans payment event ignored', [
-                                'order_id' => $orderId,
-                                'booking_id' => $bookingId,
-                            ]);
-                            break;
-                        }
-
-                        Log::info('Booking payment updated', [
-                            'booking_id' => $bookingId,
-                            'payment_status' => $updateData['payment_status'],
-                            'paid_amount' => $updateData['paid_amount'],
-                            'remaining_amount' => $updateData['remaining_amount'],
-                        ]);
-                        break;
-
-                    case 'pending':
-                        $booking->update([
-                            'payment_status' => 'pending',
-                        ]);
-                        Log::info('Booking payment marked as PENDING', [
-                            'booking_id' => $bookingId,
-                        ]);
-                        break;
-
-                    case 'cancel':
-                    case 'expire':
-                    case 'deny':
-                    case 'failure':
-                        $booking->update([
-                            'payment_status' => 'failed',
-                        ]);
-                        Log::info('Booking payment marked as FAILED', [
-                            'booking_id' => $bookingId,
-                            'status' => $transactionStatus,
-                        ]);
-                        break;
-
-                    default:
-                        Log::warning('Unknown transaction status', [
-                            'order_id' => $orderId,
-                            'status' => $transactionStatus,
-                        ]);
+                if (in_array($transactionStatus, ['settlement', 'capture'], true)) {
+                    Log::info('Booking payment updated', [
+                        'booking_id' => $bookingId,
+                        'payment_status' => $updatedBooking->payment_status,
+                        'paid_amount' => $updatedBooking->paid_amount,
+                        'remaining_amount' => $updatedBooking->remaining_amount,
+                        'payment_date' => $updatedBooking->payment_date?->toDateTimeString(),
+                    ]);
+                } elseif ($transactionStatus === 'pending') {
+                    Log::info('Booking payment marked as PENDING', [
+                        'booking_id' => $bookingId,
+                    ]);
+                } elseif (in_array($transactionStatus, ['cancel', 'expire', 'deny', 'failure'], true)) {
+                    Log::info('Booking payment marked as FAILED', [
+                        'booking_id' => $bookingId,
+                        'status' => $transactionStatus,
+                    ]);
+                } else {
+                    Log::warning('Unknown transaction status', [
+                        'order_id' => $orderId,
+                        'status' => $transactionStatus,
+                    ]);
                 }
             } else {
                 Log::warning('Order ID format not recognized', ['order_id' => $orderId]);

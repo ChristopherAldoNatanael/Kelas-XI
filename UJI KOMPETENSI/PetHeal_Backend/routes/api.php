@@ -101,6 +101,7 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     Route::get('/payment/preflight', [App\Http\Controllers\Api\PaymentController::class, 'preflight']);
     Route::post('/payment/snap-token', [App\Http\Controllers\Api\PaymentController::class, 'createSnapToken'])->middleware('throttle:payment');
     Route::get('/payment/transaction-status/{orderId}', [App\Http\Controllers\Api\PaymentController::class, 'getTransactionStatus']);
+    Route::post('/payment/sync-status', [App\Http\Controllers\Api\PaymentController::class, 'syncPaymentStatus'])->middleware('throttle:payment');
     Route::post('/payment/remaining/{bookingId}', [App\Http\Controllers\Api\PaymentController::class, 'createRemainingPaymentSnapToken'])->middleware('throttle:payment');
     Route::get('/payment/booking/{bookingId}', [App\Http\Controllers\Api\PaymentController::class, 'getBookingPaymentStatus']);
 });

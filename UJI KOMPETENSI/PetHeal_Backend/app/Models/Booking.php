@@ -22,6 +22,7 @@ class Booking extends Model
         'paid_amount',
         'remaining_amount',
         'payment_status',
+        'payment_date',
         'cancellation_reason',
         'confirmed_at',
         'completed_at',
@@ -36,6 +37,7 @@ class Booking extends Model
         'total_amount' => 'decimal:2',
         'paid_amount' => 'decimal:2',
         'remaining_amount' => 'decimal:2',
+        'payment_date' => 'datetime',
     ];
 
     /**
@@ -117,6 +119,16 @@ class Booking extends Model
     public function medicalRecord()
     {
         return $this->hasOne(MedicalRecord::class);
+    }
+
+    /**
+     * Compatibility alias for admin/payment views that expect a collection-style relation.
+     * A booking can still have one medical record in practice, but the plural relation
+     * keeps older eager-loading code and Blade checks working safely.
+     */
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class);
     }
 
     /**

@@ -27,7 +27,6 @@
     </div>
 </div>
 
-@section('content')
 {{-- Success/Error Messages --}}
 @if(session('success'))
 <div id="successMessage" class="fixed top-6 right-6 z-50 bg-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
@@ -129,6 +128,12 @@
                 <div>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Date</p>
                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1">{{ $booking->booking_date ? \Carbon\Carbon::parse($booking->booking_date)->format('d M Y') : '-' }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Payment Date</p>
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1">
+                        {{ $booking->payment_date ? \Carbon\Carbon::parse($booking->payment_date)->format('d M Y H:i') : '-' }}
+                    </p>
                 </div>
                 <div>
                     <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Booking Status</p>

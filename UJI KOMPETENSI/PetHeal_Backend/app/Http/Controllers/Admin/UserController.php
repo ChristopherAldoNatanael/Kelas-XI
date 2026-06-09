@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class UserController extends Controller
 {
@@ -40,9 +41,13 @@ class UserController extends Controller
      */
     public function show($id)
     {
-        $user = User::with(['pets', 'bookings'])->findOrFail($id);
+        $user = User::with([
+            'pets',
+            'bookings' => fn ($query) => $query->with(['pet', 'doctor'])->latest()->limit(10),
+        ])->findOrFail($id);
+        $firebaseData = null;
 
-        return view('admin.users.show', compact('user'));
+        return view('admin.users.show', compact('user', 'firebaseData'));
     }
 
     /**
@@ -71,7 +76,7 @@ class UserController extends Controller
             'phone' => $request->input('phone'),
             'password' => Hash::make($request->input('password')),
             'role' => 'user',
-            'firebase_uid' => 'local_' . time(),
+            'firebase_uid' => 'local_' . Str::uuid()->toString(),
         ]);
 
         return redirect()->route('admin.users.index')->with('success', 'User created successfully');
@@ -97,6 +102,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'phone' => 'nullable|string|max:20',
+            'password' => 'nullable|string|min:6',
         ]);
 
         $data = $request->only(['name', 'email', 'phone']);
@@ -116,6 +122,13 @@ class UserController extends Controller
     public function destroy($id)
     {
         $user = User::findOrFail($id);
+
+        if (auth()->id() === $user->id) {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', 'You cannot delete your own admin account.');
+        }
+
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');

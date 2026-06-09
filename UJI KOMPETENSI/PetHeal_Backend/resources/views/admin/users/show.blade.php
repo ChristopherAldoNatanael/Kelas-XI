@@ -57,7 +57,7 @@
             </div>
 
             <!-- Firebase Data -->
-            @if($firebaseData)
+            @if($firebaseData ?? null)
             <div class="bg-slate-50/50 rounded-2xl p-4">
                 <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Firebase Data</h3>
                 <div class="space-y-2 text-sm">

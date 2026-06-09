@@ -124,6 +124,27 @@ class PaymentRepository @Inject constructor(
     }
 
     /**
+     * Synchronize booking payment status with the backend after Midtrans success.
+     */
+    suspend fun syncBookingPaymentStatus(orderId: String): Result<BookingPaymentStatusResponse> {
+        return try {
+            Log.d(TAG, "Synchronizing booking payment status for order: $orderId")
+            val response = apiService.syncPaymentStatus(PaymentSyncRequest(orderId))
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(response.body()!!)
+            } else {
+                val error = extractErrorMessage(response) ?: response.body()?.message ?: "Failed to sync payment status"
+                Log.e(TAG, "syncBookingPaymentStatus failed: HTTP ${response.code()} - $error")
+                Result.Error(error)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "syncBookingPaymentStatus exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    /**
      * Create a Snap token for remaining payment (after DP).
      */
     suspend fun createRemainingPaymentSnapToken(bookingId: Int): Result<SnapTokenData> {

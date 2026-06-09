@@ -154,15 +154,15 @@
                 @if(request('search'))
                     No users match your search "{{ request('search') }}". Try different keywords.
                 @else
-                    Get started by syncing users from Firebase or manually adding a new user.
+                    Get started by manually adding a new user.
                 @endif
             </p>
             <div class="flex justify-center gap-3">
                 @if(!request('search'))
-                    <a href="{{ route('admin.users.sync') }}" 
+                    <a href="{{ route('admin.users.create') }}" 
                        class="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all">
-                        <span class="material-symbols-outlined text-[18px]">sync</span>
-                        Sync from Firebase
+                        <span class="material-symbols-outlined text-[18px]">person_add</span>
+                        Add User
                     </a>
                 @else
                     <a href="{{ route('admin.users.index') }}" 

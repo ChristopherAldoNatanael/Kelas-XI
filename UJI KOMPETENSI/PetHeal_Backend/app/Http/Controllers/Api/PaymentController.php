@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
+use App\Services\PaymentStatusService;
 
 class PaymentController extends Controller
 {
@@ -389,6 +390,106 @@ class PaymentController extends Controller
     }
 
     /**
+     * Synchronize a booking payment by re-reading the latest Midtrans status
+     * and applying it to the local booking/payment tables.
+     */
+    public function syncPaymentStatus(Request $request, PaymentStatusService $paymentStatusService)
+    {
+        try {
+            $validated = $request->validate([
+                'order_id' => 'required|string|regex:/^BOOKING-\d+(?:-(?:REMAINING-)?\d+)?$/',
+            ]);
+
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'User not authenticated',
+                ], 401);
+            }
+
+            $orderId = $validated['order_id'];
+            if (!preg_match('/^BOOKING-(\d+)(?:-|$)/', $orderId, $matches)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid order ID',
+                ], 422);
+            }
+
+            $booking = $user->bookings()->find((int) $matches[1]);
+            if (!$booking) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Booking not found',
+                ], 404);
+            }
+
+            $response = Http::timeout(30)->withHeaders([
+                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
+                'Accept' => 'application/json',
+            ])->get($this->getApiUrl() . '/' . $orderId . '/status');
+
+            if (!$response->successful()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to get transaction status',
+                    'status_code' => $response->status(),
+                ], $response->status() === 404 ? 404 : 502);
+            }
+
+            $data = $response->json();
+            $transactionStatus = (string) ($data['transaction_status'] ?? 'unknown');
+            $paymentType = $data['payment_type'] ?? null;
+            $grossAmount = $data['gross_amount'] ?? 0;
+
+            $updateResult = $paymentStatusService->applyTransactionStatus(
+                $booking,
+                $orderId,
+                $transactionStatus,
+                $paymentType,
+                $grossAmount,
+                $data
+            );
+
+            $updatedBooking = $updateResult['booking'];
+
+            return response()->json([
+                'success' => true,
+                'message' => ($updateResult['duplicate'] ?? false)
+                    ? 'Payment status already synchronized'
+                    : 'Payment status synchronized successfully',
+                'data' => [
+                    'id' => $updatedBooking->id,
+                    'payment_type' => $updatedBooking->payment_type,
+                    'payment_status' => $updatedBooking->payment_status,
+                    'total_amount' => $updatedBooking->total_amount,
+                    'dp_amount' => $updatedBooking->dp_amount,
+                    'paid_amount' => $updatedBooking->paid_amount,
+                    'remaining_amount' => $updatedBooking->remaining_amount ?? ($updatedBooking->total_amount - $updatedBooking->paid_amount),
+                    'payment_date' => $updatedBooking->payment_date?->toDateTimeString(),
+                    'transaction_status' => $transactionStatus,
+                ],
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid request data',
+                'errors' => $e->errors(),
+            ], 422);
+        } catch (\Throwable $e) {
+            Log::error('Exception in syncPaymentStatus', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Internal server error: ' . $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
      * Create a Snap token for remaining payment (after DP).
      *
      * @param Request $request
@@ -632,6 +733,7 @@ class PaymentController extends Controller
                     'dp_amount' => $booking->dp_amount,
                     'paid_amount' => $booking->paid_amount,
                     'remaining_amount' => $booking->remaining_amount ?? ($booking->total_amount - $booking->paid_amount),
+                    'payment_date' => $booking->payment_date?->toDateTimeString(),
                 ],
             ]);
         } catch (\Exception $e) {

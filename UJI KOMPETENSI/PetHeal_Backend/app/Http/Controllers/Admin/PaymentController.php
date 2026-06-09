@@ -130,6 +130,9 @@ class PaymentController extends Controller
         // Update payment info
         $booking->paid_amount += $request->amount;
         $booking->remaining_amount = max(0, $booking->total_amount - $booking->paid_amount);
+        if ($request->amount > 0) {
+            $booking->payment_date = now();
+        }
 
         // Update status based on remaining amount
         if ($booking->remaining_amount <= 0) {
@@ -141,6 +144,8 @@ class PaymentController extends Controller
         }
 
         $booking->save();
+        Cache::forget('payment_stats');
+        Cache::forget('dashboard_stats_all');
 
         return redirect()->back()->with('success', 'Payment confirmed successfully.');
     }

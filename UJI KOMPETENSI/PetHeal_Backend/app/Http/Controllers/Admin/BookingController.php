@@ -25,7 +25,7 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Booking::with(['user', 'pet', 'doctor']);
+        $query = Booking::with(['user', 'pet', 'doctor', 'service']);
 
         // Filter by status
         if ($request->has('status')) {
@@ -49,7 +49,7 @@ class BookingController extends Controller
      */
     public function show($id)
     {
-        $booking = Booking::with(['user', 'pet', 'doctor', 'medicalRecord'])->findOrFail($id);
+        $booking = Booking::with(['user', 'pet', 'doctor', 'service', 'medicalRecord'])->findOrFail($id);
 
         return view('admin.bookings.show', compact('booking'));
     }

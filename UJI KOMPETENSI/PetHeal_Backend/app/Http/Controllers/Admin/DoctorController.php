@@ -102,7 +102,7 @@ class DoctorController extends Controller
     public function show($id)
     {
         $doctor = Doctor::with(['bookings' => function ($query) {
-            $query->orderBy('booking_date', 'desc')->limit(10);
+            $query->with(['pet', 'user'])->orderBy('booking_date', 'desc')->limit(10);
         }])->findOrFail($id);
 
         return view('admin.doctors.show', compact('doctor'));

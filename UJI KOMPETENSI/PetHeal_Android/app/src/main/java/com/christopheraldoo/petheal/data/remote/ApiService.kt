@@ -207,6 +207,9 @@ interface ApiService {
     @GET("payment/transaction-status/{orderId}")
     suspend fun getTransactionStatus(@Path("orderId") orderId: String): Response<TransactionStatusResponse>
 
+    @POST("payment/sync-status")
+    suspend fun syncPaymentStatus(@Body request: PaymentSyncRequest): Response<BookingPaymentStatusResponse>
+
     @POST("payment/remaining/{bookingId}")
     suspend fun createRemainingPaymentSnapToken(@Path("bookingId") bookingId: Int): Response<SnapTokenResponse>
 
