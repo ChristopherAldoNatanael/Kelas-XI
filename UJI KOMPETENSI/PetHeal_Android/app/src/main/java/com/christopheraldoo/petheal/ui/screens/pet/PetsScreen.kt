@@ -52,6 +52,8 @@ import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.Vaccination
 import com.christopheraldoo.petheal.data.model.WeightRecord
+import com.christopheraldoo.petheal.ui.components.EmptyPetsState
+import com.christopheraldoo.petheal.ui.components.EmptySearchState
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.MediumImage
@@ -248,34 +250,15 @@ fun PetsScreen(
                     // Empty state
                     if (filteredPets.isEmpty() && !uiState.isLoading) {
                         item {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 60.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(80.dp)
-                                        .clip(CircleShape)
-                                        .background(PetPrimary.copy(alpha = 0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Pets, null,
-                                        tint = PetPrimary,
-                                        modifier = Modifier.size(40.dp)
-                                    )
-                                }
-                                Text(
-                                    if (uiState.searchQuery.isNotBlank()) "No pets found" else "No pets yet",
-                                    fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary
+                            if (uiState.searchQuery.isNotBlank()) {
+                                EmptySearchState(
+                                    query = uiState.searchQuery,
+                                    modifier = Modifier.fillMaxWidth().height(460.dp)
                                 )
-                                Text(
-                                    if (uiState.searchQuery.isNotBlank()) "Try a different search term"
-                                    else "Tap + to add your first pet",
-                                    fontSize = 14.sp, color = textMuted, textAlign = TextAlign.Center
+                            } else {
+                                EmptyPetsState(
+                                    onAddPet = onNavigateToAddPet,
+                                    modifier = Modifier.fillMaxWidth().height(460.dp)
                                 )
                             }
                         }

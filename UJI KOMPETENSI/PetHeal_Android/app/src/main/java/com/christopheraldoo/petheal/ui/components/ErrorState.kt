@@ -42,6 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.christopheraldoo.petheal.ui.theme.OnSurface
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PetHealRadius
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 @Composable
 fun ErrorState(
@@ -92,7 +97,7 @@ fun ErrorState(
             text = title,
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF0F172A),
+            color = OnSurface,
             textAlign = TextAlign.Center
         )
 
@@ -102,13 +107,14 @@ fun ErrorState(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White),
-            shape = RoundedCornerShape(12.dp)
+            colors = CardDefaults.cardColors(containerColor = Surface),
+            shape = RoundedCornerShape(PetHealRadius.lg),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Outline)
         ) {
             Text(
                 text = message,
                 fontSize = 14.sp,
-                color = Color(0xFF475569),
+                color = TextSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 20.sp,
                 modifier = Modifier.padding(16.dp)
@@ -120,7 +126,7 @@ fun ErrorState(
         if (primaryActionText != null && onPrimaryActionClick != null) {
             Button(
                 onClick = onPrimaryActionClick,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(PetHealRadius.lg),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = iconColor,
                     contentColor = Color.White
@@ -139,13 +145,13 @@ fun ErrorState(
         if (secondaryActionText != null && onSecondaryActionClick != null) {
             OutlinedButton(
                 onClick = onSecondaryActionClick,
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(PetHealRadius.lg),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = Color(0xFF0F172A)
+                    contentColor = OnSurface
                 ),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    Color(0xFFCBD5E1)
+                    Outline
                 ),
                 modifier = Modifier
                     .fillMaxWidth()

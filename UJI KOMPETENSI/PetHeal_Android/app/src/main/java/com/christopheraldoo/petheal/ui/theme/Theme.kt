@@ -22,10 +22,14 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = OnSecondary,
     secondaryContainer = SecondaryLight,
     onSecondaryContainer = SecondaryDark,
+    tertiary = Tertiary,
+    tertiaryContainer = TertiaryLight,
     background = Background,
     onBackground = OnBackground,
     surface = Surface,
     onSurface = OnSurface,
+    surfaceVariant = SurfaceVariant,
+    outline = Outline,
     error = Error,
     onError = OnError
 )
@@ -74,6 +78,7 @@ fun PetHealTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = Shapes,
         content = content
     )
 }

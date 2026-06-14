@@ -40,6 +40,7 @@ import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.data.model.TimeSlot
+import com.christopheraldoo.petheal.ui.components.SkeletonDoctorList
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -159,7 +160,7 @@ fun DoctorsScreen(
         }
         Divider(color = BorderDark, thickness = 0.5.dp)
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Primary) }
+            state.isLoading -> SkeletonDoctorList(count = 4)
             state.error != null -> DoctorsErrorState(message = state.error!!, onRetry = viewModel::loadDoctors)
             state.filtered.isEmpty() -> DoctorsEmptyState(hasQuery = state.searchQuery.isNotBlank())
             else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {

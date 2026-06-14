@@ -2,9 +2,9 @@ package com.christopheraldoo.petheal.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -21,6 +21,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.christopheraldoo.petheal.ui.theme.OnSurface
+import com.christopheraldoo.petheal.ui.theme.PetHealRadius
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 /**
  * Enhanced empty state component with icon, title, description, and optional action button.
@@ -34,8 +39,8 @@ fun EmptyState(
     modifier: Modifier = Modifier,
     actionText: String? = null,
     onActionClick: (() -> Unit)? = null,
-    iconColor: Color = Color(0xFF2BEE6C),
-    backgroundColor: Color = Color(0xFF2BEE6C).copy(alpha = 0.1f)
+    iconColor: Color = Primary,
+    backgroundColor: Color = Primary.copy(alpha = 0.10f)
 ) {
     val animatedScale = animateFloatAsState(
         targetValue = 1f,
@@ -46,63 +51,74 @@ fun EmptyState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(32.dp),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Animated icon
-        Box(
-            modifier = Modifier
-                .size(120.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(backgroundColor)
-                .scale(animatedScale.value),
-            contentAlignment = Alignment.Center
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = Surface),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            shape = RoundedCornerShape(PetHealRadius.xxl),
+            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(56.dp)
-            )
-        }
-
-        Spacer(Modifier.height(24.dp))
-
-        Text(
-            text = title,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(Modifier.height(8.dp))
-
-        Text(
-            text = description,
-            fontSize = 14.sp,
-            color = Color(0xFF9DB9A6),
-            textAlign = TextAlign.Center,
-            lineHeight = 20.sp,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        // Optional action button
-        if (actionText != null && onActionClick != null) {
-            Spacer(Modifier.height(24.dp))
-            Button(
-                onClick = onActionClick,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2BEE6C),
-                    contentColor = Color(0xFF052E14)
-                ),
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+            Column(
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text(actionText, fontWeight = FontWeight.SemiBold)
+                Box(
+                    modifier = Modifier
+                        .size(104.dp)
+                        .clip(RoundedCornerShape(PetHealRadius.xl))
+                        .background(backgroundColor)
+                        .border(1.dp, iconColor.copy(alpha = 0.18f), RoundedCornerShape(PetHealRadius.xl))
+                        .scale(animatedScale.value),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                Text(
+                    text = title,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OnSurface,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                Text(
+                    text = description,
+                    fontSize = 14.sp,
+                    color = TextSecondary,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 21.sp
+                )
+
+                if (actionText != null && onActionClick != null) {
+                    Spacer(Modifier.height(24.dp))
+                    Button(
+                        onClick = onActionClick,
+                        shape = RoundedCornerShape(PetHealRadius.lg),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Primary,
+                            contentColor = Color.White
+                        ),
+                        modifier = Modifier.fillMaxWidth().height(52.dp)
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(actionText, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
     }
@@ -119,8 +135,8 @@ fun EmptyBookingsState(onBookNow: () -> Unit) {
         description = "Anda belum memiliki jadwal konsultasi. Buat booking pertama untuk mulai mengelola kunjungan hewan kesayangan Anda.",
         actionText = "Buat Booking",
         onActionClick = onBookNow,
-        iconColor = Color(0xFF2BEE6C),
-        backgroundColor = Color(0xFF2BEE6C).copy(alpha = 0.1f)
+        iconColor = Primary,
+        backgroundColor = Primary.copy(alpha = 0.10f)
     )
 }
 
@@ -128,15 +144,19 @@ fun EmptyBookingsState(onBookNow: () -> Unit) {
  * Specific empty state for pets
  */
 @Composable
-fun EmptyPetsState(onAddPet: () -> Unit) {
+fun EmptyPetsState(
+    onAddPet: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     EmptyState(
         icon = Icons.Outlined.Pets,
         title = "Belum Ada Hewan",
         description = "Tambahkan hewan kesayangan Anda terlebih dahulu agar jadwal, rekam medis, dan vaksinasi bisa dikelola dengan rapi.",
+        modifier = modifier,
         actionText = "Tambah Hewan Pertama",
         onActionClick = onAddPet,
-        iconColor = Color(0xFF9333EA),
-        backgroundColor = Color(0xFFF3E8FF)
+        iconColor = Color(0xFF0EA5A5),
+        backgroundColor = Color(0xFFE6FFFB)
     )
 }
 
@@ -172,11 +192,15 @@ fun EmptyMedicalRecordsState() {
  * Specific empty state for search results
  */
 @Composable
-fun EmptySearchState(query: String) {
+fun EmptySearchState(
+    query: String,
+    modifier: Modifier = Modifier
+) {
     EmptyState(
         icon = Icons.Outlined.SearchOff,
         title = "Hasil Tidak Ditemukan",
         description = "Belum ada data yang cocok untuk \"$query\". Coba gunakan kata kunci lain atau kurangi filter pencarian.",
+        modifier = modifier,
         iconColor = Color(0xFF6B7280),
         backgroundColor = Color(0xFF6B7280).copy(alpha = 0.1f)
     )

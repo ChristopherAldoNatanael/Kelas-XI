@@ -29,9 +29,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PetHealRadius
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 
-private val SkeletonBase = Color(0xFFE2E8F0)
-private val SkeletonHighlight = Color(0xFFF8FAFC)
+private val SkeletonBase = Outline
+private val SkeletonHighlight = Color.White
 
 fun Modifier.shimmerEffect(isVisible: Boolean = true): Modifier = composed {
     if (!isVisible) return@composed this
@@ -71,8 +74,8 @@ fun SkeletonCard(
 
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = SurfaceVariant),
+        shape = RoundedCornerShape(PetHealRadius.lg)
     ) {
         Box(
             modifier = Modifier
@@ -130,8 +133,8 @@ fun SkeletonBookingCard() {
         modifier = Modifier
             .fillMaxWidth()
             .height(180.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = SurfaceVariant),
+        shape = RoundedCornerShape(PetHealRadius.lg)
     ) {
         Column(
             modifier = Modifier
@@ -221,8 +224,8 @@ fun SkeletonDoctorCard() {
         modifier = Modifier
             .fillMaxWidth()
             .height(120.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(containerColor = SurfaceVariant),
+        shape = RoundedCornerShape(PetHealRadius.lg)
     ) {
         Row(
             modifier = Modifier

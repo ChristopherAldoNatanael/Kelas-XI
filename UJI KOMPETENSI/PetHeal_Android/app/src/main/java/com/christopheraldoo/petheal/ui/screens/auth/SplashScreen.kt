@@ -231,7 +231,7 @@ fun SplashScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "v${BuildConfig.VERSION_NAME} • PetHeal",
+                    text = "v${BuildConfig.VERSION_NAME} / PetHeal",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
                     color = SplashTextSecondary,
