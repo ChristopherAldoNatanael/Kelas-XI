@@ -35,8 +35,16 @@ class DashboardController extends Controller
             ->limit(5)
             ->get();
         
-        $pendingBookings = Booking::whereHas('pet', fn($q) => $q->where('user_id', $user->id))->where('status', 'pending')->count();
-        $confirmedBookings = Booking::whereHas('pet', fn($q) => $q->where('user_id', $user->id))->where('status', 'confirmed')->count();
+        $userBookingsQuery = Booking::whereHas('pet', fn($q) => $q->where('user_id', $user->id));
+        $pendingBookings = (clone $userBookingsQuery)->where('status', 'pending')->count();
+        $confirmedBookings = (clone $userBookingsQuery)->where('status', 'confirmed')->count();
+        $paymentAttentionCount = (clone $userBookingsQuery)
+            ->where('remaining_amount', '>', 0)
+            ->whereIn('payment_status', ['pending', 'unpaid', 'partial', 'dp_paid', 'failed'])
+            ->count();
+        $outstandingAmount = (clone $userBookingsQuery)
+            ->where('remaining_amount', '>', 0)
+            ->sum('remaining_amount');
         
         // Medical statistics
         $totalVisits = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))->count();
@@ -49,6 +57,10 @@ class DashboardController extends Controller
             ->orderBy('created_at', 'desc')
             ->limit(3)
             ->get();
+        $followUpDueCount = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))
+            ->whereNotNull('next_visit_date')
+            ->whereDate('next_visit_date', '<=', now()->addDays(14))
+            ->count();
         
         // Vaccination alerts
         $dueVaccinations = Vaccination::with(['pet'])
@@ -73,16 +85,26 @@ class DashboardController extends Controller
                     'pending' => $pendingBookings,
                     'confirmed' => $confirmedBookings,
                 ],
+                'payments' => [
+                    'attention_count' => $paymentAttentionCount,
+                    'outstanding_amount' => (float) $outstandingAmount,
+                ],
                 'medical' => [
                     'total_visits' => $totalVisits,
                     'total_spent' => (float) $totalSpent,
                     'recent_visits' => $recentVisits,
+                    'follow_up_due' => $followUpDueCount,
                 ],
                 'vaccination_alerts' => [
                     'due_soon' => $dueVaccinations,
                     'overdue' => $overdueVaccinations,
                 ],
-                'summary' => $this->generateSummary($totalPets, $upcomingBookings->count(), $dueVaccinations->count() + $overdueVaccinations->count()),
+                'summary' => $this->generateSummary(
+                    $totalPets,
+                    $upcomingBookings->count(),
+                    $dueVaccinations->count() + $overdueVaccinations->count(),
+                    $paymentAttentionCount
+                ),
             ]
         ]);
     }
@@ -90,7 +112,7 @@ class DashboardController extends Controller
     /**
      * Generate a quick summary message.
      */
-    private function generateSummary(int $pets, int $upcomingBookings, int $vaccinationAlerts): string
+    private function generateSummary(int $pets, int $upcomingBookings, int $vaccinationAlerts, int $paymentAttentionCount): string
     {
         $parts = [];
         
@@ -104,6 +126,10 @@ class DashboardController extends Controller
         
         if ($vaccinationAlerts > 0) {
             $parts[] = "{$vaccinationAlerts} vaccination alert" . ($vaccinationAlerts > 1 ? 's' : '');
+        }
+
+        if ($paymentAttentionCount > 0) {
+            $parts[] = "{$paymentAttentionCount} payment item" . ($paymentAttentionCount > 1 ? 's need' : ' needs') . ' attention';
         }
         
         return empty($parts) 

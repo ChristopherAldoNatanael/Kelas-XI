@@ -31,14 +31,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
+import com.christopheraldoo.petheal.BuildConfig
 
 private val PrimaryGreen = Color(0xFF2BEE6C)
 private val SplashBg = Color(0xFFF6F8F6)
@@ -77,17 +75,22 @@ fun SplashScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(Color.White, SplashBg)
+                    colors = listOf(Color(0xFFFFFFFF), Color(0xFFF4FBF6), SplashBg)
                 )
             )
     ) {
-        AsyncImage(
-            model = "https://lh3.googleusercontent.com/aida-public/AB6AXuBVG1aED6MifuWEhP138rLf305Fkn3ZnOsj1nh1_4HKqq5QdH83XBa3RqtKhTbdLotjtm_yd0XMtjTkJgZTlLoiP56nLERNEll9qFtQKiXOUW8glUWB70LjuC2dYsjxgpez9PowLqcl5cLcSSK3wIM721K9D35VcttKQ4oK0m5bvS6JxpHZIuD6dZ4PNRBqxI5PGRC_ldfE4A_SxebNDTEhXiCEl4yrdXsKDS_SlGhpWgquINk_YPBpHNmpyjkcmqN5VH-C232OpHs",
-            contentDescription = "Happy dogs running in park",
-            contentScale = ContentScale.Crop,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = 0.16f }
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            PrimaryGreen.copy(alpha = 0.14f),
+                            Color.Transparent
+                        ),
+                        radius = 900f
+                    )
+                )
         )
 
         Box(
@@ -96,12 +99,30 @@ fun SplashScreen(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color.White.copy(alpha = 0.15f),
-                            0.70f to SplashBg.copy(alpha = 0.35f),
+                            0.0f to Color.White.copy(alpha = 0.08f),
+                            0.55f to SplashBg.copy(alpha = 0.18f),
                             1.0f to SplashBg
                         )
                     )
                 )
+        )
+
+        Box(
+            modifier = Modifier
+                .size(320.dp)
+                .align(Alignment.TopEnd)
+                .padding(top = 72.dp, end = 16.dp)
+                .clip(RoundedCornerShape(999.dp))
+                .background(Color(0x0F2BEE6C))
+        )
+
+        Box(
+            modifier = Modifier
+                .size(width = 220.dp, height = 220.dp)
+                .align(Alignment.BottomStart)
+                .padding(start = 12.dp, bottom = 180.dp)
+                .clip(RoundedCornerShape(64.dp))
+                .background(Color(0x0A0F172A))
         )
 
         Column(
@@ -149,7 +170,7 @@ fun SplashScreen(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "Caring for your best friend",
+                    text = "Pendamping kesehatan untuk sahabat terbaik Anda",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Medium,
                     color = SplashTextSecondary,
@@ -173,7 +194,7 @@ fun SplashScreen(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
-                        text = "LOADING",
+                        text = "MEMUAT",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = SplashTextSecondary,
@@ -210,7 +231,7 @@ fun SplashScreen(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "v1.0.8 (c) 2024 PetHeal Inc.",
+                    text = "v${BuildConfig.VERSION_NAME} • PetHeal",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Normal,
                     color = SplashTextSecondary,

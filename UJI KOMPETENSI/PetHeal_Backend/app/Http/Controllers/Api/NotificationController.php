@@ -82,6 +82,10 @@ class NotificationController extends Controller
             'pet_name' => $data['pet_name'] ?? null,
             'status' => $data['status'] ?? null,
             'date' => $data['date'] ?? ($data['next_visit'] ?? null),
+            'booking_id' => isset($data['booking_id']) ? (int) $data['booking_id'] : null,
+            'medical_record_id' => isset($data['medical_record_id']) ? (int) $data['medical_record_id'] : null,
+            'pet_id' => isset($data['pet_id']) ? (int) $data['pet_id'] : null,
+            'doctor_id' => isset($data['doctor_id']) ? (int) $data['doctor_id'] : null,
             'timestamp' => ($notification->created_at?->timestamp ?? now()->timestamp) * 1000,
             'is_read' => $notification->read_at !== null,
         ];

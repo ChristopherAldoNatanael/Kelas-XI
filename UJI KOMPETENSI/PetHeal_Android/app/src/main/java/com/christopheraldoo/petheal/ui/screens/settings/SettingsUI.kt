@@ -51,6 +51,7 @@ fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Un
 fun SettingsActionRow(
     icon: ImageVector,
     label: String,
+    showChevron: Boolean = true,
     trailing: @Composable () -> Unit = {},
     onClick: () -> Unit
 ) {
@@ -79,12 +80,14 @@ fun SettingsActionRow(
             modifier = Modifier.weight(1f)
         )
         trailing()
-        Spacer(modifier = Modifier.width(4.dp))
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = SettingsTextSecondary,
-            modifier = Modifier.size(20.dp)
-        )
+        if (showChevron) {
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                imageVector = Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = SettingsTextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }

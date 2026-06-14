@@ -42,6 +42,9 @@
                 <span class="material-symbols-outlined text-[18px]">print</span>Export PDF
             </a>
         </form>
+        <div class="mt-4 rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 text-xs leading-6 text-emerald-800">
+            Export mengikuti filter aktif. Untuk data besar, gunakan filter status dan tanggal lebih dulu agar hasil PDF tetap ringan dan mudah dibaca.
+        </div>
     </div>
 
     <!-- Bookings Table -->
@@ -184,9 +187,12 @@
                 @empty
                     <tr>
                         <td colspan="8">
-                            <div class="flex flex-col items-center justify-center py-12 text-slate-400 dark:text-slate-500">
+                            <div class="flex flex-col items-center justify-center py-12 text-center text-slate-400 dark:text-slate-500">
                                 <span class="material-symbols-outlined text-[48px] mb-3">calendar_today</span>
-                                <p class="text-sm text-slate-500 dark:text-slate-400">No bookings found</p>
+                                <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Belum ada booking yang sesuai</p>
+                                <p class="mt-1 max-w-sm text-xs leading-5 text-slate-500 dark:text-slate-400">
+                                    Ubah filter tanggal atau status untuk melihat jadwal lain, atau tunggu booking baru masuk dari aplikasi.
+                                </p>
                             </div>
                         </td>
                     </tr>

@@ -35,6 +35,10 @@ class MedicalRecordsViewModel @Inject constructor(
     private val petRepository: PetRepository
 ) : ViewModel() {
 
+    private var hasLoadedAllRecords = false
+    private var lastLoadedPetId: Int? = null
+    private var lastLoadedRecordId: Int? = null
+
     // ── List state ────────────────────────────────────────────────────────────
     private val _listState = MutableStateFlow(MedicalRecordsUiState())
     val listState: StateFlow<MedicalRecordsUiState> = _listState.asStateFlow()
@@ -50,12 +54,22 @@ class MedicalRecordsViewModel @Inject constructor(
     // ── Available filter categories ───────────────────────────────────────────
     val filterCategories = listOf("All", "Vaccinations", "Checkups", "Surgeries", "Lab Results")
 
-    fun loadRecords() {
+    fun loadRecords(forceRefresh: Boolean = false) {
+        if (!forceRefresh && hasLoadedAllRecords && _listState.value.records.isNotEmpty()) {
+            return
+        }
         viewModelScope.launch {
-            _listState.value = _listState.value.copy(isLoading = true, error = null)
-            when (val result = medicalRecordRepository.getMedicalRecords()) {
+            val hasCachedRecords = _listState.value.records.isNotEmpty()
+            if (!hasCachedRecords || forceRefresh) {
+                _listState.value = _listState.value.copy(isLoading = true, error = null)
+            } else {
+                _listState.value = _listState.value.copy(error = null)
+            }
+            when (val result = medicalRecordRepository.getMedicalRecords(forceRefresh = forceRefresh)) {
                 is com.christopheraldoo.petheal.data.repository.Result.Success -> {
                     val records = result.data
+                    hasLoadedAllRecords = true
+                    lastLoadedPetId = null
                     _listState.value = _listState.value.copy(
                         isLoading = false,
                         records = records,
@@ -75,12 +89,21 @@ class MedicalRecordsViewModel @Inject constructor(
         }
     }
 
-    fun loadRecordsByPet(petId: Int) {
+    fun loadRecordsByPet(petId: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastLoadedPetId == petId && _listState.value.records.isNotEmpty()) {
+            return
+        }
         viewModelScope.launch {
-            _listState.value = _listState.value.copy(isLoading = true, error = null)
-            when (val result = medicalRecordRepository.getMedicalRecordsByPet(petId)) {
+            val hasCachedRecords = _listState.value.records.isNotEmpty()
+            if (!hasCachedRecords || forceRefresh) {
+                _listState.value = _listState.value.copy(isLoading = true, error = null)
+            } else {
+                _listState.value = _listState.value.copy(error = null)
+            }
+            when (val result = medicalRecordRepository.getMedicalRecordsByPet(petId, forceRefresh = forceRefresh)) {
                 is com.christopheraldoo.petheal.data.repository.Result.Success -> {
                     val records = result.data
+                    lastLoadedPetId = petId
                     _listState.value = _listState.value.copy(
                         isLoading = false,
                         records = records,
@@ -100,11 +123,20 @@ class MedicalRecordsViewModel @Inject constructor(
         }
     }
 
-    fun loadRecord(id: Int) {
+    fun loadRecord(id: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastLoadedRecordId == id && _detailState.value.record?.id == id) {
+            return
+        }
         viewModelScope.launch {
-            _detailState.value = _detailState.value.copy(isLoading = true, error = null)
-            when (val result = medicalRecordRepository.getMedicalRecord(id)) {
+            val hasCachedRecord = _detailState.value.record?.id == id
+            if (!hasCachedRecord || forceRefresh) {
+                _detailState.value = _detailState.value.copy(isLoading = true, error = null)
+            } else {
+                _detailState.value = _detailState.value.copy(error = null)
+            }
+            when (val result = medicalRecordRepository.getMedicalRecord(id, forceRefresh = forceRefresh)) {
                 is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    lastLoadedRecordId = id
                     _detailState.value = _detailState.value.copy(
                         isLoading = false,
                         record = result.data

@@ -347,8 +347,6 @@ private fun PetListCard(
     val borderColor = if (isFirst) PetPrimary else PetPrimary.copy(alpha = 0.3f)
     val arrowBg     = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
 
-    var pressed by remember { mutableStateOf(false) }
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -848,12 +846,19 @@ fun PetDetailScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "Health Records",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                "Medical Records",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = textPrimary
+                            )
+                            Text(
+                                "Recent diagnosis, treatment, and follow-up history",
+                                fontSize = 12.sp,
+                                color = textMuted
+                            )
+                        }
                         TextButton(onClick = onNavigateToMedicalRecords) {
                             Text(
                                 "View All",
@@ -891,13 +896,13 @@ fun PetDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    "No health records yet",
+                                    "No medical records yet",
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = textPrimary
                                 )
                                 Text(
-                                    "Medical records will appear here after vet visits",
+                                    "Records will appear here after your pet completes a consultation or treatment.",
                                     fontSize = 13.sp,
                                     color = textMuted,
                                     textAlign = TextAlign.Center
@@ -911,30 +916,36 @@ fun PetDetailScreen(
                                 Spacer(modifier = Modifier.height(12.dp))
                             }
                             
-                            val recordTitle = record.diagnosis ?: "Medical Checkup"
+                            val recordTitle = record.diagnosis ?: "General medical review"
                             val recordSubtitle = buildString {
-                                record.treatment?.let { append(it) }
-                                record.medicine?.let {
-                                    if (isNotEmpty()) append(" - ")
+                                record.treatment?.takeIf { it.isNotBlank() }?.let { append(it) }
+                                record.medicine?.takeIf { it.isNotBlank() }?.let {
+                                    if (isNotEmpty()) append(" • ")
                                     append(it)
                                 }
-                                record.createdAt?.let {
-                                    if (isNotEmpty()) append(" | ")
-                                    append("Date: $it")
+                            }.ifBlank { "Tap to review the clinical summary and treatment notes." }
+
+                            val recordMeta = buildString {
+                                append(formatMedicalRecordDate(record.createdAt))
+                                if (!record.nextVisitDate.isNullOrBlank()) {
+                                    append(" • Follow-up ")
+                                    append(record.nextVisitDate)
                                 }
-                            }.ifBlank { "No details" }
-                            
+                            }
+
                             val isActive = !record.nextVisitDate.isNullOrBlank()
-                            
+
                             HealthRecordCard(
                                 icon = Icons.Filled.LocalHospital,
                                 title = recordTitle,
                                 subtitle = recordSubtitle,
+                                meta = recordMeta,
                                 isActive = isActive,
                                 showChevron = true,
                                 surfaceColor = surfaceColor,
                                 textPrimary = textPrimary,
-                                textMuted = textMuted
+                                textMuted = textMuted,
+                                onClick = onNavigateToMedicalRecords
                             )
                         }
                     }
@@ -979,27 +990,42 @@ private fun HealthTrackingSection(
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(
-            "Health Tracking",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = textPrimary
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                "Health Tracking",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = textPrimary
+            )
+            Text(
+                "Weight history and vaccination reminders in one place",
+                fontSize = 12.sp,
+                color = textMuted
+            )
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = surfaceColor),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.FitnessCenter, null, tint = PetPrimary, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(PetPrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.FitnessCenter, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Weight Tracker", fontWeight = FontWeight.Bold, color = textPrimary)
                         Text(
-                            currentWeight?.let { "Current: $it kg" } ?: "No weight recorded",
+                            currentWeight?.let { "Current weight: $it kg" } ?: "No weight record saved yet",
                             fontSize = 13.sp,
                             color = textMuted
                         )
@@ -1025,12 +1051,12 @@ private fun HealthTrackingSection(
                 }
 
                 if (weightRecords.isEmpty()) {
-                    Text("Start tracking weight to monitor pet health over time.", fontSize = 13.sp, color = textMuted)
+                    Text("Start recording weight so growth, recovery, and health changes are easier to monitor over time.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
                 } else {
                     weightRecords.take(3).forEach { record ->
                         HealthMiniRow(
                             title = "${record.weight ?: 0.0} kg",
-                            subtitle = listOfNotNull(record.recordedAt, record.notes).joinToString(" - ").ifBlank { "Weight record" },
+                            subtitle = listOfNotNull(record.recordedAt, record.notes).joinToString(" • ").ifBlank { "Weight record" },
                             textPrimary = textPrimary,
                             textMuted = textMuted
                         )
@@ -1041,18 +1067,26 @@ private fun HealthTrackingSection(
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(18.dp),
+            shape = RoundedCornerShape(22.dp),
             colors = CardDefaults.cardColors(containerColor = surfaceColor),
             elevation = CardDefaults.cardElevation(0.dp)
         ) {
-            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.MedicalServices, null, tint = PetPrimary, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(10.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(PetPrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Filled.MedicalServices, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Vaccinations", fontWeight = FontWeight.Bold, color = textPrimary)
                         Text(
-                            if (upcomingVaccinations.isNotEmpty()) "${upcomingVaccinations.size} upcoming due" else "No upcoming due",
+                            if (upcomingVaccinations.isNotEmpty()) "${upcomingVaccinations.size} follow-up reminder${if (upcomingVaccinations.size > 1) "s" else ""} coming up" else "No upcoming vaccination due",
                             fontSize = 13.sp,
                             color = textMuted
                         )
@@ -1066,16 +1100,16 @@ private fun HealthTrackingSection(
 
                 val preview = upcomingVaccinations.ifEmpty { vaccinations }.take(3)
                 if (preview.isEmpty()) {
-                    Text("Record vaccines here so reminders and pet history stay complete.", fontSize = 13.sp, color = textMuted)
+                    Text("Save vaccination history here so reminders and medical timelines stay complete.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
                 } else {
                     preview.forEach { vaccine ->
                         HealthMiniRow(
                             title = vaccine.vaccineName ?: "Vaccination",
                             subtitle = buildString {
-                                vaccine.dateAdministered?.let { append("Given: $it") }
+                                vaccine.dateAdministered?.let { append("Given $it") }
                                 vaccine.nextDueDate?.let {
-                                    if (isNotEmpty()) append(" - ")
-                                    append("Next: $it")
+                                    if (isNotEmpty()) append(" • ")
+                                    append("Next due $it")
                                 }
                             }.ifBlank { vaccine.veterinarian ?: "Vaccination record" },
                             textPrimary = textPrimary,
@@ -1129,21 +1163,40 @@ private fun AddWeightDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Weight Record", fontWeight = FontWeight.Bold) },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Log Weight", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text(
+                    "Save the latest weight to keep your pet's progress up to date.",
+                    fontSize = 13.sp,
+                    color = PetMuted,
+                    lineHeight = 18.sp
+                )
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                HealthDialogHintCard(
+                    icon = Icons.Filled.MonitorWeight,
+                    title = "Quick note",
+                    body = "Use kilograms for consistency. Add a note only if this reading needs extra context."
+                )
+                HealthDialogField(
                     value = weight,
                     onValueChange = { weight = it },
-                    label = { Text("Weight (kg)") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                    label = "Weight (kg)",
+                    placeholder = "Example: 5.8",
+                    keyboardType = KeyboardType.Decimal
                 )
-                OutlinedTextField(
+                HealthDialogField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
-                    minLines = 2
+                    label = "Notes",
+                    placeholder = "Optional observation after weighing",
+                    minLines = 3,
+                    singleLine = false
                 )
             }
         },
@@ -1151,10 +1204,11 @@ private fun AddWeightDialog(
             Button(
                 enabled = !isLoading && parsedWeight != null && parsedWeight > 0.0,
                 onClick = { parsedWeight?.let { onSubmit(it, notes.trim().ifBlank { null }) } },
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
-            ) { Text(if (isLoading) "Saving..." else "Save") }
+            ) { Text(if (isLoading) "Saving..." else "Save Weight") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }
 
@@ -1164,6 +1218,7 @@ private fun AddVaccinationDialog(
     onDismiss: () -> Unit,
     onSubmit: (name: String, date: String, nextDue: String?, veterinarian: String?, notes: String?) -> Unit
 ) {
+    val context = LocalContext.current
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()) }
     var name by remember { mutableStateOf("") }
     var dateAdministered by remember { mutableStateOf(today) }
@@ -1173,38 +1228,68 @@ private fun AddVaccinationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Vaccination", fontWeight = FontWeight.Bold) },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(24.dp),
+        title = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("Add Vaccination", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text(
+                    "Record the vaccine details and optional follow-up schedule.",
+                    fontSize = 13.sp,
+                    color = PetMuted,
+                    lineHeight = 18.sp
+                )
+            }
+        },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                HealthDialogHintCard(
+                    icon = Icons.Filled.Vaccines,
+                    title = "Reminder",
+                    body = "Use the administered date for today's shot. Add a next due date if the vaccine needs a follow-up."
+                )
+                HealthDialogField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Vaccine name") },
-                    singleLine = true
+                    label = "Vaccine name",
+                    placeholder = "Example: Rabies Booster"
                 )
-                OutlinedTextField(
+                HealthDialogDateField(
                     value = dateAdministered,
-                    onValueChange = { dateAdministered = it },
-                    label = { Text("Date administered (YYYY-MM-DD)") },
-                    singleLine = true
+                    label = "Date administered",
+                    placeholder = "Select date",
+                    onClick = {
+                        showPetDatePicker(context, dateAdministered.ifBlank { today }) {
+                            dateAdministered = it
+                        }
+                    }
                 )
-                OutlinedTextField(
+                HealthDialogDateField(
                     value = nextDueDate,
-                    onValueChange = { nextDueDate = it },
-                    label = { Text("Next due date (optional)") },
-                    singleLine = true
+                    label = "Next due date",
+                    placeholder = "Optional follow-up date",
+                    onClick = {
+                        showPetDatePicker(context, nextDueDate.ifBlank { dateAdministered }) {
+                            nextDueDate = it
+                        }
+                    },
+                    onClear = {
+                        nextDueDate = ""
+                    }
                 )
-                OutlinedTextField(
+                HealthDialogField(
                     value = veterinarian,
                     onValueChange = { veterinarian = it },
-                    label = { Text("Veterinarian (optional)") },
-                    singleLine = true
+                    label = "Veterinarian",
+                    placeholder = "Optional doctor or clinic name"
                 )
-                OutlinedTextField(
+                HealthDialogField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (optional)") },
-                    minLines = 2
+                    label = "Notes",
+                    placeholder = "Optional recovery or observation note",
+                    minLines = 3,
+                    singleLine = false
                 )
             }
         },
@@ -1220,11 +1305,144 @@ private fun AddVaccinationDialog(
                         notes.trim().ifBlank { null }
                     )
                 },
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
-            ) { Text(if (isLoading) "Saving..." else "Save") }
+            ) { Text(if (isLoading) "Saving..." else "Save Vaccination") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
+}
+
+@Composable
+private fun HealthDialogHintCard(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    body: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(PetPrimary.copy(alpha = 0.08f))
+            .border(1.dp, PetPrimary.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+            .padding(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(PetPrimary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = PetPrimary, modifier = Modifier.size(18.dp))
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111813))
+            Text(body, fontSize = 12.sp, color = PetMuted, lineHeight = 18.sp)
+        }
+    }
+}
+
+@Composable
+private fun HealthDialogField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    minLines: Int = 1,
+    singleLine: Boolean = true
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        modifier = Modifier.fillMaxWidth(),
+        minLines = minLines,
+        singleLine = singleLine,
+        shape = RoundedCornerShape(16.dp),
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = PetPrimary,
+            unfocusedBorderColor = Color(0xFFE2E8F0),
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White
+        )
+    )
+}
+
+@Composable
+private fun HealthDialogDateField(
+    value: String,
+    label: String,
+    placeholder: String,
+    onClick: () -> Unit,
+    onClear: (() -> Unit)? = null
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = PetMuted)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onClick),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = PetPrimary, modifier = Modifier.size(18.dp))
+                    Text(
+                        text = value.ifBlank { placeholder },
+                        fontSize = 14.sp,
+                        color = if (value.isBlank()) PetMuted else Color(0xFF111813)
+                    )
+                }
+                if (onClear != null && value.isNotBlank()) {
+                    TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp)) {
+                        Text("Clear", color = PetMuted)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun showPetDatePicker(
+    context: Context,
+    initialDate: String,
+    onDateSelected: (String) -> Unit
+) {
+    val calendar = Calendar.getInstance()
+    initialDate.split("-").takeIf { it.size == 3 }?.let { parts ->
+        runCatching {
+            calendar.set(parts[0].toInt(), parts[1].toInt() - 1, parts[2].toInt())
+        }
+    }
+
+    android.app.DatePickerDialog(
+        context,
+        { _, year, month, dayOfMonth ->
+            onDateSelected(String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayOfMonth))
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    ).show()
 }
 
 @Composable
@@ -1272,16 +1490,20 @@ private fun HealthRecordCard(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     title: String,
     subtitle: String,
+    meta: String,
     isActive: Boolean,
     modifier: Modifier = Modifier,
     showChevron: Boolean = false,
     surfaceColor: Color,
     textPrimary: Color,
-    textMuted: Color
+    textMuted: Color,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = surfaceColor),
         elevation = CardDefaults.cardElevation(0.dp)
     ) {
@@ -1294,8 +1516,8 @@ private fun HealthRecordCard(
         ) {
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(50.dp)
+                    .clip(RoundedCornerShape(16.dp))
                     .background(PetPrimary.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
@@ -1312,6 +1534,16 @@ private fun HealthRecordCard(
                 Text(
                     subtitle,
                     fontSize = 13.sp,
+                    color = textMuted,
+                    lineHeight = 18.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    meta,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
                     color = textMuted
                 )
             }
@@ -1319,12 +1551,12 @@ private fun HealthRecordCard(
             if (isActive) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
+                        .clip(RoundedCornerShape(8.dp))
                         .background(PetPrimary.copy(alpha = 0.2f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        "Active",
+                        "Follow-up",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
                         color = PetPrimary
@@ -1346,6 +1578,15 @@ private fun HealthRecordCard(
                 )
             }
         }
+    }
+}
+
+private fun formatMedicalRecordDate(value: String?): String {
+    if (value.isNullOrBlank()) return "Recorded recently"
+    return try {
+        "Recorded ${value.take(10)}"
+    } catch (_: Exception) {
+        "Recorded recently"
     }
 }
 

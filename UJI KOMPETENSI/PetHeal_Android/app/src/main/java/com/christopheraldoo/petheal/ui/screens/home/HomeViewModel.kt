@@ -4,6 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.data.model.DashboardData
+import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.model.Vaccination
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.NotificationRepository
@@ -21,9 +24,23 @@ data class HomeUiState(
     val userName: String = "",
     val userPhoto: String? = null,
     val upcomingBooking: Booking? = null,
-    val isLoading: Boolean = true, // True until cache is loaded
-    val isBookingLoading: Boolean = false, // True while fetching bookings
-    val unreadNotificationCount: Int = 0
+    val isLoading: Boolean = true,
+    val isBookingLoading: Boolean = false,
+    val unreadNotificationCount: Int = 0,
+    val totalPets: Int = 0,
+    val activePets: Int = 0,
+    val pendingBookings: Int = 0,
+    val confirmedBookings: Int = 0,
+    val paymentAttentionCount: Int = 0,
+    val outstandingAmount: Double = 0.0,
+    val totalVisits: Int = 0,
+    val totalSpent: Double = 0.0,
+    val followUpDueCount: Int = 0,
+    val dueVaccinationCount: Int = 0,
+    val overdueVaccinationCount: Int = 0,
+    val recentVisits: List<MedicalRecord> = emptyList(),
+    val dueSoonVaccinations: List<Vaccination> = emptyList(),
+    val dashboardSummary: String = ""
 )
 
 @HiltViewModel
@@ -67,7 +84,6 @@ class HomeViewModel @Inject constructor(
             }
         }
         
-        // Load Booking Data
         loadBookingData()
     }
 
@@ -91,20 +107,38 @@ class HomeViewModel @Inject constructor(
                 } catch (e: Exception) { /* silent */ }
             }
 
-            val bookingDeferred = async {
+            val dashboardDeferred = async {
                 try {
-                    val response = apiService.getUpcomingBookings()
-                    if (response.isSuccessful) response.body()?.data?.firstOrNull() else null
+                    val response = apiService.getDashboard()
+                    if (response.isSuccessful) response.body()?.data else null
                 } catch (e: Exception) { null }
             }
 
-            profileDeferred.await() // Run in background
-            val upcomingBooking = bookingDeferred.await()
+            profileDeferred.await()
+            val dashboard = dashboardDeferred.await()
 
-            _uiState.value = _uiState.value.copy(
-                upcomingBooking = upcomingBooking,
-                isBookingLoading = false
-            )
+            if (dashboard != null) {
+                _uiState.value = _uiState.value.copy(
+                    upcomingBooking = dashboard.bookings.upcoming.firstOrNull(),
+                    totalPets = dashboard.pets.total,
+                    activePets = dashboard.pets.active,
+                    pendingBookings = dashboard.bookings.pending,
+                    confirmedBookings = dashboard.bookings.confirmed,
+                    paymentAttentionCount = dashboard.payments.attentionCount,
+                    outstandingAmount = dashboard.payments.outstandingAmount,
+                    totalVisits = dashboard.medical.totalVisits,
+                    totalSpent = dashboard.medical.totalSpent,
+                    followUpDueCount = dashboard.medical.followUpDue,
+                    dueVaccinationCount = dashboard.vaccinationAlerts.dueSoon.size,
+                    overdueVaccinationCount = dashboard.vaccinationAlerts.overdue.size,
+                    recentVisits = dashboard.medical.recentVisits,
+                    dueSoonVaccinations = dashboard.vaccinationAlerts.dueSoon,
+                    dashboardSummary = dashboard.summary,
+                    isBookingLoading = false
+                )
+            } else {
+                _uiState.value = _uiState.value.copy(isBookingLoading = false)
+            }
         }
     }
 

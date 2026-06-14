@@ -64,7 +64,9 @@ data class SnapTokenData(
     @SerializedName("redirect_url")
     val redirectUrl: String? = null,
     @SerializedName("transaction_id")
-    val transactionId: String? = null
+    val transactionId: String? = null,
+    @SerializedName("order_id")
+    val orderId: String? = null
 )
 
 data class PaymentPreflightResponse(

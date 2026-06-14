@@ -220,7 +220,10 @@ class BookingController extends Controller
             $request->user()->id,
             $pet->name,
             'pending',
-            $booking->booking_date
+            $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         return response()->json([
@@ -260,7 +263,10 @@ class BookingController extends Controller
             $request->user()->id,
             $booking->pet->name,
             'cancelled',
-            $booking->booking_date
+            $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         return response()->json([
@@ -333,7 +339,10 @@ class BookingController extends Controller
             $request->user()->id,
             $booking->pet->name,
             'rescheduled',
-            $booking->booking_date
+            $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         return response()->json([

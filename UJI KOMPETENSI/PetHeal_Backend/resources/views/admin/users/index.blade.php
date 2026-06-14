@@ -39,17 +39,17 @@
             <input type="text" 
                    name="search" 
                    value="{{ request('search') }}" 
-                   placeholder="Search by name, email, or phone..." 
+                   placeholder="Cari nama, email, atau nomor telepon..." 
                    class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all dark:text-slate-200">
         </div>
         <button type="submit" 
                 class="px-6 py-2.5 bg-primary hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all">
-            Search
+            Cari
         </button>
         @if(request('search'))
             <a href="{{ route('admin.users.index') }}" 
                class="px-4 py-2.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 font-semibold rounded-xl transition-all">
-                Clear
+                Reset
             </a>
         @endif
     </form>
@@ -149,12 +149,12 @@
             <div class="inline-flex items-center justify-center w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full mb-4">
                 <span class="material-symbols-outlined text-5xl text-slate-400 dark:text-slate-500">group_off</span>
             </div>
-            <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">No users found</h3>
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white mb-2">Belum ada pengguna yang sesuai</h3>
             <p class="text-slate-500 dark:text-slate-400 mb-6 max-w-md mx-auto">
                 @if(request('search'))
-                    No users match your search "{{ request('search') }}". Try different keywords.
+                    Tidak ada pengguna yang cocok untuk pencarian "{{ request('search') }}". Coba gunakan kata kunci lain.
                 @else
-                    Get started by manually adding a new user.
+                    Mulai dengan menambahkan pengguna baru secara manual dari panel admin.
                 @endif
             </p>
             <div class="flex justify-center gap-3">
@@ -162,13 +162,13 @@
                     <a href="{{ route('admin.users.create') }}" 
                        class="inline-flex items-center gap-2 px-4 py-2 bg-primary hover:bg-emerald-600 text-white font-semibold rounded-xl transition-all">
                         <span class="material-symbols-outlined text-[18px]">person_add</span>
-                        Add User
+                        Tambah Pengguna
                     </a>
                 @else
                     <a href="{{ route('admin.users.index') }}" 
                        class="inline-flex items-center gap-2 px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold rounded-xl transition-all">
                         <span class="material-symbols-outlined text-[18px]">clear</span>
-                        Clear Search
+                        Reset Pencarian
                     </a>
                 @endif
             </div>

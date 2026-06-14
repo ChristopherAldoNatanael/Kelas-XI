@@ -22,7 +22,17 @@ class DoctorController extends Controller
      */
     public function index()
     {
-        $doctors = Doctor::orderBy('name')->paginate(20);
+        $doctors = Doctor::query()
+            ->withCount([
+                'reviews',
+                'bookings',
+                'bookings as completed_bookings_count' => function ($query) {
+                    $query->where('status', 'completed');
+                },
+            ])
+            ->withAvg('reviews', 'rating')
+            ->orderBy('name')
+            ->paginate(20);
 
         return view('admin.doctors.index', compact('doctors'));
     }
@@ -101,9 +111,29 @@ class DoctorController extends Controller
      */
     public function show($id)
     {
-        $doctor = Doctor::with(['bookings' => function ($query) {
-            $query->with(['pet', 'user'])->orderBy('booking_date', 'desc')->limit(10);
-        }])->findOrFail($id);
+        $doctor = Doctor::query()
+            ->withCount([
+                'reviews',
+                'bookings',
+                'bookings as completed_bookings_count' => function ($query) {
+                    $query->where('status', 'completed');
+                },
+                'bookings as pending_bookings_count' => function ($query) {
+                    $query->where('status', 'pending');
+                },
+            ])
+            ->withAvg('reviews', 'rating')
+            ->with([
+                'bookings' => function ($query) {
+                    $query->with(['pet', 'user'])->orderBy('booking_date', 'desc')->limit(10);
+                },
+                'reviews' => function ($query) {
+                    $query->with(['user:id,name', 'booking:id,booking_date,booking_time,pet_id', 'booking.pet:id,name'])
+                        ->latest()
+                        ->limit(6);
+                },
+            ])
+            ->findOrFail($id);
 
         return view('admin.doctors.show', compact('doctor'));
     }

@@ -1,14 +1,40 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Badge
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.SwitchLeft
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,29 +44,80 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.christopheraldoo.petheal.BuildConfig
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrivacySecurityScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     val isDark = false
     val bgColor = if (isDark) Color(0xFFF6F8F6) else Color(0xFFF6F8F6)
     val textColor = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0F172A)
     val secondaryColor = if (isDark) Color(0xFF9DB9A6) else Color(0xFF64748B)
     val context = LocalContext.current
-    var biometricEnabled by remember { mutableStateOf(false) }
-    var twoFactorEnabled by remember { mutableStateOf(false) }
+
+    val isGoogleAccount = uiState.authProvider == PreferencesManager.AUTH_PROVIDER_GOOGLE
     var showPasswordDialog by remember { mutableStateOf(false) }
     var showPermissionsDialog by remember { mutableStateOf(false) }
 
     if (showPasswordDialog) {
         AlertDialog(
-            onDismissRequest = { showPasswordDialog = false },
-            title = { Text("Change Password", fontWeight = FontWeight.Bold) },
-            text = { Text("Use Forgot Password from the login screen to receive a reset code and create a new password. Google accounts use Google account security.") },
+            onDismissRequest = {
+                viewModel.clearMessages()
+                showPasswordDialog = false
+            },
+            title = {
+                Text(
+                    if (isGoogleAccount) "Keamanan Akun Google" else "Reset Password",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (isGoogleAccount) {
+                        Text("Akun ini masuk menggunakan Google. Pengaturan password dan perlindungan akun dikelola dari akun Google Anda.")
+                    } else {
+                        Text("Kirim kode reset ke email yang terdaftar, lalu selesaikan penggantian password dari halaman login.")
+                        AccountInfoCard(
+                            label = "Email reset",
+                            value = uiState.userEmail ?: "Email akun tidak ditemukan"
+                        )
+                    }
+
+                    uiState.resetMessage?.let {
+                        Text(it, color = Color(0xFF047857), fontSize = 13.sp)
+                    }
+
+                    uiState.error?.let {
+                        Text(it, color = Color(0xFFDC2626), fontSize = 13.sp)
+                    }
+                }
+            },
             confirmButton = {
-                TextButton(onClick = { showPasswordDialog = false }) { Text("Close") }
+                if (isGoogleAccount) {
+                    TextButton(onClick = {
+                        viewModel.clearMessages()
+                        showPasswordDialog = false
+                    }) { Text("Close") }
+                } else {
+                    TextButton(
+                        enabled = !uiState.isSendingReset && !uiState.userEmail.isNullOrBlank(),
+                        onClick = { viewModel.sendPasswordReset(uiState.userEmail.orEmpty()) }
+                    ) {
+                        Text(if (uiState.isSendingReset) "Mengirim..." else "Kirim Kode Reset")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    viewModel.clearMessages()
+                    showPasswordDialog = false
+                }) { Text("Close") }
             }
         )
     }
@@ -49,7 +126,9 @@ fun PrivacySecurityScreen(
         AlertDialog(
             onDismissRequest = { showPermissionsDialog = false },
             title = { Text("Data Permissions", fontWeight = FontWeight.Bold) },
-            text = { Text("PetHeal uses camera/gallery access for pet and profile photos, notification permission for booking and vaccination reminders, and network access for backend sync.") },
+            text = {
+                Text("PetHeal uses camera or gallery access for pet and profile photos, notification permission for reminders, and network access for booking, payment, and medical-record sync.")
+            },
             confirmButton = {
                 TextButton(onClick = { showPermissionsDialog = false }) { Text("Close") }
             }
@@ -60,7 +139,14 @@ fun PrivacySecurityScreen(
         containerColor = bgColor,
         topBar = {
             TopAppBar(
-                title = { Text("Privacy & Security", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Privasi & Keamanan",
+                        color = textColor,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = textColor)
@@ -78,30 +164,33 @@ fun PrivacySecurityScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SettingsSectionCard(title = "Security") {
+            SettingsSectionCard(title = "Account Security") {
                 SettingsActionRow(
-                    icon = Icons.Default.Fingerprint,
-                    label = "Biometric Login ${if (biometricEnabled) "On" else "Off"}",
-                    onClick = { biometricEnabled = !biometricEnabled }
+                    icon = Icons.Default.Badge,
+                    label = "Metode Masuk",
+                    showChevron = false,
+                    trailing = {
+                        Text(
+                            if (isGoogleAccount) "Google" else "Email",
+                            color = secondaryColor,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    },
+                    onClick = {}
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.Key,
-                    label = "Change Password",
+                    label = if (isGoogleAccount) "Keamanan Akun Google" else "Reset Password",
                     onClick = { showPasswordDialog = true }
-                )
-                Divider(color = secondaryColor.copy(alpha = 0.2f))
-                SettingsActionRow(
-                    icon = Icons.Default.Security,
-                    label = "Two-Factor Authentication ${if (twoFactorEnabled) "On" else "Off"}",
-                    onClick = { twoFactorEnabled = !twoFactorEnabled }
                 )
             }
 
-            SettingsSectionCard(title = "Data & Privacy") {
+            SettingsSectionCard(title = "Privacy") {
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
-                    label = "Manage Data Permissions",
+                    label = "Kelola Izin Data",
                     onClick = { showPermissionsDialog = true }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
@@ -113,10 +202,62 @@ fun PrivacySecurityScreen(
                             context.cacheDir.deleteRecursively()
                             context.externalCacheDir?.deleteRecursively()
                         }
-                        Toast.makeText(context, "Cache cleared", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Cache sementara dibersihkan", Toast.LENGTH_SHORT).show()
                     }
                 )
             }
+
+            SettingsSectionCard(title = "Connection") {
+                SettingsActionRow(
+                    icon = Icons.Default.CloudDone,
+                    label = "Endpoint Backend",
+                    showChevron = false,
+                    trailing = {
+                        Text(
+                            BuildConfig.BACKEND_BASE_URL.removePrefix("https://").removePrefix("http://").take(28),
+                            color = secondaryColor,
+                            fontSize = 12.sp
+                        )
+                    },
+                    onClick = {}
+                )
+            }
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .padding(2.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF2BEE6C))
+                    }
+                    Text("Hanya pengaturan yang benar-benar aktif yang ditampilkan di sini.", color = textColor, fontWeight = FontWeight.SemiBold)
+                    Text(
+                        "Biometric sign-in dan autentikasi dua langkah disembunyikan sampai benar-benar memiliki perlindungan akun yang nyata. Ini menjaga layar tetap jujur dan menghindari UI yang terlihat siap tetapi tidak melakukan apa-apa.",
+                        color = secondaryColor,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp,
+                        textAlign = TextAlign.Start
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AccountInfoCard(label: String, value: String) {
+    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text(label, color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(value, color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

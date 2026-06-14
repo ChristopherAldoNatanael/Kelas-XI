@@ -92,9 +92,12 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     Route::get('/bookings/upcoming', [BookingController::class, 'upcoming']);
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
+    Route::get('/bookings/{id}/medical-record', [MedicalRecordController::class, 'getByBooking']);
     Route::apiResource('bookings', BookingController::class)->only(['index', 'store', 'show', 'destroy']);
 
     // Medical record routes
+    Route::post('/medical-records/{id}/pay', [MedicalRecordController::class, 'createExtraPayment'])->middleware('throttle:payment');
+    Route::get('/medical-records/{id}/payment-status', [MedicalRecordController::class, 'paymentStatus']);
     Route::apiResource('medical-records', MedicalRecordController::class)->only(['index', 'show']);
 
     // Payment routes (Midtrans integration)

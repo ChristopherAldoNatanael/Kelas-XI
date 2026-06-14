@@ -132,6 +132,9 @@ fun PetHealNavHost(
                 onNavigateToPets = { navController.navigate(Screen.Pets.route) },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
                 onNavigateToBookings = { navController.navigate(Screen.Bookings.route) },
+                onNavigateToBookingDetail = { bookingId ->
+                    navController.navigate(Screen.BookingDetail.createRoute(bookingId))
+                },
                 onNavigateToMedicalRecords = { navController.navigate(Screen.MedicalRecords.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
                 onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
@@ -212,6 +215,7 @@ fun PetHealNavHost(
         composable(Screen.Bookings.route) {
             BookingsScreen(
                 onNavigateBack = { navController.popBackStack() },
+                onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
                 onNavigateToBookingDetail = { bookingId ->
                     navController.navigate(Screen.BookingDetail.createRoute(bookingId))
                 },
@@ -254,6 +258,12 @@ fun PetHealNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToPayment = { payBookingId, isDp, amount, isRemaining ->
                     navController.navigate(Screen.Payment.createRoute(payBookingId, isDp, amount, isRemaining))
+                },
+                onNavigateToMedicalRecord = { recordId ->
+                    navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId))
+                },
+                onNavigateToMedicalExtraPayment = { recordId, payBookingId, amount ->
+                    navController.navigate(Screen.MedicalExtraPayment.createRoute(payBookingId, recordId, amount))
                 }
             )
         }
@@ -313,7 +323,13 @@ fun PetHealNavHost(
         // Notifications Screen
         composable(Screen.Notifications.route) {
             NotificationsScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onOpenBooking = { bookingId -> navController.navigate(Screen.BookingDetail.createRoute(bookingId)) },
+                onOpenMedicalRecord = { recordId -> navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId)) },
+                onOpenPet = { petId -> navController.navigate(Screen.PetDetail.createRoute(petId)) },
+                onOpenDoctor = { doctorId -> navController.navigate(Screen.DoctorDetail.createRoute(doctorId)) },
+                onOpenBookings = { navController.navigate(Screen.Bookings.route) },
+                onOpenPets = { navController.navigate(Screen.Pets.route) }
             )
         }
 
@@ -337,6 +353,72 @@ fun PetHealNavHost(
         }
 
         // Payment Screen
+        composable(
+            route = Screen.MedicalExtraPayment.route,
+            arguments = listOf(
+                navArgument("bookingId") { type = NavType.IntType },
+                navArgument("recordId") { type = NavType.IntType },
+                navArgument("amount") { type = NavType.FloatType }
+            )
+        ) { backStackEntry ->
+            val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: return@composable
+            val recordId = backStackEntry.arguments?.getInt("recordId") ?: return@composable
+            val amount = backStackEntry.arguments?.getFloat("amount")?.toDouble() ?: 0.0
+
+            val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
+            val paymentNavState by paymentNavViewModel.state.collectAsState()
+
+            LaunchedEffect(bookingId) {
+                paymentNavViewModel.loadBookingAndUser(bookingId)
+            }
+
+            when {
+                paymentNavState.isLoading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF2BEE6C))
+                    }
+                }
+                paymentNavState.error != null -> {
+                    Column(
+                        Modifier.fillMaxSize().padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text("Error: ${paymentNavState.error}", color = Color(0xFFEF4444), textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(16.dp))
+                        Button(onClick = { navController.popBackStack() }) { Text("Go Back") }
+                    }
+                }
+                paymentNavState.booking != null -> {
+                    PaymentScreen(
+                        booking = paymentNavState.booking!!,
+                        user = paymentNavState.user,
+                        isDpPayment = false,
+                        totalAmount = amount,
+                        isRemainingPayment = false,
+                        medicalRecordId = recordId,
+                        onPaymentSuccess = { orderId ->
+                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "success", "Extra medical payment successful!")) {
+                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                            }
+                        },
+                        onPaymentPending = { orderId ->
+                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "pending", "Extra medical payment pending.")) {
+                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                            }
+                        },
+                        onPaymentFailed = { errorMsg ->
+                            navController.navigate(Screen.PaymentResult.createRoute("medical-$recordId", "failed", errorMsg)) {
+                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                            }
+                        },
+                        onNavigateBack = { navController.popBackStack() },
+                        onBookingUpdated = { paymentNavViewModel.notifyBookingUpdated() }
+                    )
+                }
+            }
+        }
+
         composable(
             route = Screen.Payment.route,
             arguments = listOf(

@@ -48,6 +48,7 @@ data class DoctorDetailUiState(
     val isLoading: Boolean = false,
     val isSlotsLoading: Boolean = false,
     val isSubmittingReview: Boolean = false,
+    val reviewMessage: String? = null,
     val error: String? = null
 )
 
@@ -198,10 +199,17 @@ class DoctorsViewModel @Inject constructor(
 
     fun submitReview(doctorId: Int, bookingId: Int, rating: Int, review: String?) {
         viewModelScope.launch {
-            _detailState.value = _detailState.value.copy(isSubmittingReview = true, error = null)
+            _detailState.value = _detailState.value.copy(
+                isSubmittingReview = true,
+                reviewMessage = null,
+                error = null
+            )
             when (val result = doctorRepository.submitDoctorReview(doctorId, bookingId, rating, review)) {
                 is Result.Success -> {
-                    _detailState.value = _detailState.value.copy(isSubmittingReview = false)
+                    _detailState.value = _detailState.value.copy(
+                        isSubmittingReview = false,
+                        reviewMessage = "Your review has been submitted."
+                    )
                     loadReviews(doctorId)
                     loadReviewableBookings(doctorId)
                     refreshDoctorsInBackground()
@@ -217,6 +225,6 @@ class DoctorsViewModel @Inject constructor(
 
     fun clearError() {
         _listState.value = _listState.value.copy(error = null)
-        _detailState.value = _detailState.value.copy(error = null)
+        _detailState.value = _detailState.value.copy(error = null, reviewMessage = null)
     }
 }

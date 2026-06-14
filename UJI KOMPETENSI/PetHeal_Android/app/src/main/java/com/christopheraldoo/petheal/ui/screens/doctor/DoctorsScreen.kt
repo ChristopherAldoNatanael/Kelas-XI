@@ -1,6 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.doctor
 
 import android.util.Log
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -248,7 +249,7 @@ fun DoctorDetailScreen(
                         averageRating = state.averageRating,
                         totalReviews = state.totalReviews,
                         reviews = state.reviews,
-                        canSubmitReview = state.reviewableBookings.isNotEmpty(),
+                        reviewableBookingsCount = state.reviewableBookings.size,
                         onSubmitReview = { showReviewDialog = true },
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
@@ -279,6 +280,14 @@ fun DoctorDetailScreen(
                 dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Color(0xFFDC2626)) } }
             ) { Text(err) }
         }
+        state.reviewMessage?.let { message ->
+            Snackbar(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                containerColor = Color(0xFFE8FFF1),
+                contentColor = Color(0xFF047857),
+                dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Color(0xFF047857)) } }
+            ) { Text(message) }
+        }
     }
 }
 
@@ -287,14 +296,14 @@ private fun DoctorReviewsSection(
     averageRating: Double,
     totalReviews: Int,
     reviews: List<DoctorReview>,
-    canSubmitReview: Boolean,
+    reviewableBookingsCount: Int,
     onSubmitReview: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Patient Reviews", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-            if (canSubmitReview) {
+            if (reviewableBookingsCount > 0) {
                 TextButton(onClick = onSubmitReview, contentPadding = PaddingValues(horizontal = 8.dp)) {
                     Icon(Icons.Filled.RateReview, null, tint = Primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
@@ -312,6 +321,33 @@ private fun DoctorReviewsSection(
             }
         }
         Spacer(Modifier.height(10.dp))
+
+        if (reviewableBookingsCount > 0) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                color = Primary.copy(alpha = 0.08f),
+                border = BorderStroke(1.dp, Primary.copy(alpha = 0.18f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("You can rate this doctor", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            "Complete bookings become reviewable once. Choose the finished visit and submit your rating here.",
+                            color = TextSecDark,
+                            fontSize = 12.sp,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+        }
 
         if (reviews.isEmpty()) {
             Box(
@@ -364,6 +400,12 @@ private fun SubmitReviewDialog(
         title = { Text("Review Doctor", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Choose a completed booking, then leave a rating and optional notes.",
+                    color = TextSecDark,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
                 Text("Select completed booking", color = TextSecDark, fontSize = 12.sp)
                 bookings.forEach { booking ->
                     Row(

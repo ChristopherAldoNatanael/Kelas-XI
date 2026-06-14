@@ -305,6 +305,13 @@
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0">settings</span>
                         <span class="sidebar-text">Settings</span>
                     </a>
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.notification-settings.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.notification-settings.index') }}">
+                        @if(request()->routeIs('admin.notification-settings.*'))
+                        <div class="active-indicator"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0">notifications_active</span>
+                        <span class="sidebar-text">Notifications</span>
+                    </a>
                     <form method="POST" action="{{ route('admin.logout') }}">
                         @csrf
                         <button type="submit" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium w-full text-left">

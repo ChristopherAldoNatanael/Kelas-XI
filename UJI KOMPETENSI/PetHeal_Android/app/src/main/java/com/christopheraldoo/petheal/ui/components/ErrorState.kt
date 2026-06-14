@@ -165,12 +165,12 @@ fun NetworkErrorState(
     onGoBack: () -> Unit
 ) {
     ErrorState(
-        title = "Connection Issue",
-        message = "Unable to connect to the server. Please check your internet connection and try again.",
+        title = "Koneksi Bermasalah",
+        message = "Aplikasi belum bisa terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
         icon = Icons.Outlined.WifiOff,
-        primaryActionText = "Try Again",
+        primaryActionText = "Coba Lagi",
         onPrimaryActionClick = onRetry,
-        secondaryActionText = "Go Back",
+        secondaryActionText = "Kembali",
         onSecondaryActionClick = onGoBack,
         iconColor = Color(0xFFF59E0B),
         backgroundColor = Color(0xFFF59E0B).copy(alpha = 0.10f)
@@ -179,17 +179,17 @@ fun NetworkErrorState(
 
 @Composable
 fun ServerErrorState(
-    errorMessage: String = "Something went wrong on our end. Please try again later.",
+    errorMessage: String = "Terjadi kendala pada server. Silakan coba beberapa saat lagi.",
     onRetry: (() -> Unit)? = null,
     onGoBack: (() -> Unit)? = null
 ) {
     ErrorState(
-        title = "Server Error",
+        title = "Server Bermasalah",
         message = errorMessage,
         icon = Icons.Outlined.CloudOff,
-        primaryActionText = if (onRetry != null) "Try Again" else null,
+        primaryActionText = if (onRetry != null) "Coba Lagi" else null,
         onPrimaryActionClick = onRetry,
-        secondaryActionText = if (onGoBack != null) "Go Back" else null,
+        secondaryActionText = if (onGoBack != null) "Kembali" else null,
         onSecondaryActionClick = onGoBack,
         iconColor = Color(0xFFEF4444),
         backgroundColor = Color(0xFFEF4444).copy(alpha = 0.10f)
@@ -202,12 +202,12 @@ fun PermissionErrorState(
     onDismiss: () -> Unit
 ) {
     ErrorState(
-        title = "Permission Required",
-        message = "This feature requires permission to access your device's resources. Please grant the necessary permissions to continue.",
+        title = "Izin Dibutuhkan",
+        message = "Fitur ini memerlukan izin akses perangkat agar dapat berjalan dengan benar. Berikan izin yang diminta untuk melanjutkan.",
         icon = Icons.Filled.Lock,
-        primaryActionText = "Grant Permission",
+        primaryActionText = "Berikan Izin",
         onPrimaryActionClick = onGrantPermission,
-        secondaryActionText = "Maybe Later",
+        secondaryActionText = "Nanti Saja",
         onSecondaryActionClick = onDismiss,
         iconColor = Color(0xFF3B82F6),
         backgroundColor = Color(0xFF3B82F6).copy(alpha = 0.10f)

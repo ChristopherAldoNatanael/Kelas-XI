@@ -115,6 +115,7 @@ private fun BkDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
 @Composable
 fun BookingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToDoctors: () -> Unit,
     onNavigateToBookingDetail: (Int) -> Unit,
     onNavigateToPayment: (Int, Boolean, Double, Boolean) -> Unit, // NEW: (bookingId, isDp, totalAmount, isRemaining)
     viewModel: BookingViewModel = hiltViewModel()
@@ -124,7 +125,6 @@ fun BookingsScreen(
     val bg      = if (isDark) BkBgDark      else BkBgLight
     val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
     val textPrimary   = if (isDark) Color.White         else Color(0xFF0F172A)
-    val context = LocalContext.current
     val textSecondary = if (isDark) Color(0xFF94A3B8)   else Color(0xFF64748B)
     val border        = if (isDark) Color(0x1AFFFFFF)   else Color(0xFFF1F5F9)
 
@@ -132,20 +132,17 @@ fun BookingsScreen(
 
     // State for filter/sort bottom sheet
     var showFilterSheet by remember { mutableStateOf(false) }
-    
-    // Pull-to-refresh state
-    var isRefreshing by remember { mutableStateOf(false) }
     val view = LocalView.current
-
-    // Pull-to-refresh handler
-    val onRefresh = {
-        isRefreshing = true
-        viewModel.loadBookings()
-        HapticFeedback.performSelection(view)
-        // Simulate minimum refresh time for better UX
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(800)
-            isRefreshing = false
+    val activeBookingsCount = remember(state.bookings) {
+        state.bookings.count { it.status == "pending" || it.status == "confirmed" }
+    }
+    val completedBookingsCount = remember(state.bookings) {
+        state.bookings.count { it.status == "completed" }
+    }
+    val paymentAttentionCount = remember(state.bookings) {
+        state.bookings.count {
+            val paymentStatus = it.paymentStatus?.lowercase()
+            paymentStatus != null && paymentStatus !in setOf("paid", "not_required")
         }
     }
 
@@ -168,7 +165,7 @@ fun BookingsScreen(
                         ) {
                             Icon(Icons.Filled.ArrowBack, null, tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
-                        Text("My Bookings", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                        Text("Booking Saya", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                         // Filter button
                         Box(
                             Modifier.size(40.dp).clip(CircleShape).clickable { showFilterSheet = true },
@@ -178,6 +175,27 @@ fun BookingsScreen(
                         }
                     }
                     Divider(color = border, thickness = 1.dp)
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    ) {
+                        Text(
+                            text = "Pantau kunjungan, progres pembayaran, dan tindak lanjut dalam satu tempat.",
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp,
+                            color = textSecondary
+                        )
+                        if (state.bookings.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            BookingOverviewRow(
+                                activeCount = activeBookingsCount,
+                                completedCount = completedBookingsCount,
+                                paymentAttentionCount = paymentAttentionCount
+                            )
+                        }
+                    }
                     
                     // Active filters indicator
                     if (state.sortOrder != BookingSortOrder.NEWEST_FIRST || state.dateFilter != BookingDateFilter.ALL) {
@@ -186,7 +204,7 @@ fun BookingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Filters:", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                            Text("Filter:", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
                             if (state.dateFilter != BookingDateFilter.ALL) {
                                 AssistChip(
                                     onClick = { viewModel.setDateFilter(BookingDateFilter.ALL) },
@@ -220,7 +238,7 @@ fun BookingsScreen(
                                 )
                             }
                             TextButton(onClick = { viewModel.resetFilters() }) {
-                                Text("Reset", fontSize = 11.sp, color = BkPrimary)
+                                Text("Atur Ulang", fontSize = 11.sp, color = BkPrimary)
                             }
                         }
                     }
@@ -242,7 +260,7 @@ fun BookingsScreen(
                     if (state.bookings.isEmpty()) {
                         item { 
                             EmptyBookingsState(
-                                onBookNow = { /* Navigate to doctor booking */ }
+                                onBookNow = onNavigateToDoctors
                             ) 
                         }
                     } else {
@@ -280,6 +298,75 @@ fun BookingsScreen(
                 onDateFilterChanged = { viewModel.setDateFilter(it) },
                 onResetFilters = { viewModel.resetFilters() },
                 onDismiss = { showFilterSheet = false }
+            )
+        }
+    }
+}
+
+@Composable
+private fun BookingOverviewRow(
+    activeCount: Int,
+    completedCount: Int,
+    paymentAttentionCount: Int
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        BookingOverviewCard(
+            modifier = Modifier.weight(1f),
+            label = "Aktif",
+            value = activeCount.toString(),
+            accent = Color(0xFF2563EB)
+        )
+        BookingOverviewCard(
+            modifier = Modifier.weight(1f),
+            label = "Selesai",
+            value = completedCount.toString(),
+            accent = Color(0xFF16A34A)
+        )
+        BookingOverviewCard(
+            modifier = Modifier.weight(1f),
+            label = "Perlu Bayar",
+            value = paymentAttentionCount.toString(),
+            accent = Color(0xFFEA580C)
+        )
+    }
+}
+
+@Composable
+private fun BookingOverviewCard(
+    modifier: Modifier = Modifier,
+    label: String,
+    value: String,
+    accent: Color
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(16.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.14f))
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(accent)
+            )
+            Text(
+                text = value,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A)
+            )
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color(0xFF64748B)
             )
         }
     }
@@ -599,7 +686,7 @@ private fun BookingsEmptyState(textPrimary: Color, textSecondary: Color) {
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Filled.CalendarMonth, null, tint = BkPrimary, modifier = Modifier.size(40.dp)) }
         Text("No bookings yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-        Text("Your upcoming appointments will appear here", fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center)
+        Text("Jadwal konsultasi Anda akan tampil di sini", fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -611,6 +698,8 @@ fun BookingDetailScreen(
     bookingId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToPayment: ((Int, Boolean, Double, Boolean) -> Unit)? = null, // NEW: For DP/Full payment
+    onNavigateToMedicalRecord: ((Int) -> Unit)? = null,
+    onNavigateToMedicalExtraPayment: ((Int, Int, Double) -> Unit)? = null,
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
@@ -623,7 +712,7 @@ fun BookingDetailScreen(
 
     LaunchedEffect(bookingId) { viewModel.loadBookingDetail(bookingId) }
     LaunchedEffect(state.isCancelled) { if (state.isCancelled) onNavigateBack() }
-    LaunchedEffect(state.isRescheduled) { if (state.isRescheduled) { viewModel.loadBookingDetail(bookingId) } }
+    LaunchedEffect(state.isRescheduled) { if (state.isRescheduled) { viewModel.loadBookingDetail(bookingId, forceRefresh = true) } }
 
     var showCancelDialog by remember { mutableStateOf(false) }
     var showRescheduleDialog by remember { mutableStateOf(false) }
@@ -889,6 +978,190 @@ fun BookingDetailScreen(
                         }
                     }
 
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(containerColor = surface),
+                        border = BorderStroke(1.dp, dividerColor)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(18.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text("Medical Record", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                                    Text(
+                                        when {
+                                            state.isMedicalRecordLoading -> "Checking diagnosis, treatment, and billing details..."
+                                            state.medicalRecord == null -> "The medical record is not available for this booking yet."
+                                            state.medicalRecord?.canViewFullRecord == true -> "Record is ready to review."
+                                            else -> "Extra medical cost still needs to be settled."
+                                        },
+                                        fontSize = 12.sp,
+                                        lineHeight = 18.sp,
+                                        color = textSecondary
+                                    )
+                                }
+
+                                val recordStatusColor = when {
+                                    state.medicalRecord == null -> Color(0xFF94A3B8)
+                                    state.medicalRecord?.canViewFullRecord == true -> Color(0xFF10B981)
+                                    else -> Color(0xFFF59E0B)
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = recordStatusColor.copy(alpha = 0.12f),
+                                    border = BorderStroke(1.dp, recordStatusColor.copy(alpha = 0.18f))
+                                ) {
+                                    Text(
+                                        when {
+                                            state.medicalRecord == null -> "Not Ready"
+                                            state.medicalRecord?.canViewFullRecord == true -> "Available"
+                                            else -> "Payment Needed"
+                                        },
+                                        color = recordStatusColor,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+
+                            state.medicalRecord?.let { record ->
+                                val extraStatus = record.extraPaymentStatus ?: "not_required"
+                                val extraAmount = record.extraPaymentAmount ?: 0.0
+                                val treatmentCost = record.treatmentCost ?: 0.0
+                                val medicineCost = record.medicineCost ?: 0.0
+                                val bookingPaymentLabel = if (booking?.paymentStatus == "paid") "Paid" else (booking?.paymentStatus ?: "Pending")
+                                val extraPaymentLabel = when (extraStatus) {
+                                    "not_required" -> "Not Required"
+                                    "paid" -> "Paid"
+                                    "partial" -> "Partial"
+                                    "pending", "unpaid" -> "Pending"
+                                    else -> extraStatus.replaceFirstChar { it.uppercase() }
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = BkPrimary.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, BkPrimary.copy(alpha = 0.12f))
+                                    ) {
+                                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text("Booking Payment", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                                            Text(bookingPaymentLabel, fontSize = 15.sp, color = textPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = when (extraStatus) {
+                                            "paid", "not_required" -> Color(0xFFECFDF5)
+                                            "partial", "pending", "unpaid" -> Color(0xFFFFFBEB)
+                                            else -> Color(0xFFF8FAFC)
+                                        },
+                                        border = BorderStroke(
+                                            1.dp,
+                                            when (extraStatus) {
+                                                "paid", "not_required" -> Color(0xFFA7F3D0)
+                                                "partial", "pending", "unpaid" -> Color(0xFFFDE68A)
+                                                else -> dividerColor
+                                            }
+                                        )
+                                    ) {
+                                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                            Text("Extra Medical Cost", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                                            Text(extraPaymentLabel, fontSize = 15.sp, color = textPrimary, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                if (extraAmount > 0 && record.canViewFullRecord != true) {
+                                    Surface(
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = Color(0xFFFFFBEB),
+                                        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(16.dp),
+                                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .clip(RoundedCornerShape(14.dp))
+                                                        .background(Color(0xFFF59E0B).copy(alpha = 0.12f)),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(Icons.Filled.Payments, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                                }
+                                                Column {
+                                                    Text("Extra payment required", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                    Text("The full medical record will unlock after the extra medical cost has been paid.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF92400E))
+                                                }
+                                            }
+
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Text("Treatment Cost", fontSize = 12.sp, color = textSecondary)
+                                                Text("Rp ${String.format("%,.0f", treatmentCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                            }
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Text("Medicine Cost", fontSize = 12.sp, color = textSecondary)
+                                                Text("Rp ${String.format("%,.0f", medicineCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                            }
+                                            Divider(color = Color(0xFFFDE68A))
+                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                                Text("Total Extra Payment", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                Text("Rp ${String.format("%,.0f", extraAmount).replace(",", ".")}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                            }
+                                        }
+                                    }
+
+                                    if (record.id != null && onNavigateToMedicalExtraPayment != null) {
+                                        Button(
+                                            onClick = { onNavigateToMedicalExtraPayment(record.id, bookingId, extraAmount) },
+                                            modifier = Modifier.fillMaxWidth().height(52.dp),
+                                            shape = RoundedCornerShape(16.dp),
+                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                        ) {
+                                            Icon(Icons.Filled.Payment, null, modifier = Modifier.size(20.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Pay Extra Medical Cost", fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                } else if (record.id != null && onNavigateToMedicalRecord != null) {
+                                    Button(
+                                        onClick = { onNavigateToMedicalRecord(record.id) },
+                                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                                        shape = RoundedCornerShape(16.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                                    ) {
+                                        Icon(Icons.Filled.Article, null, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("View Medical Record", fontWeight = FontWeight.Bold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // Payment buttons based on payment status
                     if (booking?.status?.lowercase() in listOf("pending", "confirmed")) {
                         // Trust backend payment status as primary condition
@@ -1075,7 +1348,7 @@ fun CreateBookingScreen(
                         Box(Modifier.size(40.dp).clip(CircleShape).clickable { onNavigateBack() }, contentAlignment = Alignment.Center) {
                             Icon(Icons.Filled.ArrowBack, null, tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
-                        Text("Book Appointment", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                        Text("Buat Booking", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         val context = LocalContext.current
                         TextButton(onClick = {
                             Toast.makeText(context, "Complete each step: service, pet, doctor, schedule, then payment.", Toast.LENGTH_LONG).show()

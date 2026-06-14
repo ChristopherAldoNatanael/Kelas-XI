@@ -106,6 +106,9 @@
             </a>
         </div>
     </form>
+    <div class="mt-4 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-xs leading-6 text-sky-800">
+        Export PDF mengikuti filter aktif. Untuk transaksi yang banyak, sempitkan pencarian berdasarkan status, metode, atau kata kunci sebelum export agar laporan tetap akurat dan cepat dibuka.
+    </div>
 </div>
 
 {{-- Payments Table --}}
@@ -199,8 +202,8 @@
                     <td colspan="8" class="px-6 py-12 text-center">
                         <div class="flex flex-col items-center">
                             <span class="material-symbols-outlined text-slate-300 text-5xl mb-4">receipt_long</span>
-                            <p class="text-slate-400 text-sm">No payment transactions found</p>
-                            <p class="text-slate-300 text-xs mt-1">Try adjusting your filters</p>
+                            <p class="text-slate-600 text-sm font-semibold">Belum ada transaksi pembayaran yang sesuai</p>
+                            <p class="text-slate-400 text-xs mt-1 max-w-sm leading-5">Persempit atau ubah filter pencarian untuk melihat transaksi lain yang sudah tercatat di sistem.</p>
                         </div>
                     </td>
                 </tr>

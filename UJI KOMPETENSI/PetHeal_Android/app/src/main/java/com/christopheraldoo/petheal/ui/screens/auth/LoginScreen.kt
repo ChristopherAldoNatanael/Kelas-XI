@@ -103,15 +103,15 @@ fun LoginScreen(
                             if (firebaseIdToken != null) {
                                 viewModel.loginWithGoogleIdToken(firebaseIdToken)
                             } else {
-                                viewModel.setError("Failed to get Firebase ID token")
+                                viewModel.setError("Token Firebase tidak berhasil diambil")
                             }
                         } catch (e: Exception) {
-                            viewModel.setError("Google sign-in failed: ${e.message}")
+                            viewModel.setError("Masuk dengan Google gagal: ${e.message}")
                         }
                     }
-                } ?: viewModel.setError("Google account has no ID token. Enable Google Sign-In in Firebase Console.")
+                } ?: viewModel.setError("Akun Google tidak mengembalikan ID token. Periksa konfigurasi Google Sign-In di Firebase.")
             } catch (e: ApiException) {
-                viewModel.setError("Google sign-in error (code ${e.statusCode})")
+                viewModel.setError("Terjadi kendala saat masuk dengan Google (kode ${e.statusCode})")
             }
         }
     }
@@ -143,7 +143,7 @@ fun LoginScreen(
             ) {
                 Box(modifier = Modifier.size(48.dp))
                 Text(
-                    text = "Log In",
+                    text = "Masuk",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
@@ -171,25 +171,25 @@ fun LoginScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Welcome Back",
+                    text = "Selamat Datang Kembali",
                     fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Please sign in to your PetHeal account",
+                    text = "Masuk ke akun PetHeal Anda untuk melanjutkan",
                     fontSize = 13.sp, color = AuthTextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
 
             // ── Email ─────────────────────────────────────────────────
-            AuthFieldLabel("Email Address", isDark)
+            AuthFieldLabel("Alamat Email", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = email,
                 onValueChange = { email = it },
-                placeholder = "hello@example.com",
+                placeholder = "nama@email.com",
                 leadingIcon = {
                     Icon(Icons.Filled.Email, null,
                         tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
@@ -208,7 +208,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Password ──────────────────────────────────────────────
-            AuthFieldLabel("Password", isDark)
+            AuthFieldLabel("Kata Sandi", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = password,
@@ -251,7 +251,7 @@ fun LoginScreen(
                         }
                     ) {
                         Text(
-                            "Forgot Password?",
+                            "Lupa Kata Sandi?",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = AuthPrimary
@@ -280,7 +280,7 @@ fun LoginScreen(
                         modifier = Modifier.size(22.dp),
                         color = AuthBgDark, strokeWidth = 2.5.dp)
                 } else {
-                    Text("Login", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Masuk", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -296,7 +296,7 @@ fun LoginScreen(
                     color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
                 )
                 Text(
-                    "  Or continue with  ",
+                    "  atau lanjutkan dengan  ",
                     fontSize = 11.sp, fontWeight = FontWeight.Medium,
                     color = AuthTextSecondary, letterSpacing = 0.5.sp
                 )
@@ -335,7 +335,7 @@ fun LoginScreen(
                 } else {
                     GoogleLogoIcon()
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Continue with Google",
+                    Text("Lanjutkan dengan Google",
                         fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -367,14 +367,14 @@ fun LoginScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Don't have an account? ",
+                Text("Belum punya akun? ",
                     fontSize = 13.sp,
                     color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
                 TextButton(
                     onClick = onNavigateToRegister,
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Register Now",
+                    Text("Daftar Sekarang",
                         fontSize = 13.sp, fontWeight = FontWeight.Bold,
                         color = AuthPrimary)
                 }
@@ -388,11 +388,11 @@ fun LoginScreen(
                         showForgotPasswordDialog = false
                     }
                 },
-                title = { Text("Reset Password") },
+                title = { Text("Reset Kata Sandi") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text(
-                            "Enter your email to receive a password reset code.",
+                            "Masukkan email Anda untuk menerima kode reset kata sandi.",
                             fontSize = 13.sp
                         )
                         OutlinedTextField(
@@ -413,7 +413,7 @@ fun LoginScreen(
                                 isForgotPasswordLoading = false
                                 when (result) {
                                     is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                        forgotPasswordMessage = "Reset code sent to ${forgotPasswordEmail.trim()}."
+                                        forgotPasswordMessage = "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}."
                                         showForgotPasswordDialog = false
                                     }
 
@@ -433,7 +433,7 @@ fun LoginScreen(
                                 color = AuthPrimary
                             )
                         } else {
-                            Text("Send Code")
+                            Text("Kirim Kode")
                         }
                     }
                 },
@@ -442,7 +442,7 @@ fun LoginScreen(
                         enabled = !isForgotPasswordLoading,
                         onClick = { showForgotPasswordDialog = false }
                     ) {
-                        Text("Cancel")
+                        Text("Batal")
                     }
                 }
             )

@@ -10,6 +10,7 @@ import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
 import com.christopheraldoo.petheal.data.repository.ServiceRepository
 import com.christopheraldoo.petheal.data.repository.PaymentMethodRepository
+import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +49,8 @@ data class BookingsUiState(
 
 data class BookingDetailUiState(
     val booking: Booking? = null,
+    val medicalRecord: MedicalRecord? = null,
+    val isMedicalRecordLoading: Boolean = false,
     val isLoading: Boolean = false,
     val error: String? = null,
     val isCancelled: Boolean = false,
@@ -86,8 +89,12 @@ class BookingViewModel @Inject constructor(
     private val doctorRepository: DoctorRepository,
     private val bookingRefreshManager: BookingRefreshManager,
     private val serviceRepository: ServiceRepository,
-    private val paymentMethodRepository: PaymentMethodRepository
+    private val paymentMethodRepository: PaymentMethodRepository,
+    private val medicalRecordRepository: MedicalRecordRepository
 ) : ViewModel() {
+
+    private var hasLoadedBookings = false
+    private var lastLoadedDetailBookingId: Int? = null
 
     private val _listState = MutableStateFlow(BookingsUiState())
     val listState: StateFlow<BookingsUiState> = _listState.asStateFlow()
@@ -111,12 +118,21 @@ class BookingViewModel @Inject constructor(
         }
     }
 
-    fun loadBookings() {
+    fun loadBookings(forceRefresh: Boolean = false) {
+        if (!forceRefresh && hasLoadedBookings && _listState.value.allBookings.isNotEmpty()) {
+            return
+        }
         viewModelScope.launch {
-            _listState.value = _listState.value.copy(isLoading = true, error = null)
+            val hasCachedBookings = _listState.value.allBookings.isNotEmpty()
+            if (!hasCachedBookings || forceRefresh) {
+                _listState.value = _listState.value.copy(isLoading = true, error = null)
+            } else {
+                _listState.value = _listState.value.copy(error = null)
+            }
             when (val r = bookingRepository.getBookings()) {
                 is Result.Success -> {
                     val allBookings = r.data
+                    hasLoadedBookings = true
                     // Apply current filters and sort
                     val filteredAndSorted = applyFiltersAndSort(allBookings)
                     _listState.value = _listState.value.copy(
@@ -244,11 +260,35 @@ class BookingViewModel @Inject constructor(
         return filtered
     }
 
-    fun loadBookingDetail(id: Int) {
+    fun loadBookingDetail(id: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastLoadedDetailBookingId == id && _detailState.value.booking?.id == id) {
+            return
+        }
         viewModelScope.launch {
-            _detailState.value = BookingDetailUiState(isLoading = true)
+            val hasCachedBooking = _detailState.value.booking?.id == id
+            if (!hasCachedBooking || forceRefresh) {
+                _detailState.value = BookingDetailUiState(isLoading = true)
+            } else {
+                _detailState.value = _detailState.value.copy(error = null)
+            }
             when (val r = bookingRepository.getBooking(id)) {
-                is Result.Success -> _detailState.value = BookingDetailUiState(booking = r.data)
+                is Result.Success -> {
+                    lastLoadedDetailBookingId = id
+                    _detailState.value = BookingDetailUiState(
+                        booking = r.data,
+                        isMedicalRecordLoading = true
+                    )
+                    when (val recordResult = medicalRecordRepository.getBookingMedicalRecord(id, forceRefresh = forceRefresh)) {
+                        is Result.Success -> _detailState.value = _detailState.value.copy(
+                            medicalRecord = recordResult.data,
+                            isMedicalRecordLoading = false
+                        )
+                        is Result.Error -> _detailState.value = _detailState.value.copy(
+                            isMedicalRecordLoading = false
+                        )
+                        else -> Unit
+                    }
+                }
                 is Result.Error   -> _detailState.value = BookingDetailUiState(error = r.message)
                 else -> Unit
             }
@@ -412,6 +452,6 @@ class BookingViewModel @Inject constructor(
      */
     fun refreshBookings() {
         Log.d("BookingViewModel", "Refreshing bookings list")
-        loadBookings()
+        loadBookings(forceRefresh = true)
     }
 }

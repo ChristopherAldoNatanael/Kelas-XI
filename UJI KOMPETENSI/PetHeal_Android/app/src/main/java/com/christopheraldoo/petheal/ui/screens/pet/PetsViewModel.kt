@@ -12,10 +12,12 @@ import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.io.File
 import javax.inject.Inject
 
@@ -52,6 +54,8 @@ class PetsViewModel @Inject constructor(
     private val medicalRecordRepository: MedicalRecordRepository
 ) : ViewModel() {
 
+    private var lastLoadedDetailPetId: Int? = null
+
     private val _uiState = MutableStateFlow(PetsUiState())
     val uiState: StateFlow<PetsUiState> = _uiState.asStateFlow()
 
@@ -82,40 +86,56 @@ class PetsViewModel @Inject constructor(
         }
     }
 
-    fun loadPetDetail(id: Int) {
-        viewModelScope.launch {
-            _detailState.value = PetDetailUiState(isLoading = true)
-            
-            // Load pet details
-            when (val result = petRepository.getPet(id)) {
-                is Result.Success -> {
-                    _detailState.value = _detailState.value.copy(
-                        pet = result.data,
-                        isLoading = false
-                    )
-                    // Also load medical records for this pet
-                    loadMedicalRecords(id)
-                    loadWeightHistory(id)
-                    loadVaccinations(id)
-                }
-                is Result.Error -> _detailState.value = PetDetailUiState(error = result.message)
-                else -> Unit
-            }
+    fun loadPetDetail(id: Int, forceRefresh: Boolean = false) {
+        if (!forceRefresh && lastLoadedDetailPetId == id && _detailState.value.pet?.id == id) {
+            return
         }
-    }
-
-    private fun loadMedicalRecords(petId: Int) {
         viewModelScope.launch {
-            when (val result = medicalRecordRepository.getMedicalRecordsByPet(petId)) {
+            val hasSamePetLoaded = _detailState.value.pet?.id == id
+            _detailState.value = _detailState.value.copy(
+                isLoading = !hasSamePetLoaded || forceRefresh,
+                error = null,
+                isDeleted = false
+            )
+
+            supervisorScope {
+                val petDeferred = async { petRepository.getPet(id) }
+                val recordsDeferred = async { medicalRecordRepository.getMedicalRecordsByPet(id, forceRefresh = forceRefresh) }
+                val weightDeferred = async { petRepository.getWeightHistory(id) }
+                val vaccinationDeferred = async { petRepository.getVaccinations(id) }
+
+                when (val result = petDeferred.await()) {
                 is Result.Success -> {
-                    _detailState.value = _detailState.value.copy(
-                        medicalRecords = result.data
-                    )
+                        lastLoadedDetailPetId = id
+
+                        val records = when (val recordsResult = recordsDeferred.await()) {
+                            is Result.Success -> recordsResult.data
+                            else -> _detailState.value.medicalRecords
+                        }
+
+                        val weightData = when (val weightResult = weightDeferred.await()) {
+                            is Result.Success -> weightResult.data
+                            else -> null
+                        }
+
+                        val vaccinations = when (val vaccinationResult = vaccinationDeferred.await()) {
+                            is Result.Success -> vaccinationResult.data
+                            else -> null
+                        }
+
+                        _detailState.value = _detailState.value.copy(
+                            pet = result.data.copy(weight = weightData?.currentWeight ?: result.data.weight),
+                            medicalRecords = records,
+                            weightRecords = weightData?.records.orEmpty(),
+                            weightChange = weightData?.weightChange,
+                            vaccinations = vaccinations?.vaccinations.orEmpty(),
+                            upcomingVaccinations = vaccinations?.upcomingDue.orEmpty(),
+                            isLoading = false
+                        )
                 }
-                is Result.Error -> {
-                    // Don't override pet data, just log error for medical records
-                }
+                    is Result.Error -> _detailState.value = PetDetailUiState(error = result.message)
                 else -> Unit
+                }
             }
         }
     }
@@ -165,7 +185,7 @@ class PetsViewModel @Inject constructor(
                         isHealthActionLoading = false,
                         healthMessage = "Weight record saved"
                     )
-                    loadWeightHistory(petId)
+                    loadPetDetail(petId, forceRefresh = true)
                     loadPets(forceRefresh = true)
                 }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
@@ -204,7 +224,7 @@ class PetsViewModel @Inject constructor(
                         isHealthActionLoading = false,
                         healthMessage = "Vaccination saved"
                     )
-                    loadVaccinations(petId)
+                    loadPetDetail(petId, forceRefresh = true)
                 }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isHealthActionLoading = false,

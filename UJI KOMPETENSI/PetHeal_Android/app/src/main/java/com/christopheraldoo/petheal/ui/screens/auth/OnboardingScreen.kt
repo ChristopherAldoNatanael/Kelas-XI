@@ -51,26 +51,26 @@ private val pages = listOf(
     OnboardingPage(
         imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuCO9tiyZINtsRBmaXrw320CGl_BPTG3xLD6dAhCJ1JI1VNfHPRyEqkb2TAYIo2ShT2ooY2UDv67hxFkTXhLvHmDF2s9s6a3f4YKTLAq0rmPacxlv7oGUU4nY7q-SHuEVM7QY8YPviuE8GmlwzAEuiMGIx7yYHlkIcMLsa4KPEoPSHKAWA_uKTI8Oalj3m_50lsnnEZckvC64PBjpgrkEsl9TzgFFXZaS4AyYyOA402CO4fmfAOx2L7eLA3C0xpXaWX1dNsyG0oxC6E",
         imageDesc = "Happy veterinarian hugging a golden retriever dog",
-        title = "Welcome to ",
+        title = "Selamat Datang di ",
         titleHighlight = "PetHeal",
         titleSuffix = "",
-        subtitle = "Your pet's health, our top priority. Connect with the best veterinarians instantly."
+        subtitle = "Kelola kesehatan hewan kesayangan Anda dalam satu aplikasi yang rapi, cepat, dan mudah dipakai setiap hari."
     ),
     OnboardingPage(
         imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuBxjbgqe_leDZBLJ94dVMRNXKs1mVixnPqAGEZQoIy4PXQaXGx8TFxxMEjgLFT4qS-3eVP1hGHxjU4ZEHrqoUvCLCX4j6i32F7aFIQ6yiGlVgn3WmVhOmVHKaFGFh0BV1MMtBNiFqYNjC0XmF1sRJUkHDpFCxuatmfVDTzJCGGFb7VbpWGPQQY5u62Ik_IqJYRKXiAx_sQX2vlMOAFbSzN7iqGNwl3XSxPVl2NmSPqHEqpnBn4E0s9c5u4WFIK-BrRV3KFNMwWQ",
         imageDesc = "Veterinarian examining a cat on a table",
-        title = "Book a ",
-        titleHighlight = "Vet Visit",
-        titleSuffix = " Easily",
-        subtitle = "Schedule appointments with certified vets in just a few taps. No waiting rooms."
+        title = "Atur ",
+        titleHighlight = "Jadwal Konsultasi",
+        titleSuffix = " dengan Mudah",
+        subtitle = "Pilih dokter hewan, tentukan jadwal, lalu lakukan booking dalam beberapa langkah yang singkat dan jelas."
     ),
     OnboardingPage(
         imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuBrq5x-Nj6hIJp-2FUc8Y0tLqHkfYjDI4qKkzl_T5BbwCpZJIAqHwQ0yMzWqeRzKn9aARIV_Ydl_VjKX6qOKBg6bJZ1VR9MZRh0b7j4tXLcfmjLiMcqf-xdIsBHpVdifTmLhpCzaVpFWBiqf2QvyHDJGj9JHBcOjCbFiJt-RNqBMiWiUQrBZCF67NG6mjRoGblrLlbDXqLUFdB4vFIL2DP_fFSvIefhMOHifYQsV9p6gWygjqiF2U8PeAl",
         imageDesc = "Person using a phone with a pet health app",
-        title = "Track Your Pet's ",
-        titleHighlight = "Health",
-        titleSuffix = " Record",
-        subtitle = "Keep all medical records, vaccinations, and prescriptions organized in one place."
+        title = "Pantau ",
+        titleHighlight = "Rekam Kesehatan",
+        titleSuffix = " Hewan Anda",
+        subtitle = "Simpan rekam medis, vaksinasi, resep, dan tindak lanjut perawatan agar semuanya tetap terstruktur."
     )
 )
 
@@ -110,7 +110,7 @@ fun OnboardingScreen(
                     modifier = Modifier.width(48.dp)
                 ) {
                     Text(
-                        text = "Skip",
+                        text = "Lewati",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF64748B)
@@ -187,7 +187,7 @@ fun OnboardingScreen(
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
                     Text(
-                        text = if (currentPage < pages.lastIndex) "Next" else "Get Started",
+                        text = if (currentPage < pages.lastIndex) "Lanjut" else "Mulai Sekarang",
                         fontSize = 17.sp,
                         fontWeight = FontWeight.Bold
                     )

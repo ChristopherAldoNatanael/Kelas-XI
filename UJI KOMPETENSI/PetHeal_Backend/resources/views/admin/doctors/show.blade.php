@@ -46,6 +46,18 @@
                             {{ $doctor->is_active ? 'Active' : 'Inactive' }}
                         </span>
                     </div>
+
+                    <div class="mt-5 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-left">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-[18px] text-amber-500">star</span>
+                            <p class="text-sm font-semibold text-slate-900">
+                                {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
+                            </p>
+                            <p class="text-xs text-slate-500">
+                                from {{ $doctor->reviews_count }} review{{ $doctor->reviews_count === 1 ? '' : 's' }}
+                            </p>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Contact Info -->
@@ -109,7 +121,7 @@
                             </div>
                             <div>
                                 <p class="text-[10px] text-slate-400 uppercase">Total Bookings</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->bookings->count() }}</p>
+                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->bookings_count }}</p>
                             </div>
                         </div>
                     </div>
@@ -121,7 +133,7 @@
                             </div>
                             <div>
                                 <p class="text-[10px] text-slate-400 uppercase">Completed</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->bookings->where('status', 'completed')->count() }}</p>
+                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->completed_bookings_count }}</p>
                             </div>
                         </div>
                     </div>
@@ -133,11 +145,63 @@
                             </div>
                             <div>
                                 <p class="text-[10px] text-slate-400 uppercase">Pending</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->bookings->where('status', 'pending')->count() }}</p>
+                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->pending_bookings_count }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
+                                <span class="material-symbols-outlined text-amber-500">reviews</span>
+                            </div>
+                            <div>
+                                <p class="text-[10px] text-slate-400 uppercase">Review Volume</p>
+                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->reviews_count }}</p>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                @if($doctor->reviews->count() > 0)
+                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
+                    <div class="flex items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Recent Reviews</h4>
+                            <p class="text-xs text-slate-400 mt-1">Latest ratings submitted from the Android app</p>
+                        </div>
+                        <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
+                            <span class="material-symbols-outlined text-[14px]">star</span>
+                            {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        @foreach($doctor->reviews as $review)
+                            <div class="rounded-2xl border border-slate-200/70 bg-white px-4 py-4">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">{{ $review->user->name ?? 'PetHeal User' }}</p>
+                                        <p class="text-xs text-slate-400 mt-1">
+                                            {{ optional($review->booking)->booking_date ? \Carbon\Carbon::parse($review->booking->booking_date)->format('M d, Y') : 'Completed booking' }}
+                                            @if(optional($review->booking)->pet?->name)
+                                                • {{ $review->booking->pet->name }}
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                                        <span class="material-symbols-outlined text-[14px]">star</span>
+                                        {{ $review->rating }}
+                                    </div>
+                                </div>
+                                @if(!empty($review->review))
+                                    <p class="mt-3 text-sm leading-6 text-slate-600">{{ $review->review }}</p>
+                                @endif
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+                @endif
 
                 <!-- Recent Bookings -->
                 @if($doctor->bookings->count() > 0)

@@ -64,7 +64,9 @@ class SendReminders extends Command
                 $booking->user_id,
                 $booking->pet->name,
                 $booking->booking_date,
-                $booking->booking_time
+                $booking->booking_time,
+                $booking->id,
+                $booking->pet_id
             );
             
             $sent++;
@@ -98,7 +100,8 @@ class SendReminders extends Command
             $this->fcmService->sendVaccinationReminder(
                 $vaccination->pet->user_id,
                 $vaccination->pet->name,
-                $vaccination->next_due_date->format('Y-m-d')
+                $vaccination->next_due_date->format('Y-m-d'),
+                $vaccination->pet_id
             );
             
             $vaccination->update(['reminder_sent' => true]);
@@ -113,7 +116,8 @@ class SendReminders extends Command
             $this->fcmService->sendVaccinationReminder(
                 $vaccination->pet->user_id,
                 $vaccination->pet->name,
-                $vaccination->next_due_date->format('Y-m-d')
+                $vaccination->next_due_date->format('Y-m-d'),
+                $vaccination->pet_id
             );
             
             $sent++;

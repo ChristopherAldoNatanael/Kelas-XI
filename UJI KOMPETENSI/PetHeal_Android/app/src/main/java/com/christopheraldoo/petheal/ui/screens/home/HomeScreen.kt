@@ -1,499 +1,152 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
-import android.content.Intent
-import android.net.Uri
-import android.util.Log
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.EventAvailable
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.PendingActions
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Vaccines
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.ImageRequest
-import com.christopheraldoo.petheal.data.model.Booking
-import com.christopheraldoo.petheal.data.repository.NotificationRepository
+import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 
-private const val TAG = "HomePhoto"
-
-// ── Brand tokens ─────────────────────────────────────────────────────────────
-private val HomePrimary       = Color(0xFF2BEE6C)
-private val HomeBgDark        = Color(0xFFF6F8F6)
-private val HomeBgLight       = Color(0xFFF6F8F6)
-private val HomeSurfaceDark   = Color.White
-private val HomeSurfaceLight  = Color(0xFFFFFFFF)
-private val HomeBorderDark    = Color(0x0DFFFFFF)   // white/5
-private val HomeBorderLight   = Color(0xFFE2E8F0)
+private val HomePrimary = Color(0xFF2BEE6C)
+private val HomeBg = Color(0xFFF6F8F6)
+private val HomeSurface = Color.White
+private val HomeBorder = Color(0xFFE2E8F0)
+private val HomeTextPrimary = Color(0xFF0F172A)
 private val HomeTextSecondary = Color(0xFF64748B)
+private val HomeSoftSurface = Color(0xFFF8FAFC)
 
 @Composable
 fun HomeScreen(
     onNavigateToPets: () -> Unit,
     onNavigateToDoctors: () -> Unit,
     onNavigateToBookings: () -> Unit,
+    onNavigateToBookingDetail: (Int) -> Unit = {},
     onNavigateToMedicalRecords: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToNotifications: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
-){
+) {
     val uiState by viewModel.uiState.collectAsState()
-    val isDark = false
-
-    val bgColor      = if (isDark) HomeBgDark      else HomeBgLight
-    val surfaceColor = if (isDark) HomeSurfaceDark  else HomeSurfaceLight
-    val borderColor  = if (isDark) HomeBorderDark   else HomeBorderLight
-    val textPrimary  = if (isDark) Color.White      else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-    val context = LocalContext.current
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(bgColor)
+            .background(HomeBg)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 88.dp)     // space for bottom nav
+                .padding(bottom = 88.dp)
         ) {
+            HeaderSection(
+                userName = uiState.userName,
+                userPhoto = uiState.userPhoto,
+                unreadNotificationCount = uiState.unreadNotificationCount,
+                onNavigateToNotifications = onNavigateToNotifications
+            )
 
-            // ── Header ────────────────────────────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 40.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    // Avatar
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(CircleShape)
-                            .border(2.dp, HomePrimary.copy(alpha = 0.2f), CircleShape)
-                            .background(HomePrimary.copy(alpha = 0.15f))
-                    ) {
-                        if (uiState.userPhoto != null) {
-                            // ✅ OPTIMIZED: ThumbnailImage resizes to 100px BEFORE decode
-                            ThumbnailImage(
-                                model = uiState.userPhoto,
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.fillMaxSize().clip(CircleShape)
-                            )
-                        } else {
-                            Icon(
-                                Icons.Filled.Person,
-                                contentDescription = null,
-                                tint = HomePrimary,
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .align(Alignment.Center)
-                            )                        }
-                    }
-                    Column {
-                        Text(
-                            text = "Welcome back,",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = textSecondary
-                        )
-                        // Show first name from profile; while loading show shimmer-like dots
-                        val firstName = uiState.userName
-                            .trim()
-                            .split(" ")
-                            .firstOrNull { it.isNotBlank() }
-                            ?: ""
-                        if (firstName.isBlank()) {
-                            Box(
-                                modifier = Modifier
-                                    .width(90.dp)
-                                    .height(22.dp)
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(textPrimary.copy(alpha = 0.12f))
-                            )
-                        } else {
-                            Text(
-                                text = "$firstName!",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = textPrimary
-                            )
-                        }
-                    }
-                }                // Notification bell with unread badge
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(surfaceColor)
-                        .clickable { onNavigateToNotifications() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Notifications,
-                        contentDescription = "Notifications",
-                        tint = textPrimary,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    // Unread badge
-                    if (uiState.unreadNotificationCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .offset(x = 2.dp, y = (-2).dp)
-                                .size(if (uiState.unreadNotificationCount > 9) 18.dp else 15.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFFEF4444)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (uiState.unreadNotificationCount > 99) "99+"
-                                       else uiState.unreadNotificationCount.toString(),
-                                color = Color.White,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── Upcoming Booking ──────────────────────────────────────
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Upcoming Booking",
-                        fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        color = textPrimary
-                    )
-                    Text(
-                        "See All",
-                        fontSize = 12.sp, fontWeight = FontWeight.SemiBold,
-                        color = HomePrimary,
-                        modifier = Modifier.clickable { onNavigateToBookings() }
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // ✅ OPTIMIZATION: Show Skeleton immediately while data loads (feels instant)
-                if (uiState.isBookingLoading && uiState.upcomingBooking == null) {
-                    BookingCardSkeleton(isDark = isDark, surfaceColor = surfaceColor, borderColor = borderColor)
-                } else {
-                    Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            // Left: booking info
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                // Pet name chip
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(32.dp)
-                                            .clip(CircleShape)
-                                            .background(HomePrimary.copy(alpha = 0.2f)),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            Icons.Filled.Pets,
-                                            contentDescription = null,
-                                            tint = HomePrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                    Text(
-                                        text = if (uiState.upcomingBooking != null)
-                                            "${uiState.upcomingBooking!!.pet?.name ?: "Pet"} (${uiState.upcomingBooking!!.pet?.species ?: ""})"
-                                        else "No upcoming booking",
-                                        fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
-                                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155),
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                                // Doctor
-                                Column {
-                                    Text(
-                                        text = uiState.upcomingBooking?.doctor?.name ?: "–",
-                                        fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                                        color = textPrimary
-                                    )
-                                    Text(
-                                        text = if (uiState.upcomingBooking != null)
-                                            "${uiState.upcomingBooking!!.doctor?.specialization ?: "Veterinarian"} • Medical Checkup"
-                                        else "Book an appointment",
-                                        fontSize = 12.sp, color = textSecondary
-                                    )
-                                }
-                                // Time chip
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(bgColor)
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Filled.Schedule,
-                                        contentDescription = null,
-                                        tint = HomePrimary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Text(
-                                        text = if (uiState.upcomingBooking != null)
-                                            "${uiState.upcomingBooking!!.bookingTime ?: ""} · ${uiState.upcomingBooking!!.bookingDate ?: ""}"
-                                        else "–",
-                                        fontSize = 12.sp, fontWeight = FontWeight.Medium,
-                                        color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF334155)
-                                    )
-                                }
-                            }                            // Doctor photo
-                            Box(
-                                modifier = Modifier
-                                    .size(96.dp)
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0))
-                            ) {
-                                val doctorPhoto = remember(uiState.upcomingBooking) {
-                                    buildPhotoUrl(uiState.upcomingBooking?.doctor?.photo)
-                                }
-                                if (!doctorPhoto.isNullOrBlank()) {
-                                    // ✅ OPTIMIZED: ThumbnailImage resizes to 100px BEFORE decode → huge memory savings!
-                                    ThumbnailImage(
-                                        model = doctorPhoto,
-                                        contentDescription = "Doctor",
-                                        modifier = Modifier.fillMaxSize().clip(CircleShape)
-                                    )
-                                } else {
-                                    Icon(
-                                        Icons.Filled.Person,
-                                        contentDescription = null,
-                                        tint = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8),
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .align(Alignment.Center)
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        // Action row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = {
-                                    if (uiState.upcomingBooking != null) onNavigateToBookings()
-                                    else onNavigateToBookings()
-                                },
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(42.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = HomePrimary,
-                                    contentColor = HomeBgDark
-                                )
-                            ) {
-                                Text(
-                                    if (uiState.upcomingBooking != null) "View Details" else "Book Now",
-                                    fontSize = 14.sp, fontWeight = FontWeight.Bold
-                                )
-                            }
-                            OutlinedIconButton(
-                                onClick = {
-                                    context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+6281234567890")))
-                                },
-                                modifier = Modifier.size(42.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
-                                colors = IconButtonDefaults.outlinedIconButtonColors(
-                                    contentColor = textSecondary
-                                )
-                            ) {
-                                Icon(
-                                    Icons.Filled.Call,
-                                    contentDescription = "Call",
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-                }
-            }
-
-            // ── Quick Actions ─────────────────────────────────────────
-            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
-                Text(
-                    "Quick Actions",
-                    fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                    color = textPrimary
+            Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                DashboardSummaryCard(
+                    summary = uiState.dashboardSummary,
+                    totalPets = uiState.totalPets,
+                    activePets = uiState.activePets,
+                    totalVisits = uiState.totalVisits,
+                    totalSpent = uiState.totalSpent,
+                    unreadNotifications = uiState.unreadNotificationCount
                 )
-                Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    QuickActionItem(
-                        icon = Icons.Filled.CalendarMonth,
-                        label = "Book\nAppt.",
-                        bgColor = Color(0xFFDBEAFE),
-                        bgColorDark = Color(0x336B9FFF),
-                        iconColor = Color(0xFF2563EB),
-                        iconColorDark = Color(0xFF93C5FD),
-                        isDark = isDark,
-                        onClick = onNavigateToDoctors
-                    )
-                    QuickActionItem(
-                        icon = Icons.Filled.Pets,
-                        label = "My\nPets",
-                        bgColor = Color(0xFFF3E8FF),
-                        bgColorDark = Color(0x33A855F7),
-                        iconColor = Color(0xFF9333EA),
-                        iconColorDark = Color(0xFFD8B4FE),
-                        isDark = isDark,
-                        onClick = onNavigateToPets
-                    )
-                    QuickActionItem(
-                        icon = Icons.Filled.Article,
-                        label = "Medical\nRecords",
-                        bgColor = Color(0xFFFFEDD5),
-                        bgColorDark = Color(0x33F97316),
-                        iconColor = Color(0xFFEA580C),
-                        iconColorDark = Color(0xFFFDBA74),
-                        isDark = isDark,
-                        onClick = onNavigateToMedicalRecords
-                    )
-                    QuickActionItem(
-                        icon = Icons.Filled.Chat,
-                        label = "Consult\nDoctor",
-                        bgColor = Color(0xFFFFE4E6),
-                        bgColorDark = Color(0x33EC4899),
-                        iconColor = Color(0xFFDB2777),
-                        iconColorDark = Color(0xFFF9A8D4),
-                        isDark = isDark,
-                        onClick = onNavigateToDoctors
-                    )
-                }
+                Spacer(modifier = Modifier.height(14.dp))
+                OperationalOverviewRow(
+                    pendingBookings = uiState.pendingBookings,
+                    paymentAttentionCount = uiState.paymentAttentionCount,
+                    followUpDueCount = uiState.followUpDueCount,
+                    dueVaccinationCount = uiState.dueVaccinationCount,
+                    overdueVaccinationCount = uiState.overdueVaccinationCount
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                AttentionPanel(
+                    outstandingAmount = uiState.outstandingAmount,
+                    confirmedBookings = uiState.confirmedBookings,
+                    followUpDueCount = uiState.followUpDueCount,
+                    dueVaccinationCount = uiState.dueVaccinationCount,
+                    overdueVaccinationCount = uiState.overdueVaccinationCount
+                )
             }
 
-            // ── Health Tips ───────────────────────────────────────────
-            Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        "Health Tips",
-                        fontSize = 18.sp, fontWeight = FontWeight.Bold,
-                        color = textPrimary
-                    )
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    HealthTipCard(
-                        imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuCM0DQP85aKKUNdLcsJBJs5Fd2zqyJLha64gB7VjyGegqH4r554kZX7v3NJBdvPhildH2iJLlJDJaWQto8rYOuj867UnlpFdLotuH3NshA5crJYYuwXC9Iohc45R-kXx1HUVSBr6uFr3xNH2T7z-ZKP_LyVA_tcMO1JK87nmQE1QWqCn3mEm2z-XqVZypMrVMGWoji8qjO4m3qMow0ZZU2-D_d9arUzoLjO0GV526jEtRYGALpeecaDCNfNG0S-p6GD5WHEjzVPbN0",
-                        category = "Nutrition",
-                        categoryColor = HomePrimary,
-                        title = "Best Diet for Puppies",
-                        description = "Learn what nutrients are essential for your growing puppy's development.",
-                        surfaceColor = surfaceColor,
-                        borderColor = borderColor,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary
-                    )
-                    HealthTipCard(
-                        imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuDpk2AgI23yLIHRLGyKAgTQ7FUa21qinguSCaki3CAY2yz-6ttMUBM-WbnXyFx-Hw2i7DdBqXjZCd7fnd0ngbjPV3IAWILBkq-cZxR67NopI7GZwd_VepQsGn6VRSDcDyGgjCvS4XmMNQmfCIEHL8cJfmlOX1IRU-7jLeb4TjV0UJov0J6BBz0ldpOToUhnji9AtRtwBtCUJk_ZbENNVMEJRV3OimMoazRwD5AoZBl3m8MWawWY88_xeXda_OMd-OS-YrrFY3K5jow",
-                        category = "Behavior",
-                        categoryColor = Color(0xFF3B82F6),
-                        title = "Understanding Cat Purrs",
-                        description = "Why do cats purr? It's not always because they are happy.",
-                        surfaceColor = surfaceColor,
-                        borderColor = borderColor,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary
-                    )
-                    HealthTipCard(
-                        imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuA4dZzA3_H-H82Oe_LrsmaQcLX5sQepaViJjwGfXmL9klupomWEcVwdqKxMAiwQpfYRklWyaCNDp1nmTB_6FWnyMd8ViznYBwSc1MZnAAYZGORlnQ6JCyRPzry191rPDu8tHyUNBv94nA2vMfzXjNC6z9FhTxNYh7MSei3dCg32MzHlZ81XjLjMh43_96O6XBMhFrkzxQwRkMvik7xWH2_NGNd7q4fjr3wrzMUYBc4cn78cEiRTTcSmqobi27GdLIWslNEdmeByuNE",
-                        category = "Wellness",
-                        categoryColor = Color(0xFFEA580C),
-                        title = "Regular Vet Checkups",
-                        description = "Annual checkups are key to keeping your pet healthy and catching issues early.",
-                        surfaceColor = surfaceColor,
-                        borderColor = borderColor,
-                        textPrimary = textPrimary,
-                        textSecondary = textSecondary
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            UpcomingBookingSection(
+                uiState = uiState,
+                onNavigateToBookings = onNavigateToBookings,
+                onNavigateToBookingDetail = onNavigateToBookingDetail,
+                onNavigateToDoctors = onNavigateToDoctors
+            )
+
+            QuickActionsSection(
+                onNavigateToDoctors = onNavigateToDoctors,
+                onNavigateToPets = onNavigateToPets,
+                onNavigateToMedicalRecords = onNavigateToMedicalRecords
+            )
+
+            RecentActivitySection(recentVisits = uiState.recentVisits)
         }
 
-        // ── Bottom Navigation Bar ─────────────────────────────────────
         BottomNavBar(
             modifier = Modifier.align(Alignment.BottomCenter),
-            isDark = isDark,
-            surfaceColor = surfaceColor,
-            borderColor = borderColor,
-            textPrimary = textPrimary,
-            onHome = { /* already here */ },
+            onHome = {},
             onPets = onNavigateToPets,
             onBookings = onNavigateToBookings,
             onProfile = onNavigateToProfile
@@ -501,16 +154,558 @@ fun HomeScreen(
     }
 }
 
-// ── Quick Action Item ─────────────────────────────────────────────────────────
+@Composable
+private fun HeaderSection(
+    userName: String,
+    userPhoto: String?,
+    unreadNotificationCount: Int,
+    onNavigateToNotifications: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp)
+            .padding(top = 40.dp, bottom = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, HomePrimary.copy(alpha = 0.2f), CircleShape)
+                    .background(HomePrimary.copy(alpha = 0.15f))
+            ) {
+                if (!userPhoto.isNullOrBlank()) {
+                    ThumbnailImage(
+                        model = userPhoto,
+                        contentDescription = "Foto Profil",
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(CircleShape)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.Person,
+                        contentDescription = null,
+                        tint = HomePrimary,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .align(Alignment.Center)
+                    )
+                }
+            }
+
+            Column {
+                Text(
+                    text = "Selamat datang kembali,",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HomeTextSecondary
+                )
+                val firstName = userName.trim().split(" ").firstOrNull { it.isNotBlank() }.orEmpty()
+                if (firstName.isBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .width(90.dp)
+                            .height(22.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(HomeTextPrimary.copy(alpha = 0.12f))
+                    )
+                } else {
+                    Text(
+                        text = "$firstName!",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HomeTextPrimary
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(HomeSurface)
+                .clickable { onNavigateToNotifications() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Notifications,
+                contentDescription = "Notifikasi",
+                tint = HomeTextPrimary,
+                modifier = Modifier.size(24.dp)
+            )
+            if (unreadNotificationCount > 0) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-2).dp)
+                        .size(if (unreadNotificationCount > 9) 18.dp else 15.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFEF4444)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (unreadNotificationCount > 99) "99+" else unreadNotificationCount.toString(),
+                        color = Color.White,
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DashboardSummaryCard(
+    summary: String,
+    totalPets: Int,
+    activePets: Int,
+    totalVisits: Int,
+    totalSpent: Double,
+    unreadNotifications: Int
+) {
+    Card(
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "DASBOR HARI INI",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp,
+                        color = HomePrimary
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = summary.ifBlank { "Pantau jadwal, pembayaran, dan tindak lanjut perawatan dalam satu tampilan." },
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 22.sp,
+                        color = HomeTextPrimary
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(HomePrimary.copy(alpha = 0.12f))
+                        .padding(horizontal = 12.dp, vertical = 10.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Insights,
+                        contentDescription = null,
+                        tint = HomePrimary,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AttentionPill("Total Hewan", totalPets.toString(), HomeTextPrimary)
+                AttentionPill("Sedang Dipantau", activePets.toString(), HomeTextPrimary)
+                AttentionPill("Notifikasi Baru", unreadNotifications.toString(), HomeTextPrimary)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                AttentionPill("Total Kunjungan", totalVisits.toString(), HomeTextPrimary)
+                AttentionPill("Biaya Tercatat", "Rp ${formatCurrencyCompact(totalSpent)}", if (totalSpent > 0) Color(0xFF0F766E) else HomeTextPrimary)
+            }
+        }
+    }
+}
+
+@Composable
+private fun OperationalOverviewRow(
+    pendingBookings: Int,
+    paymentAttentionCount: Int,
+    followUpDueCount: Int,
+    dueVaccinationCount: Int,
+    overdueVaccinationCount: Int
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        OperationalMetricCard("Booking Pending", pendingBookings.toString(), "Menunggu kepastian jadwal", Icons.Filled.PendingActions, Color(0xFFF59E0B))
+        OperationalMetricCard("Perlu Pembayaran", paymentAttentionCount.toString(), "Masih perlu diselesaikan", Icons.Filled.Payments, Color(0xFF0EA5E9))
+        OperationalMetricCard("Follow-up", followUpDueCount.toString(), "Perlu dijadwalkan", Icons.Filled.EventAvailable, Color(0xFF8B5CF6))
+        OperationalMetricCard(
+            "Vaksinasi",
+            (dueVaccinationCount + overdueVaccinationCount).toString(),
+            if (overdueVaccinationCount > 0) "$overdueVaccinationCount terlambat" else "Perlu dijadwalkan",
+            Icons.Filled.Vaccines,
+            Color(0xFF10B981)
+        )
+    }
+}
+
+@Composable
+private fun OperationalMetricCard(
+    title: String,
+    value: String,
+    helper: String,
+    icon: ImageVector,
+    tint: Color
+) {
+    Card(
+        modifier = Modifier.width(164.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tint.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(imageVector = icon, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            }
+            Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = HomeTextSecondary)
+            Text(text = value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
+            Text(text = helper, fontSize = 11.sp, lineHeight = 16.sp, color = HomeTextSecondary)
+        }
+    }
+}
+
+@Composable
+private fun AttentionPanel(
+    outstandingAmount: Double,
+    confirmedBookings: Int,
+    followUpDueCount: Int,
+    dueVaccinationCount: Int,
+    overdueVaccinationCount: Int
+) {
+    Card(
+        shape = RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column {
+                    Text("Prioritas Operasional", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = HomeTextPrimary)
+                    Text("Ringkasan item yang paling layak Anda tindak lanjuti hari ini", fontSize = 12.sp, color = HomeTextSecondary)
+                }
+                Text(
+                    text = "Rp ${formatCurrency(outstandingAmount)}",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (outstandingAmount > 0) Color(0xFFEA580C) else HomeTextPrimary
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AttentionPill("Terkonfirmasi", confirmedBookings.toString(), HomeTextPrimary)
+                AttentionPill("Follow-up", followUpDueCount.toString(), HomeTextPrimary)
+                AttentionPill("Vaksin Jatuh Tempo", dueVaccinationCount.toString(), HomeTextPrimary)
+                if (overdueVaccinationCount > 0) {
+                    AttentionPill("Terlambat", overdueVaccinationCount.toString(), Color(0xFFB91C1C))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingBookingSection(
+    uiState: HomeUiState,
+    onNavigateToBookings: () -> Unit,
+    onNavigateToBookingDetail: (Int) -> Unit,
+    onNavigateToDoctors: () -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Jadwal Terdekat", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
+            Text(
+                text = "Lihat Semua",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = HomePrimary,
+                modifier = Modifier.clickable { onNavigateToBookings() }
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (uiState.isBookingLoading && uiState.upcomingBooking == null) {
+            BookingCardSkeleton()
+        } else {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = HomeSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(HomePrimary.copy(alpha = 0.2f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(imageVector = Icons.Filled.Pets, contentDescription = null, tint = HomePrimary, modifier = Modifier.size(18.dp))
+                                }
+                                Text(
+                                    text = if (uiState.upcomingBooking != null) {
+                                        "${uiState.upcomingBooking!!.pet?.name ?: "Hewan"} (${uiState.upcomingBooking!!.pet?.species ?: "-"})"
+                                    } else {
+                                        "Belum ada jadwal aktif"
+                                    },
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFF334155),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
+                            Column {
+                                Text(uiState.upcomingBooking?.doctor?.name ?: "-", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
+                                Text(
+                                    text = if (uiState.upcomingBooking != null) {
+                                        "${uiState.upcomingBooking!!.doctor?.specialization ?: "Dokter Hewan"} • Konsultasi"
+                                    } else {
+                                        "Buat jadwal konsultasi"
+                                    },
+                                    fontSize = 12.sp,
+                                    color = HomeTextSecondary
+                                )
+                            }
+
+                            Row(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(HomeBg)
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                Icon(imageVector = Icons.Filled.Schedule, contentDescription = null, tint = HomePrimary, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = if (uiState.upcomingBooking != null) {
+                                        "${uiState.upcomingBooking!!.bookingTime ?: ""} • ${uiState.upcomingBooking!!.bookingDate ?: ""}"
+                                    } else {
+                                        "-"
+                                    },
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF334155)
+                                )
+                            }
+                        }
+
+                        DoctorPhotoCard(photo = uiState.upcomingBooking?.doctor?.photo)
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = { uiState.upcomingBooking?.id?.let(onNavigateToBookingDetail) ?: onNavigateToDoctors() },
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(42.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = HomePrimary, contentColor = HomeBg)
+                        ) {
+                            Text(
+                                text = if (uiState.upcomingBooking != null) "Buka Booking" else "Buat Booking",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        OutlinedButton(
+                            onClick = onNavigateToDoctors,
+                            modifier = Modifier.height(42.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = HomeTextPrimary)
+                        ) {
+                            Icon(imageVector = Icons.Filled.MedicalServices, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(text = "Cari Dokter", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DoctorPhotoCard(photo: String?) {
+    Box(
+        modifier = Modifier
+            .size(96.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFFE2E8F0))
+    ) {
+        val doctorPhoto = remember(photo) { buildPhotoUrl(photo) }
+        if (!doctorPhoto.isNullOrBlank()) {
+            ThumbnailImage(model = doctorPhoto, contentDescription = "Dokter", modifier = Modifier.fillMaxSize())
+        } else {
+            Icon(
+                imageVector = Icons.Filled.Person,
+                contentDescription = null,
+                tint = Color(0xFF94A3B8),
+                modifier = Modifier
+                    .size(44.dp)
+                    .align(Alignment.Center)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionsSection(
+    onNavigateToDoctors: () -> Unit,
+    onNavigateToPets: () -> Unit,
+    onNavigateToMedicalRecords: () -> Unit
+) {
+    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+        Text("Akses Cepat", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "Masuk ke fitur yang paling sering dipakai tanpa harus membuka banyak halaman.",
+            fontSize = 12.sp,
+            color = HomeTextSecondary
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", Color(0xFFDBEAFE), Color(0xFF2563EB), onNavigateToDoctors)
+            QuickActionItem(Icons.Filled.Pets, "Hewan\nSaya", Color(0xFFF3E8FF), Color(0xFF9333EA), onNavigateToPets)
+            QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", Color(0xFFFFEDD5), Color(0xFFEA580C), onNavigateToMedicalRecords)
+            QuickActionItem(Icons.Filled.MedicalServices, "Cari\nDokter", Color(0xFFFFE4E6), Color(0xFFDB2777), onNavigateToDoctors)
+        }
+    }
+}
+
+@Composable
+private fun RecentActivitySection(recentVisits: List<MedicalRecord>) {
+    Column(modifier = Modifier.padding(top = 16.dp, bottom = 8.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Aktivitas Perawatan Terbaru", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        if (recentVisits.isNotEmpty()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                recentVisits.take(5).forEach { record ->
+                    RecentVisitCard(record = record)
+                }
+            }
+        } else {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = HomeSurface),
+                border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder)
+            ) {
+                Column(
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text("Belum ada aktivitas medis terbaru", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = HomeTextPrimary)
+                    Text(
+                        text = "Setelah booking selesai atau rekam medis dibuat, ringkasan aktivitas akan muncul di sini agar pemantauan perawatan terasa lebih jelas.",
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp,
+                        color = HomeTextSecondary
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
 @Composable
 private fun QuickActionItem(
     icon: ImageVector,
     label: String,
     bgColor: Color,
-    bgColorDark: Color,
     iconColor: Color,
-    iconColorDark: Color,
-    isDark: Boolean,
     onClick: () -> Unit
 ) {
     Column(
@@ -522,102 +717,106 @@ private fun QuickActionItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(if (isDark) bgColorDark else bgColor),
+                .background(bgColor),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (isDark) iconColorDark else iconColor,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(imageVector = icon, contentDescription = label, tint = iconColor, modifier = Modifier.size(28.dp))
         }
         Text(
             text = label,
-            fontSize = 11.sp, fontWeight = FontWeight.Medium,
-            color = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569),
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color(0xFF475569),
             lineHeight = 14.sp,
-            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            textAlign = TextAlign.Center
         )
     }
 }
 
-// ── Health Tip Card ───────────────────────────────────────────────────────────
 @Composable
-private fun HealthTipCard(
-    imageUrl: String,
-    category: String,
-    categoryColor: Color,
-    title: String,
-    description: String,
-    surfaceColor: Color,
-    borderColor: Color,
-    textPrimary: Color,
-    textSecondary: Color
-) {
+private fun RecentVisitCard(record: MedicalRecord) {
     Card(
-        modifier = Modifier.width(260.dp),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        modifier = Modifier.width(250.dp),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Column {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(128.dp),
-                contentScale = ContentScale.Crop
-            )
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = category.uppercase(),
-                    fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                    color = categoryColor,
-                    letterSpacing = 1.sp
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = title,
-                    fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                    color = textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    fontSize = 11.sp, color = textSecondary,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    lineHeight = 16.sp
-                )
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(HomePrimary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = Icons.Filled.MedicalServices, contentDescription = null, tint = HomePrimary, modifier = Modifier.size(18.dp))
+                }
+                Column {
+                    Text(text = record.pet?.name ?: "Pasien", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = HomeTextPrimary)
+                    Text(text = record.doctor?.name ?: "Dokter", fontSize = 12.sp, color = HomeTextSecondary)
+                }
             }
+            Text(
+                text = record.diagnosis?.takeIf { it.isNotBlank() }
+                    ?: record.treatment?.takeIf { it.isNotBlank() }
+                    ?: "Kunjungan klinis telah dicatat untuk dipantau kembali.",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = HomeTextPrimary,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = listOfNotNull(record.createdAt, record.nextVisitDate).joinToString(" • ").ifBlank { "Catatan waktu belum tersedia" },
+                fontSize = 11.sp,
+                color = HomeTextSecondary
+            )
         }
     }
 }
 
-// ── Bottom Navigation Bar ─────────────────────────────────────────────────────
+@Composable
+private fun AttentionPill(
+    label: String,
+    value: String,
+    valueColor: Color
+) {
+    Column(
+        modifier = Modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(HomeSoftSurface)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Text(text = label, fontSize = 10.sp, color = HomeTextSecondary)
+        Text(text = value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = valueColor)
+    }
+}
+
 @Composable
 private fun BottomNavBar(
     modifier: Modifier = Modifier,
-    isDark: Boolean,
-    surfaceColor: Color,
-    borderColor: Color,
-    textPrimary: Color,
     onHome: () -> Unit,
     onPets: () -> Unit,
     onBookings: () -> Unit,
     onProfile: () -> Unit
 ) {
-    val borderTop = if (isDark) Color(0x0DFFFFFF) else Color(0xFFE2E8F0)
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = if (isDark) surfaceColor.copy(alpha = 0.95f) else surfaceColor,
+        color = HomeSurface,
         tonalElevation = 0.dp,
         shadowElevation = 8.dp
     ) {
         Column {
-            Divider(color = borderTop, thickness = 1.dp)
+            Divider(color = HomeBorder, thickness = 1.dp)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -626,35 +825,10 @@ private fun BottomNavBar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                // Home (active)
-                NavBarItem(
-                    icon = Icons.Filled.Home,
-                    label = "Home",
-                    isActive = true,
-                    isDark = isDark,
-                    onClick = onHome
-                )
-                NavBarItem(
-                    icon = Icons.Filled.Pets,
-                    label = "Pets",
-                    isActive = false,
-                    isDark = isDark,
-                    onClick = onPets
-                )
-                NavBarItem(
-                    icon = Icons.Filled.CalendarMonth,
-                    label = "Bookings",
-                    isActive = false,
-                    isDark = isDark,
-                    onClick = onBookings
-                )
-                NavBarItem(
-                    icon = Icons.Filled.Person,
-                    label = "Profile",
-                    isActive = false,
-                    isDark = isDark,
-                    onClick = onProfile
-                )
+                NavBarItem(Icons.Filled.Home, "Beranda", true, onHome)
+                NavBarItem(Icons.Filled.Pets, "Hewan", false, onPets)
+                NavBarItem(Icons.Filled.CalendarMonth, "Booking", false, onBookings)
+                NavBarItem(Icons.Filled.Person, "Profil", false, onProfile)
             }
         }
     }
@@ -665,7 +839,6 @@ private fun NavBarItem(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
-    isDark: Boolean,
     onClick: () -> Unit
 ) {
     Column(
@@ -679,41 +852,35 @@ private fun NavBarItem(
             modifier = Modifier
                 .size(32.dp)
                 .clip(CircleShape)
-                .background(
-                    if (isActive) HomePrimary.copy(alpha = 0.1f) else Color.Transparent
-                ),
+                .background(if (isActive) HomePrimary.copy(alpha = 0.1f) else Color.Transparent),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isActive) HomePrimary
-                       else if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8),
+                tint = if (isActive) HomePrimary else Color(0xFF94A3B8),
                 modifier = Modifier.size(24.dp)
             )
         }
         Text(
             text = label,
-            fontSize = 10.sp, fontWeight = FontWeight.Medium,
-            color = if (isActive) (if (isDark) Color.White else Color(0xFF0F172A))
-                    else if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            color = if (isActive) HomeTextPrimary else Color(0xFF94A3B8)
         )
     }
 }
 
-// ✅ OPTIMIZATION: Skeleton UI for Booking Card (Prevents blank screen feeling)
 @Composable
-private fun BookingCardSkeleton(
-    isDark: Boolean,
-    surfaceColor: Color,
-    borderColor: Color
-) {
-    val skeletonColor = if (isDark) Color(0xFFE2E8F0) else Color(0xFFE2E8F0)
+private fun BookingCardSkeleton() {
+    val skeletonColor = Color(0xFFE2E8F0)
     Card(
-        modifier = Modifier.fillMaxWidth().height(160.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        border = androidx.compose.foundation.BorderStroke(1.dp, borderColor),
+        colors = CardDefaults.cardColors(containerColor = HomeSurface),
+        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
@@ -721,9 +888,27 @@ private fun BookingCardSkeleton(
                 modifier = Modifier.align(Alignment.CenterStart),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(Modifier.size(120.dp).height(16.dp).clip(RoundedCornerShape(8.dp)).background(skeletonColor))
-                Box(Modifier.size(160.dp).height(20.dp).clip(RoundedCornerShape(8.dp)).background(skeletonColor))
-                Box(Modifier.size(100.dp).height(32.dp).clip(RoundedCornerShape(8.dp)).background(skeletonColor))
+                Box(
+                    modifier = Modifier
+                        .width(120.dp)
+                        .height(16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(skeletonColor)
+                )
+                Box(
+                    modifier = Modifier
+                        .width(160.dp)
+                        .height(20.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(skeletonColor)
+                )
+                Box(
+                    modifier = Modifier
+                        .width(100.dp)
+                        .height(32.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(skeletonColor)
+                )
             }
             Box(
                 modifier = Modifier
@@ -734,4 +919,12 @@ private fun BookingCardSkeleton(
             )
         }
     }
+}
+
+private fun formatCurrency(value: Double): String =
+    String.format("%,.0f", value).replace(',', '.')
+
+private fun formatCurrencyCompact(value: Double): String {
+    val formatted = formatCurrency(value)
+    return if (formatted.length > 10) "${formatted.take(10)}+" else formatted
 }

@@ -8,6 +8,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -64,6 +65,7 @@ fun PaymentScreen(
     onNavigateBack: () -> Unit,
     onBookingUpdated: () -> Unit = {},
     isRemainingPayment: Boolean = false, // NEW: Flag to indicate this is a remaining payment
+    medicalRecordId: Int? = null,
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -71,6 +73,17 @@ fun PaymentScreen(
     val bgColor = if (isDark) PayBgDark else PayBgLight
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val paymentContextTitle = when {
+        medicalRecordId != null -> "Medical Record Payment"
+        isRemainingPayment -> "Remaining Booking Payment"
+        else -> "Booking Payment"
+    }
+    val paymentContextSubtitle = when {
+        medicalRecordId != null -> "Settle the additional treatment and medicine cost to unlock the full record."
+        isRemainingPayment -> "Complete the remaining balance for this booking."
+        isDpPayment -> "Secure the appointment with the required down payment."
+        else -> "Complete the booking payment to confirm the consultation."
+    }
 
     var showResultDialog by remember { mutableStateOf(false) }
     var resultDialogType by remember { mutableStateOf<String?>(null) }
@@ -80,7 +93,9 @@ fun PaymentScreen(
     LaunchedEffect(Unit) {
         val bookingId = booking.id ?: 0
         
-        if (isRemainingPayment) {
+        if (medicalRecordId != null) {
+            viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
+        } else if (isRemainingPayment) {
             // For remaining payment, call the remaining payment endpoint
             viewModel.initiateRemainingPayment(bookingId, user)
         } else {
@@ -131,21 +146,35 @@ fun PaymentScreen(
                             animationSpec = infiniteRepeatable(animation = tween(1000), repeatMode = RepeatMode.Reverse)
                         )
                         CircularProgressIndicator(color = PayPrimary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
-                        Text("Preparing secure payment...", fontSize = 16.sp, fontWeight = FontWeight.Medium, color = textPrimary)
-                        Text("Please wait a moment", fontSize = 12.sp, color = textSecondary)
+                        Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                        Text("Preparing your secure checkout...", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = textPrimary)
+                        Text(paymentContextSubtitle, fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center)
                     }
                 }
             }
             state.error != null && state.snapToken == null && state.snapRedirectUrl == null -> {
-                PaymentErrorScreen(error = state.error ?: "Unknown error", onRetry = {
-                    viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, booking.id ?: 0)
-                }, onNavigateBack = onNavigateBack, textPrimary = textPrimary, textSecondary = textSecondary)
+                PaymentErrorScreen(
+                    title = paymentContextTitle,
+                    subtitle = paymentContextSubtitle,
+                    error = state.error ?: "Unknown error",
+                    onRetry = {
+                        when {
+                            medicalRecordId != null -> viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
+                            isRemainingPayment -> viewModel.initiateRemainingPayment(booking.id ?: 0, user)
+                            else -> viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, booking.id ?: 0)
+                        }
+                    },
+                    onNavigateBack = onNavigateBack,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary
+                )
             }
             state.snapRedirectUrl != null || state.snapToken != null -> {
                 PaymentWebView(
                     redirectUrl = state.snapRedirectUrl,
                     bookingId = booking.id ?: 0,
                     orderId = state.orderId, // Use the order ID stored when Snap token was created
+                    paymentContextTitle = paymentContextTitle,
                     onPaymentResult = { orderId, status, paymentType ->
                         Log.d(TAG, "Payment callback: orderId=$orderId, status=$status")
                         viewModel.handlePaymentResult(orderId, status, paymentType)
@@ -175,6 +204,7 @@ fun PaymentScreen(
                 status = resultDialogType ?: "failed",
                 orderId = resultOrderId,
                 paymentType = state.paymentResult?.paymentType,
+                titleOverride = paymentContextTitle,
                 onDismiss = { showResultDialog = false },
                 modifier = Modifier.align(Alignment.Center)
             )
@@ -192,6 +222,7 @@ private fun PaymentWebView(
     redirectUrl: String?,
     bookingId: Int,
     orderId: String?,
+    paymentContextTitle: String,
     onPaymentResult: (String, String?, String?) -> Unit,
     onClose: () -> Unit,
     onError: (String) -> Unit = {},
@@ -280,7 +311,7 @@ private fun PaymentWebView(
                 IconButton(onClick = onClose) {
                     Icon(Icons.Filled.Close, contentDescription = "Cancel Payment", tint = textPrimary)
                 }
-                Text("Complete Payment", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                Text(paymentContextTitle, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                 IconButton(onClick = onClose) {
                     Icon(Icons.Filled.HelpOutline, contentDescription = "Help", tint = textPrimary)
                 }
@@ -298,6 +329,7 @@ fun PaymentResultDialog(
     status: String,
     orderId: String,
     paymentType: String?,
+    titleOverride: String? = null,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -311,10 +343,10 @@ fun PaymentResultDialog(
     val title: String
     val message: String
     when (status) {
-        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Payment Successful!"; message = "Your booking is confirmed. Check your bookings for details." }
-        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Color(0xFFF59E0B); title = "Payment Pending"; message = "Please complete the payment to confirm your booking." }
-        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = Color(0xFF94A3B8); title = "Payment Canceled"; message = "You can try again anytime from your bookings." }
-        else -> { icon = Icons.Filled.Cancel; iconColor = Color(0xFFEF4444); title = "Payment Failed"; message = "The payment was not completed. You can try again." }
+        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Payment Completed"; message = "Your payment has been recorded successfully. The latest booking status will refresh automatically." }
+        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Color(0xFFF59E0B); title = "Payment Still Pending"; message = "Your payment session is still active. Complete the transaction to unlock the latest status." }
+        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = Color(0xFF94A3B8); title = "Payment Was Cancelled"; message = "No charge was completed. You can restart the payment from the booking details screen." }
+        else -> { icon = Icons.Filled.Cancel; iconColor = Color(0xFFEF4444); title = "Payment Could Not Be Completed"; message = "The checkout did not finish successfully. Please try again when you're ready." }
     }
 
     val infiniteTransition = rememberInfiniteTransition()
@@ -343,6 +375,9 @@ fun PaymentResultDialog(
                 ) {
                     Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(50.dp).scale(scale))
                 }
+                titleOverride?.let {
+                    Text(text = it, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textSecondary, textAlign = TextAlign.Center)
+                }
                 Text(text = title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
                 Text(text = message, fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
                 
@@ -368,7 +403,7 @@ fun PaymentResultDialog(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
                     CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp), color = textSecondary.copy(alpha = 0.5f))
                     Spacer(Modifier.width(8.dp))
-                    Text(text = "Auto-redirecting...", fontSize = 11.sp, color = textSecondary.copy(alpha = 0.7f))
+                    Text(text = "Returning automatically...", fontSize = 11.sp, color = textSecondary.copy(alpha = 0.7f))
                 }
             }
         }
@@ -380,6 +415,8 @@ fun PaymentResultDialog(
  */
 @Composable
 fun PaymentErrorScreen(
+    title: String,
+    subtitle: String,
     error: String,
     onRetry: () -> Unit,
     onNavigateBack: () -> Unit,
@@ -391,8 +428,12 @@ fun PaymentErrorScreen(
             Icon(Icons.Filled.Error, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(24.dp))
+        Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textSecondary)
+        Spacer(Modifier.height(4.dp))
         Text("Payment Setup Failed", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
         Spacer(Modifier.height(8.dp))
+        Text(subtitle, fontSize = 13.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
+        Spacer(Modifier.height(12.dp))
         Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.05f))) {
             Text(error, fontSize = 14.sp, color = Color(0xFFDC2626), textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
         }
@@ -428,45 +469,124 @@ fun PaymentResultScreen(
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
 
-    val (icon, titleColor, subtitle) = when (status) {
-        "success" -> Triple(Icons.Filled.CheckCircle, PayPrimary, "Your booking is now confirmed. You'll receive a notification shortly.")
-        "pending" -> Triple(Icons.Filled.Schedule, Color(0xFFF59E0B), "Please complete your payment before the deadline to confirm your booking.")
-        else -> Triple(Icons.Filled.Cancel, Color(0xFFEF4444), "The payment was not completed. You can try again or contact support.")
+    val icon: ImageVector
+    val titleColor: Color
+    val subtitle: String
+    val eyebrow: String
+    when (status) {
+        "success" -> {
+            icon = Icons.Filled.CheckCircle
+            titleColor = PayPrimary
+            subtitle = "Your payment has been captured successfully and the booking status will be refreshed."
+            eyebrow = "Booking payment updated"
+        }
+        "pending" -> {
+            icon = Icons.Filled.Schedule
+            titleColor = Color(0xFFF59E0B)
+            subtitle = "The transaction is still pending. Complete it before the deadline so the booking can be finalized."
+            eyebrow = "Waiting for settlement"
+        }
+        else -> {
+            icon = Icons.Filled.Cancel
+            titleColor = Color(0xFFEF4444)
+            subtitle = "The payment was not completed. You can try again from the booking details screen."
+            eyebrow = "Checkout needs attention"
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(80.dp))
-            Box(modifier = Modifier.size(100.dp).clip(RoundedCornerShape(24.dp)).background(titleColor.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                Icon(imageVector = icon, contentDescription = null, tint = titleColor, modifier = Modifier.size(60.dp))
+            Spacer(Modifier.height(56.dp))
+            Surface(
+                shape = RoundedCornerShape(32.dp),
+                color = titleColor.copy(alpha = 0.1f),
+                border = BorderStroke(1.dp, titleColor.copy(alpha = 0.15f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(112.dp)
+                        .clip(RoundedCornerShape(32.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(imageVector = icon, contentDescription = null, tint = titleColor, modifier = Modifier.size(60.dp))
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = surfaceColor,
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Text(
+                    text = eyebrow,
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = textSecondary
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(text = when (status) { "success" -> "Payment Completed"; "pending" -> "Payment Pending"; else -> "Payment Failed" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(10.dp))
+            Text(text = subtitle, fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 22.sp)
+            Spacer(Modifier.height(24.dp))
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = surfaceColor),
+                elevation = CardDefaults.cardElevation(0.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Order ID", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                        Text(orderId, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                    }
+
+                    message?.let {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = when (status) {
+                                "success" -> PayPrimary.copy(alpha = 0.08f)
+                                "pending" -> Color(0xFFF59E0B).copy(alpha = 0.08f)
+                                else -> Color(0xFFEF4444).copy(alpha = 0.08f)
+                            }
+                        ) {
+                            Text(
+                                it,
+                                fontSize = 13.sp,
+                                color = when (status) {
+                                    "success" -> PayPrimary
+                                    "pending" -> Color(0xFFF59E0B)
+                                    else -> Color(0xFFEF4444)
+                                },
+                                modifier = Modifier.padding(14.dp),
+                                lineHeight = 20.sp
+                            )
+                        }
+                    }
+                }
             }
             Spacer(Modifier.height(32.dp))
-            Text(text = when (status) { "success" -> "Payment Successful!"; "pending" -> "Payment Pending"; else -> "Payment Failed" }, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-            Spacer(Modifier.height(12.dp))
-            Text(text = subtitle, fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center)
-            Spacer(Modifier.height(24.dp))
-            Surface(shape = RoundedCornerShape(12.dp), color = surfaceColor, modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Order ID", fontSize = 12.sp, color = textSecondary)
-                    Spacer(Modifier.height(4.dp))
-                    Text(orderId, fontSize = 14.sp, fontWeight = FontWeight.Medium, color = textPrimary)
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-            message?.let {
-                Surface(shape = RoundedCornerShape(12.dp), color = when (status) { "success" -> PayPrimary.copy(alpha = 0.1f); "pending" -> Color(0xFFF59E0B).copy(alpha = 0.1f); else -> Color(0xFFEF4444).copy(alpha = 0.1f) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(it, fontSize = 13.sp, color = when (status) { "success" -> PayPrimary; "pending" -> Color(0xFFF59E0B); else -> Color(0xFFEF4444) }, modifier = Modifier.padding(16.dp), textAlign = TextAlign.Center)
-                }
-            }
-            Spacer(Modifier.height(40.dp))
-            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color(0xFF052E14))) {
+            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color(0xFF052E14))) {
                 Icon(Icons.Filled.List, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("View My Bookings", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Open My Bookings", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
             Spacer(Modifier.height(12.dp))
-            TextButton(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth()) {
-                Text("Back to Home", color = PayPrimary, fontWeight = FontWeight.Medium)
+            OutlinedButton(
+                onClick = onNavigateBack,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            ) {
+                Text("Back to Home", color = textPrimary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

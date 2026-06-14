@@ -44,6 +44,12 @@ private val NUnread        = Color(0xFFE8F5E9)    // subtle green tint for unrea
 @Composable
 fun NotificationsScreen(
     onNavigateBack: () -> Unit,
+    onOpenBooking: (Int) -> Unit = {},
+    onOpenMedicalRecord: (Int) -> Unit = {},
+    onOpenPet: (Int) -> Unit = {},
+    onOpenDoctor: (Int) -> Unit = {},
+    onOpenBookings: () -> Unit = {},
+    onOpenPets: () -> Unit = {},
     viewModel: NotificationsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -146,7 +152,17 @@ fun NotificationsScreen(
                     ) { notif ->
                         NotificationCard(
                             notification = notif,
-                            onClick      = { viewModel.markRead(notif.id) }
+                            onClick = {
+                                viewModel.markRead(notif.id)
+                                when {
+                                    notif.medicalRecordId != null -> onOpenMedicalRecord(notif.medicalRecordId)
+                                    notif.bookingId != null -> onOpenBooking(notif.bookingId)
+                                    notif.petId != null -> onOpenPet(notif.petId)
+                                    notif.doctorId != null -> onOpenDoctor(notif.doctorId)
+                                    notif.type == "booking_status" || notif.type == "booking_reminder" || notif.type == "payment_reminder" -> onOpenBookings()
+                                    notif.type == "vaccination_reminder" -> onOpenPets()
+                                }
+                            }
                         )
                     }
                     // Bottom spacer for nav bar clearance

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BookingController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\MedicalRecordController;
+use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\UserController;
 use Illuminate\Support\Facades\Route;
@@ -50,6 +51,8 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\AdminAuthController::class, 'settings'])->name('settings');
     Route::post('/settings/password', [App\Http\Controllers\Admin\AdminAuthController::class, 'updatePassword'])->name('settings.password');
+    Route::get('/notification-settings', [NotificationSettingsController::class, 'index'])->name('notification-settings.index');
+    Route::put('/notification-settings', [NotificationSettingsController::class, 'update'])->name('notification-settings.update');
 
     // Audit Logs
     Route::get('/audit-logs', [DashboardController::class, 'auditLogs'])->name('audit-logs');
@@ -71,6 +74,8 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
 
     // Medical Records
     Route::get('/medical-records', [MedicalRecordController::class, 'index'])->name('medical-records.index');
+    Route::get('/medical-records/export/pdf', [MedicalRecordController::class, 'exportPdf'])->name('medical-records.export.pdf');
+    Route::get('/medical-records/export/csv', [MedicalRecordController::class, 'exportCsv'])->name('medical-records.export.csv');
     Route::get('/medical-records/create/{bookingId}', [MedicalRecordController::class, 'create'])->name('medical-records.create');
     Route::post('/medical-records', [MedicalRecordController::class, 'store'])->name('medical-records.store');
     Route::get('/medical-records/{id}', [MedicalRecordController::class, 'show'])->name('medical-records.show');
@@ -79,6 +84,10 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::delete('/medical-records/{id}', [MedicalRecordController::class, 'destroy'])->name('medical-records.destroy');
 
     // Services
+    Route::get('/services/template/csv', [App\Http\Controllers\Admin\ServiceController::class, 'downloadTemplateCsv'])->name('services.template.csv');
+    Route::get('/services/template/xlsx', [App\Http\Controllers\Admin\ServiceController::class, 'downloadTemplateXlsx'])->name('services.template.xlsx');
+    Route::get('/services/import/error-report', [App\Http\Controllers\Admin\ServiceController::class, 'downloadImportErrorReport'])->name('services.import.error-report');
+    Route::post('/services/import', [App\Http\Controllers\Admin\ServiceController::class, 'import'])->name('services.import');
     Route::resource('services', App\Http\Controllers\Admin\ServiceController::class);
 
     // Payments (Midtrans Integration)

@@ -8,10 +8,43 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
+use App\Models\MedicalRecord;
 use App\Services\PaymentStatusService;
 
 class PaymentController extends Controller
 {
+    private function parsePaymentOrderId(string $orderId): ?array
+    {
+        if (preg_match('/^BOOKING-(\d+)-(\d+)$/', $orderId, $matches)) {
+            return [
+                'prefix' => 'BOOKING',
+                'target_id' => (int) $matches[1],
+                'timestamp' => $matches[2],
+                'is_remaining_payment' => false,
+            ];
+        }
+
+        if (preg_match('/^BOOKING-(\d+)-REMAINING-(\d+)$/', $orderId, $matches)) {
+            return [
+                'prefix' => 'BOOKING',
+                'target_id' => (int) $matches[1],
+                'timestamp' => $matches[2],
+                'is_remaining_payment' => true,
+            ];
+        }
+
+        if (preg_match('/^MEDREC-(\d+)-(\d+)$/', $orderId, $matches)) {
+            return [
+                'prefix' => 'MEDREC',
+                'target_id' => (int) $matches[1],
+                'timestamp' => $matches[2],
+                'is_remaining_payment' => false,
+            ];
+        }
+
+        return null;
+    }
+
     // Midtrans Configuration (loaded from .env)
     private function getSnapUrl(): string
     {
@@ -152,8 +185,15 @@ class PaymentController extends Controller
                 'credit_card' => 'nullable|array',
             ]);
 
-            preg_match('/^BOOKING-(\d+)-\d+$/', $validated['transaction_details']['order_id'], $matches);
-            $bookingId = (int) ($matches[1] ?? 0);
+            $parsedOrder = $this->parsePaymentOrderId($validated['transaction_details']['order_id']);
+            if (!$parsedOrder || $parsedOrder['prefix'] !== 'BOOKING') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Invalid booking order ID',
+                ], 422);
+            }
+
+            $bookingId = $parsedOrder['target_id'];
             $booking = $user->bookings()->find($bookingId);
 
             if (!$booking) {
@@ -326,18 +366,26 @@ class PaymentController extends Controller
                 ], 401);
             }
 
-            if (!preg_match('/^BOOKING-(\d+)(?:-|$)/', $orderId, $matches)) {
+            $parsedOrder = $this->parsePaymentOrderId($orderId);
+            if (!$parsedOrder) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Invalid order ID',
                 ], 422);
             }
 
-            $booking = $user->bookings()->find((int) $matches[1]);
-            if (!$booking) {
+            if ($parsedOrder['prefix'] === 'BOOKING') {
+                $owned = $user->bookings()->find($parsedOrder['target_id']);
+            } else {
+                $owned = MedicalRecord::whereKey($parsedOrder['target_id'])
+                    ->whereHas('booking', fn ($query) => $query->where('user_id', $user->id))
+                    ->first();
+            }
+
+            if (!$owned) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Booking not found',
+                    'message' => 'Payment target not found',
                 ], 404);
             }
 
@@ -397,7 +445,7 @@ class PaymentController extends Controller
     {
         try {
             $validated = $request->validate([
-                'order_id' => 'required|string|regex:/^BOOKING-\d+(?:-(?:REMAINING-)?\d+)?$/',
+                'order_id' => 'required|string|max:100',
             ]);
 
             $user = Auth::user();
@@ -409,18 +457,57 @@ class PaymentController extends Controller
             }
 
             $orderId = $validated['order_id'];
-            if (!preg_match('/^BOOKING-(\d+)(?:-|$)/', $orderId, $matches)) {
+            Log::info('Payment sync requested', [
+                'order_id' => $orderId,
+                'user_id' => $request->user()?->id,
+            ]);
+
+            $parsedOrder = $this->parsePaymentOrderId($orderId);
+            if (!$parsedOrder) {
+                Log::warning('Payment sync invalid order id format', [
+                    'order_id' => $orderId,
+                    'user_id' => $user->id,
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'message' => 'Invalid order ID',
+                    'message' => 'Invalid payment order id format',
                 ], 422);
             }
 
-            $booking = $user->bookings()->find((int) $matches[1]);
-            if (!$booking) {
+            Log::info(
+                $parsedOrder['prefix'] === 'BOOKING'
+                    ? 'Payment sync parsed booking order'
+                    : 'Payment sync parsed medical record order',
+                [
+                    'order_id' => $orderId,
+                    $parsedOrder['prefix'] === 'BOOKING' ? 'booking_id' : 'medical_record_id' => $parsedOrder['target_id'],
+                    'timestamp' => $parsedOrder['timestamp'],
+                    'is_remaining_payment' => $parsedOrder['is_remaining_payment'],
+                ]
+            );
+
+            Log::info('Midtrans status sync requested', [
+                'order_id' => $orderId,
+                'user_id' => $user->id,
+                'payment_target_type' => $parsedOrder['prefix'],
+                'payment_target_id' => $parsedOrder['target_id'],
+                'timestamp' => $parsedOrder['timestamp'],
+                'is_remaining_payment' => $parsedOrder['is_remaining_payment'],
+            ]);
+
+            if ($parsedOrder['prefix'] === 'BOOKING') {
+                $paymentTarget = $user->bookings()->find($parsedOrder['target_id']);
+            } else {
+                $paymentTarget = MedicalRecord::whereKey($parsedOrder['target_id'])
+                    ->whereHas('booking', fn ($query) => $query->where('user_id', $user->id))
+                    ->first();
+            }
+
+            if (!$paymentTarget) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Booking not found',
+                    'message' => 'Payment target not found',
                 ], 404);
             }
 
@@ -439,26 +526,29 @@ class PaymentController extends Controller
 
             $data = $response->json();
             $transactionStatus = (string) ($data['transaction_status'] ?? 'unknown');
+            $fraudStatus = $data['fraud_status'] ?? null;
             $paymentType = $data['payment_type'] ?? null;
             $grossAmount = $data['gross_amount'] ?? 0;
 
-            $updateResult = $paymentStatusService->applyTransactionStatus(
-                $booking,
-                $orderId,
-                $transactionStatus,
-                $paymentType,
-                $grossAmount,
-                $data
-            );
+            Log::info('Payment sync Midtrans status', [
+                'order_id' => $orderId,
+                'transaction_status' => $transactionStatus,
+                'fraud_status' => $fraudStatus,
+            ]);
 
-            $updatedBooking = $updateResult['booking'];
+            if ($paymentTarget instanceof Booking) {
+                $updateResult = $paymentStatusService->applyTransactionStatus(
+                    $paymentTarget,
+                    $orderId,
+                    $transactionStatus,
+                    $paymentType,
+                    $grossAmount,
+                    $data
+                );
 
-            return response()->json([
-                'success' => true,
-                'message' => ($updateResult['duplicate'] ?? false)
-                    ? 'Payment status already synchronized'
-                    : 'Payment status synchronized successfully',
-                'data' => [
+                $updatedBooking = $updateResult['booking'];
+
+                $responseData = [
                     'id' => $updatedBooking->id,
                     'payment_type' => $updatedBooking->payment_type,
                     'payment_status' => $updatedBooking->payment_status,
@@ -468,7 +558,48 @@ class PaymentController extends Controller
                     'remaining_amount' => $updatedBooking->remaining_amount ?? ($updatedBooking->total_amount - $updatedBooking->paid_amount),
                     'payment_date' => $updatedBooking->payment_date?->toDateTimeString(),
                     'transaction_status' => $transactionStatus,
-                ],
+                ];
+
+                Log::info('Payment sync database updated', [
+                    'order_id' => $orderId,
+                    'payment_status' => $updatedBooking->payment_status,
+                    'booking_payment_status' => $updatedBooking->payment_status,
+                ]);
+            } else {
+                $updateResult = $paymentStatusService->applyMedicalRecordTransactionStatus(
+                    $paymentTarget,
+                    $orderId,
+                    $transactionStatus,
+                    $paymentType,
+                    $grossAmount,
+                    $data
+                );
+
+                $updatedRecord = $updateResult['medical_record'];
+                $responseData = [
+                    'id' => $updatedRecord->id,
+                    'medical_record_id' => $updatedRecord->id,
+                    'payment_status' => $updatedRecord->extra_payment_status,
+                    'extra_payment_status' => $updatedRecord->extra_payment_status,
+                    'extra_payment_amount' => $updatedRecord->extra_payment_amount,
+                    'extra_payment_paid_amount' => $updatedRecord->extra_payment_paid_amount,
+                    'payment_date' => $updatedRecord->extra_payment_date?->toDateTimeString(),
+                    'transaction_status' => $transactionStatus,
+                ];
+
+                Log::info('Payment sync database updated', [
+                    'order_id' => $orderId,
+                    'payment_status' => $updatedRecord->extra_payment_status,
+                    'medical_record_extra_payment_status' => $updatedRecord->extra_payment_status,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => ($updateResult['duplicate'] ?? false)
+                    ? 'Payment status already synchronized'
+                    : 'Payment status synchronized successfully',
+                'data' => $responseData,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             return response()->json([

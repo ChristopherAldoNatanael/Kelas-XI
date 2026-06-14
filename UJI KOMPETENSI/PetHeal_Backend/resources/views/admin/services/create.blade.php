@@ -34,6 +34,12 @@
                     <input type="number" name="price" id="price" value="{{ old('price') }}" required min="0" step="0.01"
                         class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all">
                 </div>
+
+                <div>
+                    <label for="duration" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Duration (minutes)</label>
+                    <input type="number" name="duration" id="duration" value="{{ old('duration') }}" min="1"
+                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all">
+                </div>
             </div>
 
             <div class="space-y-6">

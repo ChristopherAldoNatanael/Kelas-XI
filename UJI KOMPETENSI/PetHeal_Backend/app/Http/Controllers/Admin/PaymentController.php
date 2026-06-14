@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
-use App\Jobs\SendFcmNotification;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
@@ -172,7 +171,7 @@ class PaymentController extends Controller
             $query->whereDate('updated_at', '<=', $validated['to']);
         }
 
-        $bookings = $query->limit(200)->get();
+        $bookings = $query->get();
         $html = view('admin.exports.payments_pdf', compact('bookings'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);
@@ -185,24 +184,26 @@ class PaymentController extends Controller
 
     public function sendReminder($id)
     {
-        $booking = Booking::with(['user', 'pet'])->findOrFail($id);
+        $booking = Booking::with(['user', 'pet', 'doctor'])->findOrFail($id);
 
         if (!$booking->user) {
             return redirect()->back()->with('error', 'Customer not found.');
         }
 
-        SendFcmNotification::dispatch(
+        $sent = $this->fcmService->sendPaymentReminder(
             $booking->user->id,
-            'Payment Reminder',
-            "Hi {$booking->user->name}! Your booking for {$booking->pet->name} has a remaining balance of Rp " . number_format($booking->remaining_amount, 0, ',', '.') . ". Please complete the payment.",
-            [
-                'type' => 'payment_reminder',
-                'booking_id' => (string) $booking->id,
-                'remaining_amount' => (string) $booking->remaining_amount,
-                'pet_name' => $booking->pet->name,
-            ]
+            $booking->pet->name,
+            'Rp ' . number_format((float) $booking->remaining_amount, 0, ',', '.'),
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
-        return redirect()->back()->with('success', 'Payment reminder sent to customer successfully.');
+        return redirect()->back()->with(
+            $sent ? 'success' : 'warning',
+            $sent
+                ? 'Payment reminder sent to customer successfully.'
+                : 'Payment reminder could not be delivered to the device. Check FCM token, notification permission, or Firebase credentials.'
+        );
     }
 }

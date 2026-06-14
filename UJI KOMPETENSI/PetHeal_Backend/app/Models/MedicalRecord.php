@@ -20,13 +20,55 @@ class MedicalRecord extends Model
         'cost',
         'treatment_cost',
         'medicine_cost',
+        'total_medical_cost',
+        'extra_payment_amount',
+        'extra_payment_paid_amount',
+        'extra_payment_status',
+        'extra_payment_order_id',
+        'extra_payment_date',
     ];
 
     protected $casts = [
         'next_visit_date' => 'date:Y-m-d',
         'next_visit_time' => 'string',
         'reminder_sent'   => 'boolean',
+        'cost' => 'decimal:2',
+        'treatment_cost' => 'decimal:2',
+        'medicine_cost' => 'decimal:2',
+        'total_medical_cost' => 'decimal:2',
+        'extra_payment_amount' => 'decimal:2',
+        'extra_payment_paid_amount' => 'decimal:2',
+        'extra_payment_date' => 'datetime',
     ];
+
+    public function recalculatePaymentState(float $bookingPaidAmount = 0): void
+    {
+        $consultationCost = (float) ($this->cost ?? 0);
+        $treatmentCost = (float) ($this->treatment_cost ?? 0);
+        $medicineCost = (float) ($this->medicine_cost ?? 0);
+        $totalMedicalCost = $consultationCost + $treatmentCost + $medicineCost;
+        $extraAmount = max(0, $totalMedicalCost - $bookingPaidAmount);
+        $paidExtra = min((float) ($this->extra_payment_paid_amount ?? 0), $extraAmount);
+
+        $this->total_medical_cost = $totalMedicalCost;
+        $this->extra_payment_amount = $extraAmount;
+        $this->extra_payment_paid_amount = $paidExtra;
+
+        if ($extraAmount <= 0) {
+            $this->extra_payment_status = 'not_required';
+            $this->extra_payment_order_id = null;
+            $this->extra_payment_date = null;
+        } elseif ($paidExtra >= $extraAmount) {
+            $this->extra_payment_status = 'paid';
+        } elseif ($this->extra_payment_status !== 'pending') {
+            $this->extra_payment_status = 'unpaid';
+        }
+    }
+
+    public function getCanViewFullRecordAttribute(): bool
+    {
+        return in_array($this->extra_payment_status, ['not_required', 'paid'], true);
+    }
 
     /**
      * Get the booking associated with this record

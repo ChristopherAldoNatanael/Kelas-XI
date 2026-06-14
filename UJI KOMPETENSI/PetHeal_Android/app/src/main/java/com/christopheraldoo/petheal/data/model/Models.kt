@@ -359,13 +359,26 @@ data class RescheduleRequest(
 data class MedicalRecord(
     val id: Int? = null,
     @SerializedName("booking_id") val bookingId: Int? = null,
+    @SerializedName("pet_id") val petId: Int? = null,
+    @SerializedName("doctor_id") val doctorId: Int? = null,
     val diagnosis: String? = null,
     val treatment: String? = null,
     val medicine: String? = null,
     val notes: String? = null,
     @SerializedName("next_visit_date") val nextVisitDate: String? = null,
     val cost: Double? = null,
+    @SerializedName("treatment_cost") val treatmentCost: Double? = null,
+    @SerializedName("medicine_cost") val medicineCost: Double? = null,
+    @SerializedName("total_medical_cost") val totalMedicalCost: Double? = null,
+    @SerializedName("extra_payment_amount") val extraPaymentAmount: Double? = null,
+    @SerializedName("extra_payment_paid_amount") val extraPaymentPaidAmount: Double? = null,
+    @SerializedName("extra_payment_status") val extraPaymentStatus: String? = null,
+    @SerializedName("extra_payment_order_id") val extraPaymentOrderId: String? = null,
+    @SerializedName("extra_payment_date") val extraPaymentDate: String? = null,
+    @SerializedName("can_view_full_record") val canViewFullRecord: Boolean? = null,
     val booking: Booking? = null,
+    val pet: Pet? = null,
+    val doctor: Doctor? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
@@ -379,6 +392,22 @@ data class MedicalRecordResponse(
     val success: Boolean,
     val message: String? = null,
     val data: MedicalRecord? = null
+)
+
+data class MedicalRecordPaymentStatusResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: MedicalRecordPaymentStatus? = null
+)
+
+data class MedicalRecordPaymentStatus(
+    val id: Int,
+    @SerializedName("extra_payment_status") val extraPaymentStatus: String? = null,
+    @SerializedName("extra_payment_amount") val extraPaymentAmount: Double? = null,
+    @SerializedName("extra_payment_paid_amount") val extraPaymentPaidAmount: Double? = null,
+    @SerializedName("extra_payment_order_id") val extraPaymentOrderId: String? = null,
+    @SerializedName("extra_payment_date") val extraPaymentDate: String? = null,
+    @SerializedName("can_view_full_record") val canViewFullRecord: Boolean? = null
 )
 
 // ============= DEVICE TOKEN MODELS =============
@@ -401,6 +430,10 @@ data class AppNotification(
     @SerializedName("pet_name") val petName: String? = null,
     val status: String? = null,
     val date: String? = null,
+    @SerializedName("booking_id") val bookingId: Int? = null,
+    @SerializedName("medical_record_id") val medicalRecordId: Int? = null,
+    @SerializedName("pet_id") val petId: Int? = null,
+    @SerializedName("doctor_id") val doctorId: Int? = null,
     val timestamp: Long,        // epoch-ms
     @SerializedName("is_read") val isRead: Boolean = false
 )
@@ -414,6 +447,43 @@ data class NotificationsResponse(
     val success: Boolean,
     val message: String? = null,
     val data: NotificationsData? = null
+)
+
+data class DashboardPetsSummary(
+    val total: Int = 0,
+    val active: Int = 0
+)
+
+data class DashboardBookingsSummary(
+    val upcoming: List<Booking> = emptyList(),
+    val pending: Int = 0,
+    val confirmed: Int = 0
+)
+
+data class DashboardPaymentsSummary(
+    @SerializedName("attention_count") val attentionCount: Int = 0,
+    @SerializedName("outstanding_amount") val outstandingAmount: Double = 0.0
+)
+
+data class DashboardMedicalSummary(
+    @SerializedName("total_visits") val totalVisits: Int = 0,
+    @SerializedName("total_spent") val totalSpent: Double = 0.0,
+    @SerializedName("recent_visits") val recentVisits: List<MedicalRecord> = emptyList(),
+    @SerializedName("follow_up_due") val followUpDue: Int = 0
+)
+
+data class DashboardVaccinationAlerts(
+    @SerializedName("due_soon") val dueSoon: List<Vaccination> = emptyList(),
+    val overdue: List<Vaccination> = emptyList()
+)
+
+data class DashboardData(
+    val pets: DashboardPetsSummary = DashboardPetsSummary(),
+    val bookings: DashboardBookingsSummary = DashboardBookingsSummary(),
+    val payments: DashboardPaymentsSummary = DashboardPaymentsSummary(),
+    val medical: DashboardMedicalSummary = DashboardMedicalSummary(),
+    @SerializedName("vaccination_alerts") val vaccinationAlerts: DashboardVaccinationAlerts = DashboardVaccinationAlerts(),
+    val summary: String = ""
 )
 
 // ============= API RESPONSE WRAPPER =============

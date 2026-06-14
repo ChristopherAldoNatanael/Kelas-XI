@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
+use App\Models\MedicalRecord;
 use App\Services\PaymentStatusService;
 
 /**
@@ -69,8 +70,38 @@ class MidtransWebhookController extends Controller
                 return response()->json(['error' => 'Invalid signature'], 403);
             }
 
-            // Extract booking ID from order_id (format: BOOKING-{id}-{timestamp})
-            if (preg_match('/^BOOKING-(\d+)/', $orderId, $matches)) {
+            if (preg_match('/^MEDREC-(\d+)-/', $orderId, $matches)) {
+                $recordId = (int) $matches[1];
+                $record = MedicalRecord::find($recordId);
+
+                if (!$record) {
+                    Log::warning('Medical record not found for webhook', ['order_id' => $orderId]);
+                    return response()->json(['error' => 'Medical record not found'], 404);
+                }
+
+                $updateResult = $paymentStatusService->applyMedicalRecordTransactionStatus(
+                    $record,
+                    $orderId,
+                    (string) $transactionStatus,
+                    $paymentType,
+                    $grossAmount,
+                    $payload
+                );
+
+                if ($updateResult['duplicate'] ?? false) {
+                    Log::info('Duplicate Midtrans medical record payment event ignored', [
+                        'order_id' => $orderId,
+                        'medical_record_id' => $recordId,
+                    ]);
+                    return response()->json(['status' => 'ok']);
+                }
+
+                Log::info('Medical record extra payment updated', [
+                    'medical_record_id' => $recordId,
+                    'extra_payment_status' => $updateResult['medical_record']->extra_payment_status,
+                    'extra_payment_paid_amount' => $updateResult['medical_record']->extra_payment_paid_amount,
+                ]);
+            } elseif (preg_match('/^BOOKING-(\d+)/', $orderId, $matches)) {
                 $bookingId = (int) $matches[1];
                 $booking = Booking::find($bookingId);
 

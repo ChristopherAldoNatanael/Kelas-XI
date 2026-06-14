@@ -170,6 +170,29 @@ class PaymentRepository @Inject constructor(
         }
     }
 
+    suspend fun createMedicalRecordExtraPayment(recordId: Int): Result<SnapTokenData> {
+        return try {
+            Log.d(TAG, "Creating medical record extra payment snap token for record: $recordId")
+            val response = apiService.createMedicalRecordExtraPayment(recordId)
+
+            if (response.isSuccessful) {
+                val rawBody = response.body()
+                if (rawBody?.success == true && rawBody.data != null) {
+                    Result.Success(rawBody.data)
+                } else {
+                    Result.Error(rawBody?.message ?: "Failed to create extra medical payment token")
+                }
+            } else {
+                val detailMessage = extractErrorMessage(response)
+                Log.e(TAG, "createMedicalRecordExtraPayment failed: HTTP ${response.code()}")
+                Result.Error(detailMessage ?: "Failed to create extra medical payment token")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "createMedicalRecordExtraPayment exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
     /**
      * Get booking payment status.
      */

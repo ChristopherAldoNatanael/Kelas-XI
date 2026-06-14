@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
-use App\Jobs\SendFcmNotification;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
@@ -66,17 +65,22 @@ class BookingController extends Controller
             'confirmed_at' => now(),
         ]);
 
-        // Send notification (queued for background processing)
-        SendFcmNotification::dispatch(
+        $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
-            'Booking Confirmed',
-            "Your booking for {$booking->pet->name} on {$booking->formatted_booking_date} has been confirmed",
-            ['type' => 'booking_status', 'pet_name' => $booking->pet->name, 'status' => 'confirmed', 'date' => (string) $booking->booking_date]
+            $booking->pet->name,
+            'confirmed',
+            (string) $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         AuditLog::log('booking.confirm', "Confirmed booking #{$id} for {$booking->pet->name}", $booking);
 
-        return redirect()->back()->with('success', 'Booking confirmed successfully');
+        return redirect()->back()->with(
+            $sent ? 'success' : 'warning',
+            $sent ? 'Booking confirmed and notification sent successfully' : 'Booking confirmed, but push notification could not be delivered.'
+        );
     }
 
     /**
@@ -91,16 +95,22 @@ class BookingController extends Controller
             'completed_at' => now(),
         ]);
 
-        SendFcmNotification::dispatch(
+        $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
-            'Booking Completed',
-            "Your booking for {$booking->pet->name} on {$booking->formatted_booking_date} has been completed",
-            ['type' => 'booking_status', 'pet_name' => $booking->pet->name, 'status' => 'completed', 'date' => (string) $booking->booking_date]
+            $booking->pet->name,
+            'completed',
+            (string) $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         AuditLog::log('booking.complete', "Completed booking #{$id} for {$booking->pet->name}", $booking);
 
-        return redirect()->back()->with('success', 'Booking marked as completed');
+        return redirect()->back()->with(
+            $sent ? 'success' : 'warning',
+            $sent ? 'Booking marked as completed and notification sent' : 'Booking marked as completed, but push notification could not be delivered.'
+        );
     }
 
     /**
@@ -119,16 +129,22 @@ class BookingController extends Controller
             'cancellation_reason'  => $request->input('reason'),
         ]);
 
-        SendFcmNotification::dispatch(
+        $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
-            'Booking Cancelled',
-            "Your booking for {$booking->pet->name} on {$booking->formatted_booking_date} has been cancelled",
-            ['type' => 'booking_status', 'pet_name' => $booking->pet->name, 'status' => 'cancelled', 'date' => (string) $booking->booking_date]
+            $booking->pet->name,
+            'cancelled',
+            (string) $booking->booking_date,
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         AuditLog::log('booking.cancel', "Cancelled booking #{$id} for {$booking->pet->name}", $booking);
 
-        return redirect()->back()->with('success', 'Booking cancelled successfully');
+        return redirect()->back()->with(
+            $sent ? 'success' : 'warning',
+            $sent ? 'Booking cancelled and notification sent successfully' : 'Booking cancelled, but push notification could not be delivered.'
+        );
     }
 
     /**
@@ -151,7 +167,7 @@ class BookingController extends Controller
             $query->whereDate('booking_date', '<=', $validated['to']);
         }
 
-        $bookings = $query->limit(200)->get();
+        $bookings = $query->get();
         $html = view('admin.exports.bookings_pdf', compact('bookings'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);
@@ -171,16 +187,27 @@ class BookingController extends Controller
 
         $booking = Booking::with(['user', 'pet', 'doctor'])->findOrFail($id);
 
-        SendFcmNotification::dispatch(
+        $sent = $this->fcmService->sendManualReminder(
             $booking->user_id,
-            'Appointment Reminder',
-            "Reminder: {$booking->pet->name}'s appointment with {$booking->doctor->name} is coming up!",
-            ['type' => 'booking_reminder', 'pet_name' => $booking->pet->name, 'doctor' => $booking->doctor->name, 'date' => (string) $booking->booking_date, 'time' => $booking->booking_time]
+            $booking->pet->name,
+            $booking->doctor->name,
+            (string) $booking->booking_date,
+            (string) $booking->booking_time,
+            (string) $request->input('reminder_type', 'tomorrow'),
+            $request->input('custom_message'),
+            $booking->id,
+            $booking->pet_id,
+            $booking->doctor_id
         );
 
         AuditLog::log('booking.send_reminder', "Sent reminder for booking #{$id} to {$booking->user->name}", $booking);
 
         return redirect()->back()
-            ->with('success', 'Reminder sent to ' . $booking->user->name . '\'s device!');
+            ->with(
+                $sent ? 'success' : 'warning',
+                $sent
+                    ? 'Reminder sent to ' . $booking->user->name . '\'s device!'
+                    : 'Reminder request was saved, but push notification could not be delivered to the device.'
+            );
     }
 }

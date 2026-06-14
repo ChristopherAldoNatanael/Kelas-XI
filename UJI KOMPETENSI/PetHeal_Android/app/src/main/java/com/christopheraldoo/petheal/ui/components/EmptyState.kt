@@ -115,9 +115,9 @@ fun EmptyState(
 fun EmptyBookingsState(onBookNow: () -> Unit) {
     EmptyState(
         icon = Icons.Outlined.EventBusy,
-        title = "No Bookings Yet",
-        description = "You haven't made any appointments yet. Book your first vet visit now!",
-        actionText = "Book Appointment",
+        title = "Belum Ada Booking",
+        description = "Anda belum memiliki jadwal konsultasi. Buat booking pertama untuk mulai mengelola kunjungan hewan kesayangan Anda.",
+        actionText = "Buat Booking",
         onActionClick = onBookNow,
         iconColor = Color(0xFF2BEE6C),
         backgroundColor = Color(0xFF2BEE6C).copy(alpha = 0.1f)
@@ -131,9 +131,9 @@ fun EmptyBookingsState(onBookNow: () -> Unit) {
 fun EmptyPetsState(onAddPet: () -> Unit) {
     EmptyState(
         icon = Icons.Outlined.Pets,
-        title = "No Pets Added",
-        description = "Start by adding your furry friends to manage their health records and appointments.",
-        actionText = "Add Your First Pet",
+        title = "Belum Ada Hewan",
+        description = "Tambahkan hewan kesayangan Anda terlebih dahulu agar jadwal, rekam medis, dan vaksinasi bisa dikelola dengan rapi.",
+        actionText = "Tambah Hewan Pertama",
         onActionClick = onAddPet,
         iconColor = Color(0xFF9333EA),
         backgroundColor = Color(0xFFF3E8FF)
@@ -147,8 +147,8 @@ fun EmptyPetsState(onAddPet: () -> Unit) {
 fun EmptyNotificationsState() {
     EmptyState(
         icon = Icons.Outlined.NotificationsNone,
-        title = "All Caught Up!",
-        description = "You have no notifications at the moment. We'll keep you updated on your pet's health.",
+        title = "Belum Ada Notifikasi",
+        description = "Saat ini belum ada pembaruan baru. Notifikasi booking, pembayaran, dan pengingat perawatan akan muncul di sini.",
         iconColor = Color(0xFF3B82F6),
         backgroundColor = Color(0xFFDBEAFE)
     )
@@ -161,8 +161,8 @@ fun EmptyNotificationsState() {
 fun EmptyMedicalRecordsState() {
     EmptyState(
         icon = Icons.Outlined.Description,
-        title = "No Medical Records",
-        description = "Medical records will appear here once your pet has had consultations or treatments.",
+        title = "Belum Ada Rekam Medis",
+        description = "Rekam medis akan tampil di sini setelah hewan Anda menjalani konsultasi, tindakan, atau perawatan.",
         iconColor = Color(0xFFEA580C),
         backgroundColor = Color(0xFFFFEDD5)
     )
@@ -175,8 +175,8 @@ fun EmptyMedicalRecordsState() {
 fun EmptySearchState(query: String) {
     EmptyState(
         icon = Icons.Outlined.SearchOff,
-        title = "No Results Found",
-        description = "We couldn't find any results for '$query'. Try adjusting your search terms.",
+        title = "Hasil Tidak Ditemukan",
+        description = "Belum ada data yang cocok untuk \"$query\". Coba gunakan kata kunci lain atau kurangi filter pencarian.",
         iconColor = Color(0xFF6B7280),
         backgroundColor = Color(0xFF6B7280).copy(alpha = 0.1f)
     )

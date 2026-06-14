@@ -1,78 +1,105 @@
 package com.christopheraldoo.petheal.ui.screens.medicalrecord
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FolderShared
+import androidx.compose.material.icons.filled.HealthAndSafety
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.MedicalServices
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Vaccines
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
-import coil.request.CachePolicy
-import coil.request.ImageRequest
-import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.util.ThumbnailImage
-import com.christopheraldoo.petheal.util.MediumImage
+import com.christopheraldoo.petheal.util.buildPhotoUrl
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
-// ── Brand tokens ───────────────────────────────────────────────────────────────
-private val MrPrimary       = Color(0xFF2BEE6C)
-private val MrPrimaryFg     = Color(0xFF052E14)
-private val MrBgDark        = Color(0xFFF6F8F6)
-private val MrBgLight       = Color(0xFFF6F8F6)
-private val MrSurfaceDark   = Color.White
-private val MrSurfaceLight  = Color(0xFFFFFFFF)
-private val MrBorderDark    = Color(0xFFE2E8F0)
-private val MrBorderLight   = Color(0xFFE2E8F0)
-private val MrSecDark       = Color(0xFF64748B)
+private val MrBackground = Color(0xFFF4F8F5)
+private val MrSurface = Color(0xFFFFFFFF)
+private val MrSurfaceAlt = Color(0xFFF8FBF9)
+private val MrBorder = Color(0xFFE2E8F0)
+private val MrTextPrimary = Color(0xFF0F172A)
+private val MrTextSecondary = Color(0xFF64748B)
+private val MrPrimary = Color(0xFF10B981)
+private val MrPrimaryDeep = Color(0xFF047857)
+private val MrPrimarySoft = Color(0xFFDDF8EA)
+private val MrAmber = Color(0xFFF59E0B)
+private val MrAmberSoft = Color(0xFFFEF3C7)
+private val MrSky = Color(0xFF0EA5E9)
+private val MrSkySoft = Color(0xFFE0F2FE)
+private val MrRose = Color(0xFFE11D48)
+private val MrRoseSoft = Color(0xFFFFE4E6)
+private val MrSlateSoft = Color(0xFFF1F5F9)
 
-// ── Helper: doctor photo ────────────────────────────────────────────────────
-@Composable
-private fun MrDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
-    val context = LocalContext.current
-    val fullUrl = remember(url) { buildPhotoUrl(url) }
-    var hasError by remember(fullUrl) { mutableStateOf(false) }
-    if (!fullUrl.isNullOrBlank() && !hasError) {
-        // ✅ OPTIMIZED: ThumbnailImage resizes to 100px BEFORE decode → huge memory savings!
-        ThumbnailImage(
-            model = fullUrl,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize().clip(CircleShape)
-        )
-    } else {
-        Icon(Icons.Filled.Person, null, tint = MrPrimary, modifier = Modifier.size(size * 0.5f))
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  MEDICAL RECORDS SCREEN  (Timeline)
-// ══════════════════════════════════════════════════════════════════════════════
 @Composable
 fun MedicalRecordsScreen(
     onNavigateBack: () -> Unit,
@@ -82,787 +109,1266 @@ fun MedicalRecordsScreen(
     onNavigateToProfile: () -> Unit,
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
-    val state  by viewModel.listState.collectAsState()
-    val isDark = false
+    val state by viewModel.listState.collectAsState()
 
-    val bg      = if (isDark) MrBgDark      else MrBgLight
-    val surface = if (isDark) MrSurfaceDark else MrSurfaceLight
-    val border  = if (isDark) MrBorderDark  else MrBorderLight
-    val textPri = if (isDark) Color.White   else Color(0xFF0F172A)
-    val textSec = if (isDark) MrSecDark     else Color(0xFF64748B)
+    LaunchedEffect(Unit) {
+        viewModel.loadRecords()
+    }
 
-    LaunchedEffect(Unit) { viewModel.loadRecords() }
-
-    Box(Modifier.fillMaxSize().background(bg)) {
-        Column(Modifier.fillMaxSize()) {
-
-            // ── Sticky Header ──────────────────────────────────────────────
-            Surface(
-                modifier   = Modifier.fillMaxWidth(),
-                color      = (if (isDark) MrBgDark else MrBgLight).copy(alpha = 0.97f),
-                shadowElevation = 0.dp
-            ) {
-                Column {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 4.dp)
-                            .padding(top = 44.dp, bottom = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier.size(44.dp).clip(CircleShape).clickable { onNavigateBack() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.ArrowBack, null, tint = textPri, modifier = Modifier.size(24.dp))
-                        }
-                        Text("Medical Records", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPri)
-                        Box(
-                            Modifier.size(44.dp).clip(CircleShape).clickable {},
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.FilterList, null, tint = textPri, modifier = Modifier.size(22.dp))
-                        }
-                    }
-                    Divider(color = border, thickness = 1.dp)
-
-                    // Filter chips
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        items(viewModel.filterCategories) { cat ->
-                            MrFilterChip(
-                                label      = cat,
-                                isSelected = state.selectedFilter == cat,
-                                isDark     = isDark,
-                                surface    = surface,
-                                border     = border,
-                                onClick    = { viewModel.setFilter(cat) }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // ── Body ───────────────────────────────────────────────────────
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MrBackground
+    ) {
+        Box {
             when {
                 state.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         CircularProgressIndicator(color = MrPrimary)
                     }
                 }
+
                 state.error != null -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                            Icon(Icons.Filled.ErrorOutline, null, tint = Color(0xFFEF4444), modifier = Modifier.size(48.dp))
-                            Spacer(Modifier.height(12.dp))
-                            Text(state.error ?: "Error", color = textSec, fontSize = 14.sp, textAlign = TextAlign.Center)
-                            Spacer(Modifier.height(16.dp))
-                            Button(onClick = { viewModel.loadRecords() },
-                                colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = MrPrimaryFg)
-                            ) { Text("Retry") }
-                        }
-                    }
+                    MedicalRecordErrorState(
+                        message = state.error ?: "Failed to load medical records",
+                        onRetry = { viewModel.loadRecords(forceRefresh = true) }
+                    )
                 }
+
                 state.filteredRecords.isEmpty() -> {
-                    MrEmptyState(textPri = textPri, textSec = textSec)
+                    MedicalRecordEmptyState(onNavigateBack = onNavigateBack)
                 }
+
                 else -> {
-                    val today    = LocalDate.now().toString()
-                    val upcoming = state.filteredRecords.filter { it.nextVisitDate != null && it.nextVisitDate!! >= today }
-                    val past     = state.filteredRecords.filter { it.nextVisitDate == null || it.nextVisitDate!! < today }
+                    val today = LocalDate.now()
+                    val upcoming = state.filteredRecords.filter { record ->
+                        parseLocalDate(record.nextVisitDate)?.let { !it.isBefore(today) } == true
+                    }
+                    val history = state.filteredRecords.filterNot { record -> upcoming.any { it.id == record.id } }
+                    val pendingExtra = state.filteredRecords.count { it.extraPaymentStatus in listOf("unpaid", "pending", "partial") }
+                    val totalCost = state.filteredRecords.sumOf { recordTotalCost(it) }
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 96.dp)
+                        contentPadding = PaddingValues(bottom = 106.dp)
                     ) {
+                        item {
+                            MedicalRecordListHero(
+                                totalRecords = state.filteredRecords.size,
+                                pendingExtra = pendingExtra,
+                                totalCost = totalCost,
+                                onNavigateBack = onNavigateBack
+                            )
+                        }
+
+                        item {
+                            FilterSection(
+                                filters = viewModel.filterCategories,
+                                selectedFilter = state.selectedFilter,
+                                onFilterSelected = viewModel::setFilter
+                            )
+                        }
+
                         if (upcoming.isNotEmpty()) {
-                            item { MrSectionLabel("Upcoming", textSec) }
-                            items(upcoming, key = { it.id ?: 0 }) { rec ->
-                                MrTimelineItem(
-                                    record    = rec,
-                                    isUpcoming = true,
-                                    isOldest  = false,
-                                    isDark    = isDark,
-                                    surface   = surface,
-                                    border    = border,
-                                    bg        = bg,
-                                    textPri   = textPri,
-                                    textSec   = textSec,
-                                    onClick   = { rec.id?.let { onNavigateToRecordDetail(it) } }
+                            item {
+                                SectionHeader(
+                                    title = "Upcoming Follow-up",
+                                    subtitle = "Medical records with scheduled next visits"
                                 )
-                                Spacer(Modifier.height(16.dp))
+                            }
+
+                            items(
+                                items = upcoming,
+                                key = { record -> record.id ?: record.hashCode() }
+                            ) { record ->
+                                MedicalRecordListCard(
+                                    record = record,
+                                    onClick = { record.id?.let(onNavigateToRecordDetail) }
+                                )
                             }
                         }
-                        if (past.isNotEmpty()) {
-                            item { MrSectionLabel("Past History", textSec) }
-                            itemsIndexed(past, key = { _, r -> r.id ?: 0 }) { idx, rec ->
-                                MrTimelineItem(
-                                    record     = rec,
-                                    isUpcoming = false,
-                                    isOldest   = idx == past.lastIndex,
-                                    isDark     = isDark,
-                                    surface    = surface,
-                                    border     = border,
-                                    bg         = bg,
-                                    textPri    = textPri,
-                                    textSec    = textSec,
-                                    onClick    = { rec.id?.let { onNavigateToRecordDetail(it) } }
+
+                        if (history.isNotEmpty()) {
+                            item {
+                                SectionHeader(
+                                    title = "Clinical History",
+                                    subtitle = "Completed records ready for review"
                                 )
-                                Spacer(Modifier.height(16.dp))
+                            }
+
+                            items(
+                                items = history,
+                                key = { record -> record.id ?: record.hashCode() }
+                            ) { record ->
+                                MedicalRecordListCard(
+                                    record = record,
+                                    onClick = { record.id?.let(onNavigateToRecordDetail) }
+                                )
                             }
                         }
                     }
                 }
             }
-        }
 
-        // ── Bottom Nav ─────────────────────────────────────────────────────
-        MrBottomNav(
-            modifier        = Modifier.align(Alignment.BottomCenter),
-            isDark          = isDark,
-            surface         = surface,
-            border          = border,
-            onHome          = onNavigateToHome,
-            onBookings      = onNavigateToBookings,
-            onProfile       = onNavigateToProfile
-        )
-    }
-}
-
-// ── Section label ─────────────────────────────────────────────────────────────
-@Composable
-private fun MrSectionLabel(text: String, textSec: Color) {
-    Text(
-        text.uppercase(),
-        fontSize = 11.sp, fontWeight = FontWeight.Bold,
-        color = textSec, letterSpacing = 1.sp,
-        modifier = Modifier.padding(start = 24.dp, bottom = 12.dp, top = 4.dp)
-    )
-}
-
-// ── Filter chip ───────────────────────────────────────────────────────────────
-@Composable
-private fun MrFilterChip(
-    label: String, isSelected: Boolean, isDark: Boolean,
-    surface: Color, border: Color, onClick: () -> Unit
-) {
-    val bg  by animateColorAsState(if (isSelected) MrPrimary else surface, tween(180), label = "")
-    val txt by animateColorAsState(
-        if (isSelected) MrPrimaryFg else if (isDark) MrSecDark else Color(0xFF64748B),
-        tween(180), label = ""
-    )
-    Box(
-        modifier = Modifier
-            .clip(CircleShape)
-            .background(bg)
-            .then(if (!isSelected) Modifier.border(1.dp, border, CircleShape) else Modifier)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp)
-    ) {
-        Text(label, fontSize = 13.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium, color = txt)
-    }
-}
-
-// ── Timeline item ─────────────────────────────────────────────────────────────
-@Composable
-private fun MrTimelineItem(
-    record: com.christopheraldoo.petheal.data.model.MedicalRecord,
-    isUpcoming: Boolean,
-    isOldest: Boolean,
-    isDark: Boolean,
-    surface: Color,
-    border: Color,
-    bg: Color,
-    textPri: Color,
-    textSec: Color,
-    onClick: () -> Unit
-) {
-    var expanded by remember { mutableStateOf(false) }
-    val lineColor = if (isDark) MrBorderDark else Color(0xFFCBD5E1)
-    val dotColor  = if (isUpcoming) MrPrimary else if (isDark) MrBorderDark else Color(0xFFCBD5E1)
-    val cardAlpha = if (isOldest) 0.72f else 1f
-
-    val petName  = record.booking?.pet?.name ?: "Pet"
-    val petSpec  = record.booking?.pet?.species
-    val docName  = record.booking?.doctor?.name ?: "–"
-    val diagnosis = record.diagnosis ?: "General Consultation"
-    val date     = mrFormatDate(record.createdAt)
-    val time     = mrFormatTime(record.createdAt)
-
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-
-        // Dot + vertical line
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(20.dp)) {
-            Spacer(Modifier.height(20.dp))
-            Box(
-                modifier = Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(dotColor)
-                    .border(3.dp, bg, CircleShape)
-            )
-            if (!isOldest) {
-                Box(
-                    modifier = Modifier
-                        .width(2.dp)
-                        .defaultMinSize(minHeight = 40.dp)
-                        .weight(1f)
-                        .background(
-                            Brush.verticalGradient(listOf(lineColor, lineColor.copy(alpha = 0.2f)))
-                        )
-                )
-            }
-        }
-
-        // Card
-        Surface(
-            modifier = Modifier
-                .weight(1f)
-                .clip(RoundedCornerShape(16.dp))
-                .clickable {
-                    if (isUpcoming) onClick()
-                    else expanded = !expanded
-                },
-            color = surface.copy(alpha = cardAlpha),
-            shape = RoundedCornerShape(16.dp),
-            shadowElevation = 2.dp
-        ) {
-            Column(Modifier.border(1.dp, border.copy(alpha = cardAlpha), RoundedCornerShape(16.dp))) {
-
-                // ── Header ──────────────────────────────────────────
-                Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            if (isUpcoming) {
-                                MrBadge("Upcoming", Color(0xFF60A5FA), Color(0xFF3B82F6).copy(alpha = 0.1f), Color(0xFF3B82F6).copy(alpha = 0.2f))
-                                Spacer(Modifier.height(6.dp))
-                            }
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Text(
-                                    diagnosis,
-                                    fontSize = 15.sp, fontWeight = FontWeight.Bold,
-                                    color = textPri, maxLines = 2, overflow = TextOverflow.Ellipsis
-                                )
-                                if (!isUpcoming) {
-                                    Icon(Icons.Filled.CheckCircle, null, tint = MrPrimary, modifier = Modifier.size(16.dp))
-                                }
-                            }
-                        }
-                        Spacer(Modifier.width(8.dp))
-                        Column(horizontalAlignment = Alignment.End) {
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(bg)
-                                    .border(1.dp, border, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(date, fontSize = 11.sp, fontWeight = FontWeight.Bold, color = textPri)
-                            }
-                            if (time.isNotBlank()) {
-                                Spacer(Modifier.height(3.dp))
-                                Text(time, fontSize = 10.sp, color = textSec)
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {                        // Doctor mini avatar
-                        val docPhoto = record.booking?.doctor?.photo
-                        Box(
-                            modifier = Modifier
-                                .size(22.dp)
-                                .clip(CircleShape)
-                                .background(if (!docPhoto.isNullOrBlank()) Color.Transparent else MrPrimary.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            MrDocPhoto(url = docPhoto, size = 22.dp)
-                        }
-                        Text(
-                            "$docName${if (!petSpec.isNullOrBlank()) " • $petName ($petSpec)" else " • $petName"}",
-                            fontSize = 12.sp, color = textSec,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    // Upcoming: notes preview + action buttons
-                    if (isUpcoming) {
-                        if (!record.notes.isNullOrBlank()) {
-                            Spacer(Modifier.height(10.dp))
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(10.dp))
-                                    .background(bg.copy(alpha = 0.7f))
-                                    .border(1.dp, border.copy(alpha = 0.5f), RoundedCornerShape(10.dp))
-                                    .padding(10.dp)
-                            ) {
-                                Text(record.notes ?: "", fontSize = 11.sp, color = textSec, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 16.sp)
-                            }
-                        }
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = onClick,
-                                modifier = Modifier.weight(1f).height(36.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MrPrimary.copy(alpha = 0.15f), contentColor = MrPrimary),
-                                contentPadding = PaddingValues(0.dp)
-                            ) { Text("Reschedule", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                            OutlinedButton(
-                                onClick = onClick,
-                                modifier = Modifier.weight(1f).height(36.dp),
-                                shape = RoundedCornerShape(8.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, border),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = textPri),
-                                contentPadding = PaddingValues(0.dp)
-                            ) { Text("Details", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                        }
-                    }
-
-                    // Past collapsed: tags
-                    if (!isUpcoming && !expanded) {
-                        Spacer(Modifier.height(10.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            MrBadge(
-                                mrDiagnosisCategory(diagnosis),
-                                MrPrimary, MrPrimary.copy(alpha = 0.1f), MrPrimary.copy(alpha = 0.2f)
-                            )
-                            MrBadge("Completed", Color(0xFF94A3B8), Color(0xFF94A3B8).copy(alpha = 0.1f), Color(0xFF94A3B8).copy(alpha = 0.2f))
-                        }
-                    }
-                }
-
-                // ── Expanded body (past) ───────────────────────────
-                if (!isUpcoming && expanded) {
-                    Divider(color = border.copy(alpha = 0.5f))
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(bg.copy(alpha = 0.3f))
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (!record.diagnosis.isNullOrBlank()) {
-                            MrDetailRow(Icons.Filled.HealthAndSafety, Color(0xFF10B981), "Diagnosis", record.diagnosis, textPri, textSec)
-                        }
-                        if (!record.treatment.isNullOrBlank()) {
-                            MrDetailRow(Icons.Filled.Vaccines, Color(0xFF3B82F6), "Treatment / Prescribed", record.treatment, textPri, textSec)
-                        }
-                        if (!record.medicine.isNullOrBlank()) {
-                            MrDetailRow(Icons.Filled.MedicalServices, Color(0xFFF59E0B), "Medicine", record.medicine, textPri, textSec)
-                        }
-                        if (!record.notes.isNullOrBlank()) {
-                            MrDetailRow(Icons.Filled.Notes, Color(0xFF8B5CF6), "Notes", record.notes, textPri, textSec)
-                        }
-                        Divider(color = border.copy(alpha = 0.4f))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            val footerText = when {
-                                record.cost != null -> "Cost: Rp ${"%.0f".format(record.cost)}"
-                                !record.nextVisitDate.isNullOrBlank() -> "Next visit: ${record.nextVisitDate}"
-                                else -> "Tap to view full details"
-                            }
-                            Text(footerText, fontSize = 11.sp, color = textSec)
-                            Text(
-                                "View Report →",
-                                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MrPrimary,
-                                modifier = Modifier.clickable { onClick() }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ── Badge ─────────────────────────────────────────────────────────────────────
-@Composable
-private fun MrBadge(label: String, textColor: Color, bgColor: Color, borderColor: Color) {
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(bgColor)
-            .border(1.dp, borderColor, RoundedCornerShape(4.dp))
-            .padding(horizontal = 7.dp, vertical = 2.dp)
-    ) {
-        Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textColor)
-    }
-}
-
-// ── Detail row ────────────────────────────────────────────────────────────────
-@Composable
-private fun MrDetailRow(
-    icon: ImageVector, iconTint: Color,
-    label: String, value: String,
-    textPri: Color, textSec: Color
-) {
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(iconTint.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(20.dp))
-        }
-        Column {
-            Text(label.uppercase(), fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textSec, letterSpacing = 0.7.sp)
-            Spacer(Modifier.height(2.dp))
-            Text(value, fontSize = 13.sp, fontWeight = FontWeight.Medium, color = textPri, lineHeight = 18.sp)
-        }
-    }
-}
-
-// ── Empty state ───────────────────────────────────────────────────────────────
-@Composable
-private fun MrEmptyState(textPri: Color, textSec: Color) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(40.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(MrPrimary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.FolderShared, null, tint = MrPrimary, modifier = Modifier.size(40.dp))
-            }
-            Spacer(Modifier.height(16.dp))
-            Text("No records yet", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPri)
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Your pet's health history will appear here\nafter your first vet visit.",
-                fontSize = 13.sp, color = textSec,
-                textAlign = TextAlign.Center, lineHeight = 20.sp
+            MedicalBottomNav(
+                modifier = Modifier.align(Alignment.BottomCenter),
+                onHome = onNavigateToHome,
+                onBookings = onNavigateToBookings,
+                onProfile = onNavigateToProfile
             )
         }
     }
 }
 
-// ── Bottom nav ────────────────────────────────────────────────────────────────
-@Composable
-private fun MrBottomNav(
-    modifier: Modifier = Modifier,
-    isDark: Boolean,
-    surface: Color,
-    border: Color,
-    onHome: () -> Unit,
-    onBookings: () -> Unit,
-    onProfile: () -> Unit
-) {
-    Surface(modifier = modifier.fillMaxWidth(), color = surface.copy(alpha = 0.97f), shadowElevation = 8.dp) {
-        Column {
-            Divider(color = border, thickness = 1.dp)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(top = 8.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                MrNavBtn(Icons.Filled.Home, "Home", false, isDark, onHome)
-                MrNavBtn(Icons.Filled.FolderShared, "Records", true, isDark) {}
-                Spacer(Modifier.width(56.dp)) // centre FAB spacer
-                MrNavBtn(Icons.Filled.CalendarMonth, "Bookings", false, isDark, onBookings)
-                MrNavBtn(Icons.Filled.Person, "Profile", false, isDark, onProfile)
-            }
-        }
-    }
-}
-
-@Composable
-private fun MrNavBtn(icon: ImageVector, label: String, isActive: Boolean, isDark: Boolean, onClick: () -> Unit) {
-    Column(
-        modifier = Modifier.width(52.dp).clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        if (isActive) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MrPrimary.copy(alpha = 0.12f))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                contentAlignment = Alignment.Center
-            ) { Icon(icon, null, tint = MrPrimary, modifier = Modifier.size(22.dp)) }
-        } else {
-            Icon(icon, null, tint = if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8), modifier = Modifier.size(24.dp))
-        }
-        Text(
-            label, fontSize = 10.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-            color = if (isActive) (if (isDark) Color.White else Color(0xFF0F172A))
-                    else if (isDark) Color(0xFF64748B) else Color(0xFF94A3B8)
-        )
-    }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-private fun mrFormatDate(s: String?): String {
-    if (s.isNullOrBlank()) return "–"
-    return try {
-        LocalDate.parse(s.take(10)).format(DateTimeFormatter.ofPattern("MMM dd"))
-    } catch (e: Exception) { s.take(10) }
-}
-
-private fun mrFormatTime(s: String?): String {
-    if (s.isNullOrBlank() || s.length < 16) return ""
-    return try { s.substring(11, 16) } catch (e: Exception) { "" }
-}
-
-private fun mrDiagnosisCategory(d: String): String {
-    val l = d.lowercase()
-    return when {
-        l.contains("vaccin")                     -> "Vaccination"
-        l.contains("dental") || l.contains("clean") -> "Dental"
-        l.contains("surg")                       -> "Surgery"
-        l.contains("lab") || l.contains("blood") -> "Lab Result"
-        l.contains("emergency")                  -> "Emergency"
-        l.contains("routine") || l.contains("wellness") -> "Routine"
-        else                                     -> "Checkup"
-    }
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  MEDICAL RECORD DETAIL SCREEN
-// ══════════════════════════════════════════════════════════════════════════════
 @Composable
 fun MedicalRecordDetailScreen(
     recordId: Int,
     onNavigateBack: () -> Unit,
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
-    val state  by viewModel.detailState.collectAsState()
-    val isDark = false
+    val state by viewModel.detailState.collectAsState()
 
-    val bg      = if (isDark) MrBgDark      else MrBgLight
-    val surface = if (isDark) MrSurfaceDark else MrSurfaceLight
-    val border  = if (isDark) MrBorderDark  else MrBorderLight
-    val textPri = if (isDark) Color.White   else Color(0xFF0F172A)
-    val textSec = if (isDark) MrSecDark     else Color(0xFF64748B)
+    LaunchedEffect(recordId) {
+        viewModel.loadRecord(recordId)
+    }
 
-    LaunchedEffect(recordId) { viewModel.loadRecord(recordId) }
-
-    Box(Modifier.fillMaxSize().background(bg)) {
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MrBackground
+    ) {
         when {
-            state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = MrPrimary)
-            }
-            state.record != null -> {
-                val rec = state.record!!
-                Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
-
-                    // ── Hero gradient header ───────────────────────────────
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(MrPrimary.copy(alpha = 0.22f), bg)
-                                )
-                            )
-                            .padding(horizontal = 16.dp)
-                            .padding(top = 44.dp, bottom = 28.dp)
-                    ) {
-                        Column {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(surface.copy(alpha = 0.75f))
-                                    .clickable { onNavigateBack() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Filled.ArrowBack, null, tint = textPri, modifier = Modifier.size(20.dp))
-                            }
-                            Spacer(Modifier.height(20.dp))
-                            MrBadge(
-                                mrDiagnosisCategory(rec.diagnosis ?: "Checkup").uppercase(),
-                                MrPrimary, MrPrimary.copy(alpha = 0.15f), MrPrimary.copy(alpha = 0.3f)
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(rec.diagnosis ?: "Medical Record", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPri, lineHeight = 30.sp)
-                            Spacer(Modifier.height(8.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                    Icon(Icons.Filled.CalendarToday, null, tint = textSec, modifier = Modifier.size(13.dp))
-                                    Text(mrFormatDate(rec.createdAt), fontSize = 12.sp, color = textSec)
-                                }
-                                if (rec.booking?.doctor?.name != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Icon(Icons.Filled.Person, null, tint = textSec, modifier = Modifier.size(13.dp))
-                                        Text(rec.booking.doctor.name, fontSize = 12.sp, color = textSec, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // ── Doctor info ────────────────────────────────────────
-                    val doctor = rec.booking?.doctor
-                    if (doctor != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            color = surface, shape = RoundedCornerShape(16.dp), shadowElevation = 2.dp
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .border(1.dp, border, RoundedCornerShape(16.dp))
-                                    .padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {                                Box(
-                                    modifier = Modifier
-                                        .size(52.dp)
-                                        .clip(CircleShape)
-                                        .background(if (isDark) Color.White else Color(0xFFE8F5E9)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    MrDocPhoto(url = doctor.photo, size = 52.dp)
-                                }
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        "Treated by",
-                                        fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                        color = textSec, letterSpacing = 0.5.sp
-                                    )
-                                    Text(doctor.name ?: "–", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textPri)
-                                    Text(doctor.specialization ?: "Veterinarian", fontSize = 12.sp, color = MrPrimary, fontWeight = FontWeight.Medium)
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                    }
-
-                    // ── Pet info ───────────────────────────────────────────
-                    val pet = rec.booking?.pet
-                    if (pet != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            color = surface, shape = RoundedCornerShape(16.dp), shadowElevation = 2.dp
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .border(1.dp, border, RoundedCornerShape(16.dp))
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier.size(48.dp).clip(CircleShape).background(MrPrimary.copy(alpha = 0.15f)),
-                                    contentAlignment = Alignment.Center
-                                ) { Icon(Icons.Filled.Pets, null, tint = MrPrimary, modifier = Modifier.size(24.dp)) }
-                                Column {
-                                    Text(pet.name ?: "Pet", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textPri)
-                                    Text(
-                                        buildString {
-                                            append(pet.species ?: "")
-                                            if (!pet.breed.isNullOrBlank()) append(" • ${pet.breed}")
-                                            if (pet.age != null) append(" • ${pet.age} yrs")
-                                            if (pet.weight != null) append(" • ${pet.weight} kg")
-                                        },
-                                        fontSize = 12.sp, color = textSec
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(Modifier.height(16.dp))
-                    }
-
-                    // ── Medical details ────────────────────────────────────
-                    Surface(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                        color = surface, shape = RoundedCornerShape(16.dp), shadowElevation = 2.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.border(1.dp, border, RoundedCornerShape(16.dp)).padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text("Medical Details", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textPri)
-                            Divider(color = border.copy(alpha = 0.5f))
-                            if (!rec.diagnosis.isNullOrBlank())
-                                MrDetailRow(Icons.Filled.HealthAndSafety, Color(0xFF10B981), "Diagnosis", rec.diagnosis, textPri, textSec)
-                            if (!rec.treatment.isNullOrBlank())
-                                MrDetailRow(Icons.Filled.Vaccines, Color(0xFF3B82F6), "Treatment", rec.treatment, textPri, textSec)
-                            if (!rec.medicine.isNullOrBlank())
-                                MrDetailRow(Icons.Filled.MedicalServices, Color(0xFFF59E0B), "Prescribed Medicine", rec.medicine, textPri, textSec)
-                            if (!rec.notes.isNullOrBlank())
-                                MrDetailRow(Icons.Filled.Notes, Color(0xFF8B5CF6), "Doctor's Notes", rec.notes, textPri, textSec)
-                        }
-                    }
-
-                    Spacer(Modifier.height(16.dp))
-
-                    // ── Follow-up / cost ───────────────────────────────────
-                    if (rec.nextVisitDate != null || rec.cost != null) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-                            color = surface, shape = RoundedCornerShape(16.dp), shadowElevation = 2.dp
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .border(1.dp, border, RoundedCornerShape(16.dp))
-                                    .padding(20.dp),
-                                horizontalArrangement = Arrangement.SpaceAround,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                if (rec.nextVisitDate != null) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Box(
-                                            modifier = Modifier.size(44.dp).clip(CircleShape).background(Color(0xFF3B82F6).copy(alpha = 0.1f)),
-                                            contentAlignment = Alignment.Center
-                                        ) { Icon(Icons.Filled.EventRepeat, null, tint = Color(0xFF60A5FA), modifier = Modifier.size(22.dp)) }
-                                        Spacer(Modifier.height(6.dp))
-                                        Text("Next Visit", fontSize = 10.sp, color = textSec, fontWeight = FontWeight.Bold)
-                                        Text(rec.nextVisitDate, fontSize = 13.sp, color = textPri, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                                if (rec.nextVisitDate != null && rec.cost != null) {
-                                    Divider(modifier = Modifier.height(56.dp).width(1.dp), color = border)
-                                }
-                                if (rec.cost != null) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Box(
-                                            modifier = Modifier.size(44.dp).clip(CircleShape).background(MrPrimary.copy(alpha = 0.1f)),
-                                            contentAlignment = Alignment.Center
-                                        ) { Icon(Icons.Filled.Payments, null, tint = MrPrimary, modifier = Modifier.size(22.dp)) }
-                                        Spacer(Modifier.height(6.dp))
-                                        Text("Total Cost", fontSize = 10.sp, color = textSec, fontWeight = FontWeight.Bold)
-                                        Text("Rp ${"%.0f".format(rec.cost)}", fontSize = 13.sp, color = textPri, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
+            state.isLoading -> {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = MrPrimary)
                 }
             }
+
+            state.record == null -> {
+                MedicalRecordErrorState(
+                    message = state.error ?: "Medical record not found",
+                    onRetry = { viewModel.loadRecord(recordId, forceRefresh = true) },
+                    onBack = onNavigateBack
+                )
+            }
+
             else -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
-                        Icon(Icons.Filled.ErrorOutline, null, tint = Color(0xFFEF4444), modifier = Modifier.size(48.dp))
-                        Spacer(Modifier.height(12.dp))
-                        Text(state.error ?: "Record not found", color = textSec, fontSize = 14.sp, textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(16.dp))
-                        Button(
-                            onClick = onNavigateBack,
-                            colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = MrPrimaryFg)
-                        ) { Text("Go Back") }
+                val record = state.record!!
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 32.dp)
+                ) {
+                    item {
+                        MedicalRecordDetailHero(
+                            record = record,
+                            onNavigateBack = onNavigateBack
+                        )
+                    }
+
+                    item {
+                        MedicalRecordIdentitySection(record = record)
+                    }
+
+                    item {
+                        MedicalRecordPaymentSection(record = record)
+                    }
+
+                    item {
+                        MedicalRecordNarrativeSection(record = record)
+                    }
+
+                    if (!record.nextVisitDate.isNullOrBlank()) {
+                        item {
+                            MedicalRecordFollowUpSection(record = record)
+                        }
+                    }
+
+                    item {
+                        RecordMetaFooter(record = record)
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun MedicalRecordListHero(
+    totalRecords: Int,
+    pendingExtra: Int,
+    totalCost: Double,
+    onNavigateBack: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFDFF8EA), MrBackground)
+                )
+            )
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MrSurface.copy(alpha = 0.88f))
+                ) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MrTextPrimary)
+                }
+
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = MrSurface.copy(alpha = 0.82f),
+                    border = BorderStroke(1.dp, MrBorder)
+                ) {
+                    Text(
+                        text = "Pet Health Archive",
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        color = MrPrimaryDeep,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = "Medical records that are easier to review.",
+                    color = MrTextPrimary,
+                    fontSize = 28.sp,
+                    lineHeight = 34.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    text = "Track diagnosis, treatment, and extra payment status in one calm, readable workspace.",
+                    color = MrTextSecondary,
+                    fontSize = 14.sp,
+                    lineHeight = 21.sp
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HeroStatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Records",
+                    value = totalRecords.toString(),
+                    icon = Icons.Filled.FolderShared,
+                    accent = MrPrimary,
+                    accentSoft = MrPrimarySoft
+                )
+                HeroStatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Need Action",
+                    value = pendingExtra.toString(),
+                    icon = Icons.Filled.Payments,
+                    accent = MrAmber,
+                    accentSoft = MrAmberSoft
+                )
+                HeroStatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Total Cost",
+                    value = formatCurrencyCompact(totalCost),
+                    icon = Icons.Filled.ReceiptLong,
+                    accent = MrSky,
+                    accentSoft = MrSkySoft
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeroStatCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    icon: ImageVector,
+    accent: Color,
+    accentSoft: Color
+) {
+    ElevatedCard(
+        modifier = modifier,
+        colors = CardDefaults.elevatedCardColors(containerColor = MrSurface.copy(alpha = 0.92f)),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp),
+        shape = RoundedCornerShape(22.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(title, color = MrTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Text(value, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            }
+
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(accentSoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FilterSection(
+    filters: List<String>,
+    selectedFilter: String,
+    onFilterSelected: (String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp)
+            .padding(top = 12.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = "Filter by record type",
+            color = MrTextSecondary,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(filters) { filter ->
+                val selected = filter == selectedFilter
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (selected) MrPrimary else MrSurface,
+                    border = BorderStroke(1.dp, if (selected) MrPrimary else MrBorder),
+                    modifier = Modifier.clickable { onFilterSelected(filter) }
+                ) {
+                    Text(
+                        text = filter,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
+                        color = if (selected) Color(0xFF052E16) else MrTextSecondary,
+                        fontSize = 13.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SectionHeader(
+    title: String,
+    subtitle: String
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Text(title, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+        Text(subtitle, color = MrTextSecondary, fontSize = 13.sp)
+    }
+}
+
+@Composable
+private fun MedicalRecordListCard(
+    record: MedicalRecord,
+    onClick: () -> Unit
+) {
+    val pet = record.booking?.pet ?: record.pet
+    val doctor = record.booking?.doctor ?: record.doctor
+    val nextVisit = parseLocalDate(record.nextVisitDate)
+    val createdDate = formatDate(record.createdAt, "dd MMM yyyy")
+    val totalCost = recordTotalCost(record)
+    val extraStatus = record.extraPaymentStatus ?: "not_required"
+    val statusPalette = paymentPalette(extraStatus)
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 7.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MrSurface),
+        border = BorderStroke(1.dp, MrBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(MrPrimarySoft),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!pet?.photo.isNullOrBlank()) {
+                            ThumbnailImage(
+                                model = buildPhotoUrl(pet?.photo),
+                                contentDescription = pet?.name,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(18.dp))
+                            )
+                        } else {
+                            Icon(Icons.Filled.Pets, contentDescription = null, tint = MrPrimary, modifier = Modifier.size(26.dp))
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(
+                            text = pet?.name ?: "Pet record",
+                            color = MrTextPrimary,
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Text(
+                            text = doctor?.name?.let { "Handled by $it" } ?: "Veterinary record",
+                            color = MrTextSecondary,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                PaymentStatusChip(
+                    label = paymentStatusLabel(extraStatus),
+                    accent = statusPalette.first,
+                    background = statusPalette.second
+                )
+            }
+
+            Text(
+                text = record.diagnosis ?: "General consultation",
+                color = MrTextPrimary,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                fontWeight = FontWeight.Medium
+            )
+
+            if (!record.treatment.isNullOrBlank()) {
+                Text(
+                    text = record.treatment.orEmpty(),
+                    color = MrTextSecondary,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                MetricMiniCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Total Cost",
+                    value = formatCurrencyCompact(totalCost),
+                    icon = Icons.Filled.ReceiptLong,
+                    accent = MrPrimary,
+                    background = MrPrimarySoft
+                )
+                MetricMiniCard(
+                    modifier = Modifier.weight(1f),
+                    title = if (nextVisit != null) "Next Visit" else "Created",
+                    value = if (nextVisit != null) nextVisit.format(DateTimeFormatter.ofPattern("dd MMM")) else createdDate,
+                    icon = if (nextVisit != null) Icons.Filled.CalendarMonth else Icons.Filled.Schedule,
+                    accent = if (nextVisit != null) MrSky else Color(0xFF475569),
+                    background = if (nextVisit != null) MrSkySoft else MrSlateSoft
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = record.notes?.takeIf { it.isNotBlank() } ?: "Tap to review full medical record",
+                    color = MrTextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = "View details",
+                    color = MrPrimaryDeep,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MedicalRecordDetailHero(
+    record: MedicalRecord,
+    onNavigateBack: () -> Unit
+) {
+    val pet = record.booking?.pet ?: record.pet
+    val doctor = record.booking?.doctor ?: record.doctor
+    val createdDate = formatDate(record.createdAt, "dd MMM yyyy")
+    val paymentPalette = paymentPalette(record.extraPaymentStatus)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFDFF8EA), MrBackground)
+                )
+            )
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 18.dp)
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(
+                    onClick = onNavigateBack,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MrSurface.copy(alpha = 0.9f))
+                ) {
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MrTextPrimary)
+                }
+
+                PaymentStatusChip(
+                    label = paymentStatusLabel(record.extraPaymentStatus),
+                    accent = paymentPalette.first,
+                    background = paymentPalette.second
+                )
+            }
+
+            Text(
+                text = record.diagnosis ?: "Medical record",
+                color = MrTextPrimary,
+                fontSize = 28.sp,
+                lineHeight = 34.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Text(
+                text = "Clinical summary for ${pet?.name ?: "your pet"}${doctor?.name?.let { " with $it" } ?: ""}.",
+                color = MrTextSecondary,
+                fontSize = 14.sp,
+                lineHeight = 21.sp
+            )
+
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                InfoPill(Icons.Filled.CalendarToday, createdDate)
+                doctor?.name?.takeIf { it.isNotBlank() }?.let { InfoPill(Icons.Filled.Person, it) }
+                pet?.species?.takeIf { it.isNotBlank() }?.let { InfoPill(Icons.Filled.Pets, it) }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HeroStatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Total Cost",
+                    value = formatCurrencyCompact(record.totalMedicalCost ?: recordTotalCost(record)),
+                    icon = Icons.Filled.Payments,
+                    accent = MrPrimary,
+                    accentSoft = MrPrimarySoft
+                )
+                HeroStatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Extra Payment",
+                    value = formatCurrencyCompact(record.extraPaymentAmount ?: 0.0),
+                    icon = Icons.Filled.ReceiptLong,
+                    accent = MrAmber,
+                    accentSoft = MrAmberSoft
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordIdentitySection(record: MedicalRecord) {
+    val pet = record.booking?.pet ?: record.pet
+    val doctor = record.booking?.doctor ?: record.doctor
+
+    DetailSectionCard(
+        title = "Case Overview",
+        subtitle = "Patient and veterinarian information"
+    ) {
+        IdentityCard(
+            icon = Icons.Filled.Pets,
+            title = pet?.name ?: "Pet",
+            subtitle = buildString {
+                if (!pet?.species.isNullOrBlank()) append(pet?.species)
+                if (!pet?.breed.isNullOrBlank()) {
+                    if (isNotBlank()) append(" • ")
+                    append(pet?.breed)
+                }
+                if (isBlank()) append("Pet profile")
+            },
+            accent = MrPrimary,
+            background = MrPrimarySoft
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        IdentityCard(
+            icon = Icons.Filled.LocalHospital,
+            title = doctor?.name ?: "Veterinarian",
+            subtitle = doctor?.specialization ?: "Doctor on duty",
+            accent = MrSky,
+            background = MrSkySoft
+        )
+    }
+}
+
+@Composable
+private fun MedicalRecordPaymentSection(record: MedicalRecord) {
+    val extraStatus = record.extraPaymentStatus
+    val palette = paymentPalette(extraStatus)
+
+    DetailSectionCard(
+        title = "Billing Breakdown",
+        subtitle = "Consultation, treatment, and payment access"
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            MetricMiniCard(
+                modifier = Modifier.weight(1f),
+                title = "Consultation",
+                value = formatCurrencyCompact(record.cost ?: 0.0),
+                icon = Icons.Filled.HealthAndSafety,
+                accent = MrPrimary,
+                background = MrPrimarySoft
+            )
+            MetricMiniCard(
+                modifier = Modifier.weight(1f),
+                title = "Treatment",
+                value = formatCurrencyCompact(record.treatmentCost ?: 0.0),
+                icon = Icons.Filled.Vaccines,
+                accent = MrSky,
+                background = MrSkySoft
+            )
+            MetricMiniCard(
+                modifier = Modifier.weight(1f),
+                title = "Medicine",
+                value = formatCurrencyCompact(record.medicineCost ?: 0.0),
+                icon = Icons.Filled.MedicalServices,
+                accent = MrAmber,
+                background = MrAmberSoft
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
+
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = palette.second.copy(alpha = 0.65f),
+            border = BorderStroke(1.dp, palette.first.copy(alpha = 0.28f))
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Extra payment status", color = MrTextSecondary, fontSize = 13.sp)
+                    PaymentStatusChip(
+                        label = paymentStatusLabel(extraStatus),
+                        accent = palette.first,
+                        background = palette.second
+                    )
+                }
+
+                BillingRow("Total medical cost", formatCurrency(record.totalMedicalCost ?: recordTotalCost(record)))
+                BillingRow("Extra payment required", formatCurrency(record.extraPaymentAmount ?: 0.0))
+                BillingRow("Extra payment paid", formatCurrency(record.extraPaymentPaidAmount ?: 0.0))
+                BillingRow(
+                    "Full record access",
+                    if (record.canViewFullRecord == true) "Available" else "Restricted until payment is complete"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
+    DetailSectionCard(
+        title = "Clinical Notes",
+        subtitle = "Diagnosis, treatment plan, and observations"
+    ) {
+        NarrativeBlock(
+            icon = Icons.Filled.HealthAndSafety,
+            title = "Diagnosis",
+            body = record.diagnosis ?: "-"
+        )
+
+        Spacer(Modifier.height(12.dp))
+
+        NarrativeBlock(
+            icon = Icons.Filled.Vaccines,
+            title = "Treatment",
+            body = record.treatment ?: "-"
+        )
+
+        if (!record.medicine.isNullOrBlank()) {
+            Spacer(Modifier.height(12.dp))
+            NarrativeBlock(
+                icon = Icons.Filled.MedicalServices,
+                title = "Medicine",
+                body = record.medicine.orEmpty()
+            )
+        }
+
+        if (!record.notes.isNullOrBlank()) {
+            Spacer(Modifier.height(12.dp))
+            NarrativeBlock(
+                icon = Icons.Filled.Article,
+                title = "Doctor Notes",
+                body = record.notes.orEmpty()
+            )
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
+    DetailSectionCard(
+        title = "Follow-up Plan",
+        subtitle = "Next visit schedule from the clinic"
+    ) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MrAmberSoft.copy(alpha = 0.6f),
+            border = BorderStroke(1.dp, MrAmber.copy(alpha = 0.25f))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MrAmber.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MrAmber, modifier = Modifier.size(24.dp))
+                }
+
+                Column {
+                    Text("Next visit scheduled", color = MrTextSecondary, fontSize = 12.sp)
+                    Text(
+                        text = parseLocalDate(record.nextVisitDate)?.format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) ?: record.nextVisitDate.orEmpty(),
+                        color = MrTextPrimary,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordMetaFooter(record: MedicalRecord) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Divider(color = MrBorder)
+        Text(
+            text = "Recorded ${formatDate(record.createdAt, "dd MMM yyyy • HH:mm")}",
+            color = MrTextSecondary,
+            fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun DetailSectionCard(
+    title: String,
+    subtitle: String,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        colors = CardDefaults.cardColors(containerColor = MrSurface),
+        shape = RoundedCornerShape(26.dp),
+        border = BorderStroke(1.dp, MrBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Text(title, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(4.dp))
+            Text(subtitle, color = MrTextSecondary, fontSize = 13.sp, lineHeight = 20.sp)
+            Spacer(Modifier.height(16.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun IdentityCard(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accent: Color,
+    background: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MrSurfaceAlt,
+        border = BorderStroke(1.dp, MrBorder)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(background),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(24.dp))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(title, color = MrTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, color = MrTextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun NarrativeBlock(
+    icon: ImageVector,
+    title: String,
+    body: String
+) {
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MrSurfaceAlt,
+        border = BorderStroke(1.dp, MrBorder)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MrPrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = MrPrimary, modifier = Modifier.size(21.dp))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                Text(title, color = MrTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(body, color = MrTextSecondary, fontSize = 13.sp, lineHeight = 21.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BillingRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, color = MrTextSecondary, fontSize = 13.sp)
+        Text(
+            text = value,
+            color = MrTextPrimary,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@Composable
+private fun MetricMiniCard(
+    modifier: Modifier = Modifier,
+    title: String,
+    value: String,
+    icon: ImageVector,
+    accent: Color,
+    background: Color
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = MrSurfaceAlt,
+        border = BorderStroke(1.dp, MrBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(background),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
+            }
+
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, color = MrTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    text = value,
+                    color = MrTextPrimary,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun PaymentStatusChip(
+    label: String,
+    accent: Color,
+    background: Color
+) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = background,
+        border = BorderStroke(1.dp, accent.copy(alpha = 0.18f))
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            color = accent,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+private fun InfoPill(icon: ImageVector, label: String) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = MrSurface.copy(alpha = 0.86f),
+        border = BorderStroke(1.dp, MrBorder)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = MrTextSecondary, modifier = Modifier.size(15.dp))
+            Text(label, color = MrTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(MrPrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.FolderShared, contentDescription = null, tint = MrPrimary, modifier = Modifier.size(42.dp))
+            }
+
+            Text(
+                text = "No medical records yet",
+                color = MrTextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                text = "Your pet's treatment history will appear here after a consultation has been completed.",
+                color = MrTextSecondary,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = onNavigateBack,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color(0xFF052E16))
+            ) {
+                Text("Go Back", fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordErrorState(
+    message: String,
+    onRetry: () -> Unit,
+    onBack: (() -> Unit)? = null
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 28.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(30.dp))
+                    .background(MrRoseSoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.ErrorOutline, contentDescription = null, tint = MrRose, modifier = Modifier.size(42.dp))
+            }
+
+            Text(
+                text = "Unable to open medical record",
+                color = MrTextPrimary,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.SemiBold,
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = message,
+                color = MrTextSecondary,
+                fontSize = 14.sp,
+                lineHeight = 22.sp,
+                textAlign = TextAlign.Center
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = onRetry,
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MrBorder)
+                ) {
+                    Text("Retry", color = MrTextPrimary, fontWeight = FontWeight.SemiBold)
+                }
+                if (onBack != null) {
+                    Button(
+                        onClick = onBack,
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color(0xFF052E16))
+                    ) {
+                        Text("Back", fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalBottomNav(
+    modifier: Modifier = Modifier,
+    onHome: () -> Unit,
+    onBookings: () -> Unit,
+    onProfile: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding(),
+        color = MrSurface.copy(alpha = 0.98f),
+        shadowElevation = 10.dp
+    ) {
+        Column {
+            Divider(color = MrBorder)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 22.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BottomNavItem("Home", Icons.Filled.Home, false, onHome)
+                BottomNavItem("Records", Icons.Filled.FolderShared, true, {})
+                BottomNavItem("Bookings", Icons.Filled.CalendarMonth, false, onBookings)
+                BottomNavItem("Profile", Icons.Filled.Person, false, onProfile)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BottomNavItem(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 62.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(14.dp))
+                .background(if (selected) MrPrimarySoft else Color.Transparent)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                icon,
+                contentDescription = label,
+                tint = if (selected) MrPrimaryDeep else MrTextSecondary,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+        Text(
+            text = label,
+            color = if (selected) MrTextPrimary else MrTextSecondary,
+            fontSize = 11.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
+private fun paymentPalette(status: String?): Pair<Color, Color> = when (status) {
+    "paid" -> MrPrimaryDeep to MrPrimarySoft
+    "partial" -> MrSky to MrSkySoft
+    "pending", "unpaid" -> MrAmber to MrAmberSoft
+    "failed" -> MrRose to MrRoseSoft
+    else -> MrTextSecondary to MrSlateSoft
+}
+
+private fun paymentStatusLabel(status: String?): String = when (status) {
+    "paid" -> "Paid"
+    "partial" -> "Partial"
+    "pending", "unpaid" -> "Pending"
+    "failed" -> "Failed"
+    "not_required", null -> "No Extra Cost"
+    else -> status.replaceFirstChar { it.uppercase() }
+}
+
+private fun recordTotalCost(record: MedicalRecord): Double {
+    return record.totalMedicalCost
+        ?: ((record.cost ?: 0.0) + (record.treatmentCost ?: 0.0) + (record.medicineCost ?: 0.0))
+}
+
+private fun formatCurrency(value: Double): String {
+    return "Rp ${String.format("%,.0f", value).replace(",", ".")}"
+}
+
+private fun formatCurrencyCompact(value: Double): String {
+    val formatted = String.format("%,.0f", value).replace(",", ".")
+    return if (formatted.length > 10) "Rp ${formatted.take(10)}" else "Rp $formatted"
+}
+
+private fun formatDate(value: String?, pattern: String): String {
+    if (value.isNullOrBlank()) return "-"
+    return try {
+        LocalDateTime.parse(value.replace(" ", "T").take(19)).format(DateTimeFormatter.ofPattern(pattern))
+    } catch (_: Exception) {
+        try {
+            LocalDate.parse(value.take(10)).format(DateTimeFormatter.ofPattern(pattern))
+        } catch (_: Exception) {
+            value.take(10)
+        }
+    }
+}
+
+private fun parseLocalDate(value: String?): LocalDate? {
+    if (value.isNullOrBlank()) return null
+    return try {
+        LocalDate.parse(value.take(10))
+    } catch (_: Exception) {
+        null
     }
 }

@@ -91,15 +91,15 @@ fun RegisterScreen(
                                     name.trim().ifBlank { account.displayName.orEmpty() }
                                 )
                             } else {
-                                viewModel.setError("Failed to get Firebase ID token")
+                                viewModel.setError("Token Firebase tidak berhasil diambil")
                             }
                         } catch (e: Exception) {
-                            viewModel.setError("Google sign-in failed: ${e.message}")
+                            viewModel.setError("Daftar dengan Google gagal: ${e.message}")
                         }
                     }
-                } ?: viewModel.setError("Google account has no ID token. Enable Google Sign-In in Firebase Console.")
+                } ?: viewModel.setError("Akun Google tidak mengembalikan ID token. Periksa konfigurasi Google Sign-In di Firebase.")
             } catch (e: ApiException) {
-                viewModel.setError("Google sign-in error (code ${e.statusCode})")
+                viewModel.setError("Terjadi kendala saat daftar dengan Google (kode ${e.statusCode})")
             }
         }
     }
@@ -137,12 +137,12 @@ fun RegisterScreen(
                 ) {
                     Icon(
                         Icons.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = "Kembali",
                         tint = if (isDark) Color.White else Color(0xFF0F172A)
                     )
                 }
                 Text(
-                    text = "Register",
+                    text = "Daftar",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
                 )
@@ -169,25 +169,25 @@ fun RegisterScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    text = "Create Account",
+                    text = "Buat Akun",
                     fontSize = 22.sp, fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Join PetHeal and care for your pet",
+                    text = "Mulai kelola kesehatan hewan Anda bersama PetHeal",
                     fontSize = 13.sp, color = AuthTextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
 
             // ── Full Name ─────────────────────────────────────────────
-            AuthFieldLabel("Full Name", isDark)
+            AuthFieldLabel("Nama Lengkap", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = name,
                 onValueChange = { name = it },
-                placeholder = "Your full name",
+                placeholder = "Masukkan nama lengkap",
                 leadingIcon = {
                     Icon(Icons.Filled.Person, null,
                         tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
@@ -202,12 +202,12 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Email ─────────────────────────────────────────────────
-            AuthFieldLabel("Email Address", isDark)
+            AuthFieldLabel("Alamat Email", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = email,
                 onValueChange = { email = it },
-                placeholder = "hello@example.com",
+                placeholder = "nama@email.com",
                 leadingIcon = {
                     Icon(Icons.Filled.Email, null,
                         tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
@@ -226,12 +226,12 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Password ──────────────────────────────────────────────
-            AuthFieldLabel("Password", isDark)
+            AuthFieldLabel("Kata Sandi", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = password,
                 onValueChange = { password = it },
-                placeholder = "Min. 8 characters",
+                placeholder = "Minimal 8 karakter",
                 leadingIcon = {
                     Icon(Icons.Filled.Lock, null,
                         tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
@@ -261,12 +261,12 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Confirm Password ──────────────────────────────────────
-            AuthFieldLabel("Confirm Password", isDark)
+            AuthFieldLabel("Konfirmasi Kata Sandi", isDark)
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = confirmPassword,
                 onValueChange = { confirmPassword = it },
-                placeholder = "Re-enter password",
+                placeholder = "Masukkan ulang kata sandi",
                 leadingIcon = {
                     Icon(Icons.Filled.Lock, null,
                         tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
@@ -293,7 +293,7 @@ fun RegisterScreen(
             if (!passwordsMatch) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Passwords do not match",
+                    "Konfirmasi kata sandi belum sama",
                     color = MaterialTheme.colorScheme.error,
                     fontSize = 12.sp,
                     modifier = Modifier.padding(start = 4.dp)
@@ -322,7 +322,7 @@ fun RegisterScreen(
                         modifier = Modifier.size(22.dp),
                         color = AuthBgDark, strokeWidth = 2.5.dp)
                 } else {
-                    Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text("Buat Akun", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -338,7 +338,7 @@ fun RegisterScreen(
                     color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
                 )
                 Text(
-                    "  Or continue with  ",
+                    "  atau lanjutkan dengan  ",
                     fontSize = 11.sp, fontWeight = FontWeight.Medium,
                     color = AuthTextSecondary, letterSpacing = 0.5.sp
                 )
@@ -379,7 +379,7 @@ fun RegisterScreen(
                 } else {
                     GoogleLogoIcon()
                     Spacer(modifier = Modifier.width(12.dp))
-                    Text("Continue with Google",
+                    Text("Lanjutkan dengan Google",
                         fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
@@ -400,14 +400,14 @@ fun RegisterScreen(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Already have an account? ",
+                Text("Sudah punya akun? ",
                     fontSize = 13.sp,
                     color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
                 TextButton(
                     onClick = onNavigateBack,
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Login",
+                    Text("Masuk",
                         fontSize = 13.sp, fontWeight = FontWeight.Bold,
                         color = AuthPrimary)
                 }

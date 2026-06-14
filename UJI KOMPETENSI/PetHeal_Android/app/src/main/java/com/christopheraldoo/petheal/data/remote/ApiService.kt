@@ -51,6 +51,9 @@ interface ApiService {
     @POST("auth/reset-password")
     suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<MessageResponse>
 
+    @GET("dashboard")
+    suspend fun getDashboard(): Response<ApiResponse<DashboardData>>
+
     // ============= PETS =============
     @GET("pets")
     suspend fun getPets(): Response<PetsResponse>
@@ -169,6 +172,15 @@ interface ApiService {
 
     @GET("medical-records/{id}")
     suspend fun getMedicalRecord(@Path("id") id: Int): Response<MedicalRecordResponse>
+
+    @GET("bookings/{id}/medical-record")
+    suspend fun getBookingMedicalRecord(@Path("id") id: Int): Response<MedicalRecordResponse>
+
+    @POST("medical-records/{id}/pay")
+    suspend fun createMedicalRecordExtraPayment(@Path("id") id: Int): Response<SnapTokenResponse>
+
+    @GET("medical-records/{id}/payment-status")
+    suspend fun getMedicalRecordPaymentStatus(@Path("id") id: Int): Response<MedicalRecordPaymentStatusResponse>
 
     @GET("pets/{petId}/medical-records")
     suspend fun getMedicalRecordsByPet(@Path("petId") petId: Int): Response<MedicalRecordsResponse>

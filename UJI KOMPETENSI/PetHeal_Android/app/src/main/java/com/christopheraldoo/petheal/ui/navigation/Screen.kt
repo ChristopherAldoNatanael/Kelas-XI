@@ -52,6 +52,11 @@ sealed class Screen(val route: String) {
             "payment/$bookingId/$isDp/$totalAmount/$isRemaining"
     }
 
+    object MedicalExtraPayment : Screen("payment-medical/{bookingId}/{recordId}/{amount}") {
+        fun createRoute(bookingId: Int, recordId: Int, amount: Double) =
+            "payment-medical/$bookingId/$recordId/$amount"
+    }
+
     // ── Payment Result ────────────────────────────────────────────────────────
     object PaymentResult : Screen("payment-result/{orderId}/{status}/{message}") {
         fun createRoute(orderId: String, status: String, message: String) =

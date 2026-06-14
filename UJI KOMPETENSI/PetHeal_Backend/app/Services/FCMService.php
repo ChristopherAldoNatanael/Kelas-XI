@@ -2,111 +2,112 @@
 
 namespace App\Services;
 
-use Firebase\JWT\JWT;
+use App\Models\AppSetting;
 use App\Models\Notification;
+use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-/**
- * FCM v1 HTTP API — uses a service-account JWT for OAuth2 access tokens.
- * Compatible with PHP 8.2 (no kreait/firebase-php required at runtime).
- */
 class FCMService
 {
     private string $projectId;
     private string $serviceAccountPath;
 
-    // FCM v1 endpoint
     private const FCM_URL = 'https://fcm.googleapis.com/v1/projects/%s/messages:send';
-
-    // OAuth2 scope needed for FCM
     private const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
-
-    // Google token endpoint
     private const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
     public function __construct()
     {
         $this->projectId = config('services.fcm.project_id', 'petheal-d8c3d');
 
-        // FIREBASE_CREDENTIALS in .env may be a relative path like
-        // "storage/app/firebase-service-account.json" — resolve it to absolute.
         $raw = config(
             'services.firebase.credentials',
             storage_path('app/firebase-service-account.json')
         );
 
-        $this->serviceAccountPath = str_starts_with($raw, '/')  || str_contains($raw, ':\\')
-            ? $raw                                 // already absolute (Linux / Windows)
-            : base_path($raw);                     // make it absolute from project root
+        $this->serviceAccountPath = str_starts_with($raw, '/') || str_contains($raw, ':\\')
+            ? $raw
+            : base_path($raw);
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  OAuth2 Access Token (cached 55 min)
-    // ─────────────────────────────────────────────────────────────────────────
 
     private function getAccessToken(): ?string
     {
         return Cache::remember('fcm_access_token', 3300, function () {
             try {
-                $sa = json_decode(file_get_contents($this->serviceAccountPath), true);
+                $sa = json_decode(file_get_contents($this->serviceAccountPath), true, 512, JSON_THROW_ON_ERROR);
 
-                $now     = time();
+                $now = time();
                 $payload = [
-                    'iss'   => $sa['client_email'],
+                    'iss' => $sa['client_email'],
                     'scope' => self::FCM_SCOPE,
-                    'aud'   => self::TOKEN_URL,
-                    'iat'   => $now,
-                    'exp'   => $now + 3600,
+                    'aud' => self::TOKEN_URL,
+                    'iat' => $now,
+                    'exp' => $now + 3600,
                 ];
 
                 $jwt = JWT::encode($payload, $sa['private_key'], 'RS256');
-
                 $response = Http::asForm()->post(self::TOKEN_URL, [
                     'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                    'assertion'  => $jwt,
+                    'assertion' => $jwt,
                 ]);
 
                 if ($response->successful()) {
                     return $response->json('access_token');
                 }
 
-                Log::error('FCM: failed to get access token — ' . $response->body());
-                return null;
+                Log::error('FCM access token request failed', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
             } catch (\Throwable $e) {
-                Log::error('FCM: access token exception — ' . $e->getMessage());
-                return null;
+                Log::error('FCM access token exception', [
+                    'message' => $e->getMessage(),
+                ]);
             }
+
+            return null;
         });
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Low-level: send to a single device token
-    // ─────────────────────────────────────────────────────────────────────────
+    private function getTemplateText(string $key, string $field, string $default): string
+    {
+        return AppSetting::getValue("notifications.{$key}.{$field}", $default) ?? $default;
+    }
+
+    private function renderTemplate(string $template, array $replacements): string
+    {
+        $rendered = $template;
+
+        foreach ($replacements as $key => $value) {
+            $rendered = str_replace('{' . $key . '}', (string) $value, $rendered);
+        }
+
+        return trim(preg_replace('/\s{2,}/', ' ', $rendered) ?? $rendered);
+    }
 
     public function sendToDevice(string $deviceToken, string $title, string $body, array $data = []): bool
     {
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
-            Log::error('FCM: no access token, aborting sendToDevice');
+            Log::error('FCM send aborted: access token unavailable');
             return false;
         }
 
-        // FCM v1 requires all data values to be strings
-        $stringData = array_map('strval', $data);
+        $stringData = array_map(static fn ($value) => (string) $value, array_filter($data, static fn ($value) => $value !== null));
 
         $payload = [
             'message' => [
-                'token'        => $deviceToken,
+                'token' => $deviceToken,
                 'notification' => [
                     'title' => $title,
-                    'body'  => $body,
+                    'body' => $body,
                 ],
                 'android' => [
-                    'priority'     => 'high',
+                    'priority' => 'high',
                     'notification' => [
-                        'sound'      => 'default',
+                        'sound' => 'default',
                         'channel_id' => 'petheal_notifications',
                     ],
                 ],
@@ -123,27 +124,27 @@ class FCMService
         ];
 
         try {
-            $url      = sprintf(self::FCM_URL, $this->projectId);
-            $response = Http::withToken($accessToken)->post($url, $payload);
+            $response = Http::withToken($accessToken)->post(sprintf(self::FCM_URL, $this->projectId), $payload);
 
             if ($response->successful()) {
-                Log::info('FCM: delivered to device', [
+                Log::info('FCM delivered to device', [
                     'token_hash' => hash('sha256', $deviceToken),
                 ]);
                 return true;
             }
 
-            Log::error('FCM: send failed (' . $response->status() . ') — ' . $response->body());
-            return false;
+            Log::error('FCM send failed', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
         } catch (\Throwable $e) {
-            Log::error('FCM: sendToDevice exception — ' . $e->getMessage());
-            return false;
+            Log::error('FCM send exception', [
+                'message' => $e->getMessage(),
+            ]);
         }
-    }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Send to multiple device tokens
-    // ─────────────────────────────────────────────────────────────────────────
+        return false;
+    }
 
     public function sendToMultiple(array $deviceTokens, string $title, string $body, array $data = []): array
     {
@@ -154,26 +155,17 @@ class FCMService
         return $results;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Send to a user (all their registered device tokens)
-    // ─────────────────────────────────────────────────────────────────────────
-
     public function sendToUser(int $userId, string $title, string $body, array $data = []): bool
     {
         $this->storeNotification($userId, $title, $body, $data);
 
-        $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)
-            ->pluck('token')
-            ->toArray();
-
+        $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)->pluck('token')->toArray();
         if (empty($deviceTokens)) {
             Log::warning("FCM: no device tokens found for user #{$userId}");
             return false;
         }
 
         $results = $this->sendToMultiple($deviceTokens, $title, $body, $data);
-
-        // True if at least one device was reached successfully
         return in_array(true, $results, true);
     }
 
@@ -195,89 +187,203 @@ class FCMService
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    //  High-level helpers
-    // ─────────────────────────────────────────────────────────────────────────
-
-    public function sendBookingReminder(int $userId, string $petName, ?string $bookingDate, ?string $bookingTime): bool
-    {
+    public function sendBookingReminder(
+        int $userId,
+        string $petName,
+        ?string $bookingDate,
+        ?string $bookingTime,
+        ?int $bookingId = null,
+        ?int $petId = null,
+        ?int $doctorId = null,
+        ?string $doctorName = null
+    ): bool {
         if (!$bookingDate || !$bookingTime) {
             return false;
         }
 
-        return $this->sendToUser(
-            $userId,
-            'Booking Reminder',
-            "You have an appointment for {$petName} on {$bookingDate} at {$bookingTime}",
-            ['type' => 'booking_reminder', 'pet_name' => $petName, 'date' => $bookingDate, 'time' => $bookingTime]
+        $replacements = [
+            'pet_name' => $petName,
+            'doctor_name' => $doctorName ?? 'dokter Anda',
+            'date' => $bookingDate,
+            'time' => $bookingTime,
+        ];
+
+        $title = $this->renderTemplate(
+            $this->getTemplateText('booking_reminder', 'title', 'Pengingat Booking PetHeal'),
+            $replacements
         );
+        $body = $this->renderTemplate(
+            $this->getTemplateText('booking_reminder', 'body', '{pet_name} memiliki jadwal dengan {doctor_name} pada {date} pukul {time}.'),
+            $replacements
+        );
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'booking_reminder',
+            'title' => $title,
+            'body' => $body,
+            'pet_name' => $petName,
+            'doctor_name' => $doctorName,
+            'date' => $bookingDate,
+            'time' => $bookingTime,
+            'booking_id' => $bookingId,
+            'pet_id' => $petId,
+            'doctor_id' => $doctorId,
+        ]);
     }
 
-    public function sendVaccinationReminder(int $userId, string $petName, ?string $nextVisitDate): bool
-    {
+    public function sendVaccinationReminder(
+        int $userId,
+        string $petName,
+        ?string $nextVisitDate,
+        ?int $petId = null,
+        ?int $medicalRecordId = null
+    ): bool {
         if (!$nextVisitDate) {
             return false;
         }
 
-        return $this->sendToUser(
-            $userId,
-            'Vaccination Reminder',
-            "Time to vaccinate {$petName}! Next visit scheduled for {$nextVisitDate}",
-            ['type' => 'vaccination_reminder', 'pet_name' => $petName, 'next_visit' => $nextVisitDate]
-        );
-    }
+        $replacements = [
+            'pet_name' => $petName,
+            'next_visit' => $nextVisitDate,
+        ];
 
-    /**
-     * Send manual reminder from admin dashboard.
-     * $reminderType: "1_hour" | "tomorrow" | "custom"
-     */
-    public function sendManualReminder(
-        int     $userId,
-        string  $petName,
-        string  $doctorName,
-        string  $bookingDate,
-        string  $bookingTime,
-        string  $reminderType = 'tomorrow',
-        ?string $customMessage = null
-    ): bool {
-        switch ($reminderType) {
-            case '1_hour':
-                $title = '⏰ Appointment in 1 Hour';
-                $body  = "{$petName}'s appointment with {$doctorName} is TODAY at {$bookingTime}. See you soon!";
-                break;
-            case 'tomorrow':
-                $title = '📅 Appointment Tomorrow';
-                $body  = "Reminder: {$petName} has an appointment with {$doctorName} tomorrow ({$bookingDate}) at {$bookingTime}.";
-                break;
-            case 'custom':
-                $title = '🔔 Appointment Reminder';
-                $body  = $customMessage ?? "You have an appointment for {$petName} on {$bookingDate} at {$bookingTime}.";
-                break;
-            default:
-                $title = '🔔 Appointment Reminder';
-                $body  = "You have an appointment for {$petName} on {$bookingDate} at {$bookingTime}.";
-        }
+        $title = $this->renderTemplate(
+            $this->getTemplateText('vaccination_reminder', 'title', 'Pengingat Vaksinasi PetHeal'),
+            $replacements
+        );
+        $body = $this->renderTemplate(
+            $this->getTemplateText('vaccination_reminder', 'body', 'Saatnya kunjungan berikutnya untuk {pet_name}. Jadwal tindak lanjut: {next_visit}.'),
+            $replacements
+        );
 
         return $this->sendToUser($userId, $title, $body, [
-            'type'        => 'booking_reminder',
-            'pet_name'    => $petName,
-            'doctor_name' => $doctorName,
-            'date'        => $bookingDate,
-            'time'        => $bookingTime,
+            'type' => 'vaccination_reminder',
+            'title' => $title,
+            'body' => $body,
+            'pet_name' => $petName,
+            'next_visit' => $nextVisitDate,
+            'pet_id' => $petId,
+            'medical_record_id' => $medicalRecordId,
         ]);
     }
 
-    public function sendBookingStatusUpdate(int $userId, string $petName, string $status, ?string $bookingDate): bool
-    {
+    public function sendManualReminder(
+        int $userId,
+        string $petName,
+        string $doctorName,
+        string $bookingDate,
+        string $bookingTime,
+        string $reminderType = 'tomorrow',
+        ?string $customMessage = null,
+        ?int $bookingId = null,
+        ?int $petId = null,
+        ?int $doctorId = null
+    ): bool {
+        $replacements = [
+            'pet_name' => $petName,
+            'doctor_name' => $doctorName,
+            'date' => $bookingDate,
+            'time' => $bookingTime,
+        ];
+
+        $title = $this->renderTemplate(
+            $this->getTemplateText('booking_reminder', 'title', 'Pengingat Booking PetHeal'),
+            $replacements
+        );
+        $body = $reminderType === 'custom' && $customMessage
+            ? $customMessage
+            : $this->renderTemplate(
+                $this->getTemplateText('booking_reminder', 'body', '{pet_name} memiliki jadwal dengan {doctor_name} pada {date} pukul {time}.'),
+                $replacements
+            );
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'booking_reminder',
+            'title' => $title,
+            'body' => $body,
+            'pet_name' => $petName,
+            'doctor_name' => $doctorName,
+            'date' => $bookingDate,
+            'time' => $bookingTime,
+            'booking_id' => $bookingId,
+            'pet_id' => $petId,
+            'doctor_id' => $doctorId,
+        ]);
+    }
+
+    public function sendBookingStatusUpdate(
+        int $userId,
+        string $petName,
+        string $status,
+        ?string $bookingDate,
+        ?int $bookingId = null,
+        ?int $petId = null,
+        ?int $doctorId = null
+    ): bool {
         if (!$bookingDate) {
             return false;
         }
 
-        return $this->sendToUser(
-            $userId,
-            'Booking ' . ucfirst($status),
-            "Your booking for {$petName} on {$bookingDate} has been {$status}",
-            ['type' => 'booking_status', 'pet_name' => $petName, 'status' => $status, 'date' => $bookingDate]
+        $replacements = [
+            'pet_name' => $petName,
+            'status' => $status,
+            'date' => $bookingDate,
+        ];
+
+        $templateKey = 'booking_status_' . strtolower($status);
+        $title = $this->renderTemplate(
+            $this->getTemplateText($templateKey, 'title', 'Status Booking Diperbarui'),
+            $replacements
         );
+        $body = $this->renderTemplate(
+            $this->getTemplateText($templateKey, 'body', 'Booking {pet_name} pada {date} memiliki status {status}.'),
+            $replacements
+        );
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'booking_status',
+            'title' => $title,
+            'body' => $body,
+            'pet_name' => $petName,
+            'status' => $status,
+            'date' => $bookingDate,
+            'booking_id' => $bookingId,
+            'pet_id' => $petId,
+            'doctor_id' => $doctorId,
+        ]);
+    }
+
+    public function sendPaymentReminder(
+        int $userId,
+        string $petName,
+        string $remainingAmount,
+        ?int $bookingId = null,
+        ?int $petId = null,
+        ?int $doctorId = null
+    ): bool {
+        $replacements = [
+            'pet_name' => $petName,
+            'remaining_amount' => $remainingAmount,
+        ];
+
+        $title = $this->renderTemplate(
+            $this->getTemplateText('payment_reminder', 'title', 'Pengingat Pembayaran PetHeal'),
+            $replacements
+        );
+        $body = $this->renderTemplate(
+            $this->getTemplateText('payment_reminder', 'body', 'Sisa pembayaran untuk {pet_name} sebesar {remaining_amount}. Silakan selesaikan pembayaran booking Anda.'),
+            $replacements
+        );
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'payment_reminder',
+            'title' => $title,
+            'body' => $body,
+            'pet_name' => $petName,
+            'remaining_amount' => $remainingAmount,
+            'booking_id' => $bookingId,
+            'pet_id' => $petId,
+            'doctor_id' => $doctorId,
+        ]);
     }
 }

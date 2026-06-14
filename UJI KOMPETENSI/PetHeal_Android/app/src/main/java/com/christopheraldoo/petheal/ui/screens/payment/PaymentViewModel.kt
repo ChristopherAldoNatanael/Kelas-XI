@@ -177,6 +177,48 @@ class PaymentViewModel @Inject constructor(
         }
     }
 
+    fun initiateMedicalRecordExtraPayment(recordId: Int) {
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            when (val preflight = paymentRepository.checkPaymentPreflight()) {
+                is Result.Success -> Unit
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = preflight.message
+                    )
+                    return@launch
+                }
+                else -> Unit
+            }
+
+            Log.d(TAG, "Creating snap token for medical record extra payment, record: $recordId")
+            when (val result = paymentRepository.createMedicalRecordExtraPayment(recordId)) {
+                is Result.Success -> {
+                    val snapData = result.data
+                    val orderId = snapData.orderId ?: "MEDREC-$recordId"
+                    currentOrderId = orderId
+
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        snapToken = snapData.token,
+                        snapRedirectUrl = snapData.redirectUrl,
+                        transactionId = snapData.transactionId,
+                        orderId = orderId
+                    )
+                }
+                is Result.Error -> {
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        error = result.message
+                    )
+                }
+                else -> Unit
+            }
+        }
+    }
+
     /**
      * Handle the payment result from Midtrans.
      * @param orderId The order ID of the transaction
@@ -204,7 +246,7 @@ class PaymentViewModel @Inject constructor(
                 else -> "failed"
             }
 
-            if (isSuccess) {
+            if (isSuccess || isPending) {
                 syncPaymentStatus(orderId)
             }
 
@@ -258,7 +300,7 @@ class PaymentViewModel @Inject constructor(
                         else -> "failed"
                     }
 
-                    if (isSuccess) {
+                    if (isSuccess || isPending) {
                         syncPaymentStatus(orderId)
                     }
 
@@ -328,7 +370,7 @@ class PaymentViewModel @Inject constructor(
                         else -> "failed"
                     }
 
-                    if (isSuccess) {
+                    if (isSuccess || isPending) {
                         syncPaymentStatus(orderId)
                     }
 
