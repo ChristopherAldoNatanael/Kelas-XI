@@ -122,9 +122,7 @@ fun MedicalRecordsScreen(
         Box {
             when {
                 state.isLoading -> {
-                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = MrPrimary)
-                    }
+                    MedicalRecordSkeletonList()
                 }
 
                 state.error != null -> {
@@ -237,9 +235,7 @@ fun MedicalRecordDetailScreen(
     ) {
         when {
             state.isLoading -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = MrPrimary)
-                }
+                MedicalRecordDetailSkeleton()
             }
 
             state.record == null -> {
@@ -288,6 +284,92 @@ fun MedicalRecordDetailScreen(
             }
         }
     }
+}
+
+@Composable
+private fun MedicalRecordSkeletonList() {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(top = 36.dp, start = 20.dp, end = 20.dp, bottom = 106.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Surface(shape = RoundedCornerShape(30.dp), color = MrSurface) {
+                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    SkeletonBlock(0.45f, 28.dp)
+                    SkeletonBlock(0.85f, 16.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        repeat(3) { SkeletonMetric(Modifier.weight(1f)) }
+                    }
+                }
+            }
+        }
+        items(4) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MrSurface) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(58.dp).clip(RoundedCornerShape(18.dp)).background(MrBorder))
+                    Spacer(Modifier.size(12.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        SkeletonBlock(0.60f, 18.dp)
+                        SkeletonBlock(0.90f, 13.dp)
+                        SkeletonBlock(0.36f, 13.dp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalRecordDetailSkeleton() {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Spacer(Modifier.height(28.dp))
+        Surface(shape = RoundedCornerShape(30.dp), color = MrSurface) {
+            Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                SkeletonBlock(0.50f, 30.dp)
+                SkeletonBlock(0.80f, 16.dp)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SkeletonMetric(Modifier.weight(1f))
+                    SkeletonMetric(Modifier.weight(1f))
+                }
+            }
+        }
+        repeat(3) {
+            Surface(shape = RoundedCornerShape(24.dp), color = MrSurface) {
+                Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    SkeletonBlock(0.42f, 18.dp)
+                    SkeletonBlock(1f, 13.dp)
+                    SkeletonBlock(0.78f, 13.dp)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SkeletonMetric(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .height(72.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(MrBorder.copy(alpha = 0.65f))
+    )
+}
+
+@Composable
+private fun SkeletonBlock(widthFraction: Float, height: Dp) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth(widthFraction)
+            .height(height)
+            .clip(RoundedCornerShape(999.dp))
+            .background(MrBorder.copy(alpha = 0.75f))
+    )
 }
 
 @Composable

@@ -138,17 +138,56 @@ fun PaymentScreen(
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         when {
             state.isLoading && state.snapToken == null && state.snapRedirectUrl == null -> {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(0.dp),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
+                    Column(
+                        modifier = Modifier.padding(28.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
                         val infiniteTransition = rememberInfiniteTransition()
                         val scale by infiniteTransition.animateFloat(
                             initialValue = 0.8f, targetValue = 1.2f,
                             animationSpec = infiniteRepeatable(animation = tween(1000), repeatMode = RepeatMode.Reverse)
                         )
-                        CircularProgressIndicator(color = PayPrimary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
+                        Box(
+                            modifier = Modifier
+                                .size(86.dp)
+                                .clip(RoundedCornerShape(28.dp))
+                                .background(PayPrimary.copy(alpha = 0.10f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = PayPrimary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
+                        }
                         Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
-                        Text("Preparing your secure checkout...", fontSize = 14.sp, fontWeight = FontWeight.Medium, color = textPrimary)
+                        Text("Preparing secure checkout", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
                         Text(paymentContextSubtitle, fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center)
+                        Surface(
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFF8FAFC),
+                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Total", color = textSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text(
+                                    "Rp ${String.format("%,.0f", totalAmount).replace(",", ".")}",
+                                    color = textPrimary,
+                                    fontSize = 17.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                     }
                 }
             }
@@ -424,17 +463,22 @@ fun PaymentErrorScreen(
     textSecondary: Color
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(modifier = Modifier.size(80.dp).clip(RoundedCornerShape(16.dp)).background(Color(0xFFEF4444).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+        Box(modifier = Modifier.size(92.dp).clip(RoundedCornerShape(28.dp)).background(Color(0xFFEF4444).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.Error, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(24.dp))
         Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textSecondary)
         Spacer(Modifier.height(4.dp))
-        Text("Payment Setup Failed", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+        Text("Payment Setup Failed", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(subtitle, fontSize = 13.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
         Spacer(Modifier.height(12.dp))
-        Card(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.05f))) {
+        Card(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.05f)),
+            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.12f))
+        ) {
             Text(error, fontSize = 14.sp, color = Color(0xFFDC2626), textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
         }
         Spacer(Modifier.height(24.dp))

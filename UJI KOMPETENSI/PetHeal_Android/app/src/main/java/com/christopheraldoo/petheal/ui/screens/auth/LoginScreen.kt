@@ -19,7 +19,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -123,14 +125,32 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(bgColor)
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color(0xFFFFFFFF), Color(0xFFF2FBF5), bgColor)
+                )
+            )
     ) {
+        Box(
+            modifier = Modifier
+                .size(260.dp)
+                .offset(x = 210.dp, y = (-90).dp)
+                .clip(RoundedCornerShape(90.dp))
+                .background(AuthPrimary.copy(alpha = 0.12f))
+        )
+        Box(
+            modifier = Modifier
+                .size(180.dp)
+                .offset(x = (-70).dp, y = 120.dp)
+                .clip(RoundedCornerShape(64.dp))
+                .background(Color(0xFF0EA5A5).copy(alpha = 0.08f))
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp, bottom = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 20.dp, bottom = 28.dp)
         ) {
 
             // ── Top app bar ───────────────────────────────────────────
@@ -143,7 +163,7 @@ fun LoginScreen(
             ) {
                 Box(modifier = Modifier.size(48.dp))
                 Text(
-                    text = "Masuk",
+                    text = "Akun PetHeal",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
@@ -155,13 +175,20 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp),
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color.White, Color(0xFFEFFAF3))
+                        )
+                    )
+                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(AuthPrimary.copy(alpha = 0.20f), RoundedCornerShape(16.dp)),
+                        .size(76.dp)
+                        .background(AuthPrimary.copy(alpha = 0.16f), RoundedCornerShape(24.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -172,16 +199,20 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Selamat Datang Kembali",
-                    fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                    fontSize = 25.sp, fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Masuk ke akun PetHeal Anda untuk melanjutkan",
-                    fontSize = 13.sp, color = AuthTextSecondary,
+                    text = "Kelola booking, pembayaran, dan riwayat kesehatan hewan dalam satu tempat.",
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = Color(0xFF64748B),
                     textAlign = TextAlign.Center
                 )
             }
+
+            Spacer(modifier = Modifier.height(28.dp))
 
             // ── Email ─────────────────────────────────────────────────
             AuthFieldLabel("Alamat Email", isDark)
@@ -268,8 +299,8 @@ fun LoginScreen(
                     focusManager.clearFocus()
                     viewModel.loginWithEmailPassword(email.trim(), password)
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(58.dp),
+                shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AuthPrimary, contentColor = AuthBgDark),
                 enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
@@ -284,7 +315,7 @@ fun LoginScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(22.dp))
 
             // ── Divider ───────────────────────────────────────────────
             Row(
@@ -318,8 +349,8 @@ fun LoginScreen(
                         googleLauncher.launch(signInIntent)
                     }
                 },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth().height(58.dp),
+                shape = RoundedCornerShape(18.dp),
                 border = BorderStroke(1.dp,
                     if (isDark) AuthBorderDark else Color(0xFFE2E8F0)),
                 colors = ButtonDefaults.outlinedButtonColors(
@@ -477,7 +508,7 @@ internal fun AuthTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = Modifier.fillMaxWidth().height(56.dp),
+        modifier = Modifier.fillMaxWidth().height(60.dp),
         placeholder = { Text(placeholder, color = AuthTextSecondary, fontSize = 15.sp) },
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
@@ -485,7 +516,7 @@ internal fun AuthTextField(
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions,
         singleLine = true,
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = AuthPrimary,
             unfocusedBorderColor = if (isDark) AuthBorderDark else Color(0xFFCBD5E1),

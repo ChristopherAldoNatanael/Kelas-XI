@@ -18,7 +18,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -113,14 +115,32 @@ fun RegisterScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(bgColor)
+            .background(
+                Brush.verticalGradient(
+                    listOf(Color.White, Color(0xFFF2FBF5), bgColor)
+                )
+            )
     ) {
+        Box(
+            modifier = Modifier
+                .size(240.dp)
+                .offset(x = 220.dp, y = (-80).dp)
+                .clip(RoundedCornerShape(90.dp))
+                .background(AuthPrimary.copy(alpha = 0.12f))
+        )
+        Box(
+            modifier = Modifier
+                .size(170.dp)
+                .offset(x = (-80).dp, y = 160.dp)
+                .clip(RoundedCornerShape(64.dp))
+                .background(Color(0xFF0EA5A5).copy(alpha = 0.08f))
+        )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(top = 8.dp, bottom = 24.dp)
+                .padding(horizontal = 20.dp)
+                .padding(top = 20.dp, bottom = 28.dp)
         ) {
 
             // ── Top app bar ───────────────────────────────────────────
@@ -153,13 +173,20 @@ fun RegisterScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp),
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Color.White, Color(0xFFEFFAF3))
+                        )
+                    )
+                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
                     modifier = Modifier
-                        .size(64.dp)
-                        .background(AuthPrimary.copy(alpha = 0.20f), RoundedCornerShape(16.dp)),
+                        .size(76.dp)
+                        .background(AuthPrimary.copy(alpha = 0.16f), RoundedCornerShape(24.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -170,16 +197,20 @@ fun RegisterScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Buat Akun",
-                    fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                    fontSize = 25.sp, fontWeight = FontWeight.Bold,
                     color = if (isDark) Color.White else Color(0xFF0F172A)
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    text = "Mulai kelola kesehatan hewan Anda bersama PetHeal",
-                    fontSize = 13.sp, color = AuthTextSecondary,
+                    text = "Daftar sekali untuk mengatur hewan, konsultasi dokter, dan rekam medis dengan rapi.",
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    color = Color(0xFF64748B),
                     textAlign = TextAlign.Center
                 )
             }
+
+            Spacer(modifier = Modifier.height(28.dp))
 
             // ── Full Name ─────────────────────────────────────────────
             AuthFieldLabel("Nama Lengkap", isDark)

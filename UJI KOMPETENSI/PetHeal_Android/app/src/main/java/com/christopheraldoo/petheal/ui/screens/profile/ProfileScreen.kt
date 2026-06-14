@@ -2,6 +2,7 @@ package com.christopheraldoo.petheal.ui.screens.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -187,7 +188,7 @@ fun ProfileScreen(
                     // Edit Profile button
                     Button(
                         onClick = onNavigateToEdit,
-                        shape = RoundedCornerShape(50),
+                        shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary,
                             contentColor = PrimaryFg
@@ -201,6 +202,24 @@ fun ProfileScreen(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text("Edit Profile", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        ProfileTrustPill(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.VerifiedUser,
+                            label = "Secure Account"
+                        )
+                        ProfileTrustPill(
+                            modifier = Modifier.weight(1f),
+                            icon = Icons.Outlined.SupportAgent,
+                            label = "Support Ready"
+                        )
                     }
                 }
             }
@@ -216,7 +235,7 @@ fun ProfileScreen(
                 Spacer(Modifier.height(16.dp))
 
                 // Account section
-                ProfileSectionCard(title = "Account") {
+                ProfileSectionCard(title = "Profile Information") {
                     ProfileInfoRow(
                         icon = Icons.Outlined.Person,
                         label = "Full Name",
@@ -245,7 +264,7 @@ fun ProfileScreen(
                 Spacer(Modifier.height(16.dp))
 
                 // App section
-                ProfileSectionCard(title = "App") {
+                ProfileSectionCard(title = "Account Tools") {
                     ProfileActionRow(
                         icon = Icons.Outlined.Notifications,
                         label = "Notifications",
@@ -276,11 +295,11 @@ fun ProfileScreen(
                 // Logout button
                 OutlinedButton(
                     onClick = { showLogoutDialog = true },
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color(0xFFFF6B6B)
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF6B3333)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -473,6 +492,30 @@ fun EditProfileScreen(
 // ─── Shared sub-composables ───────────────────────────────────────────────────
 
 @Composable
+private fun ProfileTrustPill(
+    modifier: Modifier = Modifier,
+    icon: ImageVector,
+    label: String
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = Color.White,
+        border = BorderStroke(1.dp, BorderDark)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(17.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(label, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
 private fun ProfileSectionCard(
     title: String,
     content: @Composable ColumnScope.() -> Unit
@@ -489,9 +532,9 @@ private fun ProfileSectionCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
+                .clip(RoundedCornerShape(24.dp))
                 .background(SurfaceDark)
-                .border(1.dp, BorderDark, RoundedCornerShape(16.dp))
+                .border(1.dp, BorderDark, RoundedCornerShape(24.dp))
         ) {
             content()
         }
@@ -513,8 +556,8 @@ private fun ProfileInfoRow(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(BorderDark),
+                .clip(RoundedCornerShape(14.dp))
+                .background(Primary.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
@@ -544,8 +587,8 @@ private fun ProfileActionRow(
         Box(
             modifier = Modifier
                 .size(36.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .background(BorderDark),
+                .clip(RoundedCornerShape(14.dp))
+                .background(Primary.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
