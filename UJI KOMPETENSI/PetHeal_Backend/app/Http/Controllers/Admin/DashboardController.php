@@ -94,7 +94,20 @@ class DashboardController extends Controller
 
         $popularDoctors = $this->getPopularDoctors();
 
-        extract($dashboardStats);
+        $totalRevenue = $dashboardStats['totalRevenue'];
+        $todayRevenue = $dashboardStats['todayRevenue'];
+        $monthlyRevenue = $dashboardStats['monthlyRevenue'];
+        $monthlyBookingData = $dashboardStats['monthlyBookingData'];
+        $monthlyRevenueData = $dashboardStats['monthlyRevenueData'];
+        $dailyRevenueData = $dashboardStats['dailyRevenueData'];
+        $bookingStatusDistribution = $dashboardStats['bookingStatusDistribution'];
+        $unpaidBookings = $dashboardStats['unpaidBookings'];
+        $pendingPayment = $dashboardStats['pendingPayment'];
+        $dpPaidBookings = $dashboardStats['dpPaidBookings'];
+        $paidInFull = $dashboardStats['paidInFull'];
+        $failedPayments = $dashboardStats['failedPayments'];
+        $totalCollected = $dashboardStats['totalCollected'];
+        $totalOutstanding = $dashboardStats['totalOutstanding'];
 
         // Recent bookings - optimized with specific columns only
         $recentBookings = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time', 'created_at')

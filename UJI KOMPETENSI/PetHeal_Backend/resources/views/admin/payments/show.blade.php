@@ -250,8 +250,8 @@
                     <span class="material-symbols-outlined text-slate-400 text-lg">event_note</span>
                     <span class="text-sm font-medium text-slate-700 dark:text-slate-300">View Booking Details</span>
                 </a>
-                @if($booking->medicalRecords && $booking->medicalRecords->count() > 0)
-                <a href="{{ route('admin.medical-records.show', $booking->medicalRecords->first()->id) }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
+                @if($booking->medicalRecord)
+                <a href="{{ route('admin.medical-records.show', $booking->medicalRecord->id) }}" class="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors">
                     <span class="material-symbols-outlined text-slate-400 text-lg">clinical_notes</span>
                     <span class="text-sm font-medium text-slate-700 dark:text-slate-300">View Medical Record</span>
                 </a>

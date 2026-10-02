@@ -41,7 +41,9 @@ class ServiceController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $service = Service::create($request->all());
+        $service = Service::create($request->only([
+            'name', 'description', 'price', 'duration', 'category', 'is_active',
+        ]));
 
         AuditLog::log('service.create', "Created service {$service->name}", $service);
 
@@ -67,7 +69,9 @@ class ServiceController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $service->update($request->all());
+        $service->update($request->only([
+            'name', 'description', 'price', 'duration', 'category', 'is_active',
+        ]));
 
         AuditLog::log('service.update', "Updated service {$service->name}", $service);
 

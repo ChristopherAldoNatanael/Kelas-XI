@@ -5,32 +5,16 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
+use App\Services\MidtransService;
 use App\Services\PaymentStatusService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 class MedicalRecordController extends Controller
 {
-    private function getSnapUrl(): string
-    {
-        return config('services.midtrans.snap_url');
-    }
-
-    private function getApiUrl(): string
-    {
-        return config('services.midtrans.api_url');
-    }
-
-    private function getServerKey(): string
-    {
-        return config('services.midtrans.server_key');
-    }
-
-    private function isMidtransConfigured(): bool
-    {
-        return !empty($this->getServerKey()) && !empty($this->getSnapUrl()) && !empty($this->getApiUrl());
-    }
+    public function __construct(
+        private readonly MidtransService $midtrans
+    ) {}
 
     private function serializeRecord(MedicalRecord $record, bool $includeFullRecord = true): array
     {
@@ -237,7 +221,7 @@ class MedicalRecordController extends Controller
                 ], 400);
             }
 
-            if (!$this->isMidtransConfigured()) {
+            if (!$this->midtrans->isConfigured()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Midtrans configuration is incomplete. Please contact support.',
@@ -284,32 +268,21 @@ class MedicalRecordController extends Controller
                 ],
             ];
 
-            $response = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post($this->getSnapUrl(), $snapPayload);
+            $result = $this->midtrans->createSnapToken($snapPayload);
 
-            if (!$response->successful()) {
+            if (!$result['success']) {
                 Log::error('Midtrans Snap API error for medical extra payment', [
                     'medical_record_id' => $record->id,
-                    'status' => $response->status(),
-                    'body' => $response->body(),
+                    'status' => $result['status'] ?? 'unknown',
                 ]);
 
                 return response()->json([
                     'success' => false,
                     'message' => 'Failed to create extra medical payment token',
-                ], $response->status() === 404 ? 502 : $response->status());
+                ], $result['status'] ?? 502);
             }
 
-            $data = $response->json();
-            if (!isset($data['token']) || !isset($data['redirect_url'])) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Invalid response from payment gateway',
-                ], 502);
-            }
+            $data = $result['data'];
 
             $record->update([
                 'extra_payment_status' => 'pending',

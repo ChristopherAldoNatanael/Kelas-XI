@@ -30,16 +30,6 @@ class BookingController extends Controller
             ->orderBy('booking_time', 'desc')
             ->paginate(20);
 
-        // Add full URL for doctor photos
-        $bookings->getCollection()->transform(function ($booking) {
-            if ($booking->doctor) {
-                $booking->doctor->photo_url = $booking->doctor->photo
-                    ? asset('storage/' . $booking->doctor->photo)
-                    : null;
-            }
-            return $booking;
-        });
-
         return response()->json([
             'success' => true,
             'data' => $bookings->items(),
@@ -66,16 +56,6 @@ class BookingController extends Controller
             ->limit(1) // Only fetch the very next booking for Home Screen
             ->get();
 
-        // Add full URL for doctor photos
-        $bookings->transform(function ($booking) {
-            if ($booking->doctor) {
-                $booking->doctor->photo_url = $booking->doctor->photo
-                    ? asset('storage/' . $booking->doctor->photo)
-                    : null;
-            }
-            return $booking;
-        });
-
         return response()->json([
             'success' => true,
             'data' => $bookings,
@@ -98,13 +78,6 @@ class BookingController extends Controller
             ], 404);
         }
 
-        // Add full URL for doctor photo
-        if ($booking->doctor) {
-            $booking->doctor->photo_url = $booking->doctor->photo
-                ? asset('storage/' . $booking->doctor->photo)
-                : null;
-        }
-
         return response()->json([
             'success' => true,
             'data' => $booking,
@@ -124,6 +97,7 @@ class BookingController extends Controller
             'booking_time' => 'required|date_format:H:i',
             'notes' => 'nullable|string',
             'payment_type' => 'nullable|in:dp,full',
+            'payment_method_id' => 'nullable|exists:payment_methods,id',
         ]);
 
         // Verify pet belongs to user
@@ -190,6 +164,7 @@ class BookingController extends Controller
                 'booking_time' => $request->input('booking_time'),
                 'status' => 'pending',
                 'notes' => $request->input('notes'),
+                'payment_method_id' => $request->input('payment_method_id'),
                 'payment_type' => $paymentType,
                 'total_amount' => $totalAmount,
                 'dp_amount' => $dpAmount,
@@ -207,13 +182,6 @@ class BookingController extends Controller
         }
 
         $booking->load(['pet', 'doctor']);
-
-        // Add full URL for doctor photo
-        if ($booking->doctor) {
-            $booking->doctor->photo_url = $booking->doctor->photo
-                ? asset('storage/' . $booking->doctor->photo)
-                : null;
-        }
 
         // Send notification (booking_date is now a plain string via accessor)
         $this->fcmService->sendBookingStatusUpdate(
@@ -326,13 +294,6 @@ class BookingController extends Controller
         }
 
         $booking->load(['pet', 'doctor']);
-
-        // Add full URL for doctor photo
-        if ($booking->doctor) {
-            $booking->doctor->photo_url = $booking->doctor->photo
-                ? asset('storage/' . $booking->doctor->photo)
-                : null;
-        }
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(

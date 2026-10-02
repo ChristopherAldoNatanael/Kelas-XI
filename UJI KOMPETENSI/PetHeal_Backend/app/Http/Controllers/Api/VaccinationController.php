@@ -18,8 +18,8 @@ class VaccinationController extends Controller
         $pet = $request->user()->pets()->findOrFail($petId);
         
         $vaccinations = $pet->vaccinations()
-            ->orderBy('date_administered', 'desc')
-            ->latest()->paginate(20);
+            ->latest('date_administered')
+            ->paginate(20);
         
         $upcoming = $pet->vaccinations()
             ->upcomingDue()

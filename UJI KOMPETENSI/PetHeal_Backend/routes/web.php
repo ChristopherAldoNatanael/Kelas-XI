@@ -30,7 +30,7 @@ Route::get('/down.json', function () {
 
 // Welcome page
 Route::get('/', function () {
-    if (env('APP_MAINTENANCE', false)) {
+    if (app()->isDownForMaintenance()) {
         return redirect()->route('maintenance');
     }
     return view('welcome');
@@ -39,6 +39,8 @@ Route::get('/', function () {
 // Admin Authentication Routes (Public)
 Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:admin-login')->name('admin.login.post');
+Route::get('/admin/register', [AdminAuthController::class, 'showRegisterForm'])->name('admin.register');
+Route::post('/admin/register', [AdminAuthController::class, 'register'])->middleware('throttle:admin-login')->name('admin.register.post');
 
 // Protected Admin Routes
 Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(function () {

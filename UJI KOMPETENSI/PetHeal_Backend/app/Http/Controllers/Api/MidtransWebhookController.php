@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
+use App\Services\MidtransService;
 use App\Services\PaymentStatusService;
 
 /**
@@ -21,10 +22,9 @@ use App\Services\PaymentStatusService;
  */
 class MidtransWebhookController extends Controller
 {
-    private function getServerKey(): string
-    {
-        return config('services.midtrans.server_key');
-    }
+    public function __construct(
+        private readonly MidtransService $midtrans
+    ) {}
 
     /**
      * Handle Midtrans payment notification.
@@ -59,7 +59,7 @@ class MidtransWebhookController extends Controller
             // Verify signature
             $expectedSignature = hash(
                 'sha512',
-                $orderId . $statusCode . $grossAmount . $this->getServerKey()
+                $orderId . $statusCode . $grossAmount . $this->midtrans->getServerKey()
             );
 
             if ($signatureKey !== $expectedSignature) {

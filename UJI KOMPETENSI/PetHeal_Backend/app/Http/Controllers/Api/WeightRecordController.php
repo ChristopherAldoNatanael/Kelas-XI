@@ -28,7 +28,7 @@ class WeightRecordController extends Controller
                 'pet_name' => $pet->name,
                 'current_weight' => $pet->weight,
                 'records' => $records->items(),
-                'weight_change' => $this->calculateWeightChange($records),
+                'weight_change' => $this->calculateWeightChange($pet),
                 'pagination' => [
                     'current_page' => $records->currentPage(),
                     'last_page' => $records->lastPage(),
@@ -84,17 +84,18 @@ class WeightRecordController extends Controller
     }
 
     /**
-     * Calculate weight change between first and last record.
+     * Calculate weight change between first and last record across ALL records (not paginated).
      */
-    private function calculateWeightChange($records)
+    private function calculateWeightChange(Pet $pet): ?array
     {
-        if ($records->count() < 2) {
+        $totalRecords = $pet->weightRecords()->count();
+        if ($totalRecords < 2) {
             return null;
         }
-        
-        $firstWeight = $records->first()->weight;
-        $lastWeight = $records->last()->weight;
-        
+
+        $firstWeight = (float) $pet->weightRecords()->oldest('recorded_at')->value('weight');
+        $lastWeight = (float) $pet->weightRecords()->latest('recorded_at')->value('weight');
+
         return [
             'absolute' => round($lastWeight - $firstWeight, 2),
             'percentage' => round((($lastWeight - $firstWeight) / $firstWeight) * 100, 2),

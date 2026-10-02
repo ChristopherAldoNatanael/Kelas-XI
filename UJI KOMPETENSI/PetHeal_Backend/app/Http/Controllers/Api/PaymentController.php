@@ -4,15 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
+use App\Services\MidtransService;
 use App\Services\PaymentStatusService;
 
 class PaymentController extends Controller
 {
+    public function __construct(
+        private readonly MidtransService $midtrans
+    ) {}
+
     private function parsePaymentOrderId(string $orderId): ?array
     {
         if (preg_match('/^BOOKING-(\d+)-(\d+)$/', $orderId, $matches)) {
@@ -45,43 +50,22 @@ class PaymentController extends Controller
         return null;
     }
 
-    // Midtrans Configuration (loaded from .env)
-    private function getSnapUrl(): string
-    {
-        return config('services.midtrans.snap_url');
-    }
-
-    private function getApiUrl(): string
-    {
-        return config('services.midtrans.api_url');
-    }
-
-    private function getServerKey(): string
-    {
-        return config('services.midtrans.server_key');
-    }
-
-    private function isMidtransConfigured(): bool
-    {
-        return !empty($this->getServerKey()) && !empty($this->getSnapUrl()) && !empty($this->getApiUrl());
-    }
-
     public function preflight()
     {
         try {
             $mode = config('services.midtrans.is_production') ? 'production' : 'sandbox';
             $checks = [
                 'server_key' => [
-                    'status' => !empty($this->getServerKey()) ? 'ok' : 'failed',
-                    'message' => !empty($this->getServerKey()) ? 'Server key configured' : 'MIDTRANS_SERVER_KEY is missing',
+                    'status' => !empty($this->midtrans->getServerKey()) ? 'ok' : 'failed',
+                    'message' => !empty($this->midtrans->getServerKey()) ? 'Server key configured' : 'MIDTRANS_SERVER_KEY is missing',
                 ],
                 'snap_url' => [
-                    'status' => !empty($this->getSnapUrl()) ? 'ok' : 'failed',
-                    'message' => $this->getSnapUrl() ?: 'Snap URL is missing',
+                    'status' => !empty($this->midtrans->getSnapUrl()) ? 'ok' : 'failed',
+                    'message' => $this->midtrans->getSnapUrl() ?: 'Snap URL is missing',
                 ],
                 'api_url' => [
-                    'status' => !empty($this->getApiUrl()) ? 'ok' : 'failed',
-                    'message' => $this->getApiUrl() ?: 'API URL is missing',
+                    'status' => !empty($this->midtrans->getApiUrl()) ? 'ok' : 'failed',
+                    'message' => $this->midtrans->getApiUrl() ?: 'API URL is missing',
                 ],
                 'mode' => [
                     'status' => 'ok',
@@ -89,7 +73,7 @@ class PaymentController extends Controller
                 ],
             ];
 
-            if (!$this->isMidtransConfigured()) {
+            if (!$this->midtrans->isConfigured()) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Payment setup is incomplete. Check Midtrans environment values.',
@@ -102,9 +86,9 @@ class PaymentController extends Controller
             }
 
             $probe = Http::timeout(10)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
+                'Authorization' => 'Basic ' . base64_encode($this->midtrans->getServerKey() . ':'),
                 'Accept' => 'application/json',
-            ])->get($this->getApiUrl() . '/PETHEAL-PREFLIGHT-CHECK/status');
+            ])->get($this->midtrans->getApiUrl() . '/PETHEAL-PREFLIGHT-CHECK/status');
 
             $midtransReachable = in_array($probe->status(), [200, 404], true);
             $checks['midtrans_account'] = [
@@ -162,11 +146,11 @@ class PaymentController extends Controller
                 ], 401);
             }
 
-            if (!$this->isMidtransConfigured()) {
+            if (!$this->midtrans->isConfigured()) {
                 Log::error('Midtrans configuration is missing', [
-                    'server_key_set' => !empty($this->getServerKey()),
-                    'snap_url' => $this->getSnapUrl(),
-                    'api_url' => $this->getApiUrl(),
+                    'server_key_set' => !empty($this->midtrans->getServerKey()),
+                    'snap_url' => $this->midtrans->getSnapUrl(),
+                    'api_url' => $this->midtrans->getApiUrl(),
                 ]);
                 return response()->json([
                     'success' => false,
@@ -248,30 +232,15 @@ class PaymentController extends Controller
             }
 
             Log::info('Calling Midtrans Snap API', [
-                'url' => $this->getSnapUrl(),
+                'url' => $this->midtrans->getSnapUrl(),
                 'order_id' => $snapPayload['transaction_details']['order_id'],
             ]);
 
             // Call Midtrans Snap API
-            $response = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post($this->getSnapUrl(), $snapPayload);
+            $result = $this->midtrans->createSnapToken($snapPayload);
 
-            if ($response->successful()) {
-                $data = $response->json();
-
-                // Validate response data
-                if (!isset($data['token']) || !isset($data['redirect_url'])) {
-                    Log::error('Midtrans Snap API returned invalid response', [
-                        'response' => $data,
-                    ]);
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Invalid response from payment gateway',
-                    ], 502);
-                }
+            if ($result['success']) {
+                $data = $result['data'];
 
                 Log::info('Snap token created successfully', [
                     'order_id' => $validated['transaction_details']['order_id'],
@@ -282,39 +251,15 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Snap token created successfully',
-                    'data' => [
-                        'token' => $data['token'],
-                        'redirect_url' => $data['redirect_url'],
-                        'transaction_id' => $data['transaction_id'] ?? null,
-                    ]
+                    'data' => $data,
                 ]);
             }
 
-            $errorBody = $response->body();
-            $errorData = json_decode($errorBody, true);
-
-            // Handle different error scenarios
-            $errorMessage = match ($response->status()) {
-                400 => 'Invalid request data sent to payment gateway',
-                401 => 'Payment gateway authentication failed',
-                404 => 'Payment gateway endpoint not found. Please check configuration.',
-                500 => 'Payment gateway server error',
-                502 => 'Payment gateway bad response',
-                default => $errorData['message'] ?? 'Unknown error from payment gateway',
-            };
-
-            Log::error('Midtrans Snap API error', [
-                'status' => $response->status(),
-                'body' => $errorBody,
-                'order_id' => $validated['transaction_details']['order_id'] ?? null,
-                'error_message' => $errorMessage,
-            ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create snap token: ' . $errorMessage,
-                'detail' => $errorData['message'] ?? null,
-            ], $response->status() === 404 ? 502 : $response->status());
+                'message' => 'Failed to create snap token: ' . $result['message'],
+                'detail' => $result['detail'] ?? null,
+            ], $result['status']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validation error in createSnapToken', [
                 'errors' => $e->errors(),
@@ -394,13 +339,10 @@ class PaymentController extends Controller
                 'order_id' => $orderId,
             ]);
 
-            $response = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
-                'Accept' => 'application/json',
-            ])->get($this->getApiUrl() . '/' . $orderId . '/status');
+            $result = $this->midtrans->getTransactionStatus($orderId);
 
-            if ($response->successful()) {
-                $data = $response->json();
+            if ($result['success']) {
+                $data = $result['data'];
 
                 Log::info('Transaction status retrieved', [
                     'order_id' => $orderId,
@@ -411,18 +353,11 @@ class PaymentController extends Controller
                 return response()->json($data);
             }
 
-            $errorBody = $response->body();
-            Log::error('Midtrans Status API error', [
-                'order_id' => $orderId,
-                'status' => $response->status(),
-                'body' => $errorBody,
-            ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to get transaction status',
-                'status_code' => $response->status(),
-            ], $response->status() === 404 ? 404 : 502);
+                'message' => $result['message'],
+                'status_code' => $result['status'],
+            ], $result['status']);
         } catch (\Exception $e) {
             Log::error('Exception in getTransactionStatus', [
                 'order_id' => $orderId,
@@ -511,20 +446,17 @@ class PaymentController extends Controller
                 ], 404);
             }
 
-            $response = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
-                'Accept' => 'application/json',
-            ])->get($this->getApiUrl() . '/' . $orderId . '/status');
+            $result = $this->midtrans->getTransactionStatus($orderId);
 
-            if (!$response->successful()) {
+            if (!$result['success']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Failed to get transaction status',
-                    'status_code' => $response->status(),
-                ], $response->status() === 404 ? 404 : 502);
+                    'message' => $result['message'],
+                    'status_code' => $result['status'],
+                ], $result['status']);
             }
 
-            $data = $response->json();
+            $data = $result['data'];
             $transactionStatus = (string) ($data['transaction_status'] ?? 'unknown');
             $fraudStatus = $data['fraud_status'] ?? null;
             $paymentType = $data['payment_type'] ?? null;
@@ -639,11 +571,11 @@ class PaymentController extends Controller
                 ], 401);
             }
 
-            if (!$this->isMidtransConfigured()) {
+            if (!$this->midtrans->isConfigured()) {
                 Log::error('Midtrans configuration is missing for remaining payment', [
-                    'server_key_set' => !empty($this->getServerKey()),
-                    'snap_url' => $this->getSnapUrl(),
-                    'api_url' => $this->getApiUrl(),
+                    'server_key_set' => !empty($this->midtrans->getServerKey()),
+                    'snap_url' => $this->midtrans->getSnapUrl(),
+                    'api_url' => $this->midtrans->getApiUrl(),
                 ]);
                 return response()->json([
                     'success' => false,
@@ -739,30 +671,16 @@ class PaymentController extends Controller
             ];
 
             Log::info('Calling Midtrans Snap API for remaining payment', [
-                'url' => $this->getSnapUrl(),
+                'url' => $this->midtrans->getSnapUrl(),
                 'order_id' => $orderId,
                 'amount' => $remainingAmount,
             ]);
 
             // Call Midtrans Snap API
-            $response = Http::timeout(30)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->getServerKey() . ':'),
-                'Content-Type' => 'application/json',
-                'Accept' => 'application/json',
-            ])->post($this->getSnapUrl(), $snapPayload);
+            $result = $this->midtrans->createSnapToken($snapPayload);
 
-            if ($response->successful()) {
-                $data = $response->json();
-
-                if (!isset($data['token']) || !isset($data['redirect_url'])) {
-                    Log::error('Midtrans Snap API returned invalid response for remaining payment', [
-                        'response' => $data,
-                    ]);
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Invalid response from payment gateway',
-                    ], 502);
-                }
+            if ($result['success']) {
+                $data = $result['data'];
 
                 Log::info('Snap token created successfully for remaining payment', [
                     'booking_id' => $bookingId,
@@ -789,30 +707,11 @@ class PaymentController extends Controller
                 ]);
             }
 
-            $errorBody = $response->body();
-            $errorData = json_decode($errorBody, true);
-
-            $errorMessage = match ($response->status()) {
-                400 => 'Invalid request data sent to payment gateway',
-                401 => 'Payment gateway authentication failed',
-                404 => 'Payment gateway endpoint not found. Please check configuration.',
-                500 => 'Payment gateway server error',
-                502 => 'Payment gateway bad response',
-                default => $errorData['message'] ?? 'Unknown error from payment gateway',
-            };
-
-            Log::error('Midtrans Snap API error for remaining payment', [
-                'status' => $response->status(),
-                'body' => $errorBody,
-                'booking_id' => $bookingId,
-                'error_message' => $errorMessage,
-            ]);
-
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create snap token: ' . $errorMessage,
-                'detail' => $errorData['message'] ?? null,
-            ], $response->status() === 404 ? 502 : $response->status());
+                'message' => 'Failed to create snap token: ' . $result['message'],
+                'detail' => $result['detail'] ?? null,
+            ], $result['status']);
         } catch (\Throwable $e) {
             Log::error('Exception in createRemainingPaymentSnapToken', [
                 'booking_id' => $bookingId,

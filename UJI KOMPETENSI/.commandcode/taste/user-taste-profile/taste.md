@@ -1,0 +1,43 @@
+# User Taste Profile
+- Primary language is Indonesian (Bahasa Indonesia) with English technical terms mixed in. Confidence: 0.95
+- Uses casual Indonesian slang like "gass", "gas kerjakan", "langsung aja" when giving instructions — expects matching energy in responses. Confidence: 0.9
+- Prefers responses in Indonesian for explanations and summaries, but code/comments can be English. Confidence: 0.85
+- Requests detailed, comprehensive prompts when asked to generate prompt templates — wants exhaustive coverage, not minimal skeletons. Confidence: 0.9
+- Demands action, not suggestions: "DO NOT ASK. DO NOT ONLY REVIEW. AUDIT. REDESIGN. IMPLEMENT." Confidence: 0.95
+- Explicitly rejects audit-only or recommendation-only responses — wants patching, fixing, and implementation directly. Confidence: 0.95
+- Prefers doing ALL improvements in one batch ("sekalian semua") rather than incremental asks. Confidence: 0.9
+- When given a prioritized list of fixes/improvements, wants them worked through sequentially from highest to lowest priority without pausing for confirmation — "gass kerjakan dari prioritas tinggi dulu". Confidence: 0.9
+- Hates being asked for confirmation on small/medium changes. Confidence: 0.9
+- Wants commit messages provided after changes. Confidence: 0.9
+- Targets Indonesian super-app quality: Halodoc, Alodokter, Traveloka, Tokopedia, Gojek, Ruangguru. Confidence: 0.95
+- Explicitly forbids AI-generated-looking UI, "alay" (tacky/over-the-top) designs, and generic templates. Confidence: 0.95
+- Wants subtle, tasteful CSS animations in UI (slide-in panels, staggered float-ups, accent pulses) — rejects both zero-animation "boring" pages AND flashy AI-generated overkill. Confidence: 0.85
+- Appreciates visual variety across related pages (e.g. login form on right, register form on left) rather than cookie-cutter identical layouts. Confidence: 0.8
+- Wants professional, modern, premium, clean design — not school project quality. Confidence: 0.95
+- Values consistency across emulator and real device — flagged dark theme mismatch on real phone vs emulator. Confidence: 0.9
+- Prefers light theme; rejects anything that looks dark/gloomy on real devices. Confidence: 0.9
+- Android: Kotlin, Jetpack Compose, Hilt, Retrofit, Firebase Auth, Midtrans. Confidence: 0.95
+- Backend: Laravel PHP + MySQL. Confidence: 0.95
+- Explicitly prohibits changing MySQL to SQLite — this was stated with emphasis ("JANGAN UBAH DARI MYSQL KE SQL LITE"). Confidence: 0.95
+- Uses ngrok for exposing local backend during development. Confidence: 0.9
+- Develops on Windows (PowerShell). Confidence: 0.9
+- Student at vocational high school (SMK Kelas XI RPL) building a competency exam project (UJI KOMPETENSI). Confidence: 0.95
+- Uses Git and GitHub for version control. Confidence: 0.95
+- Cares about .gitignore for secrets (API keys, firebase JSON, Midtrans keys). Confidence: 0.9
+- Experienced GitHub push protection blocking secrets — wants proactive secret management. Confidence: 0.9
+- Tests on both Android Studio emulator and real Android device (likely Transsion/Tecno/Infinix brand). Confidence: 0.85
+- Uses ngrok to tunnel local Laravel to internet for mobile testing. Confidence: 0.9
+- Wants end-to-end flow verification, not just individual fixes. Confidence: 0.9
+- Demands error messages be user-friendly, never technical/HTML to users. Confidence: 0.9
+- Hates dummy/placeholder buttons — either implement or hide. Confidence: 0.95
+- Wants payment flow (Midtrans) fully working end-to-end as top priority. Confidence: 0.95
+- Values both backend admin panel and Android app equally — wants both polished. Confidence: 0.9
+- Prefers consistent microcopy in one language (Indonesian preferred) throughout the app. Confidence: 0.85
+- Wants operational home screen (pending payments, due vaccinations) not just marketing/informational. Confidence: 0.85
+- Values professional medical record display — wants it to look like a real healthcare app. Confidence: 0.9
+- Prefers modal dialogs for import/export features rather than separate pages. Confidence: 0.8
+- Wants date pickers instead of manual text input for dates. Confidence: 0.85
+- Values cross-platform consistency auditing — explicitly asks to check backend API vs Android frontend for mismatches in endpoints, models, and data flow. Confidence: 0.85
+- Expects proactive gap analysis: asks "kurang apalagi?" expecting the agent to independently discover remaining issues across security, performance, and code quality — not just the features they explicitly mention. Confidence: 0.85
+- Appreciates issues organized by severity tier (Tinggi/Sedang/Rendah) with specific file paths and code examples in audit reports. Confidence: 0.8
+- Rejects emoji icons in UI — prefers inline SVG icons (e.g. Feather/Lucide-style strokes) for a professional look. Confidence: 0.95

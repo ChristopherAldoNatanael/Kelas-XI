@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(git:*)",
+      "Shell(php -l app/Models/Doctor.php)",
+      "Shell(php -l app/Http/Controllers/Api/WeightRecordController.php)",
+      "Shell(php -l app/Http/Controllers/Api/VaccinationController.php)",
+      "Shell(php -l app/Services/MidtransService.php)",
+      "Shell(php -l app/Http/Controllers/Api/PaymentController.php)",
+      "Shell(php -l app/Http/Controllers/Api/MedicalRecordController.php)",
+      "Shell(php -l app/Http/Controllers/Api/MidtransWebhookController.php)",
+      "Shell(php -l app/Http/Controllers/Api/BookingController.php)",
+      "Shell(php -l app/Http/Controllers/Api/DoctorController.php)",
+      "Shell(php -l app/Http/Controllers/Api/ServiceController.php)",
+      "Shell(php -l app/Http/Controllers/Api/DashboardController.php)",
+      "Shell(php -l app/Models/Booking.php)",
+      "Shell(php -l app/Http/Controllers/Admin/PaymentController.php)",
+      "Shell(php -l app/Http/Controllers/Admin/ServiceController.php)",
+      "Shell(php -l app/Http/Controllers/Admin/UserController.php)",
+      "Shell(php -l routes/web.php)",
+      "Shell(php -l app/Models/AppSetting.php)",
+      "Shell(php -l app/Http/Controllers/Admin/DashboardController.php)",
+      "Shell(php -l app/Http/Controllers/Admin/AdminAuthController.php)"
+    ],
+    "deny": [],
+    "defaultMode": "default"
+  }
+}

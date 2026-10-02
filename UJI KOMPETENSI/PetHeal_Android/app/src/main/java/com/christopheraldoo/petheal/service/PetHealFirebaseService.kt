@@ -18,6 +18,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -29,6 +30,11 @@ class PetHealFirebaseService : FirebaseMessagingService() {
     @Inject lateinit var notificationRepository: NotificationRepository
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+    }
 
     override fun onNewToken(token: String) {
         super.onNewToken(token)
@@ -121,9 +127,11 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             petId?.let { putExtra("pet_id", it) }
             doctorId?.let { putExtra("doctor_id", it) }
         }
+        // Unique request code per notification so each PendingIntent is independent
+        val notificationId = System.currentTimeMillis().toInt()
         val pendingIntent = PendingIntent.getActivity(
             this,
-            0,
+            notificationId,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )

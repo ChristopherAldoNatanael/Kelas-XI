@@ -10,6 +10,43 @@ use Illuminate\Support\Facades\Hash;
 class AdminAuthController extends Controller
 {
     /**
+     * Show registration form
+     */
+    public function showRegisterForm()
+    {
+        if (Auth::check() && Auth::user()->role === 'admin') {
+            return redirect()->route('admin.dashboard');
+        }
+        return view('admin.auth.register');
+    }
+
+    /**
+     * Process registration
+     */
+    public function register(Request $request)
+    {
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'phone' => 'nullable|string|max:20',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user = \App\Models\User::create([
+            'name' => $request->input('name'),
+            'email' => $request->input('email'),
+            'phone' => $request->input('phone'),
+            'password' => \Illuminate\Support\Facades\Hash::make($request->input('password')),
+            'role' => 'admin',
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return redirect()->intended(route('admin.dashboard'));
+    }
+
+    /**
      * Show login form
      */
     public function showLoginForm()

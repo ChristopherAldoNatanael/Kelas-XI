@@ -122,16 +122,6 @@ class Booking extends Model
     }
 
     /**
-     * Compatibility alias for admin/payment views that expect a collection-style relation.
-     * A booking can still have one medical record in practice, but the plural relation
-     * keeps older eager-loading code and Blade checks working safely.
-     */
-    public function medicalRecords()
-    {
-        return $this->hasMany(MedicalRecord::class);
-    }
-
-    /**
      * Scope for pending bookings
      */
     public function scopePending($query)

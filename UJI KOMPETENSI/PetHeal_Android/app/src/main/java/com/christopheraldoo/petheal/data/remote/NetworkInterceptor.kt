@@ -11,7 +11,6 @@ class NetworkInterceptor @Inject constructor(
     private val preferencesManager: PreferencesManager
 ) : Interceptor {
 
-    // Cache token di memory agar tidak baca DataStore setiap request
     @Volatile private var cachedToken: String? = null
 
     fun updateToken(token: String?) {
@@ -21,17 +20,25 @@ class NetworkInterceptor @Inject constructor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Gunakan cached token dahulu; fallback ke DataStore hanya jika belum ada
         val token = cachedToken ?: runBlocking { preferencesManager.authToken.first() }
             .also { cachedToken = it }
 
-        return if (!token.isNullOrBlank()) {
-            val newRequest = originalRequest.newBuilder()
+        val request = if (!token.isNullOrBlank()) {
+            originalRequest.newBuilder()
                 .header("Authorization", "Bearer $token")
                 .build()
-            chain.proceed(newRequest)
         } else {
-            chain.proceed(originalRequest)
+            originalRequest
         }
+
+        val response = chain.proceed(request)
+
+        // If server rejects the token, invalidate cache so next request
+        // re-reads from DataStore or triggers re-login flow
+        if (response.code == 401 && !token.isNullOrBlank()) {
+            cachedToken = null
+        }
+
+        return response
     }
 }

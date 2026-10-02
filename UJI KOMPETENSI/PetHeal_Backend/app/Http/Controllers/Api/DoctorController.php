@@ -35,11 +35,6 @@ class DoctorController extends Controller
                 ->limit($limit)
                 ->get();
 
-            $doctors->transform(function ($doctor) {
-                $doctor->photo_url = $doctor->photo ? asset('storage/' . $doctor->photo) : null;
-                return $doctor;
-            });
-
             return $doctors;
         });
 
@@ -62,9 +57,6 @@ class DoctorController extends Controller
                 'message' => 'Doctor not found',
             ], 404);
         }
-
-        // Add full URL for photo
-        $doctor->photo_url = $doctor->photo ? asset('storage/' . $doctor->photo) : null;
 
         return response()->json([
             'success' => true,

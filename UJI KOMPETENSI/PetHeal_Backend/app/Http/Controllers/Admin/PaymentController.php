@@ -103,7 +103,7 @@ class PaymentController extends Controller
      */
     public function show($id)
     {
-        $booking = Booking::with(['user', 'pet', 'doctor', 'medicalRecords'])
+        $booking = Booking::with(['user', 'pet', 'doctor', 'medicalRecord'])
             ->findOrFail($id);
 
         // Calculate payment progress

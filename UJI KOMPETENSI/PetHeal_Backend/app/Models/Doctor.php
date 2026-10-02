@@ -63,7 +63,7 @@ class Doctor extends Model
         $array = parent::toArray();
         // Normalise available_days → comma-separated string for Android
         if (isset($array['available_days']) && is_array($array['available_days'])) {
-            $array['available_days'] = implode(', ', array_map('ucfirst', $array['available_days']));
+            $array['available_days'] = implode(', ', array_map('strtolower', $array['available_days']));
         }
         return $array;
     }

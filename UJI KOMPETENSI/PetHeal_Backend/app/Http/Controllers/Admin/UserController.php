@@ -129,6 +129,16 @@ class UserController extends Controller
                 ->with('error', 'You cannot delete your own admin account.');
         }
 
+        // Cascade delete related data to respect foreign key constraints
+        \App\Models\MedicalRecord::whereHas('booking', function ($query) use ($user) {
+            $query->where('user_id', $user->id);
+        })->delete();
+
+        \App\Models\Booking::where('user_id', $user->id)->delete();
+        $user->pets()->delete();
+        $user->deviceTokens()->delete();
+        $user->tokens()->delete();
+
         $user->delete();
 
         return redirect()->route('admin.users.index')->with('success', 'User deleted successfully');
