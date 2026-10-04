@@ -25,7 +25,6 @@ import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HelpOutline
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -136,16 +135,6 @@ fun HelpSupportScreen(
                         })
                     }
                 )
-                SupportShortcut(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.Phone,
-                    title = "Telepon",
-                    subtitle = "Jam kerja",
-                    accent = Color(0xFF0EA5A5),
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_DIAL, Uri.parse("tel:+6281234567890")))
-                    }
-                )
             }
 
             SectionTitle("FAQ Cepat")
@@ -159,7 +148,7 @@ fun HelpSupportScreen(
             )
             FaqCard(
                 question = "Di mana melihat rekam medis?",
-                answer = "Rekam medis tersedia setelah konsultasi selesai dan dapat dibuka dari menu Medical Record atau detail booking."
+                answer = "Rekam medis tersedia setelah konsultasi selesai dan dapat dibuka dari menu Rekam Medis atau detail booking."
             )
 
             SectionTitle("Laporkan Masalah")
@@ -191,7 +180,7 @@ fun HelpSupportScreen(
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Report Bug", fontWeight = FontWeight.Bold, color = textPrimary, fontSize = 15.sp)
+                        Text("Laporkan Bug", fontWeight = FontWeight.Bold, color = textPrimary, fontSize = 15.sp)
                         Text("Sertakan langkah dan screenshot agar lebih cepat ditangani.", color = textSecondary, fontSize = 12.sp)
                     }
                     Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = textSecondary)

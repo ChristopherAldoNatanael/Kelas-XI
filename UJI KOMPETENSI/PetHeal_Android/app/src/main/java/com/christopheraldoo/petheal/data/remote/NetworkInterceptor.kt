@@ -27,14 +27,17 @@ class NetworkInterceptor @Inject constructor(
     }
 
     companion object {
-        // 401 must not wipe a login/register attempt itself (nothing to wipe
+        // 401 must not wipe a login/register/reset attempt itself (nothing to wipe
         // and it would mask field errors). Paths here never trigger the
-        // session-expired flow.
+        // session-expired flow. Only true auth endpoints are listed: any other
+        // call made WITH a token that answers 401 means the token is invalid
+        // and the session must end (previously public catalog paths listed here
+        // swallowed real expiries and left the user stuck logged-in).
         private val AUTH_PATHS = listOf(
             "auth/login", "auth/register", "auth/register-direct",
             "auth/firebase-login",
             "auth/forgot-password", "auth/verify-reset-code", "auth/reset-password",
-            "public/clinics", "payment-methods", "services", "health", "midtrans/webhook"
+            "public/clinics"
         )
 
         // The login/register calls carry (or establish) the binding itself —
@@ -63,8 +66,9 @@ class NetworkInterceptor @Inject constructor(
         // mismatch); anonymous catalog calls additionally send ?clinic_slug=.
         val path = originalRequest.url.encodedPath
         val skipSlugHeader = NO_SLUG_HEADER_PATHS.any { path.contains(it) }
-        if (!skipSlugHeader && !cachedClinicSlug.isNullOrBlank()) {
-            builder.header("X-Clinic-Slug", cachedClinicSlug!!)
+        val clinicSlug = cachedClinicSlug
+        if (!skipSlugHeader && !clinicSlug.isNullOrBlank()) {
+            builder.header("X-Clinic-Slug", clinicSlug)
         }
 
         val response = chain.proceed(builder.build())

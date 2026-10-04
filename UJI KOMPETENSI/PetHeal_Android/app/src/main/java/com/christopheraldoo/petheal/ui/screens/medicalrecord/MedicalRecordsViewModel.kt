@@ -19,7 +19,7 @@ data class MedicalRecordsUiState(
     val isLoading: Boolean = false,
     val records: List<MedicalRecord> = emptyList(),
     val filteredRecords: List<MedicalRecord> = emptyList(),
-    val selectedFilter: String = "All",
+    val selectedFilter: String = "all",
     val error: String? = null
 )
 
@@ -52,7 +52,16 @@ class MedicalRecordsViewModel @Inject constructor(
     val pets: StateFlow<List<Pet>> = _pets.asStateFlow()
 
     // ── Available filter categories ───────────────────────────────────────────
-    val filterCategories = listOf("All", "Vaccinations", "Checkups", "Surgeries", "Lab Results")
+    // Stable filter keys (never shown). Labels are Indonesian via [filterLabel].
+    val filterCategories = listOf("all", "vaccination", "checkup", "surgery", "lab")
+
+    fun filterLabel(key: String): String = when (key) {
+        "vaccination" -> "Vaksinasi"
+        "checkup" -> "Pemeriksaan"
+        "surgery" -> "Operasi"
+        "lab" -> "Hasil Lab"
+        else -> "Semua"
+    }
 
     fun loadRecords(forceRefresh: Boolean = false) {
         if (!forceRefresh && hasLoadedAllRecords && _listState.value.records.isNotEmpty()) {
@@ -175,17 +184,18 @@ class MedicalRecordsViewModel @Inject constructor(
     }
 
     private fun applyFilter(records: List<MedicalRecord>, filter: String): List<MedicalRecord> {
-        if (filter == "All") return records
+        if (filter == "all") return records
         return records.filter { record ->
             val diagnosis = record.diagnosis?.lowercase() ?: ""
             val treatment = record.treatment?.lowercase() ?: ""
             val notes = record.notes?.lowercase() ?: ""
+            // Keywords cover both Indonesian backend content and legacy English.
             when (filter) {
-                "Vaccinations" -> diagnosis.contains("vaccin") || treatment.contains("vaccin") || notes.contains("vaccin")
-                "Checkups"     -> diagnosis.contains("check") || treatment.contains("check") || notes.contains("exam") || notes.contains("check")
-                "Surgeries"    -> diagnosis.contains("surg") || treatment.contains("surg") || notes.contains("surg") || treatment.contains("operation")
-                "Lab Results"  -> diagnosis.contains("lab") || treatment.contains("lab") || notes.contains("blood") || notes.contains("test")
-                else           -> true
+                "vaccination" -> listOf("vaksin", "vaccin", "imun").any { diagnosis.contains(it) || treatment.contains(it) || notes.contains(it) }
+                "checkup"     -> listOf("periksa", "check", "exam", "kontrol", "konsult").any { diagnosis.contains(it) || treatment.contains(it) || notes.contains(it) }
+                "surgery"     -> listOf("operasi", "surg", "operation", "bedah").any { diagnosis.contains(it) || treatment.contains(it) || notes.contains(it) }
+                "lab"         -> listOf("lab", "darah", "blood", "test", "uji").any { diagnosis.contains(it) || treatment.contains(it) || notes.contains(it) }
+                else          -> true
             }
         }
     }

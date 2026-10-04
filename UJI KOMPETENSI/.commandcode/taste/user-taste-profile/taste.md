@@ -94,3 +94,19 @@
 - Prefers Indonesian (`id`) as the default locale when no language preference is set. Confidence: 0.85
 - Prefers centralized translation files organized by domain/feature (menu.php, common.php, dashboard.php, auth.php, clinics.php, crud.php) rather than per-view translation files. Confidence: 0.9
 - Prefers compact pill-style language switcher buttons (ID/EN) in the navbar header area rather than a dropdown selector. Confidence: 0.8
+- For audit tasks, wants a strict methodology: read all docs (AGENTS.md, architecture docs) first, then inventory ALL screens/routes before fixing anything — never assume file names or architecture. Confidence: 0.9
+- For audit tasks, requires a navigation matrix (Screen → Entry point → Exit/back → Parent → API dependency → Auth requirement → State handling → Status) as a deliverable, not just a list of issues. Confidence: 0.9
+- Wants findings classified by P0/P1/P2/P3 (Critical/High/Medium/Polish) with explicit ordering: P0 → P1 → P2 → P3 — never polish before critical bugs. Confidence: 0.95
+- For audit reports, requires a specific final-report structure: Initial Audit metrics, Critical Findings (by P-tier), Navigation summary, UI/UX Improvements, Dummy cleanup, Runtime Bugs Fixed, Auth/Multi-Clinic/Backend Changes, Testing results, Files Changed, Remaining Issues, Final Verdict (READY/NOT READY). Confidence: 0.9
+- Strictly enforces multi-app scope separation: the Android User App must contain NO admin UI, NO superadmin UI, NO admin dashboard, NO admin-only management screens — even if such code exists elsewhere in the system. Confidence: 0.95
+- The API contract is FROZEN during Android phases — Android must adapt to backend, not the other way around. Backend changes require explicit proof that the issue cannot be solved from Android. Confidence: 0.95
+- Backend test totals (e.g., "Phase1-6 = 97/97") must remain GREEN throughout any Android-only phase — must not regress even by 1 test. Confidence: 0.9
+- Explicitly forbids making fake/changes to look busy when no real issues are found in an audit — "If you find no issues, do not make fake changes just to look busy". Confidence: 0.9
+- Strong "no mass rewrite" rule for audits: never rewrite architecture, change navigation framework, swap Retrofit, change state management, or change theme just for personal preference — fix only what's actually broken. Confidence: 0.95
+- Distinguishes production dummy/mock data from test fixtures — automated test mocks must be preserved; only production dummies that ship to users should be removed. Confidence: 0.85
+- Repeatedly reinforces "Don't make UI too AI" as a core design principle: avoid too many cards, too many gradients, too many rounded containers, too many badges, too many icons, generic copy, decorative elements without function. Prioritize usability over decoration. Confidence: 0.95
+- Wants forms to preserve user input on API failure — never reset/lose form state on a failed submit. Confidence: 0.85
+- Wants context-appropriate loading UX (initial screen → skeleton; submit → button loading; list → list loading; refresh → pull-to-refresh) — not generic "Loading..." across the whole app. Confidence: 0.85
+- For multi-tenant apps, enforces "NO UI SHOULD ASSUME A SINGLE CLINIC" — no hardcoded clinic names, IDs, slugs, logos, or colors; everything must be data-driven from the active tenant. Confidence: 0.95
+- Distinguishes "production dummy" from "test fixture" explicitly: real backend/API should be used when endpoints exist; legitimate test fixtures (e.g., for unit tests) must be understood and not deleted. Confidence: 0.9
+- For audit reports, wants a final ready/not-ready verdict plus a list of files actually changed (not planned changes) — concrete artifacts only. Confidence: 0.85

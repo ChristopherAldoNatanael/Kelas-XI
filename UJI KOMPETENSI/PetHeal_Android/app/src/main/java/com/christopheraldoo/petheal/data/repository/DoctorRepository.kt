@@ -36,8 +36,10 @@ class DoctorRepository @Inject constructor(
     suspend fun getDoctors(forceRefresh: Boolean = false): Result<List<Doctor>> {
         // PHASE 7: resolve tenant first so cache + request agree on scope.
         val slug = runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
-        if (!forceRefresh && isCacheValid(slug)) {
-            return Result.Success(cachedDoctors!!)
+        val snapshot = cachedDoctors
+        if (!forceRefresh && snapshot != null && cachedSlug == slug &&
+            (System.currentTimeMillis() - cacheTimestamp) < CACHE_TTL_MS) {
+            return Result.Success(snapshot)
         }
         if (cachedSlug != slug) {
             cachedDoctors = null

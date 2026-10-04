@@ -6,6 +6,7 @@ import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.BorderStroke
@@ -39,7 +40,7 @@ import com.christopheraldoo.petheal.data.model.User
 private const val TAG = "PaymentScreen"
 
 // Brand tokens
-private val PayPrimary = Color(0xFF2BEE6C)
+private val PayPrimary = Color(0xFF18C964)
 private val PayBgDark = Color(0xFFF6F8F6)
 private val PayBgLight = Color(0xFFF6F8F6)
 private val PaySurfaceDark = Color.White
@@ -74,44 +75,55 @@ fun PaymentScreen(
     val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
     val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
     val paymentContextTitle = when {
-        medicalRecordId != null -> "Medical Record Payment"
-        isRemainingPayment -> "Remaining Booking Payment"
-        else -> "Booking Payment"
+        medicalRecordId != null -> "Pembayaran Rekam Medis"
+        isRemainingPayment -> "Pembayaran Sisa Booking"
+        else -> "Pembayaran Booking"
     }
     val paymentContextSubtitle = when {
-        medicalRecordId != null -> "Settle the additional treatment and medicine cost to unlock the full record."
-        isRemainingPayment -> "Complete the remaining balance for this booking."
-        isDpPayment -> "Secure the appointment with the required down payment."
-        else -> "Complete the booking payment to confirm the consultation."
+        medicalRecordId != null -> "Lunasi biaya tindakan dan obat tambahan untuk membuka rekam medis lengkap."
+        isRemainingPayment -> "Lunasi sisa pembayaran booking ini."
+        isDpPayment -> "Amankan jadwal dengan membayar uang muka (DP)."
+        else -> "Selesaikan pembayaran booking untuk mengonfirmasi konsultasi."
     }
 
     var showResultDialog by remember { mutableStateOf(false) }
     var resultDialogType by remember { mutableStateOf<String?>(null) }
     var resultOrderId by remember { mutableStateOf("") }
 
+    // Booking id is backend-assigned and nullable in the DTO: never drive the
+    // payment flow with a fabricated `0` id.
+    val bookingId = booking.id
+
+    // System back must run the same status verification as the close button —
+    // leaving mid-checkout without syncing leaves booking/payment out of sync.
+    BackHandler(enabled = state.snapToken != null || state.snapRedirectUrl != null) {
+        bookingId?.let { viewModel.checkPaymentStatusOnExit(it) } ?: onNavigateBack()
+    }
+
     // Initiate payment on first load
     LaunchedEffect(Unit) {
-        val bookingId = booking.id ?: 0
-        
+        if (bookingId == null && medicalRecordId == null) return@LaunchedEffect
+        val safeBookingId = bookingId ?: 0
+
         if (medicalRecordId != null) {
             viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
         } else if (isRemainingPayment) {
             // For remaining payment, call the remaining payment endpoint
-            viewModel.initiateRemainingPayment(bookingId, user)
+            viewModel.initiateRemainingPayment(safeBookingId, user)
         } else {
             // For initial payment (DP or full)
             val amount = if (isDpPayment) booking.dpAmount ?: totalAmount else booking.totalAmount ?: totalAmount
             viewModel.initiatePayment(
                 booking = booking, user = user, isDpPayment = isDpPayment,
-                totalAmount = amount, bookingId = bookingId
+                totalAmount = amount, bookingId = safeBookingId
             )
         }
     }
 
     // Handle payment completion with delay for better UX
     LaunchedEffect(state.isPaymentCompleted) {
-        if (state.isPaymentCompleted && state.paymentResult != null && !showResultDialog) {
-            val result = state.paymentResult!!
+        val result = state.paymentResult
+        if (state.isPaymentCompleted && result != null && !showResultDialog) {
             resultOrderId = result.orderId
             resultDialogType = result.status
             showResultDialog = true
@@ -137,6 +149,19 @@ fun PaymentScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         when {
+            bookingId == null && medicalRecordId == null -> {
+                // Backend never issued an id for this booking — do not mint
+                // payments against a fabricated id.
+                PaymentErrorScreen(
+                    title = paymentContextTitle,
+                    subtitle = paymentContextSubtitle,
+                    error = "Data booking tidak valid. Kembali dan coba lagi.",
+                    onRetry = onNavigateBack,
+                    onNavigateBack = onNavigateBack,
+                    textPrimary = textPrimary,
+                    textSecondary = textSecondary
+                )
+            }
             state.isLoading && state.snapToken == null && state.snapRedirectUrl == null -> {
                 Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
                     Card(
@@ -166,7 +191,7 @@ fun PaymentScreen(
                             CircularProgressIndicator(color = PayPrimary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
                         }
                         Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
-                        Text("Preparing secure checkout", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
+                        Text("Menyiapkan pembayaran yang aman", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
                         Text(paymentContextSubtitle, fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center)
                         Surface(
                             shape = RoundedCornerShape(18.dp),
@@ -202,8 +227,8 @@ fun PaymentScreen(
                         if (!state.isLoading) {
                             when {
                                 medicalRecordId != null -> viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
-                                isRemainingPayment -> viewModel.initiateRemainingPayment(booking.id ?: 0, user)
-                                else -> viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, booking.id ?: 0)
+                                isRemainingPayment -> bookingId?.let { viewModel.initiateRemainingPayment(it, user) }
+                                else -> bookingId?.let { viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, it) }
                             }
                         }
                     },
@@ -213,22 +238,35 @@ fun PaymentScreen(
                 )
             }
             state.snapRedirectUrl != null || state.snapToken != null -> {
-                PaymentWebView(
-                    redirectUrl = state.snapRedirectUrl,
-                    bookingId = booking.id ?: 0,
-                    orderId = state.orderId, // Use the order ID stored when Snap token was created
-                    paymentContextTitle = paymentContextTitle,
-                    onPaymentResult = { orderId, status, paymentType ->
-                        Log.d(TAG, "Payment callback: orderId=$orderId, status=$status")
-                        viewModel.handlePaymentResult(orderId, status, paymentType)
-                    },
-                    onClose = {
-                        Log.d(TAG, "User exited payment, checking status")
-                        viewModel.checkPaymentStatusOnExit(booking.id ?: 0)
-                    },
-                    onError = { error -> Log.e(TAG, "WebView error: $error") },
-                    textPrimary = textPrimary
-                )
+                val webBookingId = bookingId
+                if (webBookingId == null && medicalRecordId == null) {
+                    PaymentErrorScreen(
+                        title = paymentContextTitle,
+                        subtitle = paymentContextSubtitle,
+                        error = "Data booking tidak valid. Kembali dan coba lagi.",
+                        onRetry = onNavigateBack,
+                        onNavigateBack = onNavigateBack,
+                        textPrimary = textPrimary,
+                        textSecondary = textSecondary
+                    )
+                } else {
+                    PaymentWebView(
+                        redirectUrl = state.snapRedirectUrl,
+                        bookingId = webBookingId ?: 0,
+                        orderId = state.orderId, // Use the order ID stored when Snap token was created
+                        paymentContextTitle = paymentContextTitle,
+                        onPaymentResult = { orderId, status, paymentType ->
+                            Log.d(TAG, "Payment callback: orderId=$orderId, status=$status")
+                            viewModel.handlePaymentResult(orderId, status, paymentType)
+                        },
+                        onClose = {
+                            Log.d(TAG, "User exited payment, checking status")
+                            webBookingId?.let { viewModel.checkPaymentStatusOnExit(it) }
+                        },
+                        onError = { error -> Log.e(TAG, "WebView error: $error") },
+                        textPrimary = textPrimary
+                    )
+                }
             }
             else -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -352,12 +390,10 @@ private fun PaymentWebView(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onClose) {
-                    Icon(Icons.Filled.Close, contentDescription = "Cancel Payment", tint = textPrimary)
+                    Icon(Icons.Filled.Close, contentDescription = "Tutup pembayaran", tint = textPrimary)
                 }
                 Text(paymentContextTitle, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Filled.HelpOutline, contentDescription = "Help", tint = textPrimary)
-                }
+                Spacer(Modifier.size(48.dp))
             }
             androidx.compose.material3.Divider(color = Color(0xFFE2E8F0))
         }
@@ -386,10 +422,10 @@ fun PaymentResultDialog(
     val title: String
     val message: String
     when (status) {
-        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Payment Completed"; message = "Your payment has been recorded successfully. The latest booking status will refresh automatically." }
-        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Color(0xFFF59E0B); title = "Payment Still Pending"; message = "Your payment session is still active. Complete the transaction to unlock the latest status." }
-        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = Color(0xFF94A3B8); title = "Payment Was Cancelled"; message = "No charge was completed. You can restart the payment from the booking details screen." }
-        else -> { icon = Icons.Filled.Cancel; iconColor = Color(0xFFEF4444); title = "Payment Could Not Be Completed"; message = "The checkout did not finish successfully. Please try again when you're ready." }
+        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Pembayaran Selesai"; message = "Pembayaran Anda tercatat. Status booking terbaru akan dimuat ulang otomatis." }
+        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Color(0xFFF59E0B); title = "Pembayaran Tertunda"; message = "Sesi pembayaran masih aktif. Selesaikan transaksi untuk membuka status terbaru." }
+        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = Color(0xFF94A3B8); title = "Pembayaran Dibatalkan"; message = "Tidak ada dana yang terpotong. Anda bisa memulai pembayaran lagi dari detail booking." }
+        else -> { icon = Icons.Filled.Cancel; iconColor = Color(0xFFEF4444); title = "Pembayaran Gagal"; message = "Checkout tidak selesai. Silakan coba lagi." }
     }
 
     val infiniteTransition = rememberInfiniteTransition()
@@ -473,7 +509,7 @@ fun PaymentErrorScreen(
         Spacer(Modifier.height(24.dp))
         Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textSecondary)
         Spacer(Modifier.height(4.dp))
-        Text("Payment Setup Failed", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
+        Text("Pembayaran Gagal Dimulai", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(subtitle, fontSize = 13.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
         Spacer(Modifier.height(12.dp))
@@ -486,16 +522,16 @@ fun PaymentErrorScreen(
             Text(error, fontSize = 14.sp, color = Color(0xFFDC2626), textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
         }
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color(0xFF052E14))) {
-            Icon(Icons.Filled.ArrowBack, null, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.width(8.dp))
-            Text("Go Back", fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6), contentColor = Color.White)) {
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Try Again", fontWeight = FontWeight.Bold)
+            Text("Coba Lagi", fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = onNavigateBack, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp)) {
+            Icon(Icons.Filled.ArrowBack, null, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Kembali", fontWeight = FontWeight.SemiBold)
         }
     }
 }
@@ -525,20 +561,20 @@ fun PaymentResultScreen(
         "success" -> {
             icon = Icons.Filled.CheckCircle
             titleColor = PayPrimary
-            subtitle = "Your payment has been captured successfully and the booking status will be refreshed."
-            eyebrow = "Booking payment updated"
+            subtitle = "Pembayaran tercatat dan status booking akan dimuat ulang."
+            eyebrow = "Pembayaran booking diperbarui"
         }
         "pending" -> {
             icon = Icons.Filled.Schedule
             titleColor = Color(0xFFF59E0B)
-            subtitle = "The transaction is still pending. Complete it before the deadline so the booking can be finalized."
-            eyebrow = "Waiting for settlement"
+            subtitle = "Transaksi masih tertunda. Selesaikan sebelum batas waktu agar booking dapat difinalisasi."
+            eyebrow = "Menunggu penyelesaian"
         }
         else -> {
             icon = Icons.Filled.Cancel
             titleColor = Color(0xFFEF4444)
-            subtitle = "The payment was not completed. You can try again from the booking details screen."
-            eyebrow = "Checkout needs attention"
+            subtitle = "Pembayaran tidak selesai. Anda bisa mencoba lagi dari detail booking."
+            eyebrow = "Checkout perlu perhatian"
         }
     }
 
@@ -574,7 +610,7 @@ fun PaymentResultScreen(
                 )
             }
             Spacer(Modifier.height(16.dp))
-            Text(text = when (status) { "success" -> "Payment Completed"; "pending" -> "Payment Pending"; else -> "Payment Failed" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
+            Text(text = when (status) { "success" -> "Pembayaran Berhasil"; "pending" -> "Pembayaran Tertunda"; else -> "Pembayaran Gagal" }, fontSize = 26.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
             Spacer(Modifier.height(10.dp))
             Text(text = subtitle, fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 22.sp)
             Spacer(Modifier.height(24.dp))
@@ -593,7 +629,7 @@ fun PaymentResultScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text("Order ID", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                        Text("ID Pesanan", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
                         Text(orderId, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                     }
 
@@ -622,10 +658,10 @@ fun PaymentResultScreen(
                 }
             }
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color(0xFF052E14))) {
+            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
                 Icon(Icons.Filled.List, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Open My Bookings", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                Text("Buka Booking Saya", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
             Spacer(Modifier.height(12.dp))
             OutlinedButton(
@@ -634,7 +670,7 @@ fun PaymentResultScreen(
                 shape = RoundedCornerShape(16.dp),
                 border = BorderStroke(1.dp, Color(0xFFE2E8F0))
             ) {
-                Text("Back to Home", color = textPrimary, fontWeight = FontWeight.SemiBold)
+                Text("Kembali ke Beranda", color = textPrimary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

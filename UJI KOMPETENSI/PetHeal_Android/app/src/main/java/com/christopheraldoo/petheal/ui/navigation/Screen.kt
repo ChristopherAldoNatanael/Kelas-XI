@@ -21,8 +21,9 @@ sealed class Screen(val route: String) {
 
     // ── Doctors ─────────────────────────────────────────────────────────────
     object Doctors      : Screen("doctors")
-    object DoctorDetail : Screen("doctors/{doctorId}") {
-        fun createRoute(doctorId: Int) = "doctors/$doctorId"
+    object DoctorDetail : Screen("doctors/{doctorId}?autoReview={autoReview}") {
+        fun createRoute(doctorId: Int, autoReview: Boolean = false) =
+            "doctors/$doctorId?autoReview=$autoReview"
     }
 
     // ── Bookings ────────────────────────────────────────────────────────────

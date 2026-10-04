@@ -56,6 +56,7 @@ import com.christopheraldoo.petheal.ui.screens.settings.HelpSupportScreen
 import com.christopheraldoo.petheal.ui.screens.settings.PrivacySecurityScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentResultScreen
+import com.christopheraldoo.petheal.ui.components.route
 
 @Composable
 fun PetHealNavHost(
@@ -81,6 +82,14 @@ fun PetHealNavHost(
         navController = navController,
         startDestination = Screen.Splash.route
     ) {
+        // PHASE 9: unified tab switching — singleTop + popUpTo(Home) keeps one
+        // tab entry on the stack (no stacking) and clears sub-screens above it.
+        val navigateTab: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = { tab ->
+            navController.navigate(tab.route) {
+                popUpTo(Screen.Home.route)
+                launchSingleTop = true
+            }
+        }
         // Splash Screen
         composable(Screen.Splash.route) {
             SplashScreen(
@@ -169,15 +178,19 @@ fun PetHealNavHost(
         // Main Screens
         composable(Screen.Home.route) {
             HomeScreen(
-                onNavigateToPets = { navController.navigate(Screen.Pets.route) },
+                onNavigateToPets = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Pets) },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
-                onNavigateToBookings = { navController.navigate(Screen.Bookings.route) },
+                onNavigateToDoctor = { doctorId, autoReview ->
+                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, autoReview))
+                },
+                onNavigateToBookings = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings) },
                 onNavigateToBookingDetail = { bookingId ->
                     navController.navigate(Screen.BookingDetail.createRoute(bookingId))
                 },
-                onNavigateToMedicalRecords = { navController.navigate(Screen.MedicalRecords.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) }
+                onNavigateToMedicalRecords = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Records) },
+                onNavigateToProfile = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Profile) },
+                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                onTabSelected = navigateTab
             )
         }
 
@@ -189,8 +202,7 @@ fun PetHealNavHost(
                     navController.navigate(Screen.PetDetail.createRoute(petId))
                 },
                 onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
-                onNavigateToBookings = { navController.navigate(Screen.Bookings.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                onTabSelected = navigateTab
             )
         }
 
@@ -239,14 +251,25 @@ fun PetHealNavHost(
 
         composable(
             route = Screen.DoctorDetail.route,
-            arguments = listOf(navArgument("doctorId") { type = NavType.IntType })
+            arguments = listOf(
+                navArgument("doctorId") { type = NavType.IntType },
+                navArgument("autoReview") {
+                    type = NavType.BoolType
+                    defaultValue = false
+                }
+            )
         ) { backStackEntry ->
             val doctorId = backStackEntry.arguments?.getInt("doctorId") ?: return@composable
+            val autoReview = backStackEntry.arguments?.getBoolean("autoReview") ?: false
             DoctorDetailScreen(
                 doctorId = doctorId,
+                autoOpenReview = autoReview,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToBooking = { petId ->
                     navController.navigate(Screen.CreateBooking.createRoute(doctorId, petId))
+                },
+                onNavigateToAddPet = {
+                    navController.navigate(Screen.AddPet.route)
                 }
             )
         }
@@ -261,7 +284,8 @@ fun PetHealNavHost(
                 },
                 onNavigateToPayment = { bookingId, isDp, totalAmount, isRemaining ->
                     navController.navigate(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining))
-                }
+                },
+                onTabSelected = navigateTab
             )
         }
 
@@ -315,13 +339,7 @@ fun PetHealNavHost(
                 onNavigateToRecordDetail = { recordId ->
                     navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId))
                 },
-                onNavigateToHome = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.Home.route) { inclusive = true }
-                    }
-                },
-                onNavigateToBookings = { navController.navigate(Screen.Bookings.route) },
-                onNavigateToProfile = { navController.navigate(Screen.Profile.route) }
+                onTabSelected = navigateTab
             )
         }
 
@@ -332,7 +350,10 @@ fun PetHealNavHost(
             val recordId = backStackEntry.arguments?.getInt("recordId") ?: return@composable
             MedicalRecordDetailScreen(
                 recordId = recordId,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToExtraPayment = { bookingId, payRecordId, amount ->
+                    navController.navigate(Screen.MedicalExtraPayment.createRoute(bookingId, payRecordId, amount))
+                }
             )
         }
 
@@ -349,7 +370,8 @@ fun PetHealNavHost(
                 onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
                 onNavigateToPrivacy = { navController.navigate(Screen.PrivacySecurity.route) },
                 onNavigateToHelp = { navController.navigate(Screen.HelpSupport.route) },
-                onNavigateToAbout = { navController.navigate(Screen.About.route) }
+                onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                onTabSelected = navigateTab
             )
         }
 
@@ -415,35 +437,38 @@ fun PetHealNavHost(
             when {
                 paymentNavState.isLoading -> {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color(0xFF2BEE6C))
+                        CircularProgressIndicator(color = com.christopheraldoo.petheal.ui.theme.Primary)
                     }
                 }
                 paymentNavState.error != null -> {
+                    val navError = paymentNavState.error
                     Column(
                         Modifier.fillMaxSize().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Text("Error: ${paymentNavState.error}", color = Color(0xFFEF4444), textAlign = TextAlign.Center)
+                        Text("Gagal memuat pembayaran: $navError", color = Color(0xFFEF4444), textAlign = TextAlign.Center)
                         Spacer(Modifier.height(16.dp))
-                        Button(onClick = { navController.popBackStack() }) { Text("Go Back") }
+                        Button(onClick = { navController.popBackStack() }) { Text("Kembali") }
                     }
                 }
                 paymentNavState.booking != null -> {
+                    val readyBooking = paymentNavState.booking
+                    if (readyBooking != null) {
                     PaymentScreen(
-                        booking = paymentNavState.booking!!,
+                        booking = readyBooking,
                         user = paymentNavState.user,
                         isDpPayment = false,
                         totalAmount = amount,
                         isRemainingPayment = false,
                         medicalRecordId = recordId,
                         onPaymentSuccess = { orderId ->
-                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "success", "Extra medical payment successful!")) {
+                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran tambahan rekam medis berhasil!")) {
                                 popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
-                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "pending", "Extra medical payment pending.")) {
+                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran tambahan menunggu penyelesaian.")) {
                                 popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
                             }
                         },
@@ -455,6 +480,7 @@ fun PetHealNavHost(
                         onNavigateBack = { navController.popBackStack() },
                         onBookingUpdated = { paymentNavViewModel.notifyBookingUpdated() }
                     )
+                    }
                 }
             }
         }
@@ -490,44 +516,47 @@ fun PetHealNavHost(
                         contentAlignment = Alignment.Center
                     ) {
                         CircularProgressIndicator(
-                            color = Color(0xFF2BEE6C)
+                            color = com.christopheraldoo.petheal.ui.theme.Primary
                         )
                     }
                 }
                 paymentNavState.error != null -> {
+                    val navError = paymentNavState.error
                     Column(
                         Modifier.fillMaxSize().padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            "Error: ${paymentNavState.error}",
+                            "Gagal memuat pembayaran: $navError",
                             color = Color(0xFFEF4444),
                             textAlign = TextAlign.Center
                         )
                         Spacer(Modifier.height(16.dp))
                         Button(onClick = { navController.popBackStack() }) {
-                            Text("Go Back")
+                            Text("Kembali")
                         }
                     }
                 }
                 paymentNavState.booking != null -> {
+                    val readyBooking = paymentNavState.booking
+                    if (readyBooking != null) {
                     PaymentScreen(
-                        booking = paymentNavState.booking!!,
+                        booking = readyBooking,
                         user = paymentNavState.user,
                         isDpPayment = isDp,
                         totalAmount = totalAmount,
                         isRemainingPayment = isRemaining, // NEW: Pass isRemaining flag
                         onPaymentSuccess = { orderId ->
                             navController.navigate(
-                                Screen.PaymentResult.createRoute(orderId, "success", "Payment successful!")
+                                Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!")
                             ) {
                                 popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining)) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
                             navController.navigate(
-                                Screen.PaymentResult.createRoute(orderId, "pending", "Payment pending. Please complete soon.")
+                                Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.")
                             ) {
                                 popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining)) { inclusive = true }
                             }
@@ -545,6 +574,7 @@ fun PetHealNavHost(
                             paymentNavViewModel.notifyBookingUpdated()
                         }
                     )
+                    }
                 }
             }
         }

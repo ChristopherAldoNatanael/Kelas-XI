@@ -53,22 +53,23 @@ fun SettingsActionRow(
     label: String,
     showChevron: Boolean = true,
     trailing: @Composable () -> Unit = {},
+    enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val isDark = false
     val textColor = if (isDark) SettingsTextPrimary else Color(0xFF0F172A)
-    
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = 12.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF2BEE6C), // Primary Green
+            tint = Color(0xFF18C964),
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))

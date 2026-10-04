@@ -117,10 +117,10 @@ class PaymentRepository @Inject constructor(
             Log.d(TAG, "Checking transaction status for order: $orderId")
             val response = apiService.getTransactionStatus(orderId)
 
-            if (response.isSuccessful && response.body() != null) {
-                val statusResponse = response.body()!!
-                Log.d(TAG, "Transaction status: ${statusResponse.transactionStatus}")
-                Result.Success(statusResponse)
+            val statusBody = response.body()
+            if (response.isSuccessful && statusBody != null) {
+                Log.d(TAG, "Transaction status: ${statusBody.transactionStatus}")
+                Result.Success(statusBody)
             } else {
                 Log.e(TAG, "getTransactionStatus failed: HTTP ${response.code()}")
                 Result.Error("Failed to get transaction status")
@@ -140,7 +140,8 @@ class PaymentRepository @Inject constructor(
             val response = apiService.syncPaymentStatus(PaymentSyncRequest(orderId))
 
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.Success(response.body()!!)
+                response.body()?.let { Result.Success(it) }
+                    ?: Result.Error("Failed to sync payment status")
             } else {
                 val error = extractErrorMessage(response) ?: response.body()?.message ?: "Failed to sync payment status"
                 Log.e(TAG, "syncBookingPaymentStatus failed: HTTP ${response.code()} - $error")
@@ -210,7 +211,8 @@ class PaymentRepository @Inject constructor(
             val response = apiService.getBookingPaymentStatus(bookingId)
 
             if (response.isSuccessful && response.body() != null) {
-                Result.Success(response.body()!!)
+                response.body()?.let { Result.Success(it) }
+                    ?: Result.Error("Failed to get payment status")
             } else {
                 Log.e(TAG, "getBookingPaymentStatus failed: HTTP ${response.code()}")
                 Result.Error("Failed to get payment status")

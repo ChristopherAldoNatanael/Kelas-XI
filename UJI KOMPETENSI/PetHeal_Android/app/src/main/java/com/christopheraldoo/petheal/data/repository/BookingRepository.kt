@@ -21,12 +21,13 @@ class BookingRepository @Inject constructor(
      */
     private fun getErrorMessage(responseCode: Int, fallbackMessage: String?): String {
         return when (responseCode) {
-            401 -> "Session expired. Please login again."
-            403 -> "Access denied. You don't have permission."
-            404 -> "Booking not found."
-            422 -> "Validation error. Please check your input."
-            500 -> "Server error. Please try again later."
-            else -> fallbackMessage ?: "Failed to complete request"
+            401 -> "Sesi berakhir. Silakan masuk kembali."
+            403 -> "Akses ditolak. Anda tidak memiliki izin."
+            404 -> "Booking tidak ditemukan."
+            409 -> "Jadwal yang dipilih sudah penuh atau bertabrakan. Silakan pilih tanggal/jam lain."
+            422 -> "Data tidak valid. Periksa kembali isian Anda."
+            500 -> "Server sedang bermasalah. Coba lagi nanti."
+            else -> fallbackMessage?.takeIf { it.isNotBlank() } ?: "Gagal memproses permintaan"
         }
     }
 

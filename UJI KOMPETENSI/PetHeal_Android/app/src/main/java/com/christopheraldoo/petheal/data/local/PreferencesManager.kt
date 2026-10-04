@@ -5,6 +5,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,10 @@ class PreferencesManager @Inject constructor(
         private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
         private val KEY_AUTH_PROVIDER = stringPreferencesKey("auth_provider")
         private val KEY_HAS_SEEN_ONBOARDING = stringPreferencesKey("has_seen_onboarding")
+
+        // PHASE 9: booking ids already nudged for a doctor rating. The reminder
+        // appears once per finished visit — never nagging.
+        private val KEY_RATING_PROMPTED_IDS = stringSetPreferencesKey("rating_prompted_ids")
 
         // PHASE 7: selected tenant (1 APK dinamis). Survives logout so the
         // picker is not forced on every login; refreshed from login response.
@@ -100,6 +105,19 @@ class PreferencesManager @Inject constructor(
 
     val clinicId: Flow<Int?> = context.dataStore.data.map { preferences ->
         preferences[KEY_CLINIC_ID]?.toIntOrNull()
+    }
+
+    /** Booking ids (as strings) already nudged for a doctor rating. */
+    val ratingPromptedIds: Flow<Set<String>> = context.dataStore.data.map { preferences ->
+        preferences[KEY_RATING_PROMPTED_IDS] ?: emptySet()
+    }
+
+    suspend fun markRatingPrompted(ids: Collection<Int>) {
+        if (ids.isEmpty()) return
+        context.dataStore.edit { preferences ->
+            val current = preferences[KEY_RATING_PROMPTED_IDS] ?: emptySet()
+            preferences[KEY_RATING_PROMPTED_IDS] = current + ids.map { it.toString() }
+        }
     }
 
     suspend fun setOnboardingSeen() {

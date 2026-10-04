@@ -162,12 +162,43 @@ fun CompleteSetupScreen(
                         }
                     }
                 }
+                pickerState.clinics.isEmpty() -> {
+                    // No error but also no clinics (e.g. backend returned an
+                    // empty catalog): never leave the user on a blank list
+                    // with a disabled button.
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(
+                            text = "Belum ada klinik yang tersedia. Coba muat ulang atau hubungi dukungan.",
+                            fontSize = 13.sp,
+                            color = Color(0xFF64748B),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Button(
+                            onClick = { pickerViewModel.load(pickerState.selectedSlug) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF18C964)
+                            )
+                        ) {
+                            Text("Muat Ulang")
+                        }
+                    }
+                }
                 else -> {
                     LazyColumn(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(pickerState.clinics, key = { it.id ?: it.slug.orEmpty() }) { clinic ->
+                        items(
+                            pickerState.clinics,
+                            key = { it.id?.toString() ?: it.slug ?: it.name.orEmpty() }
+                        ) { clinic ->
                             ClinicPickerRow(
                                 clinic = clinic,
                                 selected = clinic.slug == pickerState.selectedSlug,

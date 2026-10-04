@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -65,7 +66,7 @@ import java.util.Date
 import java.util.Locale
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
-private val PetPrimary       = Color(0xFF2BEE6C)
+private val PetPrimary       = Color(0xFF18C964)
 private val PetBgDark        = Color(0xFFF6F8F6)
 private val PetBgLight       = Color(0xFFF6F8F6)
 private val PetSurfaceDark   = Color.White
@@ -80,8 +81,7 @@ fun PetsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToPetDetail: (Int) -> Unit,
     onNavigateToAddPet: () -> Unit,
-    onNavigateToBookings: () -> Unit = {},
-    onNavigateToProfile: () -> Unit = {},
+    onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -140,20 +140,39 @@ fun PetsScreen(
                         ) {
                             Icon(
                                 Icons.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = "Kembali",
                                 tint = textPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
                         }
 
                         Text(
-                            "My Pets",
+                            "Hewan Saya",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = textPrimary,
                             modifier = Modifier.weight(1f),
                             textAlign = TextAlign.Center
-                        )                        // Refresh button
+                        )
+                        // Search toggle
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .clickable {
+                                    if (showSearch) viewModel.setSearchQuery("")
+                                    showSearch = !showSearch
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
+                                contentDescription = if (showSearch) "Tutup pencarian" else "Cari hewan",
+                                tint = textPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                        // Refresh button
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -163,7 +182,7 @@ fun PetsScreen(
                         ) {
                             Icon(
                                 Icons.Filled.Refresh,
-                                contentDescription = "Refresh",
+                                contentDescription = "Segarkan",
                                 tint = textPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -177,7 +196,7 @@ fun PetsScreen(
                             value = uiState.searchQuery,
                             onValueChange = { viewModel.setSearchQuery(it) },
                             placeholder = {
-                                Text("Search pets...", color = textMuted, fontSize = 14.sp)
+                                Text("Cari hewan...", color = textMuted, fontSize = 14.sp)
                             },
                             leadingIcon = {
                                 Icon(Icons.Filled.Search, null, tint = textMuted, modifier = Modifier.size(20.dp))
@@ -229,7 +248,7 @@ fun PetsScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // Error banner
-                    if (uiState.error != null) {
+                    uiState.error?.let { errorMessage ->
                         item {
                             Card(
                                 shape = RoundedCornerShape(12.dp),
@@ -241,7 +260,7 @@ fun PetsScreen(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
                                     Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF5252), modifier = Modifier.size(20.dp))
-                                    Text(uiState.error!!, color = Color(0xFFFF5252), fontSize = 13.sp)
+                                    Text(errorMessage, color = Color(0xFFFF5252), fontSize = 13.sp)
                                 }
                             }
                         }
@@ -296,22 +315,19 @@ fun PetsScreen(
             onClick = onNavigateToAddPet,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 100.dp),
+                .padding(end = 24.dp, bottom = 120.dp),
             containerColor = PetPrimary,
-            contentColor = Color(0xFF111813),
+            contentColor = Color.White,
             shape = CircleShape,
             elevation = FloatingActionButtonDefaults.elevation(6.dp)
         ) {
-            Icon(Icons.Filled.Add, contentDescription = "Add Pet", modifier = Modifier.size(28.dp))
-        }        // ── Bottom Nav ─────────────────────────────────────────────────
-        PetsBottomNav(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            isDark = isDark,
-            surfaceColor = surfaceColor,
-            onHome = onNavigateBack,
-            onPets = { /* already here */ },
-            onVet = onNavigateToBookings,
-            onProfile = onNavigateToProfile
+            Icon(Icons.Filled.Add, contentDescription = "Tambah hewan", modifier = Modifier.size(28.dp))
+        }
+        // ── Bottom Nav (unified floating, PHASE 9) ─────────────────────
+        com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
+            selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Pets,
+            onSelect = onTabSelected,
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
     }
 }
@@ -390,9 +406,9 @@ private fun PetListCard(
                         }
                         if (pet.age != null) {
                             if (isNotEmpty()) append(" · ")
-                            append("${pet.age} yr${if (pet.age != 1) "s" else ""}")
+                            append("${pet.age} tahun")
                         }
-                    }.ifBlank { "No details" },
+                    }.ifBlank { "Belum ada detail" },
                     fontSize = 13.sp,
                     color = textMuted,
                     maxLines = 1,
@@ -460,12 +476,12 @@ private fun AddNewPetCard(
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    "Add New Pet",
+                    "Tambah Hewan Baru",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold,
                     color = textPrimary
                 )
                 Text(
-                    "Register a new friend",
+                    "Daftarkan sahabat baru Anda",
                     fontSize = 13.sp, color = textMuted
                 )
             }
@@ -537,15 +553,15 @@ fun PetDetailScreen(
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Remove Pet", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to remove ${state.pet?.name}? This action cannot be undone.") },
+            title = { Text("Hapus Hewan", fontWeight = FontWeight.Bold) },
+            text = { Text("Yakin ingin menghapus ${state.pet?.name}? Tindakan ini tidak dapat dibatalkan.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.deletePet(petId); showDeleteDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
-                ) { Text("Remove", fontWeight = FontWeight.Bold) }
+                ) { Text("Hapus", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Batal") }
             },
             containerColor = surfaceColor
         )
@@ -594,31 +610,33 @@ fun PetDetailScreen(
                         ) {
                             Icon(
                                 Icons.Filled.ArrowBackIosNew,
-                                contentDescription = "Back",
+                                contentDescription = "Kembali",
                                 tint = textPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
 
                         Text(
-                            "Pet Profile",
+                            "Profil Hewan",
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             color = textPrimary
                         )
 
-                        // More options
+                        // Edit shortcut (mirrors the Edit button below)
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
-                                .clip(CircleShape),
+                                .clip(CircleShape)
+                                .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f))
+                                .clickable { onNavigateToEdit() },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                Icons.Filled.MoreVert,
-                                contentDescription = "More",
+                                Icons.Filled.Edit,
+                                contentDescription = "Ubah hewan",
                                 tint = textPrimary,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
@@ -684,7 +702,11 @@ fun PetDetailScreen(
                         color = textPrimary
                     )
 
-                    // Health Status
+                    // Health Status — derived from the most recent medical record
+                    val healthLabel = remember(state.medicalRecords) {
+                        val latest = state.medicalRecords.firstOrNull()
+                        if (latest == null) "Belum ada kunjungan" else "Pemeriksaan terakhir"
+                    }
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -696,7 +718,7 @@ fun PetDetailScreen(
                                 .background(PetPrimary)
                         )
                         Text(
-                            "Healthy",
+                            healthLabel,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = PetPrimary
@@ -744,7 +766,7 @@ fun PetDetailScreen(
                     ) {
                         Icon(Icons.Filled.Edit, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Edit Profile", fontWeight = FontWeight.Bold)
+                        Text("Edit Profil", fontWeight = FontWeight.Bold)
                     }
 
                     // History Button
@@ -759,13 +781,20 @@ fun PetDetailScreen(
                     ) {
                         Icon(Icons.Filled.History, null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("History", fontWeight = FontWeight.Bold)
+                        Text("Riwayat", fontWeight = FontWeight.Bold)
                     }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ── Quick Stats Cards ───────────────────────────────────────────
+                val lastVisitLabel = remember(state.medicalRecords, pet?.updatedAt) {
+                    val latest = state.medicalRecords.firstOrNull()?.createdAt
+                        ?: pet?.updatedAt
+                    if (latest.isNullOrBlank()) "–"
+                    else latest.take(10)
+                }
+                val vaccinationCount = state.vaccinations.size
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -774,7 +803,7 @@ fun PetDetailScreen(
                 ) {
                     // Weight Card
                     StatCard(
-                        label = "Weight",
+                        label = "Berat",
                         value = pet?.weight?.let { "${it} kg" } ?: "–",
                         icon = Icons.Filled.FitnessCenter,
                         modifier = Modifier.weight(1f),
@@ -782,11 +811,11 @@ fun PetDetailScreen(
                         textPrimary = textPrimary,
                         textMuted = textMuted
                     )
-                    // Activity Card
+                    // Vaccination count
                     StatCard(
-                        label = "Activity",
-                        value = "High",
-                        icon = Icons.Filled.DirectionsRun,
+                        label = "Vaksin",
+                        value = vaccinationCount.toString(),
+                        icon = Icons.Filled.Vaccines,
                         modifier = Modifier.weight(1f),
                         surfaceColor = surfaceColor,
                         textPrimary = textPrimary,
@@ -794,8 +823,8 @@ fun PetDetailScreen(
                     )
                     // Last Visit Card
                     StatCard(
-                        label = "Last Visit",
-                        value = "12 Oct",
+                        label = "Kunjungan",
+                        value = lastVisitLabel,
                         icon = Icons.Filled.CalendarMonth,
                         modifier = Modifier.weight(1f),
                         surfaceColor = surfaceColor,
@@ -1025,7 +1054,7 @@ private fun HealthTrackingSection(
                     TextButton(onClick = onAddWeight) {
                         Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Add")
+                        Text("Tambah")
                     }
                 }
 
@@ -1077,7 +1106,7 @@ private fun HealthTrackingSection(
                     }
                     Spacer(Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Vaccinations", fontWeight = FontWeight.Bold, color = textPrimary)
+                        Text("Vaksinasi", fontWeight = FontWeight.Bold, color = textPrimary)
                         Text(
                             if (upcomingVaccinations.isNotEmpty()) "${upcomingVaccinations.size} follow-up reminder${if (upcomingVaccinations.size > 1) "s" else ""} coming up" else "No upcoming vaccination due",
                             fontSize = 13.sp,
@@ -1087,7 +1116,7 @@ private fun HealthTrackingSection(
                     TextButton(onClick = onAddVaccination) {
                         Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Add")
+                        Text("Tambah")
                     }
                 }
 
@@ -1097,14 +1126,14 @@ private fun HealthTrackingSection(
                 } else {
                     preview.forEach { vaccine ->
                         HealthMiniRow(
-                            title = vaccine.vaccineName ?: "Vaccination",
+                            title = vaccine.vaccineName ?: "Vaksinasi",
                             subtitle = buildString {
-                                vaccine.dateAdministered?.let { append("Given $it") }
+                                vaccine.dateAdministered?.let { append("Diberikan $it") }
                                 vaccine.nextDueDate?.let {
                                     if (isNotEmpty()) append(" • ")
-                                    append("Next due $it")
+                                    append("Jatuh tempo $it")
                                 }
-                            }.ifBlank { vaccine.veterinarian ?: "Vaccination record" },
+                            }.ifBlank { vaccine.veterinarian ?: "Catatan vaksinasi" },
                             textPrimary = textPrimary,
                             textMuted = textMuted,
                             onDelete = vaccine.id?.let { id -> { onDeleteVaccination(id) } }
@@ -1125,6 +1154,24 @@ private fun HealthMiniRow(
     // PHASE 7: optional delete (wires the declared DELETE endpoints).
     onDelete: (() -> Unit)? = null
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+    if (showDeleteConfirm) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirm = false },
+            title = { Text("Hapus Data?", fontWeight = FontWeight.Bold) },
+            text = { Text("Data \"$title\" akan dihapus permanen dan tidak bisa dikembalikan.") },
+            confirmButton = {
+                TextButton(
+                    onClick = { showDeleteConfirm = false; onDelete?.invoke() },
+                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
+                ) { Text("Hapus", fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirm = false }) { Text("Batal") }
+            },
+            containerColor = Color.White
+        )
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -1145,10 +1192,10 @@ private fun HealthMiniRow(
             Text(subtitle, fontSize = 12.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (onDelete != null) {
-            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+            IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(40.dp)) {
                 Icon(
                     imageVector = Icons.Filled.DeleteOutline,
-                    contentDescription = "Hapus",
+                    contentDescription = "Hapus $title",
                     tint = Color(0xFFEF4444),
                     modifier = Modifier.size(20.dp)
                 )
@@ -1173,9 +1220,9 @@ private fun AddWeightDialog(
         shape = RoundedCornerShape(24.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Log Weight", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text("Catat Berat", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
                 Text(
-                    "Save the latest weight to keep your pet's progress up to date.",
+                    "Simpan berat terbaru agar progres hewan Anda tetap terpantau dengan baik.",
                     fontSize = 13.sp,
                     color = PetMuted,
                     lineHeight = 18.sp
@@ -1186,21 +1233,21 @@ private fun AddWeightDialog(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HealthDialogHintCard(
                     icon = Icons.Filled.MonitorWeight,
-                    title = "Quick note",
-                    body = "Use kilograms for consistency. Add a note only if this reading needs extra context."
+                    title = "Catatan singkat",
+                    body = "Gunakan kilogram agar konsisten. Tambahkan catatan hanya bila hasil timbangan ini perlu konteks ekstra."
                 )
                 HealthDialogField(
                     value = weight,
                     onValueChange = { weight = it },
-                    label = "Weight (kg)",
-                    placeholder = "Example: 5.8",
+                    label = "Berat (kg)",
+                    placeholder = "Contoh: 5,8",
                     keyboardType = KeyboardType.Decimal
                 )
                 HealthDialogField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = "Notes",
-                    placeholder = "Optional observation after weighing",
+                    label = "Catatan",
+                    placeholder = "Observasi opsional setelah menimbang",
                     minLines = 3,
                     singleLine = false
                 )
@@ -1212,9 +1259,9 @@ private fun AddWeightDialog(
                 onClick = { parsedWeight?.let { onSubmit(it, notes.trim().ifBlank { null }) } },
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
-            ) { Text(if (isLoading) "Saving..." else "Save Weight") }
+            ) { Text(if (isLoading) "Menyimpan..." else "Simpan Berat") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Tutup") } }
     )
 }
 
@@ -1238,9 +1285,9 @@ private fun AddVaccinationDialog(
         shape = RoundedCornerShape(24.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Add Vaccination", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text("Tambah Vaksinasi", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
                 Text(
-                    "Record the vaccine details and optional follow-up schedule.",
+                    "Catat detail vaksin dan jadwal tindak lanjut (jika ada).",
                     fontSize = 13.sp,
                     color = PetMuted,
                     lineHeight = 18.sp
@@ -1251,19 +1298,19 @@ private fun AddVaccinationDialog(
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HealthDialogHintCard(
                     icon = Icons.Filled.Vaccines,
-                    title = "Reminder",
-                    body = "Use the administered date for today's shot. Add a next due date if the vaccine needs a follow-up."
+                    title = "Pengingat",
+                    body = "Gunakan tanggal pemberian untuk vaksin hari ini. Tambahkan tanggal jatuh tempo bila vaksin perlu lanjutan."
                 )
                 HealthDialogField(
                     value = name,
                     onValueChange = { name = it },
-                    label = "Vaccine name",
-                    placeholder = "Example: Rabies Booster"
+                    label = "Nama vaksin",
+                    placeholder = "Contoh: Rabies Booster"
                 )
                 HealthDialogDateField(
                     value = dateAdministered,
-                    label = "Date administered",
-                    placeholder = "Select date",
+                    label = "Tanggal pemberian",
+                    placeholder = "Pilih tanggal",
                     onClick = {
                         showPetDatePicker(context, dateAdministered.ifBlank { today }) {
                             dateAdministered = it
@@ -1272,8 +1319,8 @@ private fun AddVaccinationDialog(
                 )
                 HealthDialogDateField(
                     value = nextDueDate,
-                    label = "Next due date",
-                    placeholder = "Optional follow-up date",
+                    label = "Jatuh tempo berikutnya",
+                    placeholder = "Tanggal lanjutan (opsional)",
                     onClick = {
                         showPetDatePicker(context, nextDueDate.ifBlank { dateAdministered }) {
                             nextDueDate = it
@@ -1286,14 +1333,14 @@ private fun AddVaccinationDialog(
                 HealthDialogField(
                     value = veterinarian,
                     onValueChange = { veterinarian = it },
-                    label = "Veterinarian",
-                    placeholder = "Optional doctor or clinic name"
+                    label = "Dokter hewan",
+                    placeholder = "Nama dokter atau klinik (opsional)"
                 )
                 HealthDialogField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = "Notes",
-                    placeholder = "Optional recovery or observation note",
+                    label = "Catatan",
+                    placeholder = "Catatan pemulihan atau observasi (opsional)",
                     minLines = 3,
                     singleLine = false
                 )
@@ -1313,9 +1360,9 @@ private fun AddVaccinationDialog(
                 },
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
-            ) { Text(if (isLoading) "Saving..." else "Save Vaccination") }
+            ) { Text(if (isLoading) "Menyimpan..." else "Simpan Vaksinasi") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Tutup") } }
     )
 }
 
@@ -1370,7 +1417,10 @@ private fun HealthDialogField(
         minLines = minLines,
         singleLine = singleLine,
         shape = RoundedCornerShape(16.dp),
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = keyboardType,
+            imeAction = if (singleLine) ImeAction.Done else ImeAction.Default
+        ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PetPrimary,
             unfocusedBorderColor = Color(0xFFE2E8F0),
@@ -1420,7 +1470,7 @@ private fun HealthDialogDateField(
                 }
                 if (onClear != null && value.isNotBlank()) {
                     TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp)) {
-                        Text("Clear", color = PetMuted)
+                        Text("Hapus", color = PetMuted)
                     }
                 }
             }
@@ -1715,8 +1765,8 @@ fun AddPetScreen(
 
     key(formKey) {
         PetFormScreen(
-            title = "Add New Pet",
-            submitLabel = "Save Pet Profile",
+            title = "Tambah Hewan Baru",
+            submitLabel = "Simpan Profil Hewan",
             isLoading = state.isLoading,
             error = state.error,
             onNavigateBack = onNavigateBack,
@@ -1744,8 +1794,8 @@ fun EditPetScreen(
     LaunchedEffect(state.isSuccess) { if (state.isSuccess) { viewModel.clearAddEditState(); onPetUpdated() } }
 
     PetFormScreen(
-        title = "Edit Pet",
-        submitLabel = "Save Changes",
+        title = "Edit Hewan",
+        submitLabel = "Simpan Perubahan",
         isLoading = state.isLoading,
         error = state.error,
         initialName        = detailState.pet?.name ?: "",
@@ -2005,8 +2055,8 @@ private fun PetFormScreen(
                         Icon(Icons.Filled.CameraAlt, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
                     }
                     Column {
-                        Text("Take Photo", fontWeight = FontWeight.SemiBold, color = textPrimary, fontSize = 15.sp)
-                        Text("Use your camera", color = textMuted, fontSize = 12.sp)
+                        Text("Ambil Foto", fontWeight = FontWeight.SemiBold, color = textPrimary, fontSize = 15.sp)
+                        Text("Gunakan kamera", color = textMuted, fontSize = 12.sp)
                     }
                 }                // Gallery option
                 Row(
@@ -2032,8 +2082,8 @@ private fun PetFormScreen(
                         Icon(Icons.Filled.PhotoLibrary, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
                     }
                     Column {
-                        Text("Choose from Gallery", fontWeight = FontWeight.SemiBold, color = textPrimary, fontSize = 15.sp)
-                        Text("Pick from your photos", color = textMuted, fontSize = 12.sp)
+                        Text("Pilih dari Galeri", fontWeight = FontWeight.SemiBold, color = textPrimary, fontSize = 15.sp)
+                        Text("Ambil dari foto Anda", color = textMuted, fontSize = 12.sp)
                     }
                 }
                 // Remove photo (if one is set)
@@ -2061,7 +2111,7 @@ private fun PetFormScreen(
                         ) {
                             Icon(Icons.Filled.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
                         }
-                        Text("Remove Photo", fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444), fontSize = 15.sp)
+                        Text("Hapus Foto", fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444), fontSize = 15.sp)
                     }
                 }
             }
@@ -2133,17 +2183,19 @@ private fun PetFormScreen(
                         // Show: newly selected local URI > existing remote photo > nothing
                         val existingFullUrl = buildPhotoUrl(existingPhotoUrl)
                         val hasPhoto = selectedPhotoUri != null || existingFullUrl != null
+                        var photoFailed by remember(selectedPhotoUri, existingFullUrl) { mutableStateOf(false) }
 
-                        if (hasPhoto) {
+                        if (hasPhoto && !photoFailed) {
                             // If user picked a new photo, show local URI; otherwise show remote URL
-                            val imageModel: Any = selectedPhotoUri ?: existingFullUrl!!
+                            val imageModel: Any = selectedPhotoUri ?: existingFullUrl.orEmpty()
                             AsyncImage(
                                 model = imageModel,
-                                contentDescription = "Pet photo",
+                                contentDescription = "Foto hewan",
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .clip(RoundedCornerShape(24.dp)),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Crop,
+                                onError = { photoFailed = true }
                             )
                             // Edit overlay badge
                             Box(
@@ -2171,9 +2223,9 @@ private fun PetFormScreen(
                                 ) {
                                     Icon(Icons.Filled.CameraAlt, null, tint = PetPrimary, modifier = Modifier.size(32.dp))
                                 }
-                                Text("Upload Pet Photo", fontSize = 13.sp,
+                                Text("Unggah Foto Hewan", fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold, color = textMuted)
-                                Text("Camera or Gallery", fontSize = 11.sp, color = textMuted.copy(alpha = 0.7f))
+                                Text("Kamera atau Galeri", fontSize = 11.sp, color = textMuted.copy(alpha = 0.7f))
                             }
                         }
                     }
@@ -2461,6 +2513,7 @@ private fun PetTextField(
     onImeAction: (() -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null
 ) {
+    val focusManager = LocalFocusManager.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -2475,8 +2528,8 @@ private fun PetTextField(
             capitalization = if (keyboardType == KeyboardType.Text) KeyboardCapitalization.Words else KeyboardCapitalization.None
         ),
         keyboardActions = KeyboardActions(
-            onNext = { },
-            onDone = { onImeAction?.invoke() }
+            onNext = { onImeAction?.invoke() ?: focusManager.moveFocus(FocusDirection.Down) },
+            onDone = { onImeAction?.invoke() ?: focusManager.clearFocus() }
         ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor   = PetPrimary,
@@ -2489,99 +2542,6 @@ private fun PetTextField(
     )
 }
 
-// ── Bottom Navigation ─────────────────────────────────────────────────────────
-@Composable
-private fun PetsBottomNav(
-    modifier: Modifier = Modifier,
-    isDark: Boolean,
-    surfaceColor: Color,
-    onHome: () -> Unit,
-    onPets: () -> Unit,
-    onVet: () -> Unit = {},
-    onProfile: () -> Unit = {}
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = surfaceColor,
-        shadowElevation = 8.dp,
-        tonalElevation = 0.dp
-    ) {
-        Column {
-            Divider(
-                color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9),
-                thickness = 1.dp
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 8.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                // Home
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onHome),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Icon(Icons.Filled.Home, "Home",
-                        tint = if (isDark) Color(0xFF64748B) else PetMuted,
-                        modifier = Modifier.size(24.dp))
-                    Text("Home", fontSize = 10.sp, fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFF64748B) else PetMuted)
-                }
-                // Pets (active)
-                Column(
-                    modifier = Modifier.weight(1f).clickable(onClick = onPets),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(20.dp))
-                            .background(PetPrimary.copy(alpha = 0.1f))
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Filled.Pets, "Pets",
-                                tint = if (isDark) Color.White else Color(0xFF111813),
-                                modifier = Modifier.size(24.dp))
-                            Text("Pets", fontSize = 10.sp, fontWeight = FontWeight.Bold,
-                                color = if (isDark) Color.White else Color(0xFF111813))
-                        }
-                    }
-                }                // Vet (bookings)
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onVet),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Icon(Icons.Filled.MedicalServices, "Vet",
-                        tint = if (isDark) Color(0xFF64748B) else PetMuted,
-                        modifier = Modifier.size(24.dp))
-                    Text("Vet", fontSize = 10.sp, fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFF64748B) else PetMuted)
-                }
-                // Profile
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable(onClick = onProfile),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    Icon(Icons.Filled.Person, "Profile",
-                        tint = if (isDark) Color(0xFF64748B) else PetMuted,
-                        modifier = Modifier.size(24.dp))
-                    Text("Profile", fontSize = 10.sp, fontWeight = FontWeight.Medium,
-                        color = if (isDark) Color(0xFF64748B) else PetMuted)
-                }
-            }
-        }
-    }
-}
+// PHASE 9: bottom navigation terpusat di
+// ui.components.PetHealFloatingBottomNav (5 tab Indonesia, floating).
+

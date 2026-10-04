@@ -76,7 +76,7 @@ fun AboutScreen(
                 title = { Text("Tentang PetHeal", color = textColor, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = textColor)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = textColor)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor)
@@ -95,7 +95,7 @@ fun AboutScreen(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF2BEE6C))
+                    .background(Color(0xFF18C964))
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {

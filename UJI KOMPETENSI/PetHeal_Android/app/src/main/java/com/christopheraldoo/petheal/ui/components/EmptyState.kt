@@ -114,8 +114,6 @@ fun EmptyState(
                         ),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
                         Text(actionText, fontWeight = FontWeight.SemiBold)
                     }
                 }

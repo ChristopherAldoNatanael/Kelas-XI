@@ -8,7 +8,9 @@ import com.christopheraldoo.petheal.data.model.DashboardData
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.Vaccination
 import com.christopheraldoo.petheal.data.repository.AuthRepository
+import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.DashboardRepository
+import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.NotificationRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -44,7 +46,23 @@ data class HomeUiState(
     val overdueVaccinationCount: Int = 0,
     val recentVisits: List<MedicalRecord> = emptyList(),
     val dueSoonVaccinations: List<Vaccination> = emptyList(),
-    val dashboardSummary: String = ""
+    val dashboardSummary: String = "",
+    val loadError: String? = null,
+    // PHASE 9: finished visits whose doctor has not been rated yet (max 3).
+    // Shown once as a gentle reminder — never a nag.
+    val pendingReviews: List<PendingReview> = emptyList()
+)
+
+/**
+ * PHASE 9: one finished visit awaiting a doctor rating.
+ */
+data class PendingReview(
+    val bookingId: Int,
+    val doctorId: Int,
+    val doctorName: String,
+    val doctorPhoto: String?,
+    val specialization: String?,
+    val visitDate: String?
 )
 
 @HiltViewModel
@@ -52,7 +70,9 @@ class HomeViewModel @Inject constructor(
     private val dashboardRepository: DashboardRepository,
     private val preferencesManager: PreferencesManager,
     private val authRepository: AuthRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val bookingRepository: BookingRepository,
+    private val doctorRepository: DoctorRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -109,7 +129,7 @@ class HomeViewModel @Inject constructor(
 
     fun loadBookingData() {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isBookingLoading = true)
+            _uiState.value = _uiState.value.copy(isBookingLoading = true, loadError = null)
 
             // Fetch fresh profile (in background to update cache) + upcoming bookings
             val profileDeferred = async {
@@ -130,16 +150,17 @@ class HomeViewModel @Inject constructor(
             val dashboardDeferred = async {
                 // PHASE 7: via repository (VM no longer touches ApiService).
                 when (val result = dashboardRepository.getDashboard()) {
-                    is Result.Success -> result.data
-                    else -> null
+                    is Result.Success -> Result.Success(result.data)
+                    is Result.Error -> result
+                    else -> Result.Error("Gagal memuat ringkasan")
                 }
             }
 
             profileDeferred.await()
-            val dashboard = dashboardDeferred.await()
-
-            if (dashboard != null) {
-                _uiState.value = _uiState.value.copy(
+            when (val dashboardResult = dashboardDeferred.await()) {
+                is Result.Success -> {
+                    val dashboard = dashboardResult.data
+                    _uiState.value = _uiState.value.copy(
                     upcomingBooking = dashboard.bookings.upcoming.firstOrNull(),
                     totalPets = dashboard.pets.total,
                     activePets = dashboard.pets.active,
@@ -155,16 +176,91 @@ class HomeViewModel @Inject constructor(
                     recentVisits = dashboard.medical.recentVisits,
                     dueSoonVaccinations = dashboard.vaccinationAlerts.dueSoon,
                     dashboardSummary = dashboard.summary,
-                    isBookingLoading = false
+                    isBookingLoading = false,
+                    loadError = null
                 )
-            } else {
-                _uiState.value = _uiState.value.copy(isBookingLoading = false)
+            }
+            else -> {
+                val message = (dashboardResult as? Result.Error)?.message
+                    ?: "Gagal memuat ringkasan"
+                _uiState.value = _uiState.value.copy(
+                    isBookingLoading = false,
+                    loadError = message
+                )
             }
         }
+    }
     }
 
     // Keep loadHomeData for manual refresh (pull-to-refresh)
     fun refresh() {
         loadBookingData()
+    }
+
+    /**
+     * PHASE 9: find finished visits whose doctor has not been rated yet.
+     *
+     * Runs quietly once per Home session: completed bookings minus already
+     * reviewed ones (via each doctor's review list) minus already nudged
+     * ones (persisted). Any failure → no reminder, never an error state.
+     */
+    fun loadPendingReviews() {
+        viewModelScope.launch {
+            try {
+                val bookingsResult = bookingRepository.getBookings()
+                if (bookingsResult !is Result.Success) return@launch
+                val completed = bookingsResult.data.filter {
+                    it.status == "completed" && it.id != null && it.doctorId != null
+                }
+                if (completed.isEmpty()) return@launch
+
+                val prompted = preferencesManager.ratingPromptedIds.first()
+                val fresh = completed.filter { it.id.toString() !in prompted }
+                if (fresh.isEmpty()) return@launch
+
+                // Bound network fan-out: at most 5 doctors' review lists.
+                val doctorIds = fresh.mapNotNull { it.doctorId }.distinct().take(5)
+                val reviewedBookingIds = mutableSetOf<Int>()
+                for (doctorId in doctorIds) {
+                    when (val r = doctorRepository.getDoctorReviews(doctorId)) {
+                        is Result.Success ->
+                            r.data.reviews?.mapNotNullTo(reviewedBookingIds) { it.bookingId }
+                        else -> Unit
+                    }
+                }
+
+                val pending = fresh
+                    .filter { it.id != null && it.id !in reviewedBookingIds }
+                    .sortedByDescending { it.bookingDate.orEmpty() }
+                    .take(3)
+                    .mapNotNull { booking ->
+                        val doctorId = booking.doctorId ?: return@mapNotNull null
+                        val bookingId = booking.id ?: return@mapNotNull null
+                        PendingReview(
+                            bookingId = bookingId,
+                            doctorId = doctorId,
+                            doctorName = booking.doctor?.name ?: "Dokter",
+                            doctorPhoto = booking.doctor?.photo,
+                            specialization = booking.doctor?.specialization,
+                            visitDate = booking.bookingDate
+                        )
+                    }
+                if (pending.isNotEmpty()) {
+                    _uiState.value = _uiState.value.copy(pendingReviews = pending)
+                }
+            } catch (_: Exception) {
+                // Silent — the reminder is a courtesy, never a blocker.
+            }
+        }
+    }
+
+    /** Dismiss the reminder (marks these visits as nudged — shown once). */
+    fun markReviewsPrompted() {
+        val ids = _uiState.value.pendingReviews.map { it.bookingId }
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            runCatching { preferencesManager.markRatingPrompted(ids) }
+            _uiState.value = _uiState.value.copy(pendingReviews = emptyList())
+        }
     }
 }

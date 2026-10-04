@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -140,9 +141,13 @@ fun ClinicPickerSheet(
                 }
                 else -> {
                     LazyColumn(
+                        modifier = Modifier.heightIn(max = 320.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        items(uiState.clinics, key = { it.id ?: it.slug.orEmpty() }) { clinic ->
+                        items(
+                            uiState.clinics,
+                            key = { it.id?.toString() ?: it.slug ?: it.name.orEmpty() }
+                        ) { clinic ->
                             ClinicPickerRow(
                                 clinic = clinic,
                                 selected = clinic.slug == uiState.selectedSlug,
@@ -208,7 +213,9 @@ fun ClinicPickerRow(
                 text = clinic.name.orEmpty(),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = Color(0xFF0F172A),
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
             if (!clinic.address.isNullOrBlank()) {
                 Text(

@@ -549,26 +549,30 @@ class PaymentViewModel @Inject constructor(
                 else -> Unit
             }
 
-            // Generate order ID for remaining payment
-            val orderId = "BOOKING-$bookingId-REMAINING-${System.currentTimeMillis()}"
-
-            Log.d(TAG, "Creating snap token for remaining payment, booking: $bookingId, orderId: $orderId")
+            Log.d(TAG, "Creating snap token for remaining payment, booking: $bookingId")
 
             when (val result = paymentRepository.createRemainingPaymentSnapToken(bookingId)) {
                 is Result.Success -> {
-                    val token = result.data.token
-                    val redirectUrl = result.data.redirectUrl
-                    val transactionId = result.data.transactionId
-                    Log.d(TAG, "Snap token created for remaining payment")
+                    val snapData = result.data
+                    // Backend mints the authoritative order id
+                    // (BOOKING-{id}-REMAINING-{ms}); the app must use THAT id
+                    // for every later sync/status call. A locally generated id
+                    // never exists at Midtrans, so verification always failed.
+                    val backendOrderId = snapData.orderId
+                        ?: "BOOKING-$bookingId-REMAINING-${System.currentTimeMillis()}"
+                    val token = snapData.token
+                    val redirectUrl = snapData.redirectUrl
+                    val transactionId = snapData.transactionId
+                    Log.d(TAG, "Snap token created for remaining payment, orderId: $backendOrderId")
 
                     // Store the order ID so it can be used when the payment callback is received
-                    currentOrderId = orderId
+                    currentOrderId = backendOrderId
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         snapToken = token,
                         snapRedirectUrl = redirectUrl,
                         transactionId = transactionId,
-                        orderId = orderId
+                        orderId = backendOrderId
                     )
                 }
                 is Result.Error -> {

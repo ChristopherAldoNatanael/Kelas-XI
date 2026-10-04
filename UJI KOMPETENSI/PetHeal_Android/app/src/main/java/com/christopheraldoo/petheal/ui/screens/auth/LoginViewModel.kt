@@ -33,7 +33,7 @@ class LoginViewModel @Inject constructor(
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
     val authProvider: Flow<String?> = preferencesManager.authProvider
 
-    fun loginWithEmailPassword(email: String, password: String) {
+    fun loginWithEmailPassword(email: String, password: String, clinicSlug: String? = null) {
         viewModelScope.launch {
             _uiState.value = LoginUiState(isLoading = true)
             // Fetch the current FCM token — never send null so the server
@@ -41,7 +41,7 @@ class LoginViewModel @Inject constructor(
             val fcmToken = try {
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
-            when (val result = authRepository.loginWithEmailPassword(email, password, fcmToken)) {
+            when (val result = authRepository.loginWithEmailPassword(email, password, fcmToken, clinicSlug)) {
                 is Result.Success ->
                     if (result.data.user.clinic?.slug.isNullOrBlank()) {
                         _uiState.value = LoginUiState(needsClinicSetup = true)

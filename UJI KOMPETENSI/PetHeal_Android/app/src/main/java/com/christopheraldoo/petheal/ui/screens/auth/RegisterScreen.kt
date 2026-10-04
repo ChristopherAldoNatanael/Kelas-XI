@@ -17,6 +17,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,8 +43,6 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -62,17 +61,17 @@ fun RegisterScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    var name by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var confirmPasswordVisible by remember { mutableStateOf(false) }
-    var isGoogleSigningIn by remember { mutableStateOf(false) }
+    var name by rememberSaveable { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var isGoogleSigningIn by rememberSaveable { mutableStateOf(false) }
     // PHASE 7: tenant binding is mandatory — a slug-less account gets 403
     // on every protected call. The sheet persists the choice; the slug is
     // sent with both email and Google registration.
-    var showClinicPicker by remember { mutableStateOf(false) }
+    var showClinicPicker by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) { pickerViewModel.load() }
 
     val googleSignInClient = remember {
@@ -93,7 +92,7 @@ fun RegisterScreen(
                 val account = task.getResult(ApiException::class.java)
                 googleSignInClient.signOut()
                 account.idToken?.let { oauthToken ->
-                    CoroutineScope(Dispatchers.Main).launch {
+                    scope.launch {
                         try {
                             val firebaseAuth = FirebaseAuth.getInstance()
                             val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(oauthToken, null)
@@ -158,6 +157,7 @@ fun RegisterScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp, bottom = 28.dp)
         ) {
@@ -291,7 +291,7 @@ fun RegisterScreen(
                         Icon(
                             imageVector = if (passwordVisible) Icons.Filled.Visibility
                                           else Icons.Filled.VisibilityOff,
-                            contentDescription = null,
+                            contentDescription = if (passwordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
                             tint = AuthTextSecondary, modifier = Modifier.size(20.dp)
                         )
                     }
@@ -329,8 +329,7 @@ fun RegisterScreen(
                         )
                     }
                 } else null,
-                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None
-                                       else PasswordVisualTransformation(),
+                visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
@@ -400,7 +399,7 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AuthPrimary, contentColor = AuthBgDark),
+                    containerColor = AuthPrimary, contentColor = Color.White),
                 enabled = !uiState.isLoading && name.isNotBlank()
                         && email.isNotBlank() && password.length >= 8
                         && passwordsMatch && confirmPassword.isNotBlank()
@@ -410,7 +409,7 @@ fun RegisterScreen(
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
-                        color = AuthBgDark, strokeWidth = 2.5.dp)
+                        color = Color.White, strokeWidth = 2.5.dp)
                 } else {
                     Text("Buat Akun", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }

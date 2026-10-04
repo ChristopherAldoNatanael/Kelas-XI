@@ -37,8 +37,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
+import com.christopheraldoo.petheal.ui.theme.Primary
 
-private val PrimaryGreen = Color(0xFF2BEE6C)
 private val SplashBg = Color(0xFFF6F8F6)
 private val SplashTextPrimary = Color(0xFF0F172A)
 private val SplashTextSecondary = Color(0xFF64748B)
@@ -50,8 +50,8 @@ fun SplashScreen(
     onNavigateToOnboarding: () -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = false)
-    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsState(initial = false)
+    val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = null)
+    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsState(initial = null)
     val rawProgress by viewModel.progress.collectAsState()
 
     val animatedProgress by animateFloatAsState(
@@ -60,11 +60,16 @@ fun SplashScreen(
         label = "progress"
     )
 
-    LaunchedEffect(rawProgress) {
-        if (rawProgress >= 1f) {
+    // Gate navigation on BOTH the intro animation AND the persisted session:
+    // DataStore emits async, so reading with an `initial = false` default could
+    // misroute (e.g. a logged-in user flashing through onboarding) on slow I/O.
+    LaunchedEffect(rawProgress, isLoggedIn, hasSeenOnboarding) {
+        val loggedIn = isLoggedIn
+        val seenOnboarding = hasSeenOnboarding
+        if (rawProgress >= 1f && loggedIn != null && seenOnboarding != null) {
             when {
-                isLoggedIn -> onNavigateToHome()
-                !hasSeenOnboarding -> onNavigateToOnboarding()
+                loggedIn -> onNavigateToHome()
+                !seenOnboarding -> onNavigateToOnboarding()
                 else -> onNavigateToLogin()
             }
         }
@@ -85,7 +90,7 @@ fun SplashScreen(
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            PrimaryGreen.copy(alpha = 0.14f),
+                            Primary.copy(alpha = 0.14f),
                             Color.Transparent
                         ),
                         radius = 900f
@@ -113,7 +118,7 @@ fun SplashScreen(
                 .align(Alignment.TopEnd)
                 .padding(top = 72.dp, end = 16.dp)
                 .clip(RoundedCornerShape(999.dp))
-                .background(Color(0x0F2BEE6C))
+                .background(Color(0x0F18C964))
         )
 
         Box(
@@ -198,7 +203,7 @@ fun SplashScreen(
                         text = "${(animatedProgress * 100).toInt()}%",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PrimaryGreen
+                        color = Primary
                     )
                 }
 
@@ -216,7 +221,7 @@ fun SplashScreen(
                             .clip(RoundedCornerShape(50))
                             .background(
                                 Brush.horizontalGradient(
-                                    colors = listOf(PrimaryGreen, PrimaryGreen)
+                                    colors = listOf(Primary, Primary)
                                 )
                             )
                     )
@@ -236,3 +241,4 @@ fun SplashScreen(
         }
     }
 }
+

@@ -13,14 +13,13 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -35,7 +34,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.HealthAndSafety
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Payments
@@ -82,6 +80,7 @@ import com.christopheraldoo.petheal.util.buildPhotoUrl
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 private val MrBackground = Color(0xFFF4F8F5)
 private val MrSurface = Color(0xFFFFFFFF)
@@ -104,9 +103,7 @@ private val MrSlateSoft = Color(0xFFF1F5F9)
 fun MedicalRecordsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToRecordDetail: (Int) -> Unit,
-    onNavigateToHome: () -> Unit,
-    onNavigateToBookings: () -> Unit,
-    onNavigateToProfile: () -> Unit,
+    onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
@@ -127,7 +124,7 @@ fun MedicalRecordsScreen(
 
                 state.error != null -> {
                     MedicalRecordErrorState(
-                        message = state.error ?: "Failed to load medical records",
+                        message = state.error ?: "Gagal memuat rekam medis",
                         onRetry = { viewModel.loadRecords(forceRefresh = true) }
                     )
                 }
@@ -147,7 +144,7 @@ fun MedicalRecordsScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 106.dp)
+                        contentPadding = PaddingValues(bottom = 112.dp)
                     ) {
                         item {
                             MedicalRecordListHero(
@@ -158,19 +155,20 @@ fun MedicalRecordsScreen(
                             )
                         }
 
-                        item {
-                            FilterSection(
-                                filters = viewModel.filterCategories,
-                                selectedFilter = state.selectedFilter,
-                                onFilterSelected = viewModel::setFilter
-                            )
-                        }
+                    item {
+                        FilterSection(
+                            filters = viewModel.filterCategories,
+                            selectedFilter = state.selectedFilter,
+                            onFilterSelected = viewModel::setFilter,
+                            labelFor = viewModel::filterLabel
+                        )
+                    }
 
                         if (upcoming.isNotEmpty()) {
                             item {
                                 SectionHeader(
-                                    title = "Upcoming Follow-up",
-                                    subtitle = "Medical records with scheduled next visits"
+                                    title = "Kontrol Berikutnya",
+                                    subtitle = "Rekam medis dengan jadwal kunjungan"
                                 )
                             }
 
@@ -188,8 +186,8 @@ fun MedicalRecordsScreen(
                         if (history.isNotEmpty()) {
                             item {
                                 SectionHeader(
-                                    title = "Clinical History",
-                                    subtitle = "Completed records ready for review"
+                                    title = "Riwayat Klinis",
+                                    subtitle = "Rekam yang selesai dan siap dibaca"
                                 )
                             }
 
@@ -207,11 +205,11 @@ fun MedicalRecordsScreen(
                 }
             }
 
-            MedicalBottomNav(
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onHome = onNavigateToHome,
-                onBookings = onNavigateToBookings,
-                onProfile = onNavigateToProfile
+            // ── Unified floating bottom nav (PHASE 9) ──────────────────
+            com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
+                selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Records,
+                onSelect = onTabSelected,
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
     }
@@ -221,6 +219,7 @@ fun MedicalRecordsScreen(
 fun MedicalRecordDetailScreen(
     recordId: Int,
     onNavigateBack: () -> Unit,
+    onNavigateToExtraPayment: (bookingId: Int, recordId: Int, amount: Double) -> Unit = { _, _, _ -> },
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
@@ -240,14 +239,21 @@ fun MedicalRecordDetailScreen(
 
             state.record == null -> {
                 MedicalRecordErrorState(
-                    message = state.error ?: "Medical record not found",
+                    message = state.error ?: "Rekam medis tidak ditemukan",
                     onRetry = { viewModel.loadRecord(recordId, forceRefresh = true) },
                     onBack = onNavigateBack
                 )
             }
 
             else -> {
-                val record = state.record!!
+                val record = state.record
+                if (record == null) {
+                    MedicalRecordErrorState(
+                        message = state.error ?: "Rekam medis tidak ditemukan",
+                        onRetry = { viewModel.loadRecord(recordId, forceRefresh = true) },
+                        onBack = onNavigateBack
+                    )
+                } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 32.dp)
@@ -264,7 +270,12 @@ fun MedicalRecordDetailScreen(
                     }
 
                     item {
-                        MedicalRecordPaymentSection(record = record)
+                        MedicalRecordPaymentSection(
+                            record = record,
+                            onPayClick = { bookingId, amount ->
+                                onNavigateToExtraPayment(bookingId, record.id ?: recordId, amount)
+                            }
+                        )
                     }
 
                     item {
@@ -280,6 +291,7 @@ fun MedicalRecordDetailScreen(
                     item {
                         RecordMetaFooter(record = record)
                     }
+                }
                 }
             }
         }
@@ -403,7 +415,7 @@ private fun MedicalRecordListHero(
                         .clip(CircleShape)
                         .background(MrSurface.copy(alpha = 0.88f))
                 ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MrTextPrimary)
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = MrTextPrimary)
                 }
 
                 Surface(
@@ -412,7 +424,7 @@ private fun MedicalRecordListHero(
                     border = BorderStroke(1.dp, MrBorder)
                 ) {
                     Text(
-                        text = "Pet Health Archive",
+                        text = "Arsip Kesehatan Hewan",
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                         color = MrPrimaryDeep,
                         fontSize = 11.sp,
@@ -423,14 +435,14 @@ private fun MedicalRecordListHero(
 
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text(
-                    text = "Medical records that are easier to review.",
+                    text = "Rekam medis yang lebih mudah dibaca.",
                     color = MrTextPrimary,
                     fontSize = 28.sp,
                     lineHeight = 34.sp,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Track diagnosis, treatment, and extra payment status in one calm, readable workspace.",
+                    text = "Pantau diagnosis, tindakan, dan status pembayaran tambahan dalam satu tempat yang rapi.",
                     color = MrTextSecondary,
                     fontSize = 14.sp,
                     lineHeight = 21.sp
@@ -443,7 +455,7 @@ private fun MedicalRecordListHero(
             ) {
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Records",
+                    title = "Rekam",
                     value = totalRecords.toString(),
                     icon = Icons.Filled.FolderShared,
                     accent = MrPrimary,
@@ -451,7 +463,7 @@ private fun MedicalRecordListHero(
                 )
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Need Action",
+                    title = "Perlu Aksi",
                     value = pendingExtra.toString(),
                     icon = Icons.Filled.Payments,
                     accent = MrAmber,
@@ -459,7 +471,7 @@ private fun MedicalRecordListHero(
                 )
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Total Cost",
+                    title = "Total Biaya",
                     value = formatCurrencyCompact(totalCost),
                     icon = Icons.Filled.ReceiptLong,
                     accent = MrSky,
@@ -514,7 +526,8 @@ private fun HeroStatCard(
 private fun FilterSection(
     filters: List<String>,
     selectedFilter: String,
-    onFilterSelected: (String) -> Unit
+    onFilterSelected: (String) -> Unit,
+    labelFor: (String) -> String = { it }
 ) {
     Column(
         modifier = Modifier
@@ -524,7 +537,7 @@ private fun FilterSection(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            text = "Filter by record type",
+            text = "Saring berdasarkan jenis rekam",
             color = MrTextSecondary,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium
@@ -540,9 +553,9 @@ private fun FilterSection(
                     modifier = Modifier.clickable { onFilterSelected(filter) }
                 ) {
                     Text(
-                        text = filter,
+                        text = labelFor(filter),
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                        color = if (selected) Color(0xFF052E16) else MrTextSecondary,
+                        color = if (selected) Color.White else MrTextSecondary,
                         fontSize = 13.sp,
                         fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
                     )
@@ -747,7 +760,7 @@ private fun MedicalRecordDetailHero(
                         .clip(CircleShape)
                         .background(MrSurface.copy(alpha = 0.9f))
                 ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = MrTextPrimary)
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = MrTextPrimary)
                 }
 
                 PaymentStatusChip(
@@ -843,13 +856,20 @@ private fun MedicalRecordIdentitySection(record: MedicalRecord) {
 }
 
 @Composable
-private fun MedicalRecordPaymentSection(record: MedicalRecord) {
+private fun MedicalRecordPaymentSection(
+    record: MedicalRecord,
+    onPayClick: (bookingId: Int, amount: Double) -> Unit = { _, _ -> }
+) {
     val extraStatus = record.extraPaymentStatus
     val palette = paymentPalette(extraStatus)
+    val outstanding = (record.extraPaymentAmount ?: 0.0) - (record.extraPaymentPaidAmount ?: 0.0)
+    val payBookingId = record.bookingId
+    val needsExtraPayment = extraStatus in listOf("unpaid", "pending", "partial") &&
+        outstanding > 0 && payBookingId != null
 
     DetailSectionCard(
-        title = "Billing Breakdown",
-        subtitle = "Consultation, treatment, and payment access"
+        title = "Rincian Biaya",
+        subtitle = "Konsultasi, tindakan, dan akses pembayaran"
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -857,7 +877,7 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
         ) {
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
-                title = "Consultation",
+                title = "Konsultasi",
                 value = formatCurrencyCompact(record.cost ?: 0.0),
                 icon = Icons.Filled.HealthAndSafety,
                 accent = MrPrimary,
@@ -865,7 +885,7 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
             )
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
-                title = "Treatment",
+                title = "Tindakan",
                 value = formatCurrencyCompact(record.treatmentCost ?: 0.0),
                 icon = Icons.Filled.Vaccines,
                 accent = MrSky,
@@ -873,7 +893,7 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
             )
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
-                title = "Medicine",
+                title = "Obat",
                 value = formatCurrencyCompact(record.medicineCost ?: 0.0),
                 icon = Icons.Filled.MedicalServices,
                 accent = MrAmber,
@@ -899,7 +919,7 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Extra payment status", color = MrTextSecondary, fontSize = 13.sp)
+                    Text("Status pembayaran tambahan", color = MrTextSecondary, fontSize = 13.sp)
                     PaymentStatusChip(
                         label = paymentStatusLabel(extraStatus),
                         accent = palette.first,
@@ -907,13 +927,32 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
                     )
                 }
 
-                BillingRow("Total medical cost", formatCurrency(record.totalMedicalCost ?: recordTotalCost(record)))
-                BillingRow("Extra payment required", formatCurrency(record.extraPaymentAmount ?: 0.0))
-                BillingRow("Extra payment paid", formatCurrency(record.extraPaymentPaidAmount ?: 0.0))
+                BillingRow("Total biaya medis", formatCurrency(record.totalMedicalCost ?: recordTotalCost(record)))
+                BillingRow("Biaya tambahan", formatCurrency(record.extraPaymentAmount ?: 0.0))
+                BillingRow("Tambahan terbayar", formatCurrency(record.extraPaymentPaidAmount ?: 0.0))
                 BillingRow(
-                    "Full record access",
-                    if (record.canViewFullRecord == true) "Available" else "Restricted until payment is complete"
+                    "Akses rekam lengkap",
+                    if (record.canViewFullRecord == true) "Tersedia" else "Terkunci sampai pembayaran lunas"
                 )
+
+                if (needsExtraPayment) {
+                    Spacer(Modifier.height(4.dp))
+                    Button(
+                        onClick = { payBookingId?.let { onPayClick(it, outstanding) } },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MrAmber,
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Icon(Icons.Filled.Payments, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Bayar Sekarang", fontWeight = FontWeight.Bold)
+                    }
+                }
             }
         }
     }
@@ -922,8 +961,8 @@ private fun MedicalRecordPaymentSection(record: MedicalRecord) {
 @Composable
 private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
     DetailSectionCard(
-        title = "Clinical Notes",
-        subtitle = "Diagnosis, treatment plan, and observations"
+        title = "Catatan Klinis",
+        subtitle = "Diagnosis, rencana tindakan, dan observasi"
     ) {
         NarrativeBlock(
             icon = Icons.Filled.HealthAndSafety,
@@ -935,7 +974,7 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
 
         NarrativeBlock(
             icon = Icons.Filled.Vaccines,
-            title = "Treatment",
+            title = "Tindakan",
             body = record.treatment ?: "-"
         )
 
@@ -943,7 +982,7 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
             Spacer(Modifier.height(12.dp))
             NarrativeBlock(
                 icon = Icons.Filled.MedicalServices,
-                title = "Medicine",
+                title = "Obat",
                 body = record.medicine.orEmpty()
             )
         }
@@ -962,8 +1001,8 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
 @Composable
 private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
     DetailSectionCard(
-        title = "Follow-up Plan",
-        subtitle = "Next visit schedule from the clinic"
+        title = "Rencana Kontrol",
+        subtitle = "Jadwal kunjungan berikutnya dari klinik"
     ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
@@ -988,9 +1027,9 @@ private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
                 }
 
                 Column {
-                    Text("Next visit scheduled", color = MrTextSecondary, fontSize = 12.sp)
+                    Text("Kunjungan berikutnya", color = MrTextSecondary, fontSize = 12.sp)
                     Text(
-                        text = parseLocalDate(record.nextVisitDate)?.format(DateTimeFormatter.ofPattern("dd MMMM yyyy")) ?: record.nextVisitDate.orEmpty(),
+                        text = parseLocalDate(record.nextVisitDate)?.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale("id", "ID"))) ?: record.nextVisitDate.orEmpty(),
                         color = MrTextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
@@ -1245,13 +1284,13 @@ private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
             }
 
             Text(
-                text = "No medical records yet",
+                text = "Belum ada rekam medis",
                 color = MrTextPrimary,
                 fontSize = 22.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                text = "Your pet's treatment history will appear here after a consultation has been completed.",
+                text = "Riwayat perawatan hewan akan tampil di sini setelah konsultasi selesai.",
                 color = MrTextSecondary,
                 fontSize = 14.sp,
                 lineHeight = 22.sp,
@@ -1260,9 +1299,9 @@ private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
             Button(
                 onClick = onNavigateBack,
                 shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color(0xFF052E16))
+                colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color.White)
             ) {
-                Text("Go Back", fontWeight = FontWeight.SemiBold)
+                Text("Kembali", fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1331,77 +1370,6 @@ private fun MedicalRecordErrorState(
     }
 }
 
-@Composable
-private fun MedicalBottomNav(
-    modifier: Modifier = Modifier,
-    onHome: () -> Unit,
-    onBookings: () -> Unit,
-    onProfile: () -> Unit
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .navigationBarsPadding(),
-        color = MrSurface.copy(alpha = 0.98f),
-        shadowElevation = 10.dp
-    ) {
-        Column {
-            Divider(color = MrBorder)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                BottomNavItem("Home", Icons.Filled.Home, false, onHome)
-                BottomNavItem("Records", Icons.Filled.FolderShared, true, {})
-                BottomNavItem("Bookings", Icons.Filled.CalendarMonth, false, onBookings)
-                BottomNavItem("Profile", Icons.Filled.Person, false, onProfile)
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomNavItem(
-    label: String,
-    icon: ImageVector,
-    selected: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .defaultMinSize(minWidth = 62.dp)
-            .clip(RoundedCornerShape(18.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(14.dp))
-                .background(if (selected) MrPrimarySoft else Color.Transparent)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon,
-                contentDescription = label,
-                tint = if (selected) MrPrimaryDeep else MrTextSecondary,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Text(
-            text = label,
-            color = if (selected) MrTextPrimary else MrTextSecondary,
-            fontSize = 11.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
-        )
-    }
-}
-
 private fun paymentPalette(status: String?): Pair<Color, Color> = when (status) {
     "paid" -> MrPrimaryDeep to MrPrimarySoft
     "partial" -> MrSky to MrSkySoft
@@ -1411,11 +1379,11 @@ private fun paymentPalette(status: String?): Pair<Color, Color> = when (status) 
 }
 
 private fun paymentStatusLabel(status: String?): String = when (status) {
-    "paid" -> "Paid"
-    "partial" -> "Partial"
-    "pending", "unpaid" -> "Pending"
-    "failed" -> "Failed"
-    "not_required", null -> "No Extra Cost"
+    "paid" -> "Lunas"
+    "partial" -> "Sebagian"
+    "pending", "unpaid" -> "Menunggu"
+    "failed" -> "Gagal"
+    "not_required", null -> "Tanpa Biaya Tambahan"
     else -> status.replaceFirstChar { it.uppercase() }
 }
 
@@ -1430,7 +1398,13 @@ private fun formatCurrency(value: Double): String {
 
 private fun formatCurrencyCompact(value: Double): String {
     val formatted = String.format("%,.0f", value).replace(",", ".")
-    return if (formatted.length > 10) "Rp ${formatted.take(10)}" else "Rp $formatted"
+    if (formatted.length <= 10) return "Rp $formatted"
+    // Compact large amounts with jt/M suffixes instead of mid-digit truncation.
+    return when {
+        value >= 1_000_000_000 -> "Rp ${String.format("%.1f", value / 1_000_000_000)} M"
+        value >= 1_000_000 -> "Rp ${String.format("%.1f", value / 1_000_000)} jt"
+        else -> "Rp ${formatted.take(10)}…"
+    }
 }
 
 private fun formatDate(value: String?, pattern: String): String {

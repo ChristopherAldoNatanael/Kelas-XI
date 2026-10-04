@@ -14,6 +14,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -27,12 +29,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
@@ -60,7 +64,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 private const val TAG = "BookingPhoto"
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
-private val BkPrimary       = Color(0xFF2BEE6C)
+private val BkPrimary       = Color(0xFF18C964)
 private val BkPrimaryFg     = Color(0xFF052E14)
 private val BkBgDark        = Color(0xFFF6F8F6)
 private val BkBgLight       = Color(0xFFF6F8F6)
@@ -71,10 +75,13 @@ private val BkSurfaceLight  = Color(0xFFFFFFFF)
 @Composable
 private fun BkDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
     val context = LocalContext.current
-    var hasError by remember { mutableStateOf(false) }
-    
+
     // Build the full URL using PhotoUtils
     val fullUrl = remember(url) { buildPhotoUrl(url) }
+
+    // Keyed by URL so a recycled composable never shows another doctor's
+    // error state when the photo changes.
+    var hasError by remember(fullUrl) { mutableStateOf(false) }
     
     // Log URL for debugging
     LaunchedEffect(fullUrl) {
@@ -92,7 +99,7 @@ private fun BkDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
                 .diskCacheKey(fullUrl)
                 .crossfade(200)
                 .build(),
-            contentDescription = "Doctor Photo",
+            contentDescription = "Foto dokter",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().clip(CircleShape),
             onError = { state ->
@@ -118,6 +125,7 @@ fun BookingsScreen(
     onNavigateToDoctors: () -> Unit,
     onNavigateToBookingDetail: (Int) -> Unit,
     onNavigateToPayment: (Int, Boolean, Double, Boolean) -> Unit, // NEW: (bookingId, isDp, totalAmount, isRemaining)
+    onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
@@ -163,7 +171,7 @@ fun BookingsScreen(
                             Modifier.size(40.dp).clip(CircleShape).clickable { onNavigateBack() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.ArrowBack, null, tint = textPrimary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Filled.ArrowBack, "Kembali", tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                         Text("Booking Saya", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                         // Filter button
@@ -171,7 +179,7 @@ fun BookingsScreen(
                             Modifier.size(40.dp).clip(CircleShape).clickable { showFilterSheet = true },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.FilterList, null, tint = textPrimary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Filled.FilterList, "Filter dan urutan", tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                     }
                     Divider(color = border, thickness = 1.dp)
@@ -212,7 +220,7 @@ fun BookingsScreen(
                                     leadingIcon = {
                                         Icon(
                                             Icons.Filled.Close,
-                                            contentDescription = "Remove",
+                                            contentDescription = "Hapus filter tanggal",
                                             modifier = Modifier.size(14.dp)
                                         )
                                     },
@@ -228,7 +236,7 @@ fun BookingsScreen(
                                     leadingIcon = {
                                         Icon(
                                             Icons.Filled.Close,
-                                            contentDescription = "Remove",
+                                            contentDescription = "Hapus urutan",
                                             modifier = Modifier.size(14.dp)
                                         )
                                     },
@@ -251,11 +259,12 @@ fun BookingsScreen(
             } else {
                 LazyColumn(
                     Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
+                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 108.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (state.error != null) {
-                        item { ErrorBanner(state.error!!) }
+                        val listError = state.error
+                        item { ErrorBanner(listError ?: "Gagal memuat booking") }
                     }
                     if (state.bookings.isEmpty()) {
                         item { 
@@ -300,6 +309,13 @@ fun BookingsScreen(
                 onDismiss = { showFilterSheet = false }
             )
         }
+
+        // ── Unified floating bottom nav (PHASE 9) ──────────────────────
+        com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
+            selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings,
+            onSelect = onTabSelected,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
@@ -440,7 +456,7 @@ private fun BookingFilterBottomSheet(
                             { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF2BEE6C),
+                            selectedContainerColor = BkPrimary,
                             selectedLabelColor = Color(0xFF052E14),
                             selectedLeadingIconColor = Color(0xFF052E14)
                         )
@@ -454,7 +470,7 @@ private fun BookingFilterBottomSheet(
                             { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Color(0xFF2BEE6C),
+                            selectedContainerColor = BkPrimary,
                             selectedLabelColor = Color(0xFF052E14),
                             selectedLeadingIconColor = Color(0xFF052E14)
                         )
@@ -487,7 +503,7 @@ private fun BookingFilterBottomSheet(
                                 { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             } else null,
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF2BEE6C),
+                                selectedContainerColor = BkPrimary,
                                 selectedLabelColor = Color(0xFF052E14),
                                 selectedLeadingIconColor = Color(0xFF052E14)
                             )
@@ -528,7 +544,7 @@ private fun BookingCard(
     onBookingUpdated: () -> Unit = {} // Callback to refresh bookings after payment
 ) {
     val statusColor = when (booking.status?.lowercase()) {
-        "confirmed"  -> Color(0xFF2BEE6C)
+        "confirmed"  -> BkPrimary
         "pending"    -> Color(0xFFF59E0B)
         "cancelled"  -> Color(0xFFEF4444)
         "completed"  -> Color(0xFF3B82F6)
@@ -656,15 +672,16 @@ private fun BookingCard(
             
             // Pay Remaining button for DP bookings with outstanding balance
             val hasRemainingBalance = (booking.totalAmount ?: 0.0) > (booking.paidAmount ?: 0.0)
-            val shouldShowPayRemaining = booking.paymentType == "dp" && 
-                (booking.paymentStatus == "dp_paid" || booking.paymentStatus == "partial") && 
-                hasRemainingBalance && 
+            val shouldShowPayRemaining = booking.paymentType == "dp" &&
+                (booking.paymentStatus == "dp_paid" || booking.paymentStatus == "partial") &&
+                hasRemainingBalance &&
+                booking.id != null &&
                 onPayRemaining != null
-            
+
             if (shouldShowPayRemaining) {
                 Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
                 Button(
-                    onClick = { onPayRemaining?.invoke(booking.id ?: 0) },
+                    onClick = { booking.id?.let { id -> onPayRemaining?.invoke(id) } },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
                     shape = RoundedCornerShape(8.dp)
@@ -689,7 +706,7 @@ private fun BookingsEmptyState(textPrimary: Color, textSecondary: Color) {
             Modifier.size(80.dp).clip(CircleShape).background(BkPrimary.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) { Icon(Icons.Filled.CalendarMonth, null, tint = BkPrimary, modifier = Modifier.size(40.dp)) }
-        Text("No bookings yet", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+        Text("Belum ada booking", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
         Text("Jadwal konsultasi Anda akan tampil di sini", fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center)
     }
 }
@@ -721,32 +738,36 @@ fun BookingDetailScreen(
     var showCancelDialog by remember { mutableStateOf(false) }
     var showRescheduleDialog by remember { mutableStateOf(false) }
     var cancelReason by remember { mutableStateOf("") }
+    val focusManager = LocalFocusManager.current
 
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
-            title = { Text("Cancel Booking", fontWeight = FontWeight.Bold) },
+            title = { Text("Batalkan Booking", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Are you sure you want to cancel this appointment?")
+                    Text("Yakin ingin membatalkan janji temu ini?")
                     OutlinedTextField(
                         value = cancelReason,
                         onValueChange = { cancelReason = it },
-                        placeholder = { Text("Reason (optional)") },
+                        placeholder = { Text("Alasan (opsional)") },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BkPrimary)
                     )
                 }
             },
             confirmButton = {
                 TextButton(
+                    enabled = !state.isLoading,
                     onClick = { viewModel.cancelBooking(bookingId, cancelReason); showCancelDialog = false },
                     colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
-                ) { Text("Cancel Booking", fontWeight = FontWeight.Bold) }
+                ) { Text("Batalkan Booking", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { showCancelDialog = false }) { Text("Keep It") }
+                TextButton(onClick = { showCancelDialog = false }) { Text("Tetap Booking") }
             },
             containerColor = surface
         )
@@ -770,13 +791,13 @@ fun BookingDetailScreen(
         
         AlertDialog(
             onDismissRequest = { showRescheduleDialog = false },
-            title = { Text("Reschedule Booking", fontWeight = FontWeight.Bold) },
+            title = { Text("Jadwalkan Ulang Booking", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Select new date and time for your appointment.")
-                    
+                    Text("Pilih tanggal dan jam baru untuk janji temu Anda.")
+
                     // Simple date selector
-                    val dates = (1..7).map { LocalDate.now().plusDays(it.toLong()) }
+                    val dates = (0..6).map { LocalDate.now().plusDays(it.toLong()) }
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(dates) { date ->
                             val isSelected = date == selectedDate
@@ -791,7 +812,7 @@ fun BookingDetailScreen(
                                     horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
                                     Text(
-                                        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                                        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("id", "ID")),
                                         fontSize = 10.sp,
                                         color = if (isSelected) BkPrimaryFg else textSecondary
                                     )
@@ -830,18 +851,19 @@ fun BookingDetailScreen(
             },
             confirmButton = {
                 TextButton(
-                    onClick = { 
+                    enabled = !state.isLoading,
+                    onClick = {
                         viewModel.rescheduleBooking(
-                            bookingId, 
-                            selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE), 
+                            bookingId,
+                            selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
                             selectedTime
                         )
-                        showRescheduleDialog = false 
+                        showRescheduleDialog = false
                     }
-                ) { Text("Reschedule", fontWeight = FontWeight.Bold, color = BkPrimary) }
+                ) { Text("Jadwalkan Ulang", fontWeight = FontWeight.Bold, color = BkPrimary) }
             },
             dismissButton = {
-                TextButton(onClick = { showRescheduleDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showRescheduleDialog = false }) { Text("Batal") }
             },
             containerColor = surface
         )
@@ -852,13 +874,34 @@ fun BookingDetailScreen(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = BkPrimary)
             }
+        } else if (state.booking == null) {
+            // Error (or missing data) state with retry — never a blank screen.
+            Column(
+                Modifier.fillMaxSize().padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = state.error ?: "Data booking tidak ditemukan.",
+                    fontSize = 14.sp,
+                    color = textSecondary,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = { viewModel.loadBookingDetail(bookingId, forceRefresh = true) },
+                    colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                ) { Text("Coba Lagi") }
+                Spacer(Modifier.height(8.dp))
+                TextButton(onClick = onNavigateBack) { Text("Kembali", color = textSecondary) }
+            }
         } else {
             val booking = state.booking
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {                // Hero
                 Box(Modifier.fillMaxWidth().height(240.dp)) {
                     val photo = buildPhotoUrl(booking?.doctor?.photo)
                     val context = LocalContext.current
-                    var hasError by remember { mutableStateOf(false) }
+                    var hasError by remember(photo) { mutableStateOf(false) }
                     
                     // Log URL for debugging
                     LaunchedEffect(photo) {
@@ -876,7 +919,7 @@ fun BookingDetailScreen(
                                 .diskCacheKey(photo)
                                 .crossfade(200)
                                 .build(),
-                            contentDescription = "Doctor",
+                            contentDescription = "Foto dokter",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
                             onError = { state ->
@@ -897,7 +940,7 @@ fun BookingDetailScreen(
                     Box(
                         Modifier.padding(top = 44.dp, start = 16.dp).size(40.dp).clip(CircleShape).background(Color.Black.copy(0.3f)).clickable { onNavigateBack() },
                         contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Filled.ArrowBack, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+                    ) { Icon(Icons.Filled.ArrowBack, "Kembali", tint = Color.White, modifier = Modifier.size(22.dp)) }
 
                     // Status badge
                     val statusColor = when (booking?.status?.lowercase()) {
@@ -959,7 +1002,7 @@ fun BookingDetailScreen(
                                             Icon(Icons.Filled.AttachMoney, null, tint = BkPrimary, modifier = Modifier.size(20.dp))
                                         }
                                         Column {
-                                            Text("Total Amount", fontSize = 11.sp, color = textSecondary)
+                                            Text("Total Tagihan", fontSize = 11.sp, color = textSecondary)
                                             Text(
                                                 "Rp ${String.format("%,.0f", booking.totalAmount).replace(",", ".")}",
                                                 fontSize = 14.sp,
@@ -977,7 +1020,7 @@ fun BookingDetailScreen(
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                                 horizontalAlignment = Alignment.End
                                             ) {
-                                                Text("Paid", fontSize = 10.sp, color = textSecondary)
+                                                Text("Terbayar", fontSize = 10.sp, color = textSecondary)
                                                 Text(
                                                     "Rp ${String.format("%,.0f", booking.paidAmount).replace(",", ".")}",
                                                     fontSize = 14.sp,
@@ -1011,7 +1054,7 @@ fun BookingDetailScreen(
                                     modifier = Modifier.weight(1f),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    Text("Medical Record", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                                    Text("Rekam Medis", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                     Text(
                                         when {
                                             state.isMedicalRecordLoading -> "Checking diagnosis, treatment, and billing details..."
@@ -1074,7 +1117,7 @@ fun BookingDetailScreen(
                                         border = BorderStroke(1.dp, BkPrimary.copy(alpha = 0.12f))
                                     ) {
                                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Text("Booking Payment", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                                            Text("Pembayaran Booking", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
                                             Text(bookingPaymentLabel, fontSize = 15.sp, color = textPrimary, fontWeight = FontWeight.Bold)
                                         }
                                     }
@@ -1096,7 +1139,7 @@ fun BookingDetailScreen(
                                         )
                                     ) {
                                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                            Text("Extra Medical Cost", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
+                                            Text("Biaya Medis Tambahan", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
                                             Text(extraPaymentLabel, fontSize = 15.sp, color = textPrimary, fontWeight = FontWeight.Bold)
                                         }
                                     }
@@ -1127,22 +1170,22 @@ fun BookingDetailScreen(
                                                     Icon(Icons.Filled.Payments, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
                                                 }
                                                 Column {
-                                                    Text("Extra payment required", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
-                                                    Text("The full medical record will unlock after the extra medical cost has been paid.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF92400E))
+                                                    Text("Perlu pembayaran tambahan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                    Text("Rekam medis lengkap akan terbuka setelah biaya tambahan dilunasi.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF92400E))
                                                 }
                                             }
 
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("Treatment Cost", fontSize = 12.sp, color = textSecondary)
+                                                Text("Biaya tindakan", fontSize = 12.sp, color = textSecondary)
                                                 Text("Rp ${String.format("%,.0f", treatmentCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                                             }
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("Medicine Cost", fontSize = 12.sp, color = textSecondary)
+                                                Text("Biaya obat", fontSize = 12.sp, color = textSecondary)
                                                 Text("Rp ${String.format("%,.0f", medicineCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                                             }
                                             Divider(color = Color(0xFFFDE68A))
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("Total Extra Payment", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                Text("Total tambahan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
                                                 Text("Rp ${String.format("%,.0f", extraAmount).replace(",", ".")}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
                                             }
                                         }
@@ -1157,7 +1200,7 @@ fun BookingDetailScreen(
                                         ) {
                                             Icon(Icons.Filled.Payment, null, modifier = Modifier.size(20.dp))
                                             Spacer(Modifier.width(8.dp))
-                                            Text("Pay Extra Medical Cost", fontWeight = FontWeight.Bold)
+                                            Text("Bayar Biaya Tambahan", fontWeight = FontWeight.Bold)
                                         }
                                     }
                                 } else if (record.id != null && onNavigateToMedicalRecord != null) {
@@ -1169,7 +1212,7 @@ fun BookingDetailScreen(
                                     ) {
                                         Icon(Icons.Filled.Article, null, modifier = Modifier.size(20.dp))
                                         Spacer(Modifier.width(8.dp))
-                                        Text("View Medical Record", fontWeight = FontWeight.Bold)
+                                        Text("Lihat Rekam Medis", fontWeight = FontWeight.Bold)
                                     }
                                 }
                             }
@@ -1269,7 +1312,7 @@ fun BookingDetailScreen(
                             ) {
                                 Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Reschedule", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text("Jadwalkan Ulang", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             }
 
                             // Cancel button
@@ -1282,7 +1325,7 @@ fun BookingDetailScreen(
                             ) {
                                 Icon(Icons.Filled.Cancel, null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
-                                Text("Cancel", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                                Text("Batalkan", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             }
                         }
                     }
@@ -1326,12 +1369,13 @@ fun CreateBookingScreen(
 
     LaunchedEffect(Unit) { viewModel.loadCreateBookingData(doctorId, petId) }
     LaunchedEffect(state.isCreated) {
-        if (state.isCreated && state.createdBookingId != null) {
+        val createdId = state.createdBookingId
+        if (state.isCreated && createdId != null) {
             val amount = if (state.selectedPaymentType == "dp") state.dpAmount else state.totalAmount
             val isDp = state.selectedPaymentType == "dp"
-            Log.d("CreateBooking", "Booking created: id=${state.createdBookingId}, isDp=$isDp, amount=$amount")
+            Log.d("CreateBooking", "Booking created: id=$createdId, isDp=$isDp, amount=$amount")
             viewModel.clearCreateState()
-            onBookingCreated(state.createdBookingId!!, isDp, amount)
+            onBookingCreated(createdId, isDp, amount)
         }
     }
 
@@ -1360,14 +1404,14 @@ fun CreateBookingScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(Modifier.size(40.dp).clip(CircleShape).clickable { onNavigateBack() }, contentAlignment = Alignment.Center) {
-                            Icon(Icons.Filled.ArrowBack, null, tint = textPrimary, modifier = Modifier.size(24.dp))
+                            Icon(Icons.Filled.ArrowBack, "Kembali", tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                         Text("Buat Booking", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
                         val context = LocalContext.current
                         TextButton(onClick = {
-                            Toast.makeText(context, "Complete each step: service, pet, doctor, schedule, then payment.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Lengkapi tiap langkah: hewan, layanan, tanggal, jam, lalu pembayaran.", Toast.LENGTH_LONG).show()
                         }) {
-                            Text("Help", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Bantuan", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                     // Progress dots
@@ -1469,7 +1513,7 @@ fun CreateBookingScreen(
 
                 // ── Section 1: Select Pet ──────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Who is this appointment for?", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    Text("Untuk hewan siapa janji temu ini?", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
                         items(state.pets) { pet ->
                             val selected = pet.id == state.selectedPetId
@@ -1481,7 +1525,7 @@ fun CreateBookingScreen(
                                 border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, dividerColor),
                                 modifier = Modifier
                                     .clip(CircleShape)
-                                    .clickable { viewModel.selectPet(pet.id!!) }
+                                    .clickable { pet.id?.let { viewModel.selectPet(it) } }
                                     .then(if (selected) Modifier.shadow(6.dp, CircleShape, spotColor = BkPrimary.copy(0.4f)) else Modifier)
                             ) {
                                 Row(
@@ -1494,21 +1538,22 @@ fun CreateBookingScreen(
                                 }
                             }
                         }
-                        // Add New chip
+                        // Back chip — exits the create flow (adding a pet
+                        // mid-booking is handled from the doctor detail CTA).
                         item {
                             Surface(
                                 shape = CircleShape,
                                 color = Color.Transparent,
                                 border = androidx.compose.foundation.BorderStroke(1.5.dp, if (isDark) Color(0xFF4B5563) else Color(0xFFD1D5DB)),
-                                modifier = Modifier.clip(CircleShape).clickable { }
+                                modifier = Modifier.clip(CircleShape).clickable { onNavigateBack() }
                             ) {
                                 Row(
                                     Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
-                                    Icon(Icons.Filled.Add, null, tint = textSecondary, modifier = Modifier.size(18.dp))
-                                    Text("Add New", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = textSecondary)
+                                    Icon(Icons.Filled.ArrowBack, null, tint = textSecondary, modifier = Modifier.size(18.dp))
+                                    Text("Batal", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = textSecondary)
                                 }
                             }
                         }
@@ -1517,7 +1562,7 @@ fun CreateBookingScreen(
 
                 // ── Section 2: Category Grid ───────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Choose Service", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    Text("Pilih Layanan", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                     if (state.services.isEmpty()) {
                         Box(
                             Modifier.fillMaxWidth().padding(vertical = 16.dp),
@@ -1594,7 +1639,7 @@ fun CreateBookingScreen(
                 // ── Section 3: Date picker ─────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                        Text("Select Date", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                        Text("Pilih Tanggal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 state.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
@@ -1619,7 +1664,7 @@ fun CreateBookingScreen(
                                 val isSelected = date == state.selectedDate
                                 val isPast = date.isBefore(today)
                                 DateCell(
-                                    dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH),
+                                    dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("id", "ID")),
                                     dayNum  = date.dayOfMonth.toString(),
                                     isSelected = isSelected,
                                     isPast = isPast,
@@ -1635,26 +1680,26 @@ fun CreateBookingScreen(
 
                 // ── Section 4: Time slots ──────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Available Time", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    Text("Waktu Tersedia", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
 
                     if (state.slots.isEmpty()) {
                         Box(
                             Modifier.fillMaxWidth().padding(vertical = 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No slots available for this date", fontSize = 14.sp, color = textSecondary)
+                            Text("Tidak ada slot tersedia untuk tanggal ini", fontSize = 14.sp, color = textSecondary)
                         }
                     } else {
                         val morningSlots   = state.slots.filter { it.time < "12:00" }
                         val afternoonSlots = state.slots.filter { it.time >= "12:00" }
 
                         if (morningSlots.isNotEmpty()) {
-                            TimeSlotGroup("Morning", morningSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
+                            TimeSlotGroup("Pagi", morningSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
                                 viewModel.selectTime(it)
                             }
                         }
                         if (afternoonSlots.isNotEmpty()) {
-                            TimeSlotGroup("Afternoon", afternoonSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
+                            TimeSlotGroup("Siang", afternoonSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
                                 viewModel.selectTime(it)
                             }
                         }
@@ -1663,14 +1708,14 @@ fun CreateBookingScreen(
 
                 // ── Section 5: Payment Method ──────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Payment Method", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                    
+                    Text("Metode Pembayaran", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+
                     if (state.paymentMethods.isEmpty()) {
                         Box(
                             Modifier.fillMaxWidth().padding(vertical = 20.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("Loading payment methods...", fontSize = 14.sp, color = textSecondary)
+                            Text("Memuat metode pembayaran...", fontSize = 14.sp, color = textSecondary)
                         }
                     } else {
                         // Group payment methods by type
@@ -1703,7 +1748,7 @@ fun CreateBookingScreen(
 
                 // ── Section 6: Payment Type (DP/Full) ──────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Payment Type", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                    Text("Tipe Pembayaran", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                     
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         // Full Payment Option
@@ -1825,10 +1870,10 @@ fun CreateBookingScreen(
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
-                                if (state.selectedPaymentType == "dp") 
-                                    "Down Payment 50% dibayar sekarang, sisa dibayar saat appointment" 
-                                else 
-                                    "Full payment dibayar sekarang untuk mengunci appointment",
+                                if (state.selectedPaymentType == "dp")
+                                    "Uang muka 50% dibayar sekarang, sisanya dibayar kemudian"
+                                else
+                                    "Pelunasan dibayar sekarang untuk mengunci jadwal",
                                 fontSize = 12.sp,
                                 color = textSecondary
                             )
@@ -1837,7 +1882,7 @@ fun CreateBookingScreen(
                 }
 
                 // Error
-                if (state.error != null) ErrorBanner(state.error!!)
+                state.error?.let { createError -> ErrorBanner(createError) }
             }
         }
 
@@ -1852,7 +1897,7 @@ fun CreateBookingScreen(
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text("Total Estimation", fontSize = 13.sp, color = textSecondary)
+                            Text("Estimasi Total", fontSize = 13.sp, color = textSecondary)
                             if (state.selectedPaymentType == "dp") {
                                 Text(
                                     "DP 50%",

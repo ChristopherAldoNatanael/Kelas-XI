@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SwitchLeft
@@ -45,7 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -103,7 +101,7 @@ fun PrivacySecurityScreen(
                     TextButton(onClick = {
                         viewModel.clearMessages()
                         showPasswordDialog = false
-                    }) { Text("Close") }
+                    }) { Text("Tutup") }
                 } else {
                     TextButton(
                         enabled = !uiState.isSendingReset && !uiState.userEmail.isNullOrBlank(),
@@ -117,7 +115,7 @@ fun PrivacySecurityScreen(
                 TextButton(onClick = {
                     viewModel.clearMessages()
                     showPasswordDialog = false
-                }) { Text("Close") }
+                }) { Text("Tutup") }
             }
         )
     }
@@ -125,12 +123,36 @@ fun PrivacySecurityScreen(
     if (showPermissionsDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionsDialog = false },
-            title = { Text("Data Permissions", fontWeight = FontWeight.Bold) },
+            title = { Text("Izin Data", fontWeight = FontWeight.Bold) },
             text = {
-                Text("PetHeal uses camera or gallery access for pet and profile photos, notification permission for reminders, and network access for booking, payment, and medical-record sync.")
+                Text("Aplikasi memakai akses kamera/galeri untuk foto hewan dan profil, izin notifikasi untuk pengingat, serta akses jaringan untuk sinkronisasi booking, pembayaran, dan rekam medis.")
             },
             confirmButton = {
-                TextButton(onClick = { showPermissionsDialog = false }) { Text("Close") }
+                TextButton(onClick = { showPermissionsDialog = false }) { Text("Tutup") }
+            }
+        )
+    }
+
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = { Text("Bersihkan Cache?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text("File sementara (seperti gambar yang tersimpan) akan dihapus. Data akun Anda tidak ikut terhapus.")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    runCatching {
+                        context.cacheDir.deleteRecursively()
+                        context.externalCacheDir?.deleteRecursively()
+                    }
+                    showClearCacheDialog = false
+                    Toast.makeText(context, "Cache sementara dibersihkan", Toast.LENGTH_SHORT).show()
+                }) { Text("Bersihkan") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) { Text("Batal") }
             }
         )
     }
@@ -149,7 +171,7 @@ fun PrivacySecurityScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = textColor)
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Kembali", tint = textColor)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = bgColor)
@@ -164,11 +186,12 @@ fun PrivacySecurityScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            SettingsSectionCard(title = "Account Security") {
+            SettingsSectionCard(title = "Keamanan Akun") {
                 SettingsActionRow(
                     icon = Icons.Default.Badge,
                     label = "Metode Masuk",
                     showChevron = false,
+                    enabled = false,
                     trailing = {
                         Text(
                             if (isGoogleAccount) "Google" else "Email",
@@ -187,7 +210,7 @@ fun PrivacySecurityScreen(
                 )
             }
 
-            SettingsSectionCard(title = "Privacy") {
+            SettingsSectionCard(title = "Privasi") {
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
                     label = "Kelola Izin Data",
@@ -196,30 +219,8 @@ fun PrivacySecurityScreen(
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.CleaningServices,
-                    label = "Clear Cache",
-                    onClick = {
-                        runCatching {
-                            context.cacheDir.deleteRecursively()
-                            context.externalCacheDir?.deleteRecursively()
-                        }
-                        Toast.makeText(context, "Cache sementara dibersihkan", Toast.LENGTH_SHORT).show()
-                    }
-                )
-            }
-
-            SettingsSectionCard(title = "Connection") {
-                SettingsActionRow(
-                    icon = Icons.Default.CloudDone,
-                    label = "Endpoint Backend",
-                    showChevron = false,
-                    trailing = {
-                        Text(
-                            BuildConfig.BACKEND_BASE_URL.removePrefix("https://").removePrefix("http://").take(28),
-                            color = secondaryColor,
-                            fontSize = 12.sp
-                        )
-                    },
-                    onClick = {}
+                    label = "Bersihkan Cache",
+                    onClick = { showClearCacheDialog = true }
                 )
             }
 
@@ -236,7 +237,7 @@ fun PrivacySecurityScreen(
                             .padding(2.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF2BEE6C))
+                        Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF18C964))
                     }
                     Text("Hanya pengaturan yang benar-benar aktif yang ditampilkan di sini.", color = textColor, fontWeight = FontWeight.SemiBold)
                     Text(

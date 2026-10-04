@@ -13,8 +13,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -33,7 +35,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 
 // ── Brand colors ────────────────────────────────────────────────────────────
-private val OnboardingPrimary   = Color(0xFF2BEE6C)
+private val OnboardingPrimary   = Color(0xFF18C964)
 private val OnboardingBgDark    = Color(0xFFF6F8F6)
 private val OnboardingBgLight   = Color(0xFFF6F8F6)
 
@@ -79,7 +81,7 @@ fun OnboardingScreen(
     onNavigateToLogin: () -> Unit,
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
-    var currentPage by remember { mutableIntStateOf(0) }
+    var currentPage by rememberSaveable { mutableIntStateOf(0) }
     val isDark = false
     val bgColor = if (isDark) OnboardingBgDark else OnboardingBgLight
 
@@ -107,7 +109,7 @@ fun OnboardingScreen(
                         viewModel.markOnboardingSeen()
                         onNavigateToLogin()
                     },
-                    modifier = Modifier.width(48.dp)
+                    modifier = Modifier.heightIn(min = 48.dp)
                 ) {
                     Text(
                         text = "Lewati",
@@ -182,7 +184,7 @@ fun OnboardingScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = OnboardingPrimary,
-                        contentColor = OnboardingBgDark
+                        contentColor = Color.White
                     ),
                     elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                 ) {
@@ -237,18 +239,34 @@ private fun OnboardingPageContent(
                     .graphicsLayer { renderEffect = null }
             )
 
-            // Image with rounded corners + gradient overlay
+            // Image with rounded corners + gradient overlay.
+            // Remote illustration: never leave a blank box offline — fall back
+            // to a branded icon tile when the fetch fails.
+            var imageFailed by remember(pageData.imageUrl) { mutableStateOf(false) }
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .clip(RoundedCornerShape(16.dp))
+                    .background(OnboardingPrimary.copy(alpha = 0.08f)),
+                contentAlignment = Alignment.Center
             ) {
-                AsyncImage(
-                    model = pageData.imageUrl,
-                    contentDescription = pageData.imageDesc,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                if (!imageFailed) {
+                    AsyncImage(
+                        model = pageData.imageUrl,
+                        contentDescription = pageData.imageDesc,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        onError = { imageFailed = true }
+                    )
+                }
+                if (imageFailed) {
+                    Icon(
+                        imageVector = Icons.Filled.Pets,
+                        contentDescription = null,
+                        tint = OnboardingPrimary,
+                        modifier = Modifier.size(72.dp)
+                    )
+                }
                 // Subtle bottom gradient to blend into background
                 Box(
                     modifier = Modifier

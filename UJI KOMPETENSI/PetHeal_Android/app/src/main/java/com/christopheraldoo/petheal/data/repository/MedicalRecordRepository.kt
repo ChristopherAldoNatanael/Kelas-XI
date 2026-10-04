@@ -98,8 +98,9 @@ class MedicalRecordRepository @Inject constructor(
     suspend fun getPaymentStatus(recordId: Int): Result<MedicalRecordPaymentStatus> {
         return try {
             val response = apiService.getMedicalRecordPaymentStatus(recordId)
-            if (response.isSuccessful && response.body()?.success == true && response.body()?.data != null) {
-                Result.Success(response.body()!!.data!!)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.Success(body.data)
             } else {
                 Result.Error(response.body()?.message ?: "Failed to get medical record payment status")
             }

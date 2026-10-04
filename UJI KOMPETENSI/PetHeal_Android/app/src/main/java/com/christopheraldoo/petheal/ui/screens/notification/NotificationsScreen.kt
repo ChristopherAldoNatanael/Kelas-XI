@@ -39,7 +39,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,25 +86,26 @@ fun NotificationsScreen(
     var showClearDialog by remember { mutableStateOf(false) }
     val unreadCount = uiState.notifications.count { !it.isRead }
 
-    LaunchedEffect(Unit) { viewModel.markAllRead() }
+    // Read state changes per item tap (see onClick below). Never bulk-mark
+    // on open: the unread badge must reflect what the user actually opened.
 
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
             containerColor = NSurface,
-            title = { Text("Clear All Notifications", color = TextPrimary, fontWeight = FontWeight.Bold) },
-            text = { Text("This will permanently delete all notifications.", color = TextSecondary, fontSize = 14.sp) },
+            title = { Text("Hapus Semua Notifikasi", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            text = { Text("Tindakan ini menghapus seluruh notifikasi secara permanen.", color = TextSecondary, fontSize = 14.sp) },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearAll()
                     showClearDialog = false
                 }) {
-                    Text("Clear", color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
+                    Text("Hapus", color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("Cancel", color = TextSecondary)
+                    Text("Batal", color = TextSecondary)
                 }
             }
         )
@@ -124,10 +124,10 @@ fun NotificationsScreen(
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Notification Center", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text("Pusat Notifikasi", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                     Text(
                         text = if (uiState.notifications.isEmpty()) "Tidak ada pembaruan baru" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
                         color = TextSecondary,
@@ -136,7 +136,7 @@ fun NotificationsScreen(
                 }
                 if (uiState.notifications.isNotEmpty()) {
                     IconButton(onClick = { showClearDialog = true }) {
-                        Icon(Icons.Outlined.DeleteSweep, contentDescription = "Clear all", tint = TextSecondary)
+                        Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua notifikasi", tint = TextSecondary)
                     }
                 }
             }
@@ -145,7 +145,7 @@ fun NotificationsScreen(
                 modifier = Modifier.padding(start = 48.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                NotificationMetric("Unread", unreadCount.toString(), NPrimary, Modifier.weight(1f))
+                NotificationMetric("Belum dibaca", unreadCount.toString(), NPrimary, Modifier.weight(1f))
                 NotificationMetric("Total", uiState.notifications.size.toString(), Color(0xFF0EA5A5), Modifier.weight(1f))
             }
         }
@@ -161,10 +161,39 @@ fun NotificationsScreen(
                     repeat(5) { NotificationSkeletonCard() }
                 }
             }
+            uiState.notifications.isEmpty() && uiState.syncError != null -> {
+                com.christopheraldoo.petheal.ui.components.ErrorState(
+                    title = "Gagal memuat notifikasi",
+                    message = uiState.syncError ?: "Periksa koneksi internet Anda lalu coba lagi.",
+                    primaryActionText = "Coba Lagi",
+                    onPrimaryActionClick = { viewModel.refresh() },
+                    secondaryActionText = "Kembali",
+                    onSecondaryActionClick = onNavigateBack
+                )
+            }
             uiState.notifications.isEmpty() -> {
                 EmptyNotificationsState()
             }
             else -> {
+                if (uiState.syncError != null) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Gagal menyinkronkan yang terbaru. Menampilkan data tersimpan.",
+                            color = TextSecondary,
+                            fontSize = 12.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.refresh() }) {
+                            Text("Coba Lagi", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
                 LazyColumn(
                     contentPadding = PaddingValues(vertical = 14.dp, horizontal = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)

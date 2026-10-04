@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -26,11 +28,13 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -48,7 +52,7 @@ import java.util.Locale
 
 private const val TAG = "DoctorPhoto"
 
-private val Primary     = Color(0xFF2BEE6C)
+private val Primary     = Color(0xFF18C964)
 private val PrimaryFg   = Color(0xFF052E14)
 private val BgDark      = Color(0xFFF6F8F6)
 private val SurfaceDark = Color.White
@@ -126,14 +130,15 @@ fun DoctorsScreen(
     viewModel: DoctorsViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
+    val focusManager = LocalFocusManager.current
     Column(modifier = Modifier.fillMaxSize().background(BgDark)) {
         Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(top = 44.dp, start = 8.dp, end = 20.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onNavigateBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary) }
+                IconButton(onClick = onNavigateBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary) }
                 Spacer(Modifier.width(4.dp))
                 Column {
-                    Text("Find a Doctor", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("${state.doctors.size} veterinarians available", color = TextSecDark, fontSize = 12.sp)
+                    Text("Cari Dokter", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("${state.doctors.size} dokter tersedia", color = TextSecDark, fontSize = 12.sp)
                 }
             }
         }
@@ -141,14 +146,16 @@ fun DoctorsScreen(
             OutlinedTextField(
                 value = state.searchQuery,
                 onValueChange = viewModel::onSearchChange,
-                placeholder = { Text("Search by name or specialization...", color = TextSecDark, fontSize = 14.sp) },
+                placeholder = { Text("Cari nama atau spesialisasi...", color = TextSecDark, fontSize = 14.sp) },
                 leadingIcon = { Icon(Icons.Outlined.Search, contentDescription = null, tint = TextSecDark, modifier = Modifier.size(20.dp)) },
                 trailingIcon = {
                     if (state.searchQuery.isNotBlank()) {
-                        IconButton(onClick = { viewModel.onSearchChange("") }) { Icon(Icons.Filled.Close, contentDescription = null, tint = TextSecDark, modifier = Modifier.size(18.dp)) }
+                        IconButton(onClick = { viewModel.onSearchChange("") }) { Icon(Icons.Filled.Close, contentDescription = "Hapus pencarian", tint = TextSecDark, modifier = Modifier.size(18.dp)) }
                     }
                 },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
@@ -159,9 +166,10 @@ fun DoctorsScreen(
             )
         }
         Divider(color = BorderDark, thickness = 0.5.dp)
+        val listError = state.error
         when {
             state.isLoading -> SkeletonDoctorList(count = 4)
-            state.error != null -> DoctorsErrorState(message = state.error!!, onRetry = viewModel::loadDoctors)
+            listError != null -> DoctorsErrorState(message = listError, onRetry = viewModel::loadDoctors)
             state.filtered.isEmpty() -> DoctorsEmptyState(hasQuery = state.searchQuery.isNotBlank())
             else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 items(state.filtered, key = { it.id ?: 0 }) { doctor ->
@@ -177,12 +185,24 @@ fun DoctorDetailScreen(
     doctorId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToBooking: (Int) -> Unit,
+    onNavigateToAddPet: () -> Unit = {},
+    // PHASE 9: dibuka dari pengingat rating → dialog nilai langsung terbuka.
+    autoOpenReview: Boolean = false,
     viewModel: DoctorsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
     var showPetSheet by remember { mutableStateOf(false) }
     var showReviewDialog by remember { mutableStateOf(false) }
+    // Konsumsi sekali: dialog terbuka otomatis hanya setelah daftar booking
+    // yang bisa dinilai termuat (tidak kosong) — rotasi tidak membuka ulang.
+    var autoReviewConsumed by remember(autoOpenReview) { mutableStateOf(!autoOpenReview) }
     LaunchedEffect(doctorId) { viewModel.loadDoctorDetail(doctorId) }
+    LaunchedEffect(autoOpenReview, state.reviewableBookings) {
+        if (autoOpenReview && !autoReviewConsumed && state.reviewableBookings.isNotEmpty()) {
+            autoReviewConsumed = true
+            showReviewDialog = true
+        }
+    }
     if (showReviewDialog) {
         SubmitReviewDialog(
             bookings = state.reviewableBookings,
@@ -210,7 +230,7 @@ fun DoctorDetailScreen(
                     Box(modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SurfaceDark, BgDark))).padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onNavigateBack, modifier = Modifier.align(Alignment.Top)) {
-                                Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = TextPrimary)
+                                Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
                             }
                             Spacer(Modifier.width(8.dp))
                             Box(modifier = Modifier.size(80.dp).clip(CircleShape).border(2.dp, Primary, CircleShape).background(BorderDark), contentAlignment = Alignment.Center) {
@@ -220,7 +240,7 @@ fun DoctorDetailScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(text = state.doctor?.name ?: "—", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                                 Spacer(Modifier.height(3.dp))
-                                Text(text = state.doctor?.specialization ?: "Veterinarian", color = Primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                                Text(text = state.doctor?.specialization ?: "Dokter Hewan", color = Primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(6.dp))
                                 val days = state.doctor?.availableDays
                                 if (!days.isNullOrBlank()) {
@@ -235,14 +255,19 @@ fun DoctorDetailScreen(
                     }
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     Spacer(Modifier.height(20.dp))
-                    Text("Select Date", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
+                    Text("Pilih Tanggal", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
                     Spacer(Modifier.height(10.dp))
                     DatePickerRow(selectedDate = state.selectedDate, onDateSelected = { viewModel.onDateSelected(doctorId, it) })
                     Spacer(Modifier.height(20.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp)) {
-                        Text("Available Slots", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("Slot Tersedia", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                         if (state.isSlotsLoading) CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                     }
+                    Text(
+                        "Pratinjau ketersediaan — jam final dipilih saat booking",
+                        color = TextSecDark, fontSize = 11.sp,
+                        modifier = Modifier.padding(horizontal = 20.dp).padding(top = 2.dp)
+                    )
                     Spacer(Modifier.height(10.dp))
                     TimeSlotsGrid(slots = state.slots, isSlotsLoading = state.isSlotsLoading, modifier = Modifier.padding(horizontal = 20.dp))
                     Spacer(Modifier.height(22.dp))
@@ -254,22 +279,80 @@ fun DoctorDetailScreen(
                         onSubmitReview = { showReviewDialog = true },
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
+                    if (state.pets.isEmpty() && !state.isLoading) {
+                        Spacer(Modifier.height(20.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(Color(0xFFFFF7ED))
+                                .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(16.dp))
+                                .padding(16.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.Info,
+                                    contentDescription = null,
+                                    tint = Color(0xFFEA580C),
+                                    modifier = Modifier.size(22.dp)
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        "Tambah hewan dulu",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF92400E)
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        "Kamu belum punya hewan yang terdaftar. Tambah hewan untuk mulai membuat janji dengan dokter ini.",
+                                        fontSize = 12.sp,
+                                        lineHeight = 18.sp,
+                                        color = Color(0xFFB45309)
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Spacer(Modifier.height(100.dp))
                 }
                 Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 20.dp, vertical = 16.dp)) {
-                    Button(
-                        onClick = {
-                            if (state.pets.isEmpty()) return@Button
-                            if (state.pets.size == 1) state.pets.first().id?.let(onNavigateToBooking) else showPetSheet = true
-                        },
-                        enabled = state.doctor != null,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = PrimaryFg, disabledContainerColor = BorderDark, disabledContentColor = TextSecDark),
-                        modifier = Modifier.fillMaxWidth().height(52.dp)
-                    ) {
-                        Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text(text = if (state.pets.isEmpty()) "Add a pet first" else "Book Appointment", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    if (state.pets.isEmpty()) {
+                        // User has no pet — guide them to add one before booking.
+                        // Without this the booking CTA is a dead-end.
+                        Button(
+                            onClick = onNavigateToAddPet,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                contentColor = PrimaryFg
+                            ),
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) {
+                            Icon(Icons.Filled.Pets, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Tambah Hewan untuk Booking",
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 15.sp
+                            )
+                        }
+                    } else {
+                        Button(
+                            onClick = {
+                                if (state.pets.size == 1) state.pets.first().id?.let(onNavigateToBooking) else showPetSheet = true
+                            },
+                            enabled = state.doctor != null,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = PrimaryFg, disabledContainerColor = BorderDark, disabledContentColor = TextSecDark),
+                            modifier = Modifier.fillMaxWidth().height(52.dp)
+                        ) {
+                            Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(text = "Buat Janji", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        }
                     }
                 }
             }
@@ -303,12 +386,12 @@ private fun DoctorReviewsSection(
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Patient Reviews", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text("Ulasan Pasien", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (reviewableBookingsCount > 0) {
                 TextButton(onClick = onSubmitReview, contentPadding = PaddingValues(horizontal = 8.dp)) {
                     Icon(Icons.Filled.RateReview, null, tint = Primary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Review", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text("Beri Nilai", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
             }
             Row(
@@ -337,9 +420,9 @@ private fun DoctorReviewsSection(
                     Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("You can rate this doctor", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        Text("Beri nilai dokter ini", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Complete bookings become reviewable once. Choose the finished visit and submit your rating here.",
+                            "Booking yang sudah selesai bisa diberi nilai satu kali. Pilih kunjungan yang selesai lalu kirim penilaian Anda di sini.",
                             color = TextSecDark,
                             fontSize = 12.sp,
                             lineHeight = 18.sp
@@ -355,7 +438,7 @@ private fun DoctorReviewsSection(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceDark).border(1.dp, BorderDark, RoundedCornerShape(12.dp)).padding(18.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("No reviews yet", color = TextSecDark, fontSize = 13.sp)
+                Text("Belum ada ulasan", color = TextSecDark, fontSize = 13.sp)
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -364,7 +447,7 @@ private fun DoctorReviewsSection(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceDark).border(1.dp, BorderDark, RoundedCornerShape(12.dp)).padding(14.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(review.user?.name ?: "PetHeal User", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                            Text(review.user?.name ?: "Pengguna", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 repeat(review.rating ?: 0) {
                                     Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(13.dp))
@@ -398,16 +481,16 @@ private fun SubmitReviewDialog(
         containerColor = SurfaceDark,
         titleContentColor = TextPrimary,
         textContentColor = TextSecDark,
-        title = { Text("Review Doctor", fontWeight = FontWeight.Bold) },
+        title = { Text("Beri Nilai Dokter", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Choose a completed booking, then leave a rating and optional notes.",
+                    "Pilih booking yang sudah selesai, lalu berikan rating dan catatan (opsional).",
                     color = TextSecDark,
                     fontSize = 12.sp,
                     lineHeight = 18.sp
                 )
-                Text("Select completed booking", color = TextSecDark, fontSize = 12.sp)
+                Text("Pilih booking yang sudah selesai", color = TextSecDark, fontSize = 12.sp)
                 bookings.forEach { booking ->
                     Row(
                         modifier = Modifier
@@ -442,7 +525,7 @@ private fun SubmitReviewDialog(
                 OutlinedTextField(
                     value = review,
                     onValueChange = { review = it },
-                    label = { Text("Review notes") },
+                    label = { Text("Catatan ulasan") },
                     minLines = 3,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
@@ -462,10 +545,10 @@ private fun SubmitReviewDialog(
                     selectedBookingId?.let { onSubmit(it, rating, review.trim().ifBlank { null }) }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = PrimaryFg)
-            ) { Text(if (isSubmitting) "Sending..." else "Submit") }
+            ) { Text(if (isSubmitting) "Mengirim..." else "Kirim") }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel", color = TextSecDark) }
+            TextButton(onClick = onDismiss) { Text("Batal", color = TextSecDark) }
         }
     )
 }
@@ -482,9 +565,9 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
         }
         Spacer(Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = doctor.name ?: "Unknown", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = doctor.name ?: "Tidak diketahui", color = TextPrimary, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Spacer(Modifier.height(3.dp))
-            Text(text = doctor.specialization ?: "Veterinarian", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            Text(text = doctor.specialization ?: "Dokter Hewan", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(6.dp))
             if (doctor.averageRating != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -513,9 +596,11 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
 private fun DatePickerRow(selectedDate: String, onDateSelected: (String) -> Unit) {
     val today   = LocalDate.now()
     val fmt     = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-    val dayFmt  = DateTimeFormatter.ofPattern("EEE", Locale.ENGLISH)
+    val dayFmt  = DateTimeFormatter.ofPattern("EEE", Locale("id", "ID"))
     val dateFmt = DateTimeFormatter.ofPattern("d")
-    val days    = remember { (1..14).map { today.plusDays(it.toLong()) } }
+    // Include today (same as the booking create flow): the backend returns an
+    // empty slot list when nothing is available, which the UI already handles.
+    val days    = remember { (0..13).map { today.plusDays(it.toLong()) } }
     Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         days.forEach { date ->
             val iso = date.format(fmt)
@@ -543,7 +628,7 @@ private fun TimeSlotsGrid(slots: List<TimeSlot>, isSlotsLoading: Boolean, modifi
             CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
         }
         slots.isEmpty() -> Box(modifier = modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceDark).border(1.dp, BorderDark, RoundedCornerShape(12.dp)).padding(24.dp), contentAlignment = Alignment.Center) {
-            Text("No slots available for this date", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
+            Text("Tidak ada slot tersedia untuk tanggal ini", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
         }
         else -> LazyRow(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(slots) { slot ->
@@ -568,7 +653,7 @@ private fun PetPickerSheet(pets: List<Pet>, onDismiss: () -> Unit, onSelected: (
         dragHandle = { Box(modifier = Modifier.padding(vertical = 10.dp).width(36.dp).height(4.dp).clip(RoundedCornerShape(50)).background(BorderDark)) }
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 40.dp)) {
-            Text("Select a Pet", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
+            Text("Pilih Hewan", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
             pets.forEach { pet ->
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { pet.id?.let(onSelected) }.padding(12.dp)) {
                     Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(BorderDark), contentAlignment = Alignment.Center) {
@@ -593,9 +678,9 @@ private fun DoctorsEmptyState(hasQuery: Boolean) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(imageVector = if (hasQuery) Icons.Outlined.SearchOff else Icons.Outlined.MedicalServices, contentDescription = null, tint = TextSecDark, modifier = Modifier.size(56.dp))
             Spacer(Modifier.height(16.dp))
-            Text(text = if (hasQuery) "No doctors found" else "No doctors available", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(text = if (hasQuery) "Dokter tidak ditemukan" else "Belum ada dokter tersedia", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
-            Text(text = if (hasQuery) "Try a different search term" else "Check back later", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
+            Text(text = if (hasQuery) "Coba kata kunci lain" else "Coba lagi beberapa saat lagi", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
         }
     }
 }
@@ -606,14 +691,14 @@ private fun DoctorsErrorState(message: String, onRetry: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(32.dp)) {
             Icon(Icons.Outlined.WifiOff, null, tint = TextSecDark, modifier = Modifier.size(56.dp))
             Spacer(Modifier.height(16.dp))
-            Text("Something went wrong", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("Terjadi kesalahan", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(6.dp))
             Text(message, color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(20.dp))
             Button(onClick = onRetry, shape = RoundedCornerShape(50), colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = PrimaryFg)) {
                 Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Try Again", fontWeight = FontWeight.SemiBold)
+                Text("Coba Lagi", fontWeight = FontWeight.SemiBold)
             }
         }
     }

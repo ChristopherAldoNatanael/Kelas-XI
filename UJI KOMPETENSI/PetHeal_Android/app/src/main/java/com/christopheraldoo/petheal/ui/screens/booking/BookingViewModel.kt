@@ -425,9 +425,11 @@ class BookingViewModel @Inject constructor(
 
     fun createBooking(doctorId: Int) {
         val s = _createState.value
-        val petId   = s.selectedPetId ?: return
-        val serviceId = s.selectedServiceId ?: return
-        val time    = s.selectedTime  ?: return
+        // The submit button is disabled until all of these are set, so this is
+        // a defensive path only — but never fail silently if it is ever hit.
+        val petId   = s.selectedPetId ?: return setCreateError("Pilih hewan terlebih dahulu.")
+        val serviceId = s.selectedServiceId ?: return setCreateError("Pilih layanan terlebih dahulu.")
+        val time    = s.selectedTime  ?: return setCreateError("Pilih jam konsultasi terlebih dahulu.")
         val dateStr = s.selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         viewModelScope.launch {
             _createState.value = s.copy(isLoading = true, error = null)
@@ -462,6 +464,10 @@ class BookingViewModel @Inject constructor(
 
     fun clearCreateState() {
         _createState.value = CreateBookingUiState()
+    }
+
+    private fun setCreateError(message: String) {
+        _createState.value = _createState.value.copy(error = message)
     }
 
     /**

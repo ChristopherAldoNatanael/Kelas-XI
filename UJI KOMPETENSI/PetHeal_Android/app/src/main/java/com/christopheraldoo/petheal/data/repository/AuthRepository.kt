@@ -104,14 +104,20 @@ class AuthRepository @Inject constructor(
         return bodyMessage?.takeIf { it.isNotBlank() } ?: fallback
     }
 
-    suspend fun loginWithEmailPassword(email: String, password: String, fcmToken: String?): Result<AuthData> {
+    suspend fun loginWithEmailPassword(
+        email: String,
+        password: String,
+        fcmToken: String?,
+        clinicSlug: String? = null
+    ): Result<AuthData> {
         return try {
             val response = apiService.login(
                 EmailPasswordRequest(
                     email = email,
                     password = password,
                     fcmToken = fcmToken,
-                    deviceType = "android"
+                    deviceType = "android",
+                    clinicSlug = clinicSlug
                 )
             )
             if (response.isSuccessful && response.body()?.success == true) {

@@ -208,7 +208,7 @@ class DoctorsViewModel @Inject constructor(
                 is Result.Success -> {
                     _detailState.value = _detailState.value.copy(
                         isSubmittingReview = false,
-                        reviewMessage = "Your review has been submitted."
+                        reviewMessage = "Ulasan Anda telah dikirim. Terima kasih!"
                     )
                     loadReviews(doctorId)
                     loadReviewableBookings(doctorId)

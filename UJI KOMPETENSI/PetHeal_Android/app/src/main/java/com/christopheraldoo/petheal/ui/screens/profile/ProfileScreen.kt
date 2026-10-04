@@ -32,7 +32,7 @@ import com.christopheraldoo.petheal.util.MediumImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
-private val Primary       = Color(0xFF2BEE6C)
+private val Primary       = Color(0xFF18C964)
 private val PrimaryFg     = Color(0xFF052E14)
 private val BgDark        = Color(0xFFF6F8F6)
 private val SurfaceDark   = Color.White
@@ -50,6 +50,7 @@ fun ProfileScreen(
     onNavigateToPrivacy: () -> Unit,
     onNavigateToHelp: () -> Unit,
     onNavigateToAbout: () -> Unit,
+    onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.profileState.collectAsState()
@@ -67,8 +68,8 @@ fun ProfileScreen(
             containerColor = SurfaceDark,
             titleContentColor = TextPrimary,
             textContentColor = TextSecDark,
-            title = { Text("Log Out", fontWeight = FontWeight.Bold) },
-            text = { Text("Are you sure you want to log out of your account?") },
+            title = { Text("Keluar", fontWeight = FontWeight.Bold) },
+            text = { Text("Yakin ingin keluar dari akun Anda?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -76,12 +77,12 @@ fun ProfileScreen(
                         viewModel.logout(onLoggedOut = onLogout)
                     }
                 ) {
-                    Text("Log Out", color = Color(0xFFFF6B6B), fontWeight = FontWeight.SemiBold)
+                    Text("Keluar", color = Color(0xFFFF6B6B), fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
-                    Text("Cancel", color = Primary)
+                    Text("Batal", color = Primary)
                 }
             }
         )
@@ -310,7 +311,7 @@ fun ProfileScreen(
                         shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary,
-                            contentColor = PrimaryFg
+                            contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
                     ) {
@@ -320,7 +321,7 @@ fun ProfileScreen(
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(6.dp))
-                        Text("Edit Profile", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        Text("Ubah Profil", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
 
                     Spacer(Modifier.height(16.dp))
@@ -345,19 +346,19 @@ fun ProfileScreen(
 
             // ── Body ─────────────────────────────────────────────────────────
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
-                    .padding(bottom = 32.dp)
-            ) {
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 110.dp)
+        ) {
                 Spacer(Modifier.height(16.dp))
 
                 // Account section
-                ProfileSectionCard(title = "Profile Information") {
+                ProfileSectionCard(title = "Informasi Profil") {
                     ProfileInfoRow(
                         icon = Icons.Outlined.Person,
-                        label = "Full Name",
+                        label = "Nama Lengkap",
                         value = state.user?.name ?: "—"
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
@@ -369,13 +370,13 @@ fun ProfileScreen(
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileInfoRow(
                         icon = Icons.Outlined.Phone,
-                        label = "Phone",
-                        value = if (state.user?.phone.isNullOrBlank()) "Not set" else state.user!!.phone!!
+                        label = "Telepon",
+                        value = state.user?.phone?.takeIf { it.isNotBlank() } ?: "Belum diisi"
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileInfoRow(
                         icon = Icons.Outlined.Shield,
-                        label = "Account Type",
+                        label = "Tipe Akun",
                         value = state.user?.role?.replaceFirstChar { it.uppercaseChar() } ?: "User"
                     )
                 }
@@ -383,28 +384,28 @@ fun ProfileScreen(
                 Spacer(Modifier.height(16.dp))
 
                 // App section
-                ProfileSectionCard(title = "Account Tools") {
+                ProfileSectionCard(title = "Pengaturan Akun") {
                     ProfileActionRow(
                         icon = Icons.Outlined.Notifications,
-                        label = "Notifications",
+                        label = "Notifikasi",
                         onClick = onNavigateToNotifications
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileActionRow(
                         icon = Icons.Outlined.Lock,
-                        label = "Privacy & Security",
+                        label = "Privasi & Keamanan",
                         onClick = onNavigateToPrivacy
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileActionRow(
                         icon = Icons.Outlined.HelpOutline,
-                        label = "Help & Support",
+                        label = "Bantuan & Dukungan",
                         onClick = onNavigateToHelp
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileActionRow(
                         icon = Icons.Outlined.Info,
-                        label = "About PetHeal",
+                        label = "Tentang Aplikasi",
                         onClick = onNavigateToAbout
                     )
                 }
@@ -429,7 +430,7 @@ fun ProfileScreen(
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text("Log Out", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Text("Keluar", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -471,23 +472,30 @@ fun ProfileScreen(
             }
         }
 
-        // Error snackbar
+        // Error snackbar (lifted above the floating nav)
         state.error?.let { err ->
             Snackbar(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(16.dp),
+                    .padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
                 containerColor = Color(0xFFFFEBEE),
                 contentColor = Color(0xFFDC2626),
                 dismissAction = {
                     IconButton(onClick = { viewModel.clearError() }) {
-                        Icon(Icons.Filled.Close, contentDescription = null, tint = Color(0xFFDC2626))
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = Color(0xFFDC2626))
                     }
                 }
             ) {
                 Text(err)
             }
         }
+
+        // ── Unified floating bottom nav (PHASE 9) ──────────────────────
+        com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
+            selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Profile,
+            onSelect = onTabSelected,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
     }
 }
 
@@ -548,13 +556,14 @@ fun EditProfileScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
+                    .imePadding()
                     .padding(horizontal = 20.dp)
                     .padding(top = 28.dp, bottom = 40.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
                 // Name field (read-only)
                 EditField(
-                    label = "Full Name",
+                    label = "Nama Lengkap",
                     value = state.name,
                     onValueChange = {},
                     placeholder = state.name,
@@ -578,10 +587,10 @@ fun EditProfileScreen(
 
                 // Phone field
                 EditField(
-                    label = "Phone Number",
+                    label = "Nomor Telepon",
                     value = state.phone,
                     onValueChange = viewModel::onPhoneChange,
-                    placeholder = "Enter your phone number",
+                    placeholder = "Masukkan nomor telepon",
                     leadingIcon = Icons.Outlined.Phone,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
                 )
@@ -616,7 +625,7 @@ fun EditProfileScreen(
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Primary,
-                        contentColor = PrimaryFg,
+                        contentColor = Color.White,
                         disabledContainerColor = BorderDark,
                         disabledContentColor = TextSecDark
                     ),
@@ -626,7 +635,7 @@ fun EditProfileScreen(
                 ) {
                     if (state.isLoading) {
                         CircularProgressIndicator(
-                            color = PrimaryFg,
+                            color = Color.White,
                             strokeWidth = 2.dp,
                             modifier = Modifier.size(20.dp)
                         )
@@ -637,7 +646,7 @@ fun EditProfileScreen(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("Save Changes", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text("Simpan Perubahan", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
                 }
             }

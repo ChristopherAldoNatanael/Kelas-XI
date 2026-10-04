@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -45,13 +46,11 @@ import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-// ── Brand colors ──────────────────────────────────────────────────────────────
-internal val AuthPrimary        = Color(0xFF2BEE6C)
+// ── Brand colors (single source: theme Primary 0xFF18C964) ────────────────────
+internal val AuthPrimary        = Color(0xFF18C964)
 internal val AuthBgDark         = Color(0xFFF6F8F6)
 internal val AuthBgLight        = Color(0xFFF6F8F6)
 internal val AuthSurfaceDark    = Color.White
@@ -74,20 +73,22 @@ fun LoginScreen(
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var passwordVisible by remember { mutableStateOf(false) }
-    var showForgotPasswordDialog by remember { mutableStateOf(false) }
-    var forgotPasswordEmail by remember { mutableStateOf("") }
-    var forgotPasswordMessage by remember { mutableStateOf<String?>(null) }
-    var isForgotPasswordLoading by remember { mutableStateOf(false) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var showForgotPasswordDialog by rememberSaveable { mutableStateOf(false) }
+    var forgotPasswordEmail by rememberSaveable { mutableStateOf("") }
+    var forgotPasswordMessage by rememberSaveable { mutableStateOf<String?>(null) }
+    var isForgotPasswordLoading by rememberSaveable { mutableStateOf(false) }
     // PHASE 7: full reset flow (backend: forgot → verify → reset).
-    var forgotStep by remember { mutableStateOf(1) }
-    var forgotCode by remember { mutableStateOf("") }
-    var forgotNewPassword by remember { mutableStateOf("") }
-    var forgotBusy by remember { mutableStateOf(false) }
+    var forgotStep by rememberSaveable { mutableStateOf(1) }
+    var forgotCode by rememberSaveable { mutableStateOf("") }
+    var forgotNewPassword by rememberSaveable { mutableStateOf("") }
+    var forgotPasswordVisible by rememberSaveable { mutableStateOf(false) }
+    var forgotBusy by rememberSaveable { mutableStateOf(false) }
     // PHASE 7: tenant hint for Google sign-in (new accounts bind on create).
-    var showClinicPicker by remember { mutableStateOf(false) }
+    var showClinicPicker by rememberSaveable { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { pickerViewModel.load() }
 
@@ -112,7 +113,7 @@ fun LoginScreen(
                 googleSignInClient.signOut()
                 // Get the OAuth2 ID token and exchange it for a Firebase ID token
                 account.idToken?.let { oauthToken ->
-                    CoroutineScope(Dispatchers.Main).launch {
+                    scope.launch {
                         try {
                             val firebaseAuth = FirebaseAuth.getInstance()
                             val credential = com.google.firebase.auth.GoogleAuthProvider.getCredential(oauthToken, null)
@@ -171,6 +172,7 @@ fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp, bottom = 28.dp)
         ) {
@@ -276,7 +278,7 @@ fun LoginScreen(
                         Icon(
                             imageVector = if (passwordVisible) Icons.Filled.Visibility
                                           else Icons.Filled.VisibilityOff,
-                            contentDescription = null,
+                            contentDescription = if (passwordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi",
                             tint = AuthTextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -347,19 +349,19 @@ fun LoginScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.loginWithEmailPassword(email.trim(), password)
+                    viewModel.loginWithEmailPassword(email.trim(), password, pickerState.selectedSlug)
                 },
                 modifier = Modifier.fillMaxWidth().height(58.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AuthPrimary, contentColor = AuthBgDark),
+                    containerColor = AuthPrimary, contentColor = Color.White),
                 enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(22.dp),
-                        color = AuthBgDark, strokeWidth = 2.5.dp)
+                        color = Color.White, strokeWidth = 2.5.dp)
                 } else {
                     Text("Masuk", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
@@ -483,6 +485,10 @@ fun LoginScreen(
                                 onValueChange = { forgotPasswordEmail = it },
                                 singleLine = true,
                                 label = { Text("Email") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Email,
+                                    imeAction = ImeAction.Next
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             )
                         } else {
@@ -495,6 +501,10 @@ fun LoginScreen(
                                 onValueChange = { forgotCode = it },
                                 singleLine = true,
                                 label = { Text("Kode reset") },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Number,
+                                    imeAction = ImeAction.Next
+                                ),
                                 modifier = Modifier.fillMaxWidth()
                             )
                             OutlinedTextField(
@@ -502,6 +512,21 @@ fun LoginScreen(
                                 onValueChange = { forgotNewPassword = it },
                                 singleLine = true,
                                 label = { Text("Kata sandi baru (min. 8)") },
+                                visualTransformation = if (forgotPasswordVisible) VisualTransformation.None
+                                    else PasswordVisualTransformation(),
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                ),
+                                trailingIcon = {
+                                    IconButton(onClick = { forgotPasswordVisible = !forgotPasswordVisible }) {
+                                        Icon(
+                                            imageVector = if (forgotPasswordVisible) Icons.Filled.Visibility
+                                                else Icons.Filled.VisibilityOff,
+                                            contentDescription = if (forgotPasswordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi"
+                                        )
+                                    }
+                                },
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }

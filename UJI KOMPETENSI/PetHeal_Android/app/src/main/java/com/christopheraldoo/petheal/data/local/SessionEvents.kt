@@ -10,7 +10,8 @@ import kotlinx.coroutines.flow.asSharedFlow
  * The [com.christopheraldoo.petheal.data.remote.NetworkInterceptor] emits
  * [SessionExpired] when the backend answers 401 on a request that carried a
  * token. Navigation collects this and routes to login exactly once per
- * emission (extraBufferCapacity + non-suspending emit, conflated replay).
+ * emission (extraBufferCapacity + non-suspending tryEmit; no replay, so a
+ * late collector never replays a stale expiry).
  */
 object SessionEvents {
     data object SessionExpired

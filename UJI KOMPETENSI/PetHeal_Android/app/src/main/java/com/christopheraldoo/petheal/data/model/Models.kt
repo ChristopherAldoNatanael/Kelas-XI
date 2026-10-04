@@ -77,7 +77,10 @@ data class EmailPasswordRequest(
     val email: String,
     val password: String,
     @SerializedName("fcm_token") val fcmToken: String? = null,
-    @SerializedName("device_type") val deviceType: String = "android"
+    @SerializedName("device_type") val deviceType: String = "android",
+    // Tenant guard: backend 403s when the account belongs to another clinic.
+    // Null = no pre-check (server binding still synced from the response).
+    @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
 data class EmailRegisterRequest(

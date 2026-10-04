@@ -146,6 +146,10 @@ class ProfileViewModel @Inject constructor(
 
     fun logout(fcmToken: String? = null, onLoggedOut: () -> Unit = {}) {
         viewModelScope.launch {
+            // Wait for the server logout (and local cache invalidation) to
+            // finish BEFORE navigating — otherwise the splash / login screen
+            // can fire its first request with a still-valid token and bounce
+            // straight back to Home on a race.
             authRepository.logout(fcmToken)
             onLoggedOut()
         }

@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventAvailable
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Notifications
@@ -33,16 +34,20 @@ import androidx.compose.material.icons.filled.PendingActions
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -62,7 +67,7 @@ import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 
-private val HomePrimary = Color(0xFF2BEE6C)
+private val HomePrimary = Color(0xFF18C964)
 private val HomeBg = Color(0xFFF6F8F6)
 private val HomeSurface = Color.White
 private val HomeBorder = Color(0xFFE2E8F0)
@@ -79,6 +84,8 @@ fun HomeScreen(
     onNavigateToMedicalRecords: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToNotifications: () -> Unit = {},
+    onNavigateToDoctor: (doctorId: Int, autoReview: Boolean) -> Unit = { _, _ -> },
+    onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -92,7 +99,7 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(bottom = 88.dp)
+                .padding(bottom = 104.dp)
         ) {
             HeaderSection(
                 userName = uiState.userName,
@@ -105,6 +112,33 @@ fun HomeScreen(
             )
 
             Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp)) {
+                uiState.loadError?.let { loadError ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 14.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFFEF2F2))
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = loadError,
+                            fontSize = 12.sp,
+                            color = Color(0xFFB91C1C),
+                            modifier = Modifier.weight(1f)
+                        )
+                        TextButton(onClick = { viewModel.refresh() }) {
+                            Text(
+                                "Coba Lagi",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = HomePrimary
+                            )
+                        }
+                    }
+                }
                 DashboardSummaryCard(
                     summary = uiState.dashboardSummary,
                     totalPets = uiState.totalPets,
@@ -147,13 +181,167 @@ fun HomeScreen(
             RecentActivitySection(recentVisits = uiState.recentVisits)
         }
 
-        BottomNavBar(
-            modifier = Modifier.align(Alignment.BottomCenter),
-            onHome = {},
-            onPets = onNavigateToPets,
-            onBookings = onNavigateToBookings,
-            onProfile = onNavigateToProfile
+        com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
+            selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Home,
+            onSelect = onTabSelected,
+            modifier = Modifier.align(Alignment.BottomCenter)
         )
+
+        // PHASE 9: one-time gentle nudge to rate finished visits.
+        if (uiState.pendingReviews.isNotEmpty()) {
+            RatingReminderSheet(
+                pending = uiState.pendingReviews,
+                onRateDoctor = { review ->
+                    viewModel.markReviewsPrompted()
+                    onNavigateToDoctor(review.doctorId, true)
+                },
+                onDismiss = { viewModel.markReviewsPrompted() }
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RatingReminderSheet(
+    pending: List<PendingReview>,
+    onRateDoctor: (PendingReview) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = HomeSurface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Kunjungan selesai",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = HomePrimary,
+                letterSpacing = 1.2.sp
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Bagaimana pengalaman konsultasinya?",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = HomeTextPrimary,
+                lineHeight = 26.sp
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Penilaian Anda membantu dokter meningkatkan pelayanan dan membantu pemilik hewan lain memilih dengan yakin.",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = HomeTextSecondary
+            )
+            Spacer(Modifier.height(16.dp))
+            pending.forEach { review ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(HomeSoftSurface)
+                        .border(1.dp, HomeBorder, RoundedCornerShape(16.dp))
+                        .clickable { onRateDoctor(review) }
+                        .padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    val photoModel = remember(review.doctorPhoto) { buildPhotoUrl(review.doctorPhoto) }
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(HomePrimary.copy(alpha = 0.12f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (!photoModel.isNullOrBlank()) {
+                            ThumbnailImage(
+                                model = photoModel,
+                                contentDescription = review.doctorName,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(CircleShape)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Person,
+                                contentDescription = null,
+                                tint = HomePrimary,
+                                modifier = Modifier.size(26.dp)
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = review.doctorName,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = HomeTextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            text = listOfNotNull(
+                                review.specialization,
+                                review.visitDate?.let { formatVisitDate(it) }
+                            ).joinToString(" • "),
+                            fontSize = 12.sp,
+                            color = HomeTextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = { onRateDoctor(review) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = HomePrimary,
+                            contentColor = Color.White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Star,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Nilai", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+            }
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    "Nanti saja",
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = HomeTextSecondary
+                )
+            }
+        }
+    }
+}
+
+private fun formatVisitDate(iso: String): String {
+    return try {
+        java.time.LocalDate.parse(iso.take(10)).format(
+            java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy", java.util.Locale("id", "ID"))
+        )
+    } catch (_: Exception) {
+        iso.take(10)
     }
 }
 
@@ -225,7 +413,8 @@ private fun HeaderSection(
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = HomeTextPrimary,
-                        maxLines = 1
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (firstName.isNotBlank()) {
                         Text(
@@ -545,11 +734,9 @@ private fun UpcomingBookingSection(
                                     Icon(imageVector = Icons.Filled.Pets, contentDescription = null, tint = HomePrimary, modifier = Modifier.size(18.dp))
                                 }
                                 Text(
-                                    text = if (uiState.upcomingBooking != null) {
-                                        "${uiState.upcomingBooking!!.pet?.name ?: "Hewan"} (${uiState.upcomingBooking!!.pet?.species ?: "-"})"
-                                    } else {
-                                        "Belum ada jadwal aktif"
-                                    },
+                                    text = uiState.upcomingBooking?.let { upcoming ->
+                                        "${upcoming.pet?.name ?: "Hewan"} (${upcoming.pet?.species ?: "-"})"
+                                    } ?: "Belum ada jadwal aktif",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = Color(0xFF334155),
@@ -561,11 +748,9 @@ private fun UpcomingBookingSection(
                             Column {
                                 Text(uiState.upcomingBooking?.doctor?.name ?: "-", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
                                 Text(
-                                    text = if (uiState.upcomingBooking != null) {
-                                        "${uiState.upcomingBooking!!.doctor?.specialization ?: "Dokter Hewan"} • Konsultasi"
-                                    } else {
-                                        "Buat jadwal konsultasi"
-                                    },
+                                    text = uiState.upcomingBooking?.let { upcoming ->
+                                        "${upcoming.doctor?.specialization ?: "Dokter Hewan"} • Konsultasi"
+                                    } ?: "Buat jadwal konsultasi",
                                     fontSize = 12.sp,
                                     color = HomeTextSecondary
                                 )
@@ -581,11 +766,9 @@ private fun UpcomingBookingSection(
                             ) {
                                 Icon(imageVector = Icons.Filled.Schedule, contentDescription = null, tint = HomePrimary, modifier = Modifier.size(16.dp))
                                 Text(
-                                    text = if (uiState.upcomingBooking != null) {
-                                        "${uiState.upcomingBooking!!.bookingTime ?: ""} • ${uiState.upcomingBooking!!.bookingDate ?: ""}"
-                                    } else {
-                                        "-"
-                                    },
+                                    text = uiState.upcomingBooking?.let { upcoming ->
+                                        "${upcoming.bookingTime ?: ""} • ${upcoming.bookingDate ?: ""}"
+                                    } ?: "-",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
                                     color = Color(0xFF334155)
@@ -608,7 +791,7 @@ private fun UpcomingBookingSection(
                                 .weight(1f)
                                 .height(42.dp),
                             shape = RoundedCornerShape(8.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = HomePrimary, contentColor = HomeBg)
+                            colors = ButtonDefaults.buttonColors(containerColor = HomePrimary, contentColor = Color.White)
                         ) {
                             Text(
                                 text = if (uiState.upcomingBooking != null) "Buka Booking" else "Buat Booking",
@@ -837,76 +1020,6 @@ private fun AttentionPill(
     ) {
         Text(text = label, fontSize = 10.sp, color = HomeTextSecondary)
         Text(text = value, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = valueColor)
-    }
-}
-
-@Composable
-private fun BottomNavBar(
-    modifier: Modifier = Modifier,
-    onHome: () -> Unit,
-    onPets: () -> Unit,
-    onBookings: () -> Unit,
-    onProfile: () -> Unit
-) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = HomeSurface,
-        tonalElevation = 0.dp,
-        shadowElevation = 8.dp
-    ) {
-        Column {
-            Divider(color = HomeBorder, thickness = 1.dp)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(top = 12.dp, bottom = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                NavBarItem(Icons.Filled.Home, "Beranda", true, onHome)
-                NavBarItem(Icons.Filled.Pets, "Hewan", false, onPets)
-                NavBarItem(Icons.Filled.CalendarMonth, "Booking", false, onBookings)
-                NavBarItem(Icons.Filled.Person, "Profil", false, onProfile)
-            }
-        }
-    }
-}
-
-@Composable
-private fun NavBarItem(
-    icon: ImageVector,
-    label: String,
-    isActive: Boolean,
-    onClick: () -> Unit
-) {
-    Column(
-        modifier = Modifier
-            .width(64.dp)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .size(32.dp)
-                .clip(CircleShape)
-                .background(if (isActive) HomePrimary.copy(alpha = 0.1f) else Color.Transparent),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = if (isActive) HomePrimary else Color(0xFF94A3B8),
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Medium,
-            color = if (isActive) HomeTextPrimary else Color(0xFF94A3B8)
-        )
     }
 }
 
