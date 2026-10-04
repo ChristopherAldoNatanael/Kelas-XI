@@ -19,7 +19,7 @@ class ApiAuthenticate
         if (!$request->bearerToken()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated. No token provided.'
+                'message' => 'Unauthenticated.'
             ], 401);
         }
 
@@ -27,12 +27,46 @@ class ApiAuthenticate
         if (!auth('sanctum')->check()) {
             return response()->json([
                 'success' => false,
-                'message' => 'Unauthenticated. Invalid token.'
+                'message' => 'Unauthenticated.'
             ], 401);
         }
 
         // Set the user for the request
-        auth()->setUser(auth('sanctum')->user());
+        $user = auth('sanctum')->user();
+        auth()->setUser($user);
+
+        // PHASE 1 (D1, fail-closed): tenant roles must be bound to a clinic.
+        // Previously a user with clinic_id = NULL silently bypassed every
+        // `if ($clinicId)` filter and could read/book across all clinics.
+        // super_admin keeps existing behavior (may operate without clinic).
+        // PHASE 3 (F-03): the bound clinic must also be ACTIVE.
+        if ($user->role !== 'super_admin') {
+            $clinic = $user->clinic;
+            if (!$user->clinic_id || !$clinic || !$clinic->is_active) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak. Akun Anda tidak terikat pada klinik yang aktif.',
+                ], 403);
+            }
+        }
+
+        // Validate X-Clinic-Slug header if present
+        $clinicSlug = $request->header('X-Clinic-Slug');
+        if ($clinicSlug && $user->clinic) {
+            // User has a clinic — header must match their clinic
+            if ($user->clinic->slug !== $clinicSlug) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akses ditolak. Clinic slug tidak sesuai dengan akun Anda.',
+                ], 403);
+            }
+        } elseif ($clinicSlug && !$user->clinic && $user->role !== 'super_admin') {
+            // User without clinic sending a header — reject
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Anda tidak terikat pada klinik manapun.',
+            ], 403);
+        }
 
         return $next($request);
     }

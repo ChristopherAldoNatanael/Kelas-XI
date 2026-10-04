@@ -3,10 +3,11 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>PetHeal — Sistem Manajemen Klinik Hewan</title>
+    <title>PetHeal — Booking Klinik Hewan (Android + Web Admin)</title>
+    <meta name="description" content="PetHeal: aplikasi booking dokter hewan multi-klinik. Satu APK Android untuk pemilik hewan, satu panel web untuk admin klinik. Booking, pembayaran Midtrans, rekam medis digital, dan pengingat otomatis.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -14,592 +15,500 @@
                 extend: {
                     fontFamily: {
                         sans: ['Inter', 'system-ui', 'sans-serif'],
-                        display: ['"Plus Jakarta Sans"', 'Inter', 'system-ui', 'sans-serif'],
+                        serif: ['Fraunces', 'Georgia', 'serif'],
+                        mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
                     },
                     colors: {
-                        brand: {
-                            50: '#ecfdf5',
-                            100: '#d1fae5',
-                            200: '#a7f3d0',
-                            300: '#6ee7b7',
-                            400: '#34d399',
-                            500: '#10b981',
-                            600: '#059669',
-                            700: '#047857',
-                            800: '#065f46',
-                            900: '#064e3b',
-                        },
-                        surface: {
-                            50: '#f8fafc',
-                            100: '#f1f5f9',
-                            150: '#eef2f6',
-                            200: '#e2e8f0',
-                            300: '#cbd5e1',
-                            400: '#94a3b8',
-                            500: '#64748b',
-                            600: '#475569',
-                            700: '#334155',
-                            800: '#1e293b',
-                            900: '#0f172a',
-                        }
-                    },
-                    animation: {
-                        'fade-up': 'fadeUp 0.8s ease-out forwards',
-                        'fade-in': 'fadeIn 0.6s ease-out forwards',
-                        'float': 'float 3s ease-in-out infinite',
-                        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
-                    },
-                    keyframes: {
-                        fadeUp: {
-                            '0%': { opacity: '0', transform: 'translateY(30px)' },
-                            '100%': { opacity: '1', transform: 'translateY(0)' },
-                        },
-                        fadeIn: {
-                            '0%': { opacity: '0' },
-                            '100%': { opacity: '1' },
-                        },
-                        float: {
-                            '0%, 100%': { transform: 'translateY(0px)' },
-                            '50%': { transform: 'translateY(-12px)' },
-                        },
-                        pulseGlow: {
-                            '0%, 100%': { boxShadow: '0 0 20px rgba(16, 185, 129, 0.15)' },
-                            '50%': { boxShadow: '0 0 40px rgba(16, 185, 129, 0.3)' },
-                        },
-                    },
+                        paper: '#FAF6EF',
+                        cream: '#F3EDE0',
+                        ink: '#1C1917',
+                        pine: { 800: '#14532D', 900: '#0E3B22', 950: '#0A2C1A' },
+                        clay: '#C2571B',
+                    }
                 }
             }
         }
     </script>
     <style>
         html { scroll-behavior: smooth; }
-
-        .hero-gradient {
-            background: linear-gradient(135deg, #0f172a 0%, #1a2a3a 40%, #064e3b 100%);
-            position: relative;
-            overflow: hidden;
+        body { background: #FAF6EF; color: #1C1917; -webkit-font-smoothing: antialiased; }
+        .dotgrid {
+            background-image: radial-gradient(rgba(28,25,23,.10) 1px, transparent 1px);
+            background-size: 22px 22px;
         }
-
-        .hero-gradient::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            right: -20%;
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(16, 185, 129, 0.08) 0%, transparent 70%);
-            pointer-events: none;
+        .dotgrid-light {
+            background-image: radial-gradient(rgba(255,255,255,.14) 1px, transparent 1px);
+            background-size: 22px 22px;
         }
-
-        .hero-gradient::after {
-            content: '';
-            position: absolute;
-            bottom: -30%;
-            left: -10%;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(56, 189, 248, 0.05) 0%, transparent 70%);
-            pointer-events: none;
+        .eyebrow { letter-spacing: .18em; }
+        .card { border: 1px solid #E7DFCF; }
+        .tick { font-variant-numeric: tabular-nums; }
+        .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+        .reveal.visible { opacity: 1; transform: none; }
+        .navlink { position: relative; }
+        .navlink::after {
+            content: ''; position: absolute; left: 0; bottom: -4px; height: 2px; width: 0;
+            background: #14532D; transition: width .25s ease;
         }
-
-        .grid-pattern {
-            background-image:
-                linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 60px 60px;
-        }
-
-        .glass-card {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .stat-card {
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-6px) scale(1.02);
-            box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.15);
-        }
-
-        .feature-card {
-            transition: all 0.4s ease;
-            position: relative;
-        }
-
-        .feature-card::after {
-            content: '';
-            position: absolute;
-            inset: 0;
-            border-radius: inherit;
-            background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), transparent);
-            opacity: 0;
-            transition: opacity 0.4s ease;
-        }
-
-        .feature-card:hover::after {
-            opacity: 1;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
-            border-color: rgba(16, 185, 129, 0.3);
-        }
-
-        .reveal {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: all 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        .reveal.visible {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .endpoint-badge {
-            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-        }
-
-        .nav-blur {
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
-
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 3s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
+        .navlink:hover::after { width: 100%; }
+        ::selection { background: #14532D; color: #fff; }
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
     </style>
 </head>
-<body class="font-sans antialiased bg-surface-50 text-surface-900">
+<body class="font-sans">
 
-    <!-- Navigation -->
-    <nav class="fixed top-0 left-0 right-0 z-50 bg-white/70 nav-blur border-b border-surface-100/50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16 lg:h-20">
-                <a href="/" class="flex items-center gap-2.5 group">
-                    <img src="/logo.png" alt="PetHeal" class="h-9 w-auto" fetchpriority="high" width="180" height="36">
-                    <span class="text-xl font-display font-bold text-surface-900 tracking-tight">PetHeal</span>
+@php
+    $safeCount = function ($class) {
+        try { return $class::count(); } catch (\Throwable $e) { return '—'; }
+    };
+    $todayBookings = '—';
+    try { $todayBookings = \App\Models\Booking::whereDate('booking_date', today())->count(); } catch (\Throwable $e) {}
+    $doctors = $safeCount(\App\Models\Doctor::class);
+    $users = $safeCount(\App\Models\User::class);
+    $records = $safeCount(\App\Models\MedicalRecord::class);
+    $clinics = class_exists(\App\Models\Clinic::class) ? $safeCount(\App\Models\Clinic::class) : '—';
+    $services = class_exists(\App\Models\Service::class) ? $safeCount(\App\Models\Service::class) : '—';
+    $baseUrl = rtrim(config('app.url'), '/') . '/api';
+@endphp
+
+<!-- Pita status atas: jujur, bukan hype -->
+<div class="bg-pine-950 text-stone-200 text-[12.5px]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <span class="inline-flex items-center gap-2">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span class="font-medium text-white">Server demo menyala</span>
+        </span>
+        <span class="hidden sm:inline text-stone-400">·</span>
+        <span class="font-mono text-stone-300">{{ $baseUrl }}/health</span>
+        <span class="ml-auto text-stone-400">Dikerjakan untuk <span class="text-stone-200 font-medium">Uji Kompetensi XI RPL</span> — Android + Laravel, 100% stack gratis</span>
+    </div>
+</div>
+
+<!-- Navigasi -->
+<header class="sticky top-0 z-50 bg-paper/90 backdrop-blur border-b border-[#E7DFCF]">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6">
+        <a href="/" class="flex items-center gap-2.5">
+            <span class="w-9 h-9 rounded-xl bg-pine-800 text-white flex items-center justify-center">
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 13.2c-2.6 0-5.4 2-5.4 4.3 0 1.4 1 2.3 2.4 2.3 1 0 1.9-.5 3-1.5 1.1 1 2 1.5 3 1.5 1.4 0 2.4-.9 2.4-2.3 0-2.3-2.8-4.3-5.4-4.3ZM7.2 8.4c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Zm9.6 0c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1ZM9.6 3.5c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1Zm4.8 0c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Z"/></svg>
+            </span>
+            <span class="leading-none">
+                <span class="block font-serif font-semibold text-[19px] tracking-tight">PetHeal</span>
+                <span class="block text-[11px] text-stone-500 font-medium tracking-wide">Klinik hewan · booking & rekam medis</span>
+            </span>
+        </a>
+        <nav class="hidden md:flex items-center gap-6 text-[14px] font-medium text-stone-600 ml-4">
+            <a href="#alur" class="navlink hover:text-ink">Alur</a>
+            <a href="#untuk-siapa" class="navlink hover:text-ink">Untuk siapa</a>
+            <a href="#fitur" class="navlink hover:text-ink">Fitur</a>
+            <a href="#bayar" class="navlink hover:text-ink">Pembayaran</a>
+            <a href="#teknis" class="navlink hover:text-ink">Teknis</a>
+        </nav>
+        <div class="ml-auto flex items-center gap-2.5">
+            <a href="/admin/login" class="hidden sm:inline-flex text-[14px] font-medium text-stone-600 hover:text-ink px-3 py-2">Masuk admin</a>
+            <a href="/admin" class="inline-flex items-center gap-2 bg-ink text-white text-[14px] font-semibold px-4 py-2.5 rounded-xl hover:bg-pine-800 transition-colors">
+                Buka dashboard
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+            </a>
+        </div>
+    </div>
+</header>
+
+<!-- HERO -->
+<section class="relative overflow-hidden">
+    <div class="dotgrid absolute inset-0 opacity-60 pointer-events-none"></div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 pt-12 pb-10 sm:pt-16 sm:pb-14 grid lg:grid-cols-12 gap-10 items-start">
+        <div class="lg:col-span-7">
+            <p class="eyebrow text-[11.5px] font-bold uppercase text-pine-800">Aplikasi booking klinik hewan · Android & Web</p>
+            <h1 class="font-serif font-semibold tracking-tight text-[34px] leading-[1.08] sm:text-[52px] mt-4">
+                Booking dokter hewan,<br>
+                bayar, dan pantau kesehatan<br class="hidden sm:block">
+                hewan — <span class="italic font-medium text-pine-800">satu alur yang nyambung.</span>
+            </h1>
+            <p class="mt-5 text-[16.5px] leading-relaxed text-stone-600 max-w-xl">
+                PetHeal menghubungkan <strong class="text-ink font-semibold">pemilik hewan</strong> (aplikasi Android)
+                dengan <strong class="text-ink font-semibold">admin klinik</strong> (panel web).
+                Satu APK bisa melayani <strong class="text-ink font-semibold">banyak klinik</strong> — pemilik tinggal pilih
+                klinik, lalu daftar dokter, slot, dan layanannya menyesuaikan otomatis.
+            </p>
+            <div class="mt-7 flex flex-wrap gap-3">
+                <a href="/admin" class="inline-flex items-center gap-2 bg-pine-800 text-white font-semibold px-5 py-3 rounded-xl hover:bg-pine-900 transition-colors text-[15px]">
+                    Lihat panel admin
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
                 </a>
+                <a href="#alur" class="inline-flex items-center gap-2 bg-white card font-semibold px-5 py-3 rounded-xl hover:border-stone-400 transition-colors text-[15px]">
+                    Pahami alurnya dulu
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+                </a>
+            </div>
+            <dl class="mt-8 grid grid-cols-2 sm:grid-cols-4 gap-px bg-[#E7DFCF] rounded-2xl overflow-hidden card max-w-xl">
+                <div class="bg-white px-4 py-3.5"><dt class="text-[11px] font-semibold uppercase tracking-widest text-stone-500">Dokter</dt><dd class="tick font-serif text-2xl font-semibold mt-0.5">{{ $doctors }}</dd></div>
+                <div class="bg-white px-4 py-3.5"><dt class="text-[11px] font-semibold uppercase tracking-widest text-stone-500">Booking hari ini</dt><dd class="tick font-serif text-2xl font-semibold mt-0.5">{{ $todayBookings }}</dd></div>
+                <div class="bg-white px-4 py-3.5"><dt class="text-[11px] font-semibold uppercase tracking-widest text-stone-500">Pengguna</dt><dd class="tick font-serif text-2xl font-semibold mt-0.5">{{ $users }}</dd></div>
+                <div class="bg-white px-4 py-3.5"><dt class="text-[11px] font-semibold uppercase tracking-widest text-stone-500">Rekam medis</dt><dd class="tick font-serif text-2xl font-semibold mt-0.5">{{ $records }}</dd></div>
+            </dl>
+            <p class="mt-3 text-[12.5px] text-stone-500">Angka di atas angka asli dari database demo — bukan angka ilustrasi. Klinik: <span class="font-semibold text-stone-700">{{ $clinics }}</span> · Layanan: <span class="font-semibold text-stone-700">{{ $services }}</span>.</p>
+        </div>
 
-                <div class="flex items-center gap-3 sm:gap-5">
-                    <a href="/admin" class="hidden sm:inline-flex items-center gap-1.5 text-sm font-medium text-surface-500 hover:text-surface-900 transition-colors duration-200">
-                        Admin Panel
-                    </a>
-                    <a href="/admin"
-                       class="inline-flex items-center gap-2 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl transition-all duration-200 shadow-sm hover:shadow-md hover:shadow-brand-500/25">
-                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                        Dashboard
-                    </a>
+        <!-- Kartu contoh booking: konkret, bukan mockup generik -->
+        <div class="lg:col-span-5 reveal">
+            <div class="bg-white card rounded-2xl shadow-[0_24px_60px_-30px_rgba(28,25,23,.35)] overflow-hidden">
+                <div class="px-5 py-4 border-b border-stone-100 flex items-center gap-3">
+                    <span class="w-8 h-8 rounded-lg bg-cream flex items-center justify-center font-serif font-semibold">B</span>
+                    <div>
+                        <p class="text-[13px] font-semibold leading-tight">Contoh booking yang lewat sistem</p>
+                        <p class="text-[12px] text-stone-500 font-mono">BOOKING-12-1719849600 · DP 50%</p>
+                    </div>
+                    <span class="ml-auto text-[11px] font-bold uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">Confirmed</span>
                 </div>
+                <ol class="px-5 py-4 space-y-3.5 text-[13.5px]">
+                    <li class="flex gap-3"><span class="mt-0.5 w-5 h-5 rounded-full bg-pine-800 text-white text-[11px] font-bold flex items-center justify-center shrink-0">✓</span><span><strong class="font-semibold">Pemilik</strong> pilih klinik “Petheal Pusat”, dokter, layanan <em>Vaksinasi + cek umum</em>, slot <span class="font-mono">Selasa 10:00</span> (slot 30 menit, anti-bentrok).</span></li>
+                    <li class="flex gap-3"><span class="mt-0.5 w-5 h-5 rounded-full bg-pine-800 text-white text-[11px] font-bold flex items-center justify-center shrink-0">✓</span><span><strong class="font-semibold">Bayar DP</strong> via Midtrans Snap. Sisa dibayar belakangan — status pembayaran naik terus, tidak pernah turun.</span></li>
+                    <li class="flex gap-3"><span class="mt-0.5 w-5 h-5 rounded-full bg-pine-800 text-white text-[11px] font-bold flex items-center justify-center shrink-0">✓</span><span><strong class="font-semibold">Admin konfirmasi</strong> → pemilik otomatis dapat push notification (FCM v1).</span></li>
+                    <li class="flex gap-3"><span class="mt-0.5 w-5 h-5 rounded-full bg-cream border border-[#E7DFCF] text-[11px] font-bold flex items-center justify-center shrink-0 text-stone-500">4</span><span class="text-stone-600">Selesai diperiksa → <strong class="font-semibold text-ink">rekam medis terbit</strong>. Kalau ada biaya tambahan, detailnya terbuka setelah dilunasi.</span></li>
+                    <li class="flex gap-3"><span class="mt-0.5 w-5 h-5 rounded-full bg-cream border border-[#E7DFCF] text-[11px] font-bold flex items-center justify-center shrink-0 text-stone-500">5</span><span class="text-stone-600"><strong class="font-semibold text-ink">Berat & vaksin tercatat</strong> — grafik berat dan jadwal vaksin berikutnya terpantau di HP.</span></li>
+                </ol>
+                <div class="px-5 py-3.5 bg-[#FBF9F4] border-t border-stone-100 flex items-center gap-2 text-[12px] text-stone-500">
+                    <svg class="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    Pengingat H-1 dikirim otomatis — pemilik tidak perlu di-WA satu per satu.
+                </div>
+            </div>
+            <p class="mt-3 text-[12.5px] text-stone-500 leading-relaxed">Stack yang dipakai: <span class="font-mono text-stone-700">Laravel 12 · Kotlin + Jetpack Compose · MySQL · Firebase Auth + FCM · Midtrans Sandbox</span>.</p>
+        </div>
+    </div>
+</section>
+
+<!-- MASALAH vs SOLUSI: tabel jujur -->
+<section class="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+    <div class="reveal">
+        <p class="eyebrow text-[11.5px] font-bold uppercase text-clay">Kenapa aplikasi ini dibuat</p>
+        <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3 max-w-2xl leading-tight">Pencatatan klinik yang biasanya tercecer, dibuat rapi dari awal.</h2>
+    </div>
+    <div class="mt-7 grid md:grid-cols-2 gap-4">
+        <div class="bg-white card rounded-2xl p-6">
+            <p class="text-[12px] font-bold uppercase tracking-widest text-stone-400">Cara yang sering terjadi</p>
+            <ul class="mt-4 space-y-3.5 text-[14.5px] text-stone-600">
+                <li class="flex gap-3"><span class="text-stone-300 font-serif text-lg leading-none">×</span>Jadwal ditulis di buku / chat, gampang bentrok dan kelewat.</li>
+                <li class="flex gap-3"><span class="text-stone-300 font-serif text-lg leading-none">×</span>Pengingat kontrol dikirim manual lewat WA satu per satu.</li>
+                <li class="flex gap-3"><span class="text-stone-300 font-serif text-lg leading-none">×</span>Riwayat berobat menumpuk di kertas — hilang saat dibutuhkan.</li>
+                <li class="flex gap-3"><span class="text-stone-300 font-serif text-lg leading-none">×</span>Uang muka dicatat terpisah, sisa pembayaran mudah lupa.</li>
+            </ul>
+        </div>
+        <div class="bg-pine-950 text-stone-100 rounded-2xl p-6 relative overflow-hidden">
+            <div class="dotgrid-light absolute inset-0 opacity-40 pointer-events-none"></div>
+            <div class="relative">
+                <p class="text-[12px] font-bold uppercase tracking-widest text-emerald-300/80">Yang dikerjakan PetHeal</p>
+                <ul class="mt-4 space-y-3.5 text-[14.5px] text-stone-200">
+                    <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Slot 30 menit dikunci per dokter + tanggal (<span class="font-mono text-[13px]">lockForUpdate</span>) — jadwal ganda tertolak otomatis (409).</li>
+                    <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Konfirmasi, pengingat vaksin, dan kontrol dikirim sebagai push notification.</li>
+                    <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Setiap kunjungan jadi rekam medis digital per hewan, lengkap dengan berat & vaksinasi.</li>
+                    <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Skema DP / lunas / sisa tercatat di satu tempat, terhubung ke Midtrans.</li>
+                </ul>
             </div>
         </div>
-    </nav>
+    </div>
+</section>
 
-    <!-- Hero Section -->
-    <section class="hero-gradient min-h-[90vh] flex items-center pt-20">
-        <div class="grid-pattern absolute inset-0 opacity-40"></div>
-        <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-            <div class="lg:grid lg:grid-cols-12 lg:gap-16 items-center">
-                <div class="lg:col-span-7">
-                    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-white/10 text-brand-300 text-sm font-medium mb-6" style="animation: fadeIn 0.6s ease-out forwards;">
-                        <span class="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span>
-                        Sistem siap digunakan
-                    </div>
+<!-- ALUR -->
+<section id="alur" class="max-w-6xl mx-auto px-4 sm:px-6 py-10 scroll-mt-20">
+    <div class="reveal flex flex-wrap items-end gap-4">
+        <div>
+            <p class="eyebrow text-[11.5px] font-bold uppercase text-pine-800">Alur kerja · 5 langkah</p>
+            <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3">Dari daftar sampai kontrol berikutnya</h2>
+        </div>
+        <p class="ml-auto text-[13.5px] text-stone-500 max-w-sm">Alur ini sama persis di aplikasi Android dan panel admin — statusnya tersinkron dua arah.</p>
+    </div>
+    <ol class="mt-7 grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
+        @php
+            $steps = [
+                ['n' => '01', 't' => 'Daftar & pilih klinik', 'd' => 'Login email atau Google (Firebase). 1 akun terikat 1 klinik — pindah klinik tinggal ganti slug, tanpa install ulang.'],
+                ['n' => '02', 't' => 'Pilih dokter + slot', 'd' => 'Slot harian 30 menit, dihitung dari jadwal praktik. Tanggal libur otomatis kosong.'],
+                ['n' => '03', 't' => 'Bayar DP / lunas', 'd' => 'Snap token Midtrans. Order ID jelas: BOOKING-{id}-{waktu}. Sisa bisa dibayar menyusul.'],
+                ['n' => '04', 't' => 'Datang & diperiksa', 'd' => 'Admin konfirmasi → selesai. Pemilik dapat notifikasi di tiap perubahan status.'],
+                ['n' => '05', 't' => 'Pantau dari HP', 'd' => 'Rekam medis, grafik berat, jadwal vaksin, dan rating dokter tersimpan per hewan.'],
+            ];
+        @endphp
+        @foreach($steps as $i => $s)
+        <li class="reveal bg-white card rounded-2xl p-5 flex flex-col" style="transition-delay: {{ $i * 60 }}ms">
+            <span class="font-mono text-[12px] font-medium text-clay">{{ $s['n'] }}</span>
+            <p class="font-serif font-semibold text-[17px] mt-1.5 leading-snug">{{ $s['t'] }}</p>
+            <p class="text-[13.5px] text-stone-600 leading-relaxed mt-2">{{ $s['d'] }}</p>
+        </li>
+        @endforeach
+    </ol>
+</section>
 
-                    <h1 class="text-4xl sm:text-5xl lg:text-6xl font-display font-extrabold text-white leading-[1.1] tracking-tight" style="animation: fadeUp 0.8s ease-out forwards;">
-                        Manajemen Klinik
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-300 to-brand-400">Hewan Modern</span>
-                    </h1>
-
-                    <p class="mt-6 text-lg sm:text-xl text-surface-300/80 max-w-xl leading-relaxed" style="animation: fadeUp 0.8s ease-out 0.15s forwards; opacity: 0; animation-fill-mode: forwards;">
-                        Platform terpadu untuk booking online, rekam medis digital, notifikasi otomatis, dan analitik klinik — dirancang untuk era digital.
-                    </p>
-
-                    <div class="mt-10 flex flex-wrap gap-4" style="animation: fadeUp 0.8s ease-out 0.3s forwards; opacity: 0; animation-fill-mode: forwards;">
-                        <a href="/admin"
-                           class="inline-flex items-center gap-2 px-7 py-3.5 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-brand-500/20 hover:shadow-xl hover:shadow-brand-500/30 text-base">
-                            Buka Dashboard
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </a>
-                        <a href="#api-docs"
-                           class="inline-flex items-center gap-2 px-7 py-3.5 bg-white/5 hover:bg-white/10 text-white/90 hover:text-white font-medium rounded-xl border border-white/10 hover:border-white/20 transition-all duration-200 text-base">
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-                            </svg>
-            Lihat API
-                        </a>
-                    </div>
-                </div>
-
-                <div class="hidden lg:block lg:col-span-5" style="animation: fadeIn 1s ease-out 0.4s forwards; opacity: 0; animation-fill-mode: forwards;">
-                    <div class="relative">
-                        <div class="absolute inset-0 bg-gradient-to-tr from-brand-500/10 to-transparent rounded-3xl"></div>
-                        <div class="relative p-8">
-                            <div class="space-y-4">
-                                <div class="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
-                                    <div class="w-10 h-10 rounded-xl bg-brand-500/20 flex items-center justify-center shrink-0">
-                                        <svg class="w-5 h-5 text-brand-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="text-white/90 text-sm font-medium">Keamanan Data</p>
-                                        <p class="text-white/50 text-xs">Enkripsi end-to-end</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
-                                    <div class="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center shrink-0">
-                                        <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="text-white/90 text-sm font-medium">Respon Cepat</p>
-                                        <p class="text-white/50 text-xs">Notifikasi real-time</p>
-                                    </div>
-                                </div>
-                                <div class="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5">
-                                    <div class="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
-                                        <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                        </svg>
-                                    </div>
-                                    <div>
-                                        <p class="text-white/90 text-sm font-medium">Performa Tinggi</p>
-                                        <p class="text-white/50 text-xs">Optimasi maksimal</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<!-- UNTUK SIAPA -->
+<section id="untuk-siapa" class="bg-white border-y border-[#E7DFCF] mt-6 scroll-mt-20">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-14">
+        <div class="reveal max-w-2xl">
+            <p class="eyebrow text-[11.5px] font-bold uppercase text-pine-800">Untuk siapa</p>
+            <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3">Tiga peran, satu database yang sama</h2>
+            <p class="mt-3 text-stone-600 text-[15.5px] leading-relaxed">Tidak ada input ulang. Apa yang diisi pemilik di HP langsung terbaca admin — dan sebaliknya.</p>
+        </div>
+        <div class="mt-8 grid md:grid-cols-3 gap-4">
+            <div class="reveal card rounded-2xl p-6 bg-paper">
+                <p class="text-[12px] font-bold uppercase tracking-widest text-pine-800">Pemilik hewan · Android</p>
+                <h3 class="font-serif font-semibold text-[20px] mt-2">Urus hewan dari HP</h3>
+                <ul class="mt-4 space-y-2.5 text-[14px] text-stone-700 leading-relaxed">
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Data banyak hewan + foto (kamera / galeri), riwayat berat 0,1–200 kg.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Jadwal vaksin + tanggal berikutnya, dengan pengingat.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Booking, reschedule (selagi <em>pending</em>), dan batal dengan alasan.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Beri rating 1–5 + ulasan, satu kali per booking selesai.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Notifikasi: konfirmasi, selesai, H-1 vaksin & kontrol.</li>
+                </ul>
+            </div>
+            <div class="reveal card rounded-2xl p-6 bg-paper" style="transition-delay:80ms">
+                <p class="text-[12px] font-bold uppercase tracking-widest text-pine-800">Admin klinik · Web</p>
+                <h3 class="font-serif font-semibold text-[20px] mt-2">Operasional harian</h3>
+                <ul class="mt-4 space-y-2.5 text-[14px] text-stone-700 leading-relaxed">
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Dashboard + grafik, daftar booking hari ini.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Konfirmasi / selesaikan / batalkan + kirim pengingat manual.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Kelola dokter, layanan (import CSV/XLSX), dan tarif.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Terbitkan rekam medis + biaya tambahan bila ada.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Ekspor PDF/CSV, jejak audit tiap aksi penting.</li>
+                </ul>
+            </div>
+            <div class="reveal card rounded-2xl p-6 bg-paper" style="transition-delay:160ms">
+                <p class="text-[12px] font-bold uppercase tracking-widest text-pine-800">Super admin · Web</p>
+                <h3 class="font-serif font-semibold text-[20px] mt-2">Banyak klinik, tetap tertib</h3>
+                <ul class="mt-4 space-y-2.5 text-[14px] text-stone-700 leading-relaxed">
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Tambah klinik (slug, logo, warna tema sendiri).</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Setujui / tolak pengajuan gabung klinik.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Intip tiap klinik tanpa campur datanya (isolasi <span class="font-mono text-[13px]">clinic_id</span>).</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Kelola template notifikasi global.</li>
+                    <li class="flex gap-2.5"><span class="text-pine-800 font-bold">·</span>Akun tanpa klinik otomatis ditolak (403) — gagal tertutup, bukan bocor.</li>
+                </ul>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- Stats Section -->
-    <section class="relative -mt-12 z-10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-surface-100 cursor-default">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-surface-400">Dokter</p>
-                            <p class="text-2xl font-bold text-surface-900 font-display">{{ \App\Models\Doctor::count() }}</p>
-                        </div>
-                    </div>
-                </div>
+<!-- FITUR DETAIL -->
+<section id="fitur" class="max-w-6xl mx-auto px-4 sm:px-6 py-14 scroll-mt-20">
+    <div class="reveal max-w-2xl">
+        <p class="eyebrow text-[11.5px] font-bold uppercase text-pine-800">Fitur · yang benar-benar jalan</p>
+        <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3">Bukan daftar janji — ini yang sudah bisa didemo</h2>
+    </div>
+    <div class="mt-8 grid md:grid-cols-2 gap-4">
+        <div class="reveal bg-white card rounded-2xl p-6">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-pine-800 text-white flex items-center justify-center font-serif font-semibold">1</span>
+                <h3 class="font-serif font-semibold text-[19px]">Booking yang anti-bentrok</h3>
+            </div>
+            <ul class="mt-4 space-y-2 text-[14px] text-stone-600 leading-relaxed">
+                <li>— Slot dihitung dari jadwal praktik dokter, interval 30 menit; hari libur mengembalikan list kosong.</li>
+                <li>— Cek ganda memakai database lock — dua orang klik jam yang sama, satu ditolak dengan 409.</li>
+                <li>— Reschedule hanya untuk status <span class="font-mono text-[13px]">pending</span>; hapus hanya untuk <span class="font-mono text-[13px]">pending/cancelled</span>.</li>
+            </ul>
+            <p class="mt-4 font-mono text-[12px] bg-[#F6F1E6] border border-[#E7DFCF] rounded-lg px-3 py-2 text-stone-700">GET /doctors/{id}/slots?date=2026-10-06 → [{time, available}]</p>
+        </div>
+        <div class="reveal bg-white card rounded-2xl p-6" style="transition-delay:60ms">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-pine-800 text-white flex items-center justify-center font-serif font-semibold">2</span>
+                <h3 class="font-serif font-semibold text-[19px]">Rekam medis + tumbuh kembang</h3>
+            </div>
+            <ul class="mt-4 space-y-2 text-[14px] text-stone-600 leading-relaxed">
+                <li>— Diagnosis, tindakan, obat, catatan, dan jadwal kontrol berikutnya per kunjungan.</li>
+                <li>— Grafik berat badan + riwayat vaksinasi per hewan, dengan daftar “segera jatuh tempo”.</li>
+                <li>— Detail sensitif disamarkan sampai biaya tambahan lunas — adil untuk kedua sisi.</li>
+            </ul>
+            <p class="mt-4 font-mono text-[12px] bg-[#F6F1E6] border border-[#E7DFCF] rounded-lg px-3 py-2 text-stone-700">GET /pets/{id}/weight-history · GET /pets/{id}/vaccinations</p>
+        </div>
+        <div class="reveal bg-white card rounded-2xl p-6">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-pine-800 text-white flex items-center justify-center font-serif font-semibold">3</span>
+                <h3 class="font-serif font-semibold text-[19px]">Dokter, layanan & ulasan</h3>
+            </div>
+            <ul class="mt-4 space-y-2 text-[14px] text-stone-600 leading-relaxed">
+                <li>— Profil dokter + foto, spesialisasi, jadwal, dan rata-rata rating.</li>
+                <li>— Katalog layanan per klinik + metode pembayaran global; admin bisa import massal.</li>
+                <li>— Ulasan terikat booking selesai milik sendiri — tidak bisa asal menilai.</li>
+            </ul>
+            <p class="mt-4 font-mono text-[12px] bg-[#F6F1E6] border border-[#E7DFCF] rounded-lg px-3 py-2 text-stone-700">POST /doctors/{id}/reviews {booking_id, rating 1–5}</p>
+        </div>
+        <div class="reveal bg-white card rounded-2xl p-6" style="transition-delay:60ms">
+            <div class="flex items-center gap-3">
+                <span class="w-10 h-10 rounded-xl bg-pine-800 text-white flex items-center justify-center font-serif font-semibold">4</span>
+                <h3 class="font-serif font-semibold text-[19px]">Notifikasi yang tepat waktu</h3>
+            </div>
+            <ul class="mt-4 space-y-2 text-[14px] text-stone-600 leading-relaxed">
+                <li>— FCM v1 (JWT OAuth2): konfirmasi booking, booking selesai, H-1 vaksin & kontrol.</li>
+                <li>— Admin bisa kirim ulang pengingat dari detail booking bila pemilik belum datang.</li>
+                <li>— Token per perangkat didaftarkan saat login, dihapus saat logout.</li>
+            </ul>
+            <p class="mt-4 font-mono text-[12px] bg-[#F6F1E6] border border-[#E7DFCF] rounded-lg px-3 py-2 text-stone-700">POST /device-token {token, device_type}</p>
+        </div>
+    </div>
+</section>
 
-                <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-surface-100 cursor-default">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-surface-400">Booking Hari Ini</p>
-                            <p class="text-2xl font-bold text-surface-900 font-display">{{ \App\Models\Booking::whereDate('booking_date', today())->count() }}</p>
-                        </div>
-                    </div>
-                </div>
+<!-- PEMBAYARAN -->
+<section id="bayar" class="bg-pine-950 text-stone-100 scroll-mt-20 relative overflow-hidden">
+    <div class="dotgrid-light absolute inset-0 opacity-30 pointer-events-none"></div>
+    <div class="relative max-w-6xl mx-auto px-4 sm:px-6 py-14 grid lg:grid-cols-2 gap-10">
+        <div class="reveal">
+            <p class="eyebrow text-[11.5px] font-bold uppercase text-emerald-300">Pembayaran · Midtrans Sandbox</p>
+            <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3 text-white">DP dulu boleh, pelunasan menyusul — tercatat semua.</h2>
+            <p class="mt-4 text-stone-300 text-[15px] leading-relaxed">Banyak klinik membolehkan bayar sebagian. PetHeal mencatat skema <span class="font-mono text-[13.5px] text-white">dp / full</span>, menerbitkan Snap token, memverifikasi webhook (SHA-512), lalu menyinkronkan status dari server Midtrans — bukan dari tebakan client.</p>
+            <ul class="mt-6 space-y-3 text-[14.5px] text-stone-200">
+                <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Status pembayaran hanya maju (monotonik) — tidak bisa mundur diam-diam.</li>
+                <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Biaya tambahan rekam medis punya order & webhook sendiri.</li>
+                <li class="flex gap-3"><span class="text-emerald-300 font-bold">✓</span>Ada <span class="font-mono text-[13px]">preflight</span> diagnostik — sebelum demo pembayaran, cek kesiapan dulu.</li>
+            </ul>
+        </div>
+        <div class="reveal bg-white/[.06] border border-white/10 rounded-2xl p-5 font-mono text-[12.5px] leading-relaxed">
+            <p class="text-stone-400">// Contoh yang benar-benar dipakai</p>
+            <p class="mt-3 text-emerald-200">POST /api/payment/snap-token</p>
+            <pre class="mt-2 text-stone-200 whitespace-pre-wrap">{
+  "transaction_details": {
+    "order_id": "BOOKING-12-1719849600",
+    "gross_amount": 75000
+  }
+}</pre>
+            <div class="mt-4 border-t border-white/10 pt-4 space-y-2 text-stone-300">
+                <p><span class="text-white">BOOKING-{id}-{waktu}</span> — pembayaran awal</p>
+                <p><span class="text-white">BOOKING-{id}-REMAINING-{waktu}</span> — pelunasan sisa</p>
+                <p><span class="text-white">MEDREC-{id}-{waktu}</span> — biaya tambahan rekam medis</p>
+            </div>
+            <p class="mt-4 text-stone-400">Webhook → verifikasi signature → <span class="text-stone-200">sync-status</span> dari Midtrans → notifikasi ke pemilik.</p>
+        </div>
+    </div>
+</section>
 
-                <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-surface-100 cursor-default">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-surface-400">Pengguna</p>
-                            <p class="text-2xl font-bold text-surface-900 font-display">{{ \App\Models\User::count() }}</p>
-                        </div>
-                    </div>
-                </div>
+<!-- TEKNIS -->
+<section id="teknis" class="max-w-6xl mx-auto px-4 sm:px-6 py-14 scroll-mt-20">
+    <div class="reveal max-w-2xl">
+        <p class="eyebrow text-[11.5px] font-bold uppercase text-pine-800">Di balik layar</p>
+        <h2 class="font-serif font-semibold tracking-tight text-[28px] sm:text-[36px] mt-3">Kelebihannya bukan tempelan — ada di keputusan teknisnya</h2>
+    </div>
+    <div class="mt-8 grid md:grid-cols-3 gap-4">
+        <div class="reveal bg-white card rounded-2xl p-6">
+            <h3 class="font-serif font-semibold text-[18px]">Satu APK untuk banyak klinik</h3>
+            <p class="mt-2.5 text-[14px] text-stone-600 leading-relaxed">Database bersama + kolom <span class="font-mono text-[13px]">clinic_id</span>. Aplikasi mengirim <span class="font-mono text-[13px]">X-Clinic-Slug</span>; server menolak data klinik lain (404/422) dan menolak akun tanpa klinik (403). Tidak perlu build APK per klinik.</p>
+        </div>
+        <div class="reveal bg-white card rounded-2xl p-6" style="transition-delay:60ms">
+            <h3 class="font-serif font-semibold text-[18px]">Kontrak API yang dikunci</h3>
+            <p class="mt-2.5 text-[14px] text-stone-600 leading-relaxed">64 endpoint, format respons diseragamkan (<span class="font-mono text-[13px]">success / message / data / pagination</span>), dan dijaga 97 integration test. Android tidak tiba-tiba rusak karena backend berubah.</p>
+        </div>
+        <div class="reveal bg-white card rounded-2xl p-6" style="transition-delay:120ms">
+            <h3 class="font-serif font-semibold text-[18px]">Aman & hemat sejak awal</h3>
+            <p class="mt-2.5 text-[14px] text-stone-600 leading-relaxed">Login Firebase + token Sanctum, rate-limit per fitur (auth 8/mnt, payment 10/mnt), audit log tiap aksi admin, cache katalog, ekspor menghormati filter. Semua 100% layanan gratis.</p>
+        </div>
+    </div>
 
-                <div class="stat-card bg-white rounded-2xl p-6 shadow-sm border border-surface-100 cursor-default">
-                    <div class="flex items-center gap-4">
-                        <div class="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center shrink-0">
-                            <svg class="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium text-surface-400">Rekam Medis</p>
-                            <p class="text-2xl font-bold text-surface-900 font-display">{{ \App\Models\MedicalRecord::count() }}</p>
-                        </div>
-                    </div>
-                </div>
+    <div class="mt-4 bg-white card rounded-2xl p-6 reveal">
+        <div class="flex flex-wrap items-center gap-3">
+            <div>
+                <h3 class="font-serif font-semibold text-[18px]">Mau coba API-nya langsung?</h3>
+                <p class="text-[13.5px] text-stone-500 mt-1">Base URL demo (akhiri dengan <span class="font-mono">/api/</span> di Android):</p>
+            </div>
+            <div class="ml-auto flex items-center gap-2 w-full sm:w-auto">
+                <code id="baseUrl" class="flex-1 sm:flex-none font-mono text-[12.5px] bg-[#F6F1E6] border border-[#E7DFCF] rounded-lg px-3 py-2.5 text-stone-700 truncate">{{ $baseUrl }}/</code>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('baseUrl').innerText);this.innerText='Disalin ✓';setTimeout(()=>this.innerText='Salin',1500)" class="shrink-0 text-[13px] font-semibold bg-ink text-white px-4 py-2.5 rounded-lg hover:bg-pine-800 transition-colors">Salin</button>
             </div>
         </div>
-    </section>
+        <div class="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-2.5 font-mono text-[12px]">
+            <div class="border border-[#E7DFCF] rounded-lg px-3 py-2.5"><span class="font-bold text-emerald-700">GET</span> <span class="text-stone-700">/health</span><span class="block text-stone-400 mt-0.5 font-sans text-[12px]">Cek database, FCM, Midtrans</span></div>
+            <div class="border border-[#E7DFCF] rounded-lg px-3 py-2.5"><span class="font-bold text-emerald-700">GET</span> <span class="text-stone-700">/public/clinics</span><span class="block text-stone-400 mt-0.5 font-sans text-[12px]">Daftar klinik (publik)</span></div>
+            <div class="border border-[#E7DFCF] rounded-lg px-3 py-2.5"><span class="font-bold text-emerald-700">GET</span> <span class="text-stone-700">/doctors?limit=20</span><span class="block text-stone-400 mt-0.5 font-sans text-[12px]">Per klinik user / slug</span></div>
+            <div class="border border-[#E7DFCF] rounded-lg px-3 py-2.5"><span class="font-bold text-emerald-700">GET</span> <span class="text-stone-700">/dashboard</span><span class="block text-stone-400 mt-0.5 font-sans text-[12px]">Ringkasan + vaksin terdekat</span></div>
+        </div>
+        <p class="mt-3 text-[12.5px] text-stone-500">Header wajib untuk endpoint privat: <code class="font-mono bg-[#F6F1E6] px-1.5 py-0.5 rounded border border-[#E7DFCF]">Authorization: Bearer &lt;token&gt;</code> · Dokumentasi lengkap 64 route ada di berkas <code class="font-mono">API_DOCUMENTATION.md</code> repo.</p>
+    </div>
+</section>
 
-    <!-- Features Section -->
-    <section class="py-24 lg:py-32 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="max-w-2xl mx-auto text-center reveal">
-                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-sm font-medium mb-4">Fitur Unggulan</span>
-                <h2 class="text-3xl sm:text-4xl font-display font-bold text-surface-900 tracking-tight">
-                    Semua yang Anda Butuhkan dalam Satu Platform
-                </h2>
-                <p class="mt-4 text-surface-500 text-lg leading-relaxed">
-                    Dari booking hingga rekam medis, kelola klinik hewan Anda dengan efisien.
-                </p>
-            </div>
-
-            <div class="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
-                <!-- Booking Online -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-brand-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-brand-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Booking Online</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        Pilih dokter dan jadwal favorit Anda secara real-time. Dilengkapi notifikasi otomatis ke pemilik hewan.
-                    </p>
-                </div>
-
-                <!-- Rekam Medis -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Rekam Medis Digital</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        Riwayat kesehatan terdokumentasi rapi. Akses kapan saja, dari mana saja dengan aman.
-                    </p>
-                </div>
-
-                <!-- Notifikasi -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-purple-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Notifikasi Otomatis</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        Push notification untuk pengingat vaksin, kontrol, dan jadwal melalui Firebase Cloud Messaging.
-                    </p>
-                </div>
-
-                <!-- Keamanan -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Autentikasi Aman</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        Firebase Authentication dengan Email/Password & Google Sign-In. Enkripsi data tingkat tinggi.
-                    </p>
-                </div>
-
-                <!-- Analytics -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-rose-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-rose-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Dashboard Analytics</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        Pantau performa klinik dengan grafik interaktif dan laporan real-time yang informatif.
-                    </p>
-                </div>
-
-                <!-- API Mobile -->
-                <div class="feature-card bg-white rounded-2xl p-8 border border-surface-100 shadow-sm">
-                    <div class="w-14 h-14 rounded-2xl bg-cyan-50 flex items-center justify-center mb-6">
-                        <svg class="w-7 h-7 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
-                            <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" />
-                        </svg>
-                    </div>
-                    <h3 class="text-lg font-display font-semibold text-surface-900 mb-2">Mobile Ready</h3>
-                    <p class="text-surface-500 leading-relaxed text-sm">
-                        REST API lengkap untuk integrasi dengan aplikasi Android berbasis Jetpack Compose.
-                    </p>
-                </div>
+<!-- FAQ + DEMO -->
+<section class="max-w-6xl mx-auto px-4 sm:px-6 pb-14">
+    <div class="grid lg:grid-cols-5 gap-4">
+        <div class="lg:col-span-3 bg-white card rounded-2xl p-6 sm:p-8 reveal">
+            <h2 class="font-serif font-semibold text-[24px] tracking-tight">Pertanyaan yang sering muncul saat demo</h2>
+            <div class="mt-5 space-y-3">
+                <details class="border border-[#E7DFCF] rounded-xl px-4 py-3.5 group">
+                    <summary class="font-semibold text-[14.5px] cursor-pointer flex items-center gap-2">Apakah ini project sungguhan atau sekadar tampilan? <span class="ml-auto text-stone-400 group-open:rotate-45 transition-transform text-lg leading-none">+</span></summary>
+                    <p class="mt-2 text-[14px] text-stone-600 leading-relaxed">Sungguhan dan bisa didemo end-to-end: daftar di HP → booking → bayar (sandbox) → konfirmasi di web → rekam medis terbit → notifikasi masuk. Angka statistik di atas halaman ini diambil langsung dari database.</p>
+                </details>
+                <details class="border border-[#E7DFCF] rounded-xl px-4 py-3.5 group">
+                    <summary class="font-semibold text-[14.5px] cursor-pointer flex items-center gap-2">Bagaimana demo multi-kliniknya? <span class="ml-auto text-stone-400 group-open:rotate-45 transition-transform text-lg leading-none">+</span></summary>
+                    <p class="mt-2 text-[14px] text-stone-600 leading-relaxed">Buka <span class="font-mono text-[13px]">GET /public/clinics</span>, pilih satu slug, lalu login dengan akun klinik itu. Daftar dokter, layanan, dan booking langsung berganti mengikuti klinik — tanpa ganti APK.</p>
+                </details>
+                <details class="border border-[#E7DFCF] rounded-xl px-4 py-3.5 group">
+                    <summary class="font-semibold text-[14.5px] cursor-pointer flex items-center gap-2">Apakah bayar sesuatu untuk menjalankannya? <span class="ml-auto text-stone-400 group-open:rotate-45 transition-transform text-lg leading-none">+</span></summary>
+                    <p class="mt-2 text-[14px] text-stone-600 leading-relaxed">Tidak. MySQL lokal, ngrok free, Firebase Spark, dan Midtrans sandbox — semuanya gratis. Itu keputusan desain yang disengaja agar bisa direplikasi di sekolah.</p>
+                </details>
+                <details class="border border-[#E7DFCF] rounded-xl px-4 py-3.5 group">
+                    <summary class="font-semibold text-[14.5px] cursor-pointer flex items-center gap-2">Akun apa yang dipakai untuk demo admin? <span class="ml-auto text-stone-400 group-open:rotate-45 transition-transform text-lg leading-none">+</span></summary>
+                    <p class="mt-2 text-[14px] text-stone-600 leading-relaxed">Lihat kartu “Coba sekarang” di samping — email dan kata sandi demonya tertulis di sana. Cukup login, tidak perlu registrasi ulang.</p>
+                </details>
             </div>
         </div>
-    </section>
-
-    <!-- API Documentation Section -->
-    <section id="api-docs" class="py-24 lg:py-32 bg-surface-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="max-w-2xl mx-auto text-center reveal">
-                <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-medium mb-4">API Reference</span>
-                <h2 class="text-3xl sm:text-4xl font-display font-bold text-surface-900 tracking-tight">
-                    REST API Endpoints
-                </h2>
-                <p class="mt-4 text-surface-500 text-lg leading-relaxed">
-                    Base URL: <code class="px-2.5 py-1 bg-surface-100 rounded-lg text-brand-600 font-mono text-sm">{{ config('app.url') }}/api</code>
-                </p>
-            </div>
-
-            <div class="mt-12 max-w-3xl mx-auto space-y-3 reveal">
-                <div class="bg-white rounded-2xl p-5 border border-surface-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center gap-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-brand-50 text-brand-700">POST</span>
-                        <code class="text-sm font-mono text-surface-800 font-medium">/auth/firebase-login</code>
-                        <span class="text-xs text-surface-400 ml-auto">Login dengan Firebase ID Token</span>
-                    </div>
+        <div class="lg:col-span-2 bg-ink text-stone-100 rounded-2xl p-6 sm:p-8 reveal relative overflow-hidden" style="transition-delay:80ms">
+            <div class="dotgrid-light absolute inset-0 opacity-25 pointer-events-none"></div>
+            <div class="relative">
+                <p class="eyebrow text-[11px] font-bold uppercase text-emerald-300">Coba sekarang</p>
+                <h2 class="font-serif font-semibold text-[24px] tracking-tight mt-2 text-white">Masuk sebagai admin demo</h2>
+                <div class="mt-5 bg-white/[.07] border border-white/10 rounded-xl p-4 font-mono text-[13px] space-y-1.5">
+                    <p><span class="text-stone-400">email</span> <span class="text-white">admin@petheal.com</span></p>
+                    <p><span class="text-stone-400">password</span> <span class="text-white">admin123</span></p>
                 </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-surface-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center gap-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700">GET</span>
-                        <code class="text-sm font-mono text-surface-800 font-medium">/doctors</code>
-                        <span class="text-xs text-surface-400 ml-auto">Daftar semua dokter</span>
-                    </div>
+                <div class="mt-5 grid gap-2.5">
+                    <a href="/admin/login" class="text-center bg-white text-ink font-semibold px-5 py-3 rounded-xl hover:bg-emerald-50 transition-colors text-[14.5px]">Login panel admin</a>
+                    <a href="/admin/register" class="text-center border border-white/15 font-semibold px-5 py-3 rounded-xl hover:bg-white/5 transition-colors text-[14.5px]">Ajukan klinik bergabung →</a>
                 </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-surface-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center gap-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-brand-50 text-brand-700">POST</span>
-                        <code class="text-sm font-mono text-surface-800 font-medium">/bookings</code>
-                        <span class="text-xs text-surface-400 ml-auto">Buat booking baru</span>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-2xl p-5 border border-surface-100 shadow-sm hover:shadow-md transition-shadow duration-200">
-                    <div class="flex items-center gap-4">
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider bg-blue-50 text-blue-700">GET</span>
-                        <code class="text-sm font-mono text-surface-800 font-medium">/pets</code>
-                        <span class="text-xs text-surface-400 ml-auto">Daftar hewan peliharaan user</span>
-                    </div>
-                </div>
+                <p class="mt-4 text-[12.5px] text-stone-400 leading-relaxed">URL demo memakai ngrok free-tier — kalau suatu saat berubah, ganti <span class="font-mono">BACKEND_BASE_URL</span> di <span class="font-mono">local.properties</span> Android lalu rebuild.</p>
             </div>
         </div>
-    </section>
+    </div>
+</section>
 
-    <!-- CTA Section -->
-    <section class="py-24 lg:py-32 bg-white">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center reveal">
-            <div class="bg-gradient-to-br from-brand-900 via-brand-800 to-surface-900 rounded-3xl p-10 sm:p-16 relative overflow-hidden">
-                <div class="absolute inset-0 grid-pattern opacity-20"></div>
-                <div class="relative">
-                    <h2 class="text-3xl sm:text-4xl font-display font-bold text-white tracking-tight">
-                        Siap Mengelola Klinik Lebih Efisien?
-                    </h2>
-                    <p class="mt-4 text-brand-100/80 text-lg max-w-xl mx-auto leading-relaxed">
-                        Akses dashboard admin sekarang dan nikmati kemudahan mengelola klinik hewan Anda.
-                    </p>
-                    <div class="mt-8 flex flex-wrap justify-center gap-4">
-                        <a href="/admin"
-                           class="inline-flex items-center gap-2 px-7 py-3.5 bg-white hover:bg-brand-50 text-brand-700 font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-black/10 text-base">
-                            Masuk ke Dashboard
-                            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                            </svg>
-                        </a>
-                    </div>
-                </div>
+<!-- FOOTER -->
+<footer class="border-t border-[#E7DFCF] bg-[#F3EDE0]/60">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid md:grid-cols-4 gap-8">
+        <div class="md:col-span-2">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-pine-800 text-white flex items-center justify-center">
+                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 13.2c-2.6 0-5.4 2-5.4 4.3 0 1.4 1 2.3 2.4 2.3 1 0 1.9-.5 3-1.5 1.1 1 2 1.5 3 1.5 1.4 0 2.4-.9 2.4-2.3 0-2.3-2.8-4.3-5.4-4.3ZM7.2 8.4c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Zm9.6 0c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1ZM9.6 3.5c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1Zm4.8 0c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Z"/></svg>
+                </span>
+                <span class="font-serif font-semibold text-[17px]">PetHeal</span>
             </div>
+            <p class="mt-3 text-[13.5px] text-stone-600 leading-relaxed max-w-sm">Sistem booking klinik hewan multi-klinik: aplikasi Android (Kotlin, Jetpack Compose) + backend Laravel + panel admin web. Dibuat sebagai bahan Uji Kompetensi — didokumentasikan, diuji, dan bisa didemo.</p>
+            <p class="mt-4 font-mono text-[12px] text-stone-500">{{ $baseUrl }}/ · /admin · /api/health</p>
         </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-surface-900 border-t border-surface-800">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-16">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                <div class="lg:col-span-1">
-                    <a href="/" class="flex items-center gap-2.5 group">
-                        <img src="/logo.png" alt="PetHeal" class="h-9 w-auto" fetchpriority="high" width="180" height="36">
-                        <span class="text-xl font-display font-bold text-white">PetHeal</span>
-                    </a>
-                    <p class="mt-4 text-surface-400 text-sm leading-relaxed max-w-xs">
-                        Sistem manajemen klinik hewan modern untuk era digital. Cepat, aman, dan terpercaya.
-                    </p>
-                </div>
-
-                <div class="lg:col-span-2">
-                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-8">
-                        <div>
-                            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Platform</h3>
-                            <ul class="mt-4 space-y-3">
-                                <li><a href="/admin" class="text-sm text-surface-400 hover:text-white transition-colors">Dashboard</a></li>
-                                <li><a href="#api-docs" class="text-sm text-surface-400 hover:text-white transition-colors">API</a></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Fitur</h3>
-                            <ul class="mt-4 space-y-3">
-                                <li><span class="text-sm text-surface-400">Booking Online</span></li>
-                                <li><span class="text-sm text-surface-400">Rekam Medis</span></li>
-                                <li><span class="text-sm text-surface-400">Notifikasi</span></li>
-                            </ul>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-semibold text-white uppercase tracking-wider">Status</h3>
-                            <ul class="mt-4 space-y-3">
-                                <li class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-brand-400"></span>
-                                    <span class="text-sm text-surface-400">API: Online</span>
-                                </li>
-                                <li class="flex items-center gap-2">
-                                    <span class="w-2 h-2 rounded-full bg-brand-400"></span>
-                                    <span class="text-sm text-surface-400">Server: Active</span>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="mt-12 pt-8 border-t border-surface-800 flex flex-col sm:flex-row justify-between items-center gap-4">
-                <p class="text-sm text-surface-500">
-                    &copy; {{ date('Y') }} PetHeal. All rights reserved.
-                </p>
-                <p class="text-sm text-surface-600">
-                    Dibuat dengan <span class="text-brand-400">&hearts;</span> untuk hewan peliharaan
-                </p>
-            </div>
+        <div>
+            <p class="text-[12px] font-bold uppercase tracking-widest text-stone-500">Jelajah</p>
+            <ul class="mt-3 space-y-2 text-[14px] font-medium">
+                <li><a href="#alur" class="hover:text-pine-800">Alur kerja</a></li>
+                <li><a href="#fitur" class="hover:text-pine-800">Fitur</a></li>
+                <li><a href="#bayar" class="hover:text-pine-800">Pembayaran</a></li>
+                <li><a href="#teknis" class="hover:text-pine-800">Teknis</a></li>
+            </ul>
         </div>
-    </footer>
+        <div>
+            <p class="text-[12px] font-bold uppercase tracking-widest text-stone-500">Status demo</p>
+            <ul class="mt-3 space-y-2 text-[14px] text-stone-600">
+                <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>API: menyala</li>
+                <li class="flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-emerald-600"></span>Database: {{ $users }} pengguna</li>
+                <li class="mt-3"><a href="/admin/login" class="font-semibold text-pine-800 hover:underline">admin@petheal.com / admin123</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="border-t border-[#E7DFCF]">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-5 flex flex-col sm:flex-row gap-2 items-center text-[12.5px] text-stone-500">
+            <p>© {{ date('Y') }} PetHeal — Veterinary Booking System. Laravel 12 · Firebase · Midtrans Sandbox.</p>
+            <p class="sm:ml-auto">Ditulis tangan untuk demo, bukan template generik.</p>
+        </div>
+    </div>
+</footer>
 
-    <!-- Scroll Reveal Script -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                    }
-                });
-            }, { threshold: 0.1 });
-
-            document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
-        });
-    </script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var io = new IntersectionObserver(function (entries) {
+            entries.forEach(function (e) {
+                if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
+            });
+        }, { threshold: 0.12 });
+        document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+    });
+</script>
 
 </body>
 </html>

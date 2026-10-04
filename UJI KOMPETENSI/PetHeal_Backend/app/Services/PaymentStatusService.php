@@ -9,10 +9,14 @@ use Illuminate\Support\Facades\DB;
 
 class PaymentStatusService
 {
-    private function clearPaymentCaches(): void
+    private function clearPaymentCaches(?int $clinicId = null): void
     {
-        Cache::forget('payment_stats');
-        Cache::forget('dashboard_stats_all');
+        // PHASE 3 (B12): forget the keys readers actually use
+        // (Admin/PaymentController stats + admin dashboard `_all` variant).
+        // Date-ranged dashboard keys cannot be enumerated here — documented.
+        $suffix = $clinicId ?: 'all';
+        Cache::forget('payment_stats_c' . $suffix);
+        Cache::forget('dashboard_stats_c' . $suffix . '_all');
     }
 
     /**
@@ -40,6 +44,22 @@ class PaymentStatusService
             $normalizedStatus = strtolower(trim($transactionStatus));
             $fraudStatus = strtolower(trim((string) ($payload['fraud_status'] ?? '')));
             $gross = (float) $grossAmount;
+
+            // PHASE 3 (B3): ignore non-positive amounts (Midtrans-authentic
+            // payloads never carry these; guards against corrupt delivery).
+            if ($gross <= 0 && ($normalizedStatus === 'settlement'
+                || ($normalizedStatus === 'capture' && ($fraudStatus === '' || $fraudStatus === 'accept')))) {
+                \Illuminate\Support\Facades\Log::warning('Ignoring non-positive payment amount', [
+                    'order_id' => $orderId,
+                    'gross' => $grossAmount,
+                ]);
+
+                return [
+                    'updated' => false,
+                    'duplicate' => false,
+                    'medical_record' => $record->fresh(),
+                ];
+            }
 
             $isSuccessful = $normalizedStatus === 'settlement'
                 || ($normalizedStatus === 'capture' && ($fraudStatus === '' || $fraudStatus === 'accept'));
@@ -74,7 +94,7 @@ class PaymentStatusService
                     'extra_payment_order_id' => $orderId,
                     'extra_payment_date' => now(),
                 ]);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($record->clinic_id);
 
                 return [
                     'updated' => true,
@@ -84,11 +104,22 @@ class PaymentStatusService
             }
 
             if ($normalizedStatus === 'pending') {
+                // PHASE 3 (B2): never downgrade money already recorded. A
+                // later token's `pending` must not reset paid/partial back.
+                if ((float) $record->extra_payment_paid_amount > 0
+                    || $record->extra_payment_status === 'paid') {
+                    return [
+                        'updated' => false,
+                        'duplicate' => false,
+                        'medical_record' => $record->fresh(),
+                    ];
+                }
+
                 $record->update([
                     'extra_payment_status' => 'pending',
                     'extra_payment_order_id' => $orderId,
                 ]);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($record->clinic_id);
 
                 return [
                     'updated' => true,
@@ -98,11 +129,22 @@ class PaymentStatusService
             }
 
             if (in_array($normalizedStatus, ['cancel', 'expire', 'deny', 'failure'], true)) {
+                // PHASE 3 (B2): a stale/duplicate terminal event for an old
+                // order must not flip an already-paid record to failed.
+                if ((float) $record->extra_payment_paid_amount > 0
+                    || $record->extra_payment_status === 'paid') {
+                    return [
+                        'updated' => false,
+                        'duplicate' => false,
+                        'medical_record' => $record->fresh(),
+                    ];
+                }
+
                 $record->update([
                     'extra_payment_status' => 'failed',
                     'extra_payment_order_id' => $orderId,
                 ]);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($record->clinic_id);
 
                 return [
                     'updated' => true,
@@ -146,8 +188,28 @@ class PaymentStatusService
             $fraudStatus = strtolower(trim((string) ($payload['fraud_status'] ?? '')));
             $gross = (float) $grossAmount;
 
+            // PHASE 3 (B3): ignore non-positive amounts.
             $isSuccessful = $normalizedStatus === 'settlement'
                 || ($normalizedStatus === 'capture' && ($fraudStatus === '' || $fraudStatus === 'accept'));
+
+            if ($isSuccessful && $gross <= 0) {
+                \Illuminate\Support\Facades\Log::warning('Ignoring non-positive payment amount', [
+                    'order_id' => $orderId,
+                    'gross' => $grossAmount,
+                ]);
+
+                return [
+                    'updated' => false,
+                    'duplicate' => false,
+                    'booking' => $booking->fresh(),
+                ];
+            }
+
+            // PHASE 3 (B1/B3): terminal/advanced states are monotonic. A paid
+            // booking stays paid; dp_paid/partial are never reset by a later
+            // pending/failed event for another order of the same booking.
+            $terminalStatuses = ['paid'];
+            $advancedStatuses = ['dp_paid', 'partial'];
 
             if ($isSuccessful) {
                 $created = DB::table('payment_events')->insertOrIgnore([
@@ -180,7 +242,11 @@ class PaymentStatusService
 
                 if ($remainingAmount <= 0) {
                     $updateData['payment_status'] = 'paid';
-                } elseif ($booking->payment_type === 'dp' && (float) $booking->paid_amount == 0.0) {
+                } elseif ($booking->payment_type === 'dp'
+                    && (float) $booking->paid_amount == 0.0
+                    && $gross >= (float) $booking->dp_amount) {
+                    // PHASE 3 (B3): dp_paid requires the DP leg to actually
+                    // cover the DP amount — a short payment stays `partial`.
                     $updateData['payment_status'] = 'dp_paid';
                     $updateData['payment_type'] = 'dp';
                 } else {
@@ -188,7 +254,7 @@ class PaymentStatusService
                 }
 
                 $booking->update($updateData);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($booking->clinic_id);
 
                 return [
                     'updated' => true,
@@ -198,10 +264,19 @@ class PaymentStatusService
             }
 
             if ($normalizedStatus === 'pending') {
+                // PHASE 3 (B1): never downgrade recorded money.
+                if (in_array($booking->payment_status, array_merge($terminalStatuses, $advancedStatuses), true)) {
+                    return [
+                        'updated' => false,
+                        'duplicate' => false,
+                        'booking' => $booking->fresh(),
+                    ];
+                }
+
                 $booking->update([
                     'payment_status' => 'pending',
                 ]);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($booking->clinic_id);
 
                 return [
                     'updated' => true,
@@ -211,10 +286,20 @@ class PaymentStatusService
             }
 
             if (in_array($normalizedStatus, ['cancel', 'expire', 'deny', 'failure'], true)) {
+                // PHASE 3 (B1): a stale terminal event for an old order must
+                // not flip paid/dp_paid/partial back to failed.
+                if (in_array($booking->payment_status, array_merge($terminalStatuses, $advancedStatuses), true)) {
+                    return [
+                        'updated' => false,
+                        'duplicate' => false,
+                        'booking' => $booking->fresh(),
+                    ];
+                }
+
                 $booking->update([
                     'payment_status' => 'failed',
                 ]);
-                $this->clearPaymentCaches();
+                $this->clearPaymentCaches($booking->clinic_id);
 
                 return [
                     'updated' => true,

@@ -3,7 +3,7 @@
 @endphp
 @extends('layouts.admin')
 
-@section('title', 'Services - PetHeal Admin')
+@section('title', 'Services - VCMS Admin')
 @section('header', 'Services & Pricelist')
 
 @section('content')

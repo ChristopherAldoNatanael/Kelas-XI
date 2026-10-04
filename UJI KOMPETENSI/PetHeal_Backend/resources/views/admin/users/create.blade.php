@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Create User - PetHeal Admin')
+@section('title', 'Create User - VCMS Admin')
 @section('header', 'Create User')
 
 @section('content')

@@ -142,7 +142,7 @@ class PaymentController extends Controller
                 Log::warning('Unauthenticated attempt to create snap token');
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
+                    'message' => 'Unauthenticated.'
                 ], 401);
             }
 
@@ -258,7 +258,7 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create snap token: ' . $result['message'],
-                'detail' => $result['detail'] ?? null,
+                'errors' => ['upstream' => $result['detail'] ?? $result['message']],
             ], $result['status']);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validation error in createSnapToken', [
@@ -307,7 +307,7 @@ class PaymentController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
+                    'message' => 'Unauthenticated.'
                 ], 401);
             }
 
@@ -356,7 +356,7 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => $result['message'],
-                'status_code' => $result['status'],
+                'errors' => ['upstream_status' => $result['status']],
             ], $result['status']);
         } catch (\Exception $e) {
             Log::error('Exception in getTransactionStatus', [
@@ -452,7 +452,7 @@ class PaymentController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => $result['message'],
-                    'status_code' => $result['status'],
+                    'errors' => ['upstream_status' => $result['status']],
                 ], $result['status']);
             }
 
@@ -608,8 +608,28 @@ class PaymentController extends Controller
                 ], 400);
             }
 
-            // Calculate remaining amount
-            $remainingAmount = $booking->total_amount - $booking->paid_amount;
+            // PHASE 3 (B5): remaining payment only makes sense after money
+            // moved. A fresh DP booking (paid=0, stored remaining=DP leg)
+            // must go through the DP flow first — otherwise this endpoint
+            // would mint a token for the FULL total. Cancelled bookings are
+            // never payable here.
+            if (in_array($booking->status, ['cancelled', 'completed'], true)) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Remaining payment is not available for this booking'
+                ], 400);
+            }
+
+            if ((float) $booking->paid_amount <= 0) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Complete the first payment before paying the remainder'
+                ], 400);
+            }
+
+            // Calculate remaining amount from the stored column (kept
+            // authoritative by every payment path) instead of recomputing.
+            $remainingAmount = max(0, (float) ($booking->remaining_amount ?? 0));
 
             if ($remainingAmount <= 0) {
                 return response()->json([
@@ -629,8 +649,11 @@ class PaymentController extends Controller
                 'paid_amount' => $booking->paid_amount,
             ]);
 
-            // Generate order ID for remaining payment
-            $orderId = "BOOKING-{$bookingId}-REMAINING-" . time();
+            // Generate order ID for remaining payment.
+            // PHASE 3 (B17): millis instead of time() — two tokens minted in
+            // the same second previously collided on the unique order id.
+            // Still numeric so sync-status parsing (^BOOKING-\d+-REMAINING-\d+$) holds.
+            $orderId = 'BOOKING-' . $bookingId . '-REMAINING-' . (int) (microtime(true) * 1000);
 
             // Build Snap payload
             $snapPayload = [
@@ -710,7 +733,7 @@ class PaymentController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create snap token: ' . $result['message'],
-                'detail' => $result['detail'] ?? null,
+                'errors' => ['upstream' => $result['detail'] ?? $result['message']],
             ], $result['status']);
         } catch (\Throwable $e) {
             Log::error('Exception in createRemainingPaymentSnapToken', [
@@ -740,10 +763,11 @@ class PaymentController extends Controller
             if (!$user) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'User not authenticated'
+                    'message' => 'Unauthenticated.'
                 ], 401);
             }
 
+            // Find booking
             $booking = $user->bookings()->find($bookingId);
 
             if (!$booking) {

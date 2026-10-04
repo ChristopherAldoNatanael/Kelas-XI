@@ -35,10 +35,17 @@ Route::middleware('throttle:password-reset')->group(function () {
 
 Route::get('/health', [HealthController::class, 'index']);
 
+// Public clinic routes (no auth required)
+Route::prefix('public')->group(function () {
+    Route::get('/clinics', [App\Http\Controllers\Api\PublicClinicController::class, 'index']);
+    Route::get('/clinics/{slug}', [App\Http\Controllers\Api\PublicClinicController::class, 'show']);
+});
+
 // Payment methods (public - no auth required)
 Route::get('/payment-methods', [App\Http\Controllers\Api\PaymentMethodController::class, 'index']);
 
-// Services (public - no auth required)
+// Services (public list for backward compat, but also available authenticated with clinic filter)
+// Public access shows all active services; authenticated access filters by user's clinic
 Route::get('/services', [App\Http\Controllers\Api\ServiceController::class, 'index']);
 Route::get('/services/{id}', [App\Http\Controllers\Api\ServiceController::class, 'show']);
 

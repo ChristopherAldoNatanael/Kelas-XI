@@ -33,13 +33,62 @@ class AuthController extends Controller
             return;
         }
 
+        // PHASE 3 (V-04): keep device_type consistent with the validated
+        // endpoint (android/ios/web), default android. Login is also the
+        // legitimate device-handover path, so reassign is allowed here.
+        $deviceType = $request->input('device_type', 'android');
+        if (!in_array($deviceType, ['android', 'ios', 'web'], true)) {
+            $deviceType = 'android';
+        }
+
         DeviceToken::updateOrCreate(
             ['token' => $token],
             [
                 'user_id' => $user->id,
-                'device_type' => $request->input('device_type', 'android'),
+                'device_type' => $deviceType,
             ]
         );
+    }
+
+    /**
+     * Resolve clinic from slug string, return Clinic model or null.
+     */
+    private function resolveClinic(?string $slug): ?\App\Models\Clinic
+    {
+        if (!$slug) {
+            return null;
+        }
+        return \App\Models\Clinic::where('slug', $slug)->where('is_active', true)->first();
+    }
+
+    /**
+     * Build the user array for auth responses, including clinic object.
+     */
+    private function userResponse(User $user): array
+    {
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'photo' => $user->photo,
+            'phone' => $user->phone,
+        ];
+
+        // Add clinic object (null for super_admin without clinic)
+        if ($user->clinic) {
+            $data['clinic'] = [
+                'id' => $user->clinic->id,
+                'name' => $user->clinic->name,
+                'slug' => $user->clinic->slug,
+                'logo_url' => $user->clinic->logo_url,
+                'primary_color' => $user->clinic->primary_color,
+            ];
+        } else {
+            $data['clinic'] = null;
+        }
+
+        return $data;
     }
 
     /**
@@ -51,6 +100,7 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|string',
             'fcm_token' => 'nullable|string',
+            'clinic_slug' => 'nullable|string',
         ]);
 
         $email = $request->input('email');
@@ -66,6 +116,26 @@ class AuthController extends Controller
             ], 401);
         }
 
+        // If clinic_slug provided, validate user belongs to that clinic
+        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        if ($clinic && $user->clinic_id && $user->clinic_id !== $clinic->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke klinik ini.',
+            ], 403);
+        }
+
+        // PHASE 3 (F-03): suspended clinic stays suspended at login too.
+        // (Middleware enforces this on every call; login mirrors it so the
+        // client gets a clear 403 instead of a token that never works.)
+        // super_admin exempt (no clinic binding).
+        if ($user->role !== 'super_admin' && $user->clinic_id && !$user->clinic?->is_active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akses ditolak. Klinik Anda sedang nonaktif.',
+            ], 403);
+        }
+
         // Create Sanctum token
         $token = $user->createToken('mobile-app')->plainTextToken;
 
@@ -77,14 +147,7 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'data' => [
                 'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'photo' => $user->photo,
-                    'phone' => $user->phone,
-                ],
+                'user' => $this->userResponse($user),
             ],
         ]);
     }
@@ -100,6 +163,7 @@ class AuthController extends Controller
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:20',
             'fcm_token' => 'nullable|string',
+            'clinic_slug' => 'nullable|string',
         ]);
 
         // Check if user already exists
@@ -112,6 +176,15 @@ class AuthController extends Controller
             ], 409);
         }
 
+        // Resolve clinic if provided
+        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        if ($request->input('clinic_slug') && !$clinic) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Klinik tidak ditemukan atau tidak aktif.',
+            ], 422);
+        }
+
         // Create new user
         $user = User::create([
             'name' => $request->input('name'),
@@ -119,6 +192,7 @@ class AuthController extends Controller
             'password' => Hash::make($request->input('password')),
             'role' => 'user',
             'phone' => $request->input('phone'),
+            'clinic_id' => $clinic?->id,
         ]);
 
         // Create Sanctum token
@@ -132,14 +206,7 @@ class AuthController extends Controller
             'message' => 'Registration successful',
             'data' => [
                 'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'photo' => $user->photo,
-                    'phone' => $user->phone,
-                ],
+                'user' => $this->userResponse($user),
             ],
         ]);
     }
@@ -152,6 +219,7 @@ class AuthController extends Controller
         $request->validate([
             'id_token' => 'required|string',
             'fcm_token' => 'nullable|string',
+            'clinic_slug' => 'nullable|string',
         ]);
 
         $idToken = $request->input('id_token');
@@ -181,6 +249,15 @@ class AuthController extends Controller
             }
         }
 
+        // If user exists and clinic_slug provided, validate clinic match
+        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        if ($user && $clinic && $user->clinic_id && $user->clinic_id !== $clinic->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Anda tidak memiliki akses ke klinik ini.',
+            ], 403);
+        }
+
         if (!$user) {
             // Create new user
             $user = User::create([
@@ -189,6 +266,7 @@ class AuthController extends Controller
                 'email' => $firebaseUser['email'],
                 'role' => 'user',
                 'photo' => $firebaseUser['picture'] ?? null,
+                'clinic_id' => $clinic?->id,
             ]);
         }
 
@@ -203,14 +281,7 @@ class AuthController extends Controller
             'message' => 'Login successful',
             'data' => [
                 'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'photo' => $user->photo,
-                    'phone' => $user->phone,
-                ],
+                'user' => $this->userResponse($user),
             ],
         ]);
     }
@@ -225,6 +296,7 @@ class AuthController extends Controller
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'fcm_token' => 'nullable|string',
+            'clinic_slug' => 'nullable|string',
         ]);
 
         $idToken = $request->input('id_token');
@@ -249,6 +321,15 @@ class AuthController extends Controller
             ], 409);
         }
 
+        // Resolve clinic if provided
+        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        if ($request->input('clinic_slug') && !$clinic) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Klinik tidak ditemukan atau tidak aktif.',
+            ], 422);
+        }
+
         // Create new user
         $user = User::create([
             'firebase_uid' => $firebaseUser['uid'],
@@ -257,6 +338,7 @@ class AuthController extends Controller
             'role' => 'user',
             'phone' => $request->input('phone'),
             'photo' => $firebaseUser['picture'] ?? null,
+            'clinic_id' => $clinic?->id,
         ]);
 
         // Create Sanctum token
@@ -270,14 +352,7 @@ class AuthController extends Controller
             'message' => 'Registration successful',
             'data' => [
                 'token' => $token,
-                'user' => [
-                    'id' => $user->id,
-                    'name' => $user->name,
-                    'email' => $user->email,
-                    'role' => $user->role,
-                    'photo' => $user->photo,
-                    'phone' => $user->phone,
-                ],
+                'user' => $this->userResponse($user),
             ],
         ]);
     }
@@ -310,19 +385,34 @@ class AuthController extends Controller
     {
         $user = $request->user();
 
+        $data = [
+            'id'         => $user->id,
+            'name'       => $user->name,
+            'email'      => $user->email,
+            'role'       => $user->role,
+            'photo'      => $user->photo,
+            'phone'      => $user->phone,
+            'firebase_uid' => $user->firebase_uid,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+        ];
+
+        // Add clinic info
+        if ($user->clinic) {
+            $data['clinic'] = [
+                'id' => $user->clinic->id,
+                'name' => $user->clinic->name,
+                'slug' => $user->clinic->slug,
+                'logo_url' => $user->clinic->logo_url,
+                'primary_color' => $user->clinic->primary_color,
+            ];
+        } else {
+            $data['clinic'] = null;
+        }
+
         return response()->json([
             'success' => true,
-            'data' => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'email'      => $user->email,
-                'role'       => $user->role,
-                'photo'      => $user->photo,
-                'phone'      => $user->phone,
-                'firebase_uid' => $user->firebase_uid,
-                'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at,
-            ],
+            'data' => $data,
         ]);
     }
 
@@ -353,20 +443,34 @@ class AuthController extends Controller
 
         $user->save();
 
+        $data = [
+            'id'         => $user->id,
+            'name'       => $user->name,
+            'email'      => $user->email,
+            'role'       => $user->role,
+            'photo'      => $user->photo,
+            'phone'      => $user->phone,
+            'firebase_uid' => $user->firebase_uid,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+        ];
+
+        if ($user->clinic) {
+            $data['clinic'] = [
+                'id' => $user->clinic->id,
+                'name' => $user->clinic->name,
+                'slug' => $user->clinic->slug,
+                'logo_url' => $user->clinic->logo_url,
+                'primary_color' => $user->clinic->primary_color,
+            ];
+        } else {
+            $data['clinic'] = null;
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Profile updated successfully',
-            'data' => [
-                'id'         => $user->id,
-                'name'       => $user->name,
-                'email'      => $user->email,
-                'role'       => $user->role,
-                'photo'      => $user->photo,
-                'phone'      => $user->phone,
-                'firebase_uid' => $user->firebase_uid,
-                'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at,
-            ],
+            'data' => $data,
         ]);
     }
 
@@ -524,20 +628,34 @@ class AuthController extends Controller
         $user->photo = $relativePath;
         $user->save();
 
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role,
+            'photo' => $user->photo,
+            'phone' => $user->phone,
+            'firebase_uid' => $user->firebase_uid,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+        ];
+
+        if ($user->clinic) {
+            $data['clinic'] = [
+                'id' => $user->clinic->id,
+                'name' => $user->clinic->name,
+                'slug' => $user->clinic->slug,
+                'logo_url' => $user->clinic->logo_url,
+                'primary_color' => $user->clinic->primary_color,
+            ];
+        } else {
+            $data['clinic'] = null;
+        }
+
         return response()->json([
             'success' => true,
             'message' => 'Profile photo updated successfully',
-            'data' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'role' => $user->role,
-                'photo' => $user->photo,
-                'phone' => $user->phone,
-                'firebase_uid' => $user->firebase_uid,
-                'created_at' => $user->created_at,
-                'updated_at' => $user->updated_at,
-            ],
+            'data' => $data,
         ]);
     }
 

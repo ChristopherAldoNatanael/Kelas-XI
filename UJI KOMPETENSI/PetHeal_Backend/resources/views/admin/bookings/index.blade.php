@@ -3,7 +3,7 @@
 @endphp
 @extends('layouts.admin')
 
-@section('title', 'Bookings - PetHeal Admin')
+@section('title', 'Bookings - VCMS Admin')
 @section('header', 'Bookings Management')
 
 @section('content')
@@ -38,7 +38,7 @@
                 </a>
             @endif
 
-            <a href="{{ route('admin.bookings.export') }}" target="_blank" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1">
+            <a href="{{ route('admin.bookings.export', request()->only(['status', 'date', 'from', 'to'])) }}" target="_blank" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-1">
                 <span class="material-symbols-outlined text-[18px]">print</span>Export PDF
             </a>
         </form>

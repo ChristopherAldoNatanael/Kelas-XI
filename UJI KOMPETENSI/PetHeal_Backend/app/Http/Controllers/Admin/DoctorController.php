@@ -18,11 +18,14 @@ class DoctorController extends Controller
     }
 
     /**
-     * List all doctors
+     * List all doctors — clinic scoped
      */
     public function index()
     {
+        $clinicId = currentClinicId();
+
         $doctors = Doctor::query()
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->withCount([
                 'reviews',
                 'bookings',
@@ -67,9 +70,21 @@ class DoctorController extends Controller
             'available_days.*' => 'in:monday,tuesday,wednesday,thursday,friday,saturday,sunday',
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
+            'is_active' => 'sometimes|boolean',
         ]);
 
-        $data = $request->except('photo');
+        // PHASE 3 (F-06 orphan guard): super_admin in overview mode has no
+        // target clinic — refuse instead of creating clinic-less doctors.
+        $contextClinicId = currentClinicId();
+        if (!$contextClinicId && isSuperAdmin()) {
+            return redirect()->route('admin.doctors.index')
+                ->with('error', 'Pilih klinik terlebih dahulu sebelum menambah dokter.');
+        }
+
+        $data = $request->only([
+            'name', 'specialization', 'phone', 'email',
+            'available_days', 'start_time', 'end_time', 'is_active',
+        ]);
 
         if ($request->hasFile('photo')) {
             try {
@@ -98,20 +113,26 @@ class DoctorController extends Controller
             }
         }
 
+        // Set clinic_id from current context
+        $data['clinic_id'] = currentClinicId();
+
         $doctor = Doctor::create($data);
         $this->refreshDoctorApiCache();
 
         AuditLog::log('doctor.create', "Created doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Doctor created successfully');
+        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil ditambahkan.');
     }
 
     /**
-     * Show doctor details
+     * Show doctor details — clinic scoped
      */
     public function show($id)
     {
+        $clinicId = currentClinicId();
+
         $doctor = Doctor::query()
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->withCount([
                 'reviews',
                 'bookings',
@@ -139,21 +160,31 @@ class DoctorController extends Controller
     }
 
     /**
-     * Show edit form
+     * Show edit form — clinic scoped
      */
     public function edit($id)
     {
-        $doctor = Doctor::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Doctor::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $doctor = $query->firstOrFail();
 
         return view('admin.doctors.edit', compact('doctor'));
     }
 
     /**
-     * Update doctor
+     * Update doctor — clinic scoped
      */
     public function update(Request $request, $id)
     {
-        $doctor = Doctor::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Doctor::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $doctor = $query->firstOrFail();
 
         // Normalize available_days to lowercase before validation
         if ($request->has('available_days')) {
@@ -175,7 +206,14 @@ class DoctorController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $data = $request->except('photo');
+        // PHASE 3 (F-01): whitelist update fields. Previously
+        // `$request->except('photo')` let `clinic_id` through (fillable but
+        // unvalidated), so a clinic admin could move a doctor to another
+        // tenant. `clinic_id` is intentionally NOT updatable here.
+        $data = $request->only([
+            'name', 'specialization', 'phone', 'email',
+            'available_days', 'start_time', 'end_time', 'is_active',
+        ]);
 
         if ($request->hasFile('photo')) {
             try {
@@ -213,15 +251,20 @@ class DoctorController extends Controller
 
         AuditLog::log('doctor.update', "Updated doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Doctor updated successfully');
+        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil diperbarui.');
     }
 
     /**
-     * Delete doctor
+     * Delete doctor — clinic scoped
      */
     public function destroy($id)
     {
-        $doctor = Doctor::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Doctor::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $doctor = $query->firstOrFail();
 
         // Delete photo if exists
         if ($doctor->photo) {
@@ -233,6 +276,6 @@ class DoctorController extends Controller
         $doctor->delete();
         $this->refreshDoctorApiCache();
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Doctor deleted successfully');
+        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil dihapus.');
     }
 }

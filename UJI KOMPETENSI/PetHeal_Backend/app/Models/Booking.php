@@ -27,6 +27,7 @@ class Booking extends Model
         'confirmed_at',
         'completed_at',
         'service_type',
+        'clinic_id',
     ];
 
     protected $casts = [
@@ -79,6 +80,14 @@ class Booking extends Model
         } catch (\Exception $e) {
             return null;
         }
+    }
+
+    /**
+     * Get the clinic this booking belongs to
+     */
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
     }
 
     /**

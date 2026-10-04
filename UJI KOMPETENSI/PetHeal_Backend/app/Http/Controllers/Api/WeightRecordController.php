@@ -57,9 +57,10 @@ class WeightRecordController extends Controller
             'recorded_at' => $validated['recorded_at'] ?? now(),
             'notes' => $validated['notes'] ?? null,
         ]);
-        
-        // Update pet's current weight
-        $pet->update(['weight' => $validated['weight']]);
+
+        // PHASE 3 (B7): current weight = latest measurement by recorded_at,
+        // not blindly the just-created row (backdated entries corrupted it).
+        $this->refreshCurrentWeight($pet);
         
         return response()->json([
             'success' => true,
@@ -76,11 +77,28 @@ class WeightRecordController extends Controller
         $pet = $request->user()->pets()->findOrFail($petId);
         $record = $pet->weightRecords()->findOrFail($recordId);
         $record->delete();
+
+        // PHASE 3 (B7): recompute after delete so current weight never
+        // points at a deleted measurement.
+        $this->refreshCurrentWeight($pet);
         
         return response()->json([
             'success' => true,
             'message' => 'Weight record deleted',
         ]);
+    }
+
+    /**
+     * PHASE 3 (B7): derive current weight from the newest record.
+     */
+    private function refreshCurrentWeight(Pet $pet): void
+    {
+        $latest = $pet->weightRecords()
+            ->orderBy('recorded_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $pet->update(['weight' => $latest?->weight]);
     }
 
     /**
@@ -95,6 +113,15 @@ class WeightRecordController extends Controller
 
         $firstWeight = (float) $pet->weightRecords()->oldest('recorded_at')->value('weight');
         $lastWeight = (float) $pet->weightRecords()->latest('recorded_at')->value('weight');
+
+        // PHASE 3 (B7): zero guard (legacy rows may hold 0).
+        if ($firstWeight <= 0) {
+            return [
+                'absolute' => round($lastWeight - $firstWeight, 2),
+                'percentage' => null,
+                'trend' => $lastWeight > $firstWeight ? 'gaining' : ($lastWeight < $firstWeight ? 'losing' : 'stable'),
+            ];
+        }
 
         return [
             'absolute' => round($lastWeight - $firstWeight, 2),

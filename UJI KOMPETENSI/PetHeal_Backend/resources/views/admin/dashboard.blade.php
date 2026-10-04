@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Dashboard - PetHeal Admin')
-@section('header', 'Executive Dashboard')
+@section('title', 'Dashboard — ' . ($clinicName ?? 'VCMS') . ' Admin')
+@section('header', ($clinicName ?? 'VCMS') . ' — Executive Dashboard')
 
 @section('content')
 <!-- Date Range Filter -->

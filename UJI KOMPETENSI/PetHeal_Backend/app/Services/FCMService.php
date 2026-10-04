@@ -172,8 +172,13 @@ class FCMService
     private function storeNotification(int $userId, string $title, string $body, array $data = []): void
     {
         try {
+            // PHASE 3 (J-06): attribute new rows to the recipient's clinic so
+            // clinic-scoped reporting keeps working (column was backfilled
+            // once but never written afterwards).
+            $clinicId = \App\Models\User::whereKey($userId)->value('clinic_id');
             Notification::create([
                 'user_id' => $userId,
+                'clinic_id' => $clinicId,
                 'title' => $title,
                 'body' => $body,
                 'type' => $data['type'] ?? 'general',

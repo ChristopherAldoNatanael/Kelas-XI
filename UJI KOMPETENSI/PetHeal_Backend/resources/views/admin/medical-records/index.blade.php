@@ -9,7 +9,7 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
 
 @extends('layouts.admin')
 
-@section('title', 'Medical Records - PetHeal Admin')
+@section('title', 'Medical Records - VCMS Admin')
 @section('header', 'Medical Records Management')
 
 @section('content')

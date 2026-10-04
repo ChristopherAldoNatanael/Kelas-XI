@@ -12,6 +12,7 @@ class Service extends Model
         'duration',
         'category',
         'is_active',
+        'clinic_id',
     ];
 
     protected function casts(): array
@@ -21,6 +22,11 @@ class Service extends Model
             'duration' => 'integer',
             'is_active' => 'boolean',
         ];
+    }
+
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
     }
 
     public function bookings()

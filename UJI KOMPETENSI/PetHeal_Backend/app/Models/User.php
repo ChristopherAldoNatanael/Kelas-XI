@@ -28,6 +28,7 @@ class User extends Authenticatable
         'role',
         'phone',
         'photo',
+        'clinic_id',
     ];
 
     /**
@@ -52,11 +53,35 @@ class User extends Authenticatable
     }
 
     /**
-     * Check if user is admin
+     * Get the clinic this user belongs to
+     */
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
+    }
+
+    /**
+     * Check if user is admin (legacy)
      */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return in_array($this->role, ['admin', 'super_admin', 'clinic_admin']);
+    }
+
+    /**
+     * Check if user is super admin
+     */
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    /**
+     * Check if user is clinic admin
+     */
+    public function isClinicAdmin(): bool
+    {
+        return $this->role === 'clinic_admin';
     }
 
     /**

@@ -10,6 +10,11 @@ class MedicalRecord extends Model
         'booking_id',
         'pet_id',
         'doctor_id',
+        // PHASE 1 (C4): column exists (2026_10_02_000006, backfilled in
+        // 000007). Previously missing here, so Admin/MedicalRecordController
+        // silently dropped `clinic_id` on create and clinic-scoped queries
+        // could never match those rows.
+        'clinic_id',
         'diagnosis',
         'treatment',
         'medicine',
@@ -68,6 +73,11 @@ class MedicalRecord extends Model
     public function getCanViewFullRecordAttribute(): bool
     {
         return in_array($this->extra_payment_status, ['not_required', 'paid'], true);
+    }
+
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
     }
 
     /**

@@ -228,7 +228,9 @@ class MedicalRecordController extends Controller
                 ], 500);
             }
 
-            $orderId = "MEDREC-{$record->id}-" . time();
+            // PHASE 3 (B17): millis instead of time() — same-second double
+            // taps collided on unique extra_payment_order_id (500).
+            $orderId = 'MEDREC-' . $record->id . '-' . (int) (microtime(true) * 1000);
             $user = $request->user();
             $petName = $record->pet?->name ?: 'Pet';
             $snapPayload = [

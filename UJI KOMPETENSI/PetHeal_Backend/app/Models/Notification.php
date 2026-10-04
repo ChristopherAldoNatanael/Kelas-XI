@@ -11,6 +11,9 @@ class Notification extends Model
 
     protected $fillable = [
         'user_id',
+        // PHASE 3 (J-06): column exists (2026_10_02_000006) but was never
+        // filled — new notifications regressed to clinic_id=NULL.
+        'clinic_id',
         'title',
         'body',
         'type',
@@ -26,5 +29,10 @@ class Notification extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
     }
 }

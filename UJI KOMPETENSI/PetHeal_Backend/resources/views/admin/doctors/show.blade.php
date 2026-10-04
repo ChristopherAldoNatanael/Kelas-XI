@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Doctor Details - PetHeal Admin')
+@section('title', 'Doctor Details - VCMS Admin')
 @section('header', 'Doctor Profile')
 
 @section('content')
@@ -181,7 +181,7 @@
                             <div class="rounded-2xl border border-slate-200/70 bg-white px-4 py-4">
                                 <div class="flex items-start justify-between gap-4">
                                     <div>
-                                        <p class="text-sm font-semibold text-slate-900">{{ $review->user->name ?? 'PetHeal User' }}</p>
+                                        <p class="text-sm font-semibold text-slate-900">{{ $review->user->name ?? 'User' }}</p>
                                         <p class="text-xs text-slate-400 mt-1">
                                             {{ optional($review->booking)->booking_date ? \Carbon\Carbon::parse($review->booking->booking_date)->format('M d, Y') : 'Completed booking' }}
                                             @if(optional($review->booking)->pet?->name)

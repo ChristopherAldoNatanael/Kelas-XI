@@ -33,6 +33,7 @@ class Doctor extends Model
         'start_time',
         'end_time',
         'is_active',
+        'clinic_id',
     ];
 
     protected $casts = [
@@ -69,6 +70,14 @@ class Doctor extends Model
     }
 
     /**
+     * Get the clinic this doctor belongs to
+     */
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
+    }
+
+    /**
      * Get bookings for this doctor
      */
     public function bookings()
@@ -93,10 +102,18 @@ class Doctor extends Model
     }
 
     /**
-     * Get average rating
+     * Get average rating.
+     * PHASE 3 (MH-01): prefer the preloaded `withAvg` value when present so
+     * serializing a list does not fire one AVG query per row. Falls back to
+     * a live query for single-model contexts without the aggregate.
      */
     public function getAverageRatingAttribute(): ?float
     {
+        if (array_key_exists('reviews_avg_rating', $this->attributes)
+            && $this->attributes['reviews_avg_rating'] !== null) {
+            return round((float) $this->attributes['reviews_avg_rating'], 1);
+        }
+
         $avg = $this->reviews()->avg('rating');
         return $avg ? round($avg, 1) : null;
     }

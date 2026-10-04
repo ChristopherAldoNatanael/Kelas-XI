@@ -39,22 +39,46 @@ Route::get('/', function () {
 // Admin Authentication Routes (Public)
 Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:admin-login')->name('admin.login.post');
-Route::get('/admin/register', [AdminAuthController::class, 'showRegisterForm'])->name('admin.register');
-Route::post('/admin/register', [AdminAuthController::class, 'register'])->middleware('throttle:admin-login')->name('admin.register.post');
+
+// Join Request (replaces old register)
+Route::get('/admin/register', [AdminAuthController::class, 'showJoinRequestForm'])->name('admin.register');
+Route::post('/admin/register', [AdminAuthController::class, 'submitJoinRequest'])->middleware('throttle:admin-login')->name('admin.register.post');
 
 // Protected Admin Routes
 Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(function () {
     // Logout
     Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
 
+    // Switch clinic (super_admin only)
+    Route::post('/switch-clinic', [AdminAuthController::class, 'switchClinic'])->middleware('super_admin')->name('switch-clinic');
+
+    // Join Requests (super_admin only)
+    Route::get('/join-requests', [AdminAuthController::class, 'joinRequests'])->middleware('super_admin')->name('join-requests');
+    Route::post('/join-requests/{id}/approve', [AdminAuthController::class, 'approveJoinRequest'])->middleware('super_admin')->name('join-requests.approve');
+    Route::post('/join-requests/{id}/reject', [AdminAuthController::class, 'rejectJoinRequest'])->middleware('super_admin')->name('join-requests.reject');
+
+    // Clinics CRUD (super_admin only)
+    Route::middleware('super_admin')->group(function () {
+        Route::get('/clinics', [App\Http\Controllers\Admin\ClinicController::class, 'index'])->name('clinics.index');
+        Route::get('/clinics/create', [App\Http\Controllers\Admin\ClinicController::class, 'create'])->name('clinics.create');
+        Route::post('/clinics', [App\Http\Controllers\Admin\ClinicController::class, 'store'])->name('clinics.store');
+        Route::get('/clinics/{clinic}/edit', [App\Http\Controllers\Admin\ClinicController::class, 'edit'])->name('clinics.edit');
+        Route::put('/clinics/{clinic}', [App\Http\Controllers\Admin\ClinicController::class, 'update'])->name('clinics.update');
+        Route::post('/clinics/{clinic}/toggle-active', [App\Http\Controllers\Admin\ClinicController::class, 'toggleActive'])->name('clinics.toggle-active');
+    });
+
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\AdminAuthController::class, 'settings'])->name('settings');
+    Route::post('/settings/profile', [App\Http\Controllers\Admin\AdminAuthController::class, 'updateProfile'])->name('settings.profile');
     Route::post('/settings/password', [App\Http\Controllers\Admin\AdminAuthController::class, 'updatePassword'])->name('settings.password');
-    Route::get('/notification-settings', [NotificationSettingsController::class, 'index'])->name('notification-settings.index');
-    Route::put('/notification-settings', [NotificationSettingsController::class, 'update'])->name('notification-settings.update');
+    // PHASE 3 (F-02): notification templates are GLOBAL (AppSetting, no
+    // clinic column) — any clinic admin could rewrite push copy for ALL
+    // clinics. Restricted to super_admin like join-requests/clinics.
+    Route::get('/notification-settings', [NotificationSettingsController::class, 'index'])->middleware('super_admin')->name('notification-settings.index');
+    Route::put('/notification-settings', [NotificationSettingsController::class, 'update'])->middleware('super_admin')->name('notification-settings.update');
 
     // Audit Logs
     Route::get('/audit-logs', [DashboardController::class, 'auditLogs'])->name('audit-logs');

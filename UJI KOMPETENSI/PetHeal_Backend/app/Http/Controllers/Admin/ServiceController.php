@@ -14,9 +14,18 @@ use Maatwebsite\Excel\Excel as ExcelWriter;
 
 class ServiceController extends Controller
 {
+    // PHASE 3 (B12): bump on every write so the 6h API cache invalidates.
+    private function refreshServiceApiCache(): void
+    {
+        \Illuminate\Support\Facades\Cache::forever('services_version', now()->timestamp);
+    }
+
     public function index()
     {
-        $services = Service::orderBy('name')->paginate(20);
+        $clinicId = currentClinicId();
+        $services = Service::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->orderBy('name')
+            ->paginate(20);
         return view('admin.services.index', compact('services'));
     }
 
@@ -41,24 +50,45 @@ class ServiceController extends Controller
             'is_active' => 'boolean',
         ]);
 
-        $service = Service::create($request->only([
+        $data = $request->only([
             'name', 'description', 'price', 'duration', 'category', 'is_active',
-        ]));
+        ]);
+
+        // PHASE 3 (F-06 orphan guard): refuse clinic-less rows in overview mode.
+        $contextClinicId = currentClinicId();
+        if (!$contextClinicId) {
+            return redirect()->route('admin.services.index')
+                ->with('error', 'Pilih klinik terlebih dahulu sebelum menambah layanan.');
+        }
+        $data['clinic_id'] = $contextClinicId;
+
+        $service = Service::create($data);
+        $this->refreshServiceApiCache();
 
         AuditLog::log('service.create', "Created service {$service->name}", $service);
 
-        return redirect()->route('admin.services.index')->with('success', 'Service created successfully');
+        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil ditambahkan.');
     }
 
     public function edit($id)
     {
-        $service = Service::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Service::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $service = $query->firstOrFail();
         return view('admin.services.edit', compact('service'));
     }
 
     public function update(Request $request, $id)
     {
-        $service = Service::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Service::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $service = $query->firstOrFail();
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -72,10 +102,11 @@ class ServiceController extends Controller
         $service->update($request->only([
             'name', 'description', 'price', 'duration', 'category', 'is_active',
         ]));
+        $this->refreshServiceApiCache();
 
         AuditLog::log('service.update', "Updated service {$service->name}", $service);
 
-        return redirect()->route('admin.services.index')->with('success', 'Service updated successfully');
+        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil diperbarui.');
     }
 
     public function import(Request $request)
@@ -85,7 +116,23 @@ class ServiceController extends Controller
             'duplicate_strategy' => 'nullable|in:update,skip',
         ]);
 
-        $import = new ServicesImport($request->input('duplicate_strategy', 'update'));
+        // PHASE 1 (C5): import runs inside the caller's clinic. Tenant users
+        // always have clinic_id here (AdminAuth blocks clinic-less tenants);
+        // super_admin in overview mode has no target clinic => refuse instead
+        // of writing clinic-less rows into the shared table.
+        $clinicId = currentClinicId();
+        if (!$clinicId && !isSuperAdmin()) {
+            return redirect()
+                ->route('admin.services.index')
+                ->with('error', 'Akun Anda tidak terikat pada klinik manapun. Hubungi Super Admin.');
+        }
+        if (!$clinicId) {
+            return redirect()
+                ->route('admin.services.index')
+                ->with('error', 'Pilih klinik terlebih dahulu sebelum import layanan.');
+        }
+
+        $import = new ServicesImport($request->input('duplicate_strategy', 'update'), $clinicId);
         $file = $request->file('file');
         $extension = strtolower((string) $file?->getClientOriginalExtension());
         $readerType = match ($extension) {
@@ -130,6 +177,7 @@ class ServiceController extends Controller
         }
 
         AuditLog::log('service.import', "Imported services: {$summary['success']} success, {$summary['failed']} failed");
+        $this->refreshServiceApiCache();
 
         return redirect()
             ->route('admin.services.index')
@@ -169,12 +217,18 @@ class ServiceController extends Controller
 
     public function destroy($id)
     {
-        $service = Service::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Service::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $service = $query->firstOrFail();
 
         AuditLog::log('service.delete', "Deleted service {$service->name}", $service);
 
         $service->delete();
+        $this->refreshServiceApiCache();
 
-        return redirect()->route('admin.services.index')->with('success', 'Service deleted successfully');
+        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil dihapus.');
     }
 }

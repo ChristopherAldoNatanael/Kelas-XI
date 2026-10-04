@@ -20,11 +20,14 @@ class BookingController extends Controller
     }
 
     /**
-     * List all bookings
+     * List all bookings — clinic scoped
      */
     public function index(Request $request)
     {
-        $query = Booking::with(['user', 'pet', 'doctor', 'service']);
+        $clinicId = currentClinicId();
+
+        $query = Booking::with(['user', 'pet', 'doctor', 'service'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId));
 
         // Filter by status
         if ($request->has('status')) {
@@ -44,26 +47,43 @@ class BookingController extends Controller
     }
 
     /**
-     * Show booking details
+     * Show booking details — clinic scoped
      */
     public function show($id)
     {
-        $booking = Booking::with(['user', 'pet', 'doctor', 'service', 'medicalRecord'])->findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Booking::with(['user', 'pet', 'doctor', 'service', 'medicalRecord'])->where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $booking = $query->firstOrFail();
 
         return view('admin.bookings.show', compact('booking'));
     }
 
     /**
-     * Confirm booking
+     * Confirm booking — clinic scoped
      */
     public function confirm($id)
     {
-        $booking = Booking::with(['pet'])->where('status', 'pending')->findOrFail($id);
+        $clinicId = currentClinicId();
 
-        $booking->update([
-            'status' => 'confirmed',
-            'confirmed_at' => now(),
-        ]);
+        // PHASE 3 (C-01): status transition under row lock so concurrent
+        // confirm/cancel/complete cannot interleave (last-write-wins).
+        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId) {
+            $query = Booking::with(['pet'])->where('status', 'pending')->where('id', $id);
+            if ($clinicId) {
+                $query->where('clinic_id', $clinicId);
+            }
+            $booking = $query->lockForUpdate()->firstOrFail();
+
+            $booking->update([
+                'status' => 'confirmed',
+                'confirmed_at' => now(),
+            ]);
+
+            return $booking;
+        });
 
         $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
@@ -84,16 +104,27 @@ class BookingController extends Controller
     }
 
     /**
-     * Complete booking
+     * Complete booking — clinic scoped
      */
     public function complete($id)
     {
-        $booking = Booking::with(['pet'])->whereIn('status', ['pending', 'confirmed'])->findOrFail($id);
+        $clinicId = currentClinicId();
 
-        $booking->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-        ]);
+        // PHASE 3 (C-01): see confirm().
+        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId) {
+            $query = Booking::with(['pet'])->whereIn('status', ['pending', 'confirmed'])->where('id', $id);
+            if ($clinicId) {
+                $query->where('clinic_id', $clinicId);
+            }
+            $booking = $query->lockForUpdate()->firstOrFail();
+
+            $booking->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+
+            return $booking;
+        });
 
         $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
@@ -114,20 +145,31 @@ class BookingController extends Controller
     }
 
     /**
-     * Cancel booking
+     * Cancel booking — clinic scoped
      */
     public function cancel(Request $request, $id)
     {
-        $booking = Booking::with(['pet'])->whereIn('status', ['pending', 'confirmed'])->findOrFail($id);
+        $clinicId = currentClinicId();
 
         $request->validate([
             'reason' => 'required|string|max:500',
         ]);
 
-        $booking->update([
-            'status'               => 'cancelled',
-            'cancellation_reason'  => $request->input('reason'),
-        ]);
+        // PHASE 3 (C-01): see confirm().
+        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId, $request) {
+            $query = Booking::with(['pet'])->whereIn('status', ['pending', 'confirmed'])->where('id', $id);
+            if ($clinicId) {
+                $query->where('clinic_id', $clinicId);
+            }
+            $booking = $query->lockForUpdate()->firstOrFail();
+
+            $booking->update([
+                'status' => 'cancelled',
+                'cancellation_reason' => $request->input('reason'),
+            ]);
+
+            return $booking;
+        });
 
         $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
@@ -148,16 +190,30 @@ class BookingController extends Controller
     }
 
     /**
-     * Export bookings as PDF
+     * Export bookings as PDF — clinic scoped
      */
     public function exportPdf(Request $request)
     {
         $validated = $request->validate([
             'from' => 'nullable|date',
             'to' => 'nullable|date|after_or_equal:from',
+            // PHASE 4: honor the index filters the UI hint promises.
+            'status' => 'nullable|in:pending,confirmed,completed,cancelled',
+            'date' => 'nullable|date',
         ]);
 
-        $query = Booking::with(['pet.user', 'doctor', 'service'])->latest();
+        $clinicId = currentClinicId();
+        $query = Booking::with(['pet.user', 'doctor', 'service'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->latest();
+
+        if (!empty($validated['status'])) {
+            $query->where('status', $validated['status']);
+        }
+
+        if (!empty($validated['date'])) {
+            $query->whereDate('booking_date', $validated['date']);
+        }
 
         if (!empty($validated['from'])) {
             $query->whereDate('booking_date', '>=', $validated['from']);
@@ -185,7 +241,12 @@ class BookingController extends Controller
             'custom_message' => 'nullable|string|max:255|required_if:reminder_type,custom',
         ]);
 
-        $booking = Booking::with(['user', 'pet', 'doctor'])->findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = Booking::with(['user', 'pet', 'doctor'])->where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $booking = $query->firstOrFail();
 
         $sent = $this->fcmService->sendManualReminder(
             $booking->user_id,

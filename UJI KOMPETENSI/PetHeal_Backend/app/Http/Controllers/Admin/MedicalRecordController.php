@@ -43,7 +43,18 @@ class MedicalRecordController extends Controller
 
     private function filteredRecordsQuery(Request $request)
     {
-        $query = MedicalRecord::with(['pet', 'doctor', 'booking.user']);
+        // PHASE 4: validate list/export filters in one place — malformed
+        // dates previously reached whereDate() raw (DB error instead of 422).
+        $request->validate([
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            'doctor_id' => 'nullable|integer',
+            'payment_status' => 'nullable|in:pending,partial,paid,failed,unpaid,not_required',
+        ]);
+
+        $clinicId = currentClinicId();
+        $query = MedicalRecord::with(['pet', 'doctor', 'booking.user'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId));
 
         if ($request->filled('from')) {
             $query->whereDate('created_at', '>=', $request->input('from'));
@@ -65,11 +76,16 @@ class MedicalRecordController extends Controller
     }
 
     /**
-     * Show create form
+     * Show create form — clinic scoped
      */
     public function create($bookingId)
     {
-        $booking = Booking::with(['pet', 'doctor', 'user'])->findOrFail($bookingId);
+        $clinicId = currentClinicId();
+        $query = Booking::with(['pet', 'doctor', 'user'])->where('id', $bookingId);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $booking = $query->firstOrFail();
 
         return view('admin.medical-records.create', compact('booking'));
     }
@@ -79,8 +95,15 @@ class MedicalRecordController extends Controller
      */
     public function store(Request $request)
     {
+        $clinicId = currentClinicId();
+        $bookingExistsRule = \Illuminate\Validation\Rule::exists('bookings', 'id');
+        if ($clinicId) {
+            $bookingExistsRule->where('clinic_id', $clinicId);
+        }
         $request->validate([
-            'booking_id' => 'required|exists:bookings,id',
+            // PHASE 3 (V-01): scope the existence check to this clinic so a
+            // foreign booking id fails validation instead of leaking via 404.
+            'booking_id' => ['required', $bookingExistsRule],
             'diagnosis' => 'required|string',
             'treatment' => 'required|string',
             'medicine' => 'nullable|string',
@@ -92,7 +115,23 @@ class MedicalRecordController extends Controller
             'medicine_cost' => 'nullable|numeric|min:0',
         ]);
 
-        $booking = Booking::with(['pet', 'doctor'])->findOrFail($request->input('booking_id'));
+        $bookingQuery = Booking::with(['pet', 'doctor'])->where('id', $request->input('booking_id'));
+        if ($clinicId) {
+            $bookingQuery->where('clinic_id', $clinicId);
+        }
+        $booking = $bookingQuery->firstOrFail();
+
+        // PHASE 3 (B10): one record per booking (hasOne) and never resurrect
+        // a cancelled booking as completed.
+        if ($booking->status === 'cancelled') {
+            return redirect()->back()->withInput()
+                ->with('error', 'Tidak dapat membuat rekam medis untuk booking yang dibatalkan.');
+        }
+
+        if (MedicalRecord::where('booking_id', $booking->id)->exists()) {
+            return redirect()->back()->withInput()
+                ->with('error', 'Booking ini sudah memiliki rekam medis.');
+        }
 
         // Auto-fill cost from booking's total_amount if not provided
         $cost = $this->normalizeMoneyInput($request, 'cost');
@@ -116,15 +155,20 @@ class MedicalRecordController extends Controller
             'cost' => $cost,
             'treatment_cost' => $treatmentCost,
             'medicine_cost' => $medicineCost,
+            'clinic_id' => $booking->clinic_id,
         ]);
-        $record->recalculatePaymentState((float) ($booking->paid_amount ?? 0));
-        $record->save();
+        // PHASE 3 (D-08): record + booking completion must be atomic — a
+        // crash between the two left orphan records on pending bookings.
+        \Illuminate\Support\Facades\DB::transaction(function () use ($record, $booking) {
+            $record->recalculatePaymentState((float) ($booking->paid_amount ?? 0));
+            $record->save();
 
-        // Mark booking as completed
-        $booking->update([
-            'status' => 'completed',
-            'completed_at' => now(),
-        ]);
+            // Mark booking as completed
+            $booking->update([
+                'status' => 'completed',
+                'completed_at' => now(),
+            ]);
+        });
 
         // Send notification if next visit is scheduled
         $nextVisitDate = $request->input('next_visit_date');
@@ -138,35 +182,50 @@ class MedicalRecordController extends Controller
             );
         }
 
-        return redirect()->route('admin.bookings.index')->with('success', 'Medical record created successfully');
+        return redirect()->route('admin.bookings.index')->with('success', 'Rekam medis berhasil ditambahkan.');
     }
 
     /**
-     * Show medical record details
+     * Show medical record details — clinic scoped
      */
     public function show($id)
     {
-        $record = MedicalRecord::with(['pet', 'doctor', 'booking', 'booking.user'])->findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = MedicalRecord::with(['pet', 'doctor', 'booking', 'booking.user'])->where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $record = $query->firstOrFail();
 
         return view('admin.medical-records.show', compact('record'));
     }
 
     /**
-     * Show edit form
+     * Show edit form — clinic scoped
      */
     public function edit($id)
     {
-        $record = MedicalRecord::with(['pet', 'doctor', 'booking'])->findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = MedicalRecord::with(['pet', 'doctor', 'booking'])->where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $record = $query->firstOrFail();
 
         return view('admin.medical-records.edit', compact('record'));
     }
 
     /**
-     * Update medical record
+     * Update medical record — clinic scoped
      */
     public function update(Request $request, $id)
     {
-        $record = MedicalRecord::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = MedicalRecord::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $record = $query->firstOrFail();
 
         $request->validate([
             'diagnosis' => 'required|string',
@@ -195,12 +254,14 @@ class MedicalRecordController extends Controller
         $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
         $record->save();
 
-        return redirect()->route('admin.medical-records.index')->with('success', 'Medical record updated successfully');
+        return redirect()->route('admin.medical-records.index')->with('success', 'Rekam medis berhasil diperbarui.');
     }
 
     public function exportPdf(Request $request)
     {
-        $records = $this->filteredRecordsQuery($request)->latest()->get();
+        // PHASE 4: cap matches the "Limited to 200 records" subtitle and
+        // keeps Dompdf from OOM-ing on unbounded ranges.
+        $records = $this->filteredRecordsQuery($request)->latest()->limit(200)->get();
         $html = view('admin.exports.medical_records_pdf', compact('records'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);
@@ -262,13 +323,18 @@ class MedicalRecordController extends Controller
     }
 
     /**
-     * Delete medical record
+     * Delete medical record — clinic scoped
      */
     public function destroy($id)
     {
-        $record = MedicalRecord::findOrFail($id);
+        $clinicId = currentClinicId();
+        $query = MedicalRecord::where('id', $id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $record = $query->firstOrFail();
         $record->delete();
 
-        return redirect()->route('admin.medical-records.index')->with('success', 'Medical record deleted successfully');
+        return redirect()->route('admin.medical-records.index')->with('success', 'Rekam medis berhasil dihapus.');
     }
 }

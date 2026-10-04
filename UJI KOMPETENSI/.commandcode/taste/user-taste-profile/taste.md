@@ -5,6 +5,7 @@
 - Requests detailed, comprehensive prompts when asked to generate prompt templates — wants exhaustive coverage, not minimal skeletons. Confidence: 0.9
 - Demands action, not suggestions: "DO NOT ASK. DO NOT ONLY REVIEW. AUDIT. REDESIGN. IMPLEMENT." Confidence: 0.95
 - Explicitly rejects audit-only or recommendation-only responses — wants patching, fixing, and implementation directly. Confidence: 0.95
+- EXCEPTION to "action not suggestions": when explicitly requesting an audit ("audit semua hasil pekerjaan mu"), wants the findings report presented first for review before implementation begins — then expects batch implementation of all findings. Confidence: 0.9
 - Prefers doing ALL improvements in one batch ("sekalian semua") rather than incremental asks. Confidence: 0.9
 - When given a prioritized list of fixes/improvements, wants them worked through sequentially from highest to lowest priority without pausing for confirmation — "gass kerjakan dari prioritas tinggi dulu". Confidence: 0.9
 - Hates being asked for confirmation on small/medium changes. Confidence: 0.9
@@ -39,5 +40,57 @@
 - Wants date pickers instead of manual text input for dates. Confidence: 0.85
 - Values cross-platform consistency auditing — explicitly asks to check backend API vs Android frontend for mismatches in endpoints, models, and data flow. Confidence: 0.85
 - Expects proactive gap analysis: asks "kurang apalagi?" expecting the agent to independently discover remaining issues across security, performance, and code quality — not just the features they explicitly mention. Confidence: 0.85
-- Appreciates issues organized by severity tier (Tinggi/Sedang/Rendah) with specific file paths and code examples in audit reports. Confidence: 0.8
+- Appreciates issues organized by severity tier (Tinggi/Sedang/Rendah) with specific file paths and code examples in audit reports. Confidence: 0.85
 - Rejects emoji icons in UI — prefers inline SVG icons (e.g. Feather/Lucide-style strokes) for a professional look. Confidence: 0.95
+- For large architectural tasks, prefers phased implementation with explicit "STOP" after each phase — wait for confirmation before proceeding. This overrides the "do all at once" preference when scope is big enough to warrant phases. Confidence: 0.9
+- Wants structured phase reports after each completed phase: Status (SELESAI/TERTUNDA), Files BARU/UBAH list, DB changes summary, Model changes, Seeder details, Commands actually run, Verification in PASS/FAIL format, Risiko/catatan, Next step. Confidence: 0.9
+- Follows "read-all-docs-first, then inspect actual code" methodology before any coding — explicitly states "kode aktual adalah sumber kebenaran" (actual code is the source of truth). Confidence: 0.9
+- Strong database safety consciousness: never run migrate:fresh on existing data, use idempotent seeders (updateOrCreate), never delete existing data during migrations, always backfill before adding NOT NULL constraints. Confidence: 0.95
+- Architectural conservatism: backward-compatible additive changes only, preserve old fields/endpoints in API responses, new request fields should be optional. Confidence: 0.95
+- Prefers "ask before assuming" ONLY when a decision could impact existing data or is genuinely ambiguous with multiple valid approaches — not for small/medium implementation decisions. Confidence: 0.9
+- Pragmatic about placeholder data — if a feature is not needed yet (e.g. logo upload), use placeholder/null and note it as a future task rather than blocking progress. Confidence: 0.85
+- Explicitly distinguishes global settings (notification templates, system config) from tenant-specific settings (name, address, phone, logo, color) — global settings use AppSetting, tenant settings come from the clinics table. Don't blindly convert everything to tenant-specific. Confidence: 0.9
+- Never include secrets/passwords/API keys in output, documentation, or chat — always mask or skip. Confidence: 0.95
+- Prefers role-based multi-tenancy with shared database + tenant_id column approach over database-per-tenant. Confidence: 0.85
+- Expects comprehensive verification after each phase — not just "it runs" but querying actual database state, checking constraints, testing Eloquent relations, running existing tests, and checking HTTP endpoints. Confidence: 0.9
+- Explicitly forbids automatic global scopes for multi-tenancy ("Jangan membuat global tenant scope yang mengubah seluruh query aplikasi secara otomatis") — prefers explicit, per-query clinic filtering over ORM magic. Confidence: 0.9
+- Server-side authorization must always be enforced, never rely solely on hiding UI elements — "Jangan hanya menyembunyikan klinik di UI. Validasi harus dilakukan server-side." Confidence: 0.95
+- Never silently change user context/tenant — if user belongs to clinic A and requests clinic B data, reject with 403 rather than silently switching. Cross-tenant access requires explicit super_admin role. Confidence: 0.95
+- Before creating any helper function or utility, always check if the project already has one with the same or similar name to avoid duplication. Confidence: 0.85
+- Actively hates dead code and duplicate implementations with different names — explicitly demands deletion of unused functions/files and consolidation of duplicates to reduce project bloat. Confidence: 0.9
+- When auditing codebase, wants a single combined pass covering dead code, security, performance, UI/UX, and inconsistency — not separate audit requests for each category. Confidence: 0.85
+- Don't fabricate behavior or patterns — if the project already has Resource/Transformer/response helpers, use those; don't invent new formats. Follow existing codebase conventions. Confidence: 0.9
+- Requires a comprehensive security audit before transitioning between development phases — audit must verify from actual code and actual tests, never assume safety from previous reports. Confidence: 0.95
+- For security audits, prefers structured numbered checklist format covering: all controllers (not just reported ones), audit logs, exports, API controllers, user ownership, HTTP tests, header validation, ID manipulation, admin switch, public endpoints, global resources, database integrity, regression tests. Confidence: 0.9
+- Security audit output must include: Audit Result (PASS/PASS WITH FIXES/BLOCKED), Files Changed, Findings, Fixes, Tests Executed, Cross-Clinic Results (per-resource-per-clinic matrix), Remaining Risks, Deferred. Confidence: 0.9
+- During security audits, small bugs related to current phase may be fixed directly ("Jika menemukan bug kecil terkait FASE 3, perbaiki") — but issues from other phases must be categorized as DEFERRED, not fixed. Confidence: 0.9
+- Prefers actual HTTP endpoint testing (curl requests against running server) over Tinker/logic-only verification for security claims — "test HTTP aktual menggunakan environment yang benar". Confidence: 0.9
+- After security tests, requires database state verification to confirm no unauthorized data was created (e.g., check booking count before/after blocked cross-clinic POST). Confidence: 0.9
+- When asking about credentials or sensitive information, expects the agent to verify against the actual database/server rather than relying solely on documentation — explicitly checks if passwords were changed. Confidence: 0.85
+- Prefers documentation to be updated immediately after each phase completes (PLAN.md checklist, PROGRESS.md log, DB_SCHEMA.md, API_CONTRACT.md, TENANCY_RULES.md) — not deferred to end of project. Confidence: 0.85
+- For dynamic UI theming in web admin, prefers CSS custom properties (CSS variables) driven by server-side values rather than hardcoded Tailwind colors — allows clinic-specific branding without rebuilding CSS. Confidence: 0.8
+- Superadmin sidebar should only show management-level menus (Clinics, Join Requests, Audit Logs, Settings) — hide all operational clinic-data menus (Overview, Patients, Appointments, Veterinarians, Services, Medical Records, Payments) from superadmin since they manage clinics, not operate them. Confidence: 0.9
+- Superadmin should have a dedicated dashboard with system-wide overview (all clinics stats, total doctors/patients/bookings, join requests banner, revenue summary, clinics table with "Masuk" switch button) — separate from the clinic-admin dashboard which shows operational data for one clinic. Confidence: 0.9
+- Role-based dashboard routing: detect user role in the controller and serve a different view per role (super_admin → system overview, clinic_admin → clinic-specific stats) rather than conditionally hiding sections in a shared view. Confidence: 0.85
+- Super admin clinic switcher must include a "System Overview" option (empty value) to return to the system-wide dashboard — and selecting a specific clinic should switch the entire dashboard view to that clinic's data, not stay on the system overview. Confidence: 0.9
+- Super admin should land on System Overview after login (no auto-selected clinic) — auto-selecting the first clinic on login was rejected. Confidence: 0.9
+- Prefers initials-based logo/avatar fallback when no custom image is set — use first 2 letters of name with brand color background rather than a generic placeholder image. Confidence: 0.85
+- Expects auto-generated default credentials (email, password) to be shown in success flash messages right after entity creation — not hidden, logged separately, or requiring a separate step to discover. Confidence: 0.85
+- Designs for multi-admin per tenant from the start — when asked about single-admin limitations, naturally thinks "what if there are multiple admins?" and wants the system to support it. Confidence: 0.8
+- Prefers View::composer in AppServiceProvider for sharing variables across all views of a namespace (e.g., `admin.*`) rather than passing from individual controllers or defining in layout @php blocks — single source of truth for shared state. Confidence: 0.85
+- Prefers middleware-based route protection (applying middleware like `->middleware('super_admin')` to route definitions) over inline authorization checks inside controller methods. Confidence: 0.85
+- Prefers Cache::remember() for data loaded on every page render but changes infrequently (dropdown lists, switcher options) — don't re-query the database on every page load. Confidence: 0.8
+- Cache keys for multi-tenant data MUST include `clinic_id` (e.g. `payment_stats_c{clinicId}`) to prevent cross-tenant data leakage — never use a global cache key for clinic-scoped data. Confidence: 0.9
+- Prefers dismissible one-time alert boxes for sensitive information (credentials, passwords) rather than flash messages that persist in URL or session — sensitive data should be explicitly acknowledged and hidden. Confidence: 0.85
+- Prefers auto-reject with descriptive error messages over silent duplicate-key errors when handling approval workflows (e.g., join request approve with taken email → auto-reject and explain). Confidence: 0.8
+- When performing batch code cleanup after an audit, prefers this ordering: dead code removal → security fixes → bug fixes → consistency/language normalization → performance optimizations. Confidence: 0.8
+- Wants live visual preview (sidebar, card, header mockups) for admin creation/edit forms — should update in real-time as user types name, picks color, uploads logo. Confidence: 0.85
+- Expects new features added to create forms to also be mirrored in corresponding edit forms for consistency — create and edit should have matching UX. Confidence: 0.85
+- Product should be branded as "VCMS" (Veterinary Clinic Management System) in all UI/UX — not "PetHeal". Confidence: 0.95
+- When renaming/rebranding, explicitly scopes changes to UI/UX display text only — do not touch logic, database, API, routing, project structure, or config (e.g., APP_NAME in .env, Firebase project IDs, folder names can stay). Confidence: 0.95
+- For any scope-limited task (rebranding, i18n, etc.), explicitly forbids touching Android source code, UI/UX, API client, resources, localization, or configuration — boundary is always "WEB ONLY". Confidence: 0.95
+- Expects ALL user-facing text to use Laravel translation keys (`__()`) — including controller flash messages, validation errors, and success notifications, not just Blade view text. Confidence: 0.9
+- Prefers session-based locale persistence with query parameter override (`?lang=id|en`) for language switching over URL-segment or database-stored locale. Confidence: 0.8
+- Prefers Indonesian (`id`) as the default locale when no language preference is set. Confidence: 0.85
+- Prefers centralized translation files organized by domain/feature (menu.php, common.php, dashboard.php, auth.php, clinics.php, crud.php) rather than per-view translation files. Confidence: 0.9
+- Prefers compact pill-style language switcher buttons (ID/EN) in the navbar header area rather than a dropdown selector. Confidence: 0.8

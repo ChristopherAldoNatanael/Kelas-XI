@@ -13,7 +13,7 @@
     </style>
 </head>
 <body>
-    <h1>PetHeal Medical Records</h1>
+    <h1>VCMS — Medical Records</h1>
     <p class="subtitle">Generated {{ now()->format('Y-m-d H:i') }}. Limited to 200 records.</p>
     <table>
         <thead>
@@ -34,7 +34,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($records as $record)
+            @forelse($records as $record)
                 <tr>
                     <td>#{{ $record->booking_id }}</td>
                     <td>{{ $record->booking?->user?->name ?? '-' }}</td>
@@ -50,7 +50,11 @@
                     <td>Rp {{ number_format($record->total_medical_cost ?? 0, 0, ',', '.') }}</td>
                     <td>{{ ucfirst(str_replace('_', ' ', $record->extra_payment_status ?? 'not_required')) }}</td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="13" style="text-align:center; color:#999;">Tidak ada data rekam medis untuk filter ini.</td>
+                </tr>
+            @endforelse
         </tbody>
     </table>
 </body>

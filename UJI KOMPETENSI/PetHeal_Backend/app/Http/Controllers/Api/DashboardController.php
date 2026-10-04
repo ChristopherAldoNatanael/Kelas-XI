@@ -48,6 +48,20 @@ class DashboardController extends Controller
             $outstandingAmount = (clone $userBookingsQuery)
                 ->where('remaining_amount', '>', 0)
                 ->sum('remaining_amount');
+
+            // PHASE 3 (B15): booking outstanding alone undercounts — unpaid
+            // medical extra balances are also due. Both stay separate keys in
+            // shape; only the summed value now reflects the real total.
+            $extraOutstanding = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))
+                ->whereNotIn('extra_payment_status', ['paid', 'not_required'])
+                ->selectRaw('COALESCE(SUM(GREATEST(extra_payment_amount - extra_payment_paid_amount, 0)), 0) as total')
+                ->value('total') ?? 0;
+            $extraAttentionCount = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))
+                ->whereNotIn('extra_payment_status', ['paid', 'not_required'])
+                ->whereRaw('extra_payment_amount > extra_payment_paid_amount')
+                ->count();
+            $paymentAttentionCount += $extraAttentionCount;
+            $outstandingAmount = (float) $outstandingAmount + (float) $extraOutstanding;
             
             // Medical statistics
             $totalVisits = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))->count();
@@ -60,8 +74,12 @@ class DashboardController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->limit(3)
                 ->get();
+            // PHASE 3 (B15): lower bound added — overdue visits are not
+            // "due in the next 14 days". Overdue stays visible via the
+            // vaccination overdue alerts and visit history.
             $followUpDueCount = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))
                 ->whereNotNull('next_visit_date')
+                ->whereDate('next_visit_date', '>=', now()->toDateString())
                 ->whereDate('next_visit_date', '<=', now()->addDays(14))
                 ->count();
             

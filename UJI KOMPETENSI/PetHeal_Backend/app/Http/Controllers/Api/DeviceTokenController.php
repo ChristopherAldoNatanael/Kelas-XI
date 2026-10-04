@@ -18,6 +18,17 @@ class DeviceTokenController extends Controller
             'device_type' => 'nullable|in:android,ios,web',
         ]);
 
+        // PHASE 3 (F-05): token strings are the lookup key. Refuse to steal
+        // a token already owned by another user (device handover happens via
+        // login sync, not via explicit registration). Additive 409 case.
+        $existing = DeviceToken::where('token', $request->input('token'))->first();
+        if ($existing && (int) $existing->user_id !== (int) $request->user()->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Device token already registered to another account.',
+            ], 409);
+        }
+
         $deviceToken = DeviceToken::updateOrCreate(
             ['token' => $request->input('token')],
             [

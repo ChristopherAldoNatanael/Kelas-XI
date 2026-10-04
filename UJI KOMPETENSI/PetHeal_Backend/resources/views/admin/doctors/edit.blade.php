@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit Doctor - PetHeal Admin')
+@section('title', 'Edit Doctor - VCMS Admin')
 @section('header', 'Edit Doctor')
 
 @section('content')
@@ -14,6 +14,17 @@
 
     <form method="POST" action="{{ route('admin.doctors.update', $doctor->id) }}" enctype="multipart/form-data" class="p-8">
         @csrf
+
+        {{-- PHASE 4: surface validation errors (previously silent). --}}
+        @if($errors->any())
+            <div class="mb-6 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <ul class="list-disc list-inside space-y-1">
+                    @foreach($errors->all() as $error)
+                        <li>{{ $error }}</li>
+                    @endforeach
+                </ul>
+            </div>
+        @endif
         @method('PUT')
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">

@@ -1,14 +1,14 @@
 @extends('layouts.admin')
 
-@section('title', 'Audit Logs - PetHeal Admin')
-@section('header', 'Audit Logs')
+@section('title', 'Audit Logs - VCMS Admin')
+@section('header', __('menu.audit_logs'))
 
 @section('content')
 <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
     <div class="p-6 border-b border-slate-100 flex items-center justify-between">
         <div>
-            <h2 class="text-md font-bold text-slate-900 dark:text-white">Audit Logs</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Track all administrative actions in the system</p>
+            <h2 class="text-md font-bold text-slate-900 dark:text-white">{{ __('menu.audit_logs') }}</h2>
+            <p class="text-xs text-slate-400 mt-0.5">{{ __('crud.audit_logs_desc') }}</p>
         </div>
     </div>
 
@@ -16,11 +16,11 @@
         <table class="w-full">
             <thead class="bg-slate-50/50 border-b border-slate-100">
                 <tr>
-                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Timestamp</th>
-                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Admin</th>
-                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Action</th>
-                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Description</th>
-                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">IP Address</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">{{ __('common.created_at') }}</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">{{ __('crud.user_col') }}</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">{{ __('crud.action_col') }}</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">{{ __('crud.description_col') }}</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">{{ __('crud.ip_address') }}</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100/50">
@@ -30,7 +30,7 @@
                             {{ $log->created_at->format('M d, Y H:i:s') }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                            {{ $log->user->name ?? 'System' }}
+                            {{ $log->user->name ?? __('common.none') }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-blue-100 text-blue-700 border-blue-200">
@@ -50,7 +50,7 @@
                             <div class="inline-flex items-center justify-center w-16 h-16 bg-slate-100 rounded-full mb-3">
                                 <span class="material-symbols-outlined text-3xl text-slate-400">history</span>
                             </div>
-                            <p class="text-sm text-slate-400">No audit logs found</p>
+                            <p class="text-sm text-slate-400">{{ __('common.no_data') }}</p>
                         </td>
                     </tr>
                 @endforelse

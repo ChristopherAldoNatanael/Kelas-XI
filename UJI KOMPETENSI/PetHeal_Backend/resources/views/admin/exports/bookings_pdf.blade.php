@@ -14,7 +14,7 @@
     </style>
 </head>
 <body>
-    <h1>PetHeal — Bookings Report</h1>
+    <h1>VCMS — Bookings Report</h1>
     <p class="subtitle">Generated: {{ now()->format('d M Y H:i') }}</p>
     <table>
         <thead>
@@ -30,7 +30,7 @@
             </tr>
         </thead>
         <tbody>
-            @foreach($bookings as $i => $b)
+            @forelse($bookings as $i => $b)
             <tr>
                 <td>{{ $i + 1 }}</td>
                 <td>{{ $b->pet?->name ?? '-' }}</td>
@@ -41,9 +41,13 @@
                 <td>{{ $b->service?->name ?? $b->service_type ?? '-' }}</td>
                 <td>{{ ucfirst($b->status) }}</td>
             </tr>
-            @endforeach
+            @empty
+            <tr>
+                <td colspan="8" style="text-align:center; color:#999;">Tidak ada data booking untuk filter ini.</td>
+            </tr>
+            @endforelse
         </tbody>
     </table>
-    <div class="footer">PetHeal Veterinary Clinic — {{ config('app.url') }}</div>
+    <div class="footer">VCMS — Veterinary Clinic Management System — {{ config('app.url') }}</div>
 </body>
 </html>

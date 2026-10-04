@@ -20,8 +20,14 @@ class ServicesImport implements ToCollection, WithHeadingRow
 
     public array $errorRows = [];
 
-    public function __construct(private readonly string $duplicateStrategy = 'update')
-    {
+    public function __construct(
+        private readonly string $duplicateStrategy = 'update',
+        // PHASE 1 (C5): tenant scope. Lookup + create/update are confined to
+        // this clinic so Clinic A can never find/overwrite Clinic B's service
+        // by name collision. Null = no tenant context (must be rejected by
+        // the caller for tenant roles; super_admin overview has no target).
+        private readonly ?int $clinicId = null,
+    ) {
     }
 
     public function collection(Collection $rows): void
@@ -47,8 +53,10 @@ class ServicesImport implements ToCollection, WithHeadingRow
             $validator = Validator::make($payload + ['status' => $status], [
                 'name' => 'required|string|max:255',
                 'description' => 'nullable|string',
+                // PHASE 3 (B6): align with manual create (integer|min:1) —
+                // decimals/0 previously slipped through import only.
                 'price' => 'required|numeric|min:0',
-                'duration' => 'nullable|numeric|min:0',
+                'duration' => 'nullable|integer|min:1',
                 'status' => 'nullable|in:active,inactive',
             ]);
 
@@ -58,7 +66,18 @@ class ServicesImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            $existing = Service::whereRaw('LOWER(name) = ?', [mb_strtolower($name)])->first();
+            // PHASE 1 (C5, fail-closed): without a tenant target, refuse to
+            // touch the shared table instead of creating clinic-less orphans
+            // or matching another clinic's rows.
+            if (!$this->clinicId) {
+                $this->summary['failed']++;
+                $this->pushErrorRow($rowNumber, $payload, 'Import membutuhkan konteks klinik. Pilih klinik terlebih dahulu.');
+                continue;
+            }
+
+            $existing = Service::where('clinic_id', $this->clinicId)
+                ->whereRaw('LOWER(name) = ?', [mb_strtolower($name)])
+                ->first();
 
             if ($existing && $this->duplicateStrategy === 'skip') {
                 $this->summary['skipped']++;
@@ -66,12 +85,24 @@ class ServicesImport implements ToCollection, WithHeadingRow
             }
 
             if ($existing) {
-                $existing->update($payload);
+                // PHASE 3 (B6): blank CSV cells must not wipe existing data.
+                // Only overwrite fields actually present in the row.
+                $updatePayload = ['name' => $name, 'is_active' => $payload['is_active']];
+                if ($description !== '') {
+                    $updatePayload['description'] = $description;
+                }
+                if ($price !== null && $price !== '') {
+                    $updatePayload['price'] = $price;
+                }
+                if ($duration !== null && $duration !== '') {
+                    $updatePayload['duration'] = $duration;
+                }
+                $existing->update($updatePayload);
                 $this->summary['updated']++;
                 continue;
             }
 
-            Service::create($payload);
+            Service::create($payload + ['clinic_id' => $this->clinicId]);
             $this->summary['success']++;
         }
     }

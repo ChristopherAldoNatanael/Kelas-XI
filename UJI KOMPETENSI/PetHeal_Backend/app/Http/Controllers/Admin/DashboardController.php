@@ -8,7 +8,10 @@ use App\Models\Booking;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
 use App\Models\Pet;
+use App\Models\Service;
 use App\Models\User;
+use App\Models\Clinic;
+use App\Models\ClinicJoinRequest;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -16,10 +19,19 @@ use Illuminate\Support\Facades\Cache;
 class DashboardController extends Controller
 {
     /**
-     * Admin dashboard
+     * Admin dashboard — shows system overview for super_admin, clinic stats for clinic_admin
      */
     public function index(Request $request)
     {
+        $user = auth()->user();
+
+        // Super admin without clinic selected → system overview
+        if ($user && $user->role === 'super_admin' && !session('current_clinic_id')) {
+            return $this->superAdminDashboard();
+        }
+
+        $clinicId = currentClinicId();
+
         // Date range filter — only applies when user explicitly picks dates
         $hasDateFilter = $request->has('start_date') && $request->has('end_date');
         $startDate = $hasDateFilter
@@ -29,57 +41,55 @@ class DashboardController extends Controller
             ? Carbon::parse($request->get('end_date'))->endOfDay()
             : null;
 
-        // Today's statistics
-        $todayBookings = Booking::today()->count();
-        $pendingBookings = Booking::pending()->count();
-        $totalPatients = Pet::count();
-        $totalDoctors = Doctor::where('is_active', true)->count();
+        // Today's statistics — clinic scoped
+        $todayBookings = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->today()->count();
+        $pendingBookings = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->pending()->count();
+        $totalPatients = Pet::when($clinicId, fn($q) => $q->whereHas('user', fn($uq) => $uq->where('clinic_id', $clinicId)))->count();
+        $totalDoctors = Doctor::where('is_active', true)->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->count();
 
-        // Cache key includes date range to bust per filter
+        // Cache key includes date range and clinic
         $cacheKey = $hasDateFilter
-            ? 'dashboard_stats_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd')
-            : 'dashboard_stats_all';
-        $dashboardStats = Cache::remember($cacheKey, 300, function () use ($startDate, $endDate, $hasDateFilter) {
-            // Revenue statistics - using SQL SUM for better performance
-            $totalRevenue = MedicalRecord::selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+            ? 'dashboard_stats_c' . ($clinicId ?: 'all') . '_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd')
+            : 'dashboard_stats_c' . ($clinicId ?: 'all') . '_all';
+        $dashboardStats = Cache::remember($cacheKey, 300, function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
+            // Revenue statistics — clinic scoped
+            $totalRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
                 ->value('total') ?? 0;
 
-            $todayRevenue = MedicalRecord::selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+            $todayRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
                 ->whereDate('created_at', today())
                 ->value('total') ?? 0;
 
-            $monthlyRevenue = MedicalRecord::selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+            $monthlyRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
                 ->where('created_at', '>=', Carbon::now()->startOfMonth())
                 ->value('total') ?? 0;
 
             // Monthly chart data
-            $monthlyBookingData = $this->getMonthlyBookingData();
-            $monthlyRevenueData = $this->getMonthlyRevenueData();
-            $dailyRevenueData = $this->getDailyRevenueData();
-            $bookingStatusDistribution = $this->getBookingStatusDistribution();
+            $monthlyBookingData = $this->getMonthlyBookingData($clinicId);
+            $monthlyRevenueData = $this->getMonthlyRevenueData($clinicId);
+            $dailyRevenueData = $this->getDailyRevenueData($clinicId);
+            $bookingStatusDistribution = $this->getBookingStatusDistribution($clinicId);
 
-            // Payment statistics — filtered by date range
-            $unpaidBookings = Booking::where('payment_status', 'unpaid')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->count();
-            $pendingPayment = Booking::where('payment_status', 'pending')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->count();
-            $dpPaidBookings = Booking::where('payment_status', 'dp_paid')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->count();
-            $paidInFull = Booking::where('payment_status', 'paid')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->count();
-            $failedPayments = Booking::where('payment_status', 'failed')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->count();
+            // Payment statistics — clinic scoped
+            $baseBooking = fn() => Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
 
-            $totalCollected = Booking::selectRaw('COALESCE(SUM(paid_amount), 0) as total')
+            $unpaidBookings = (clone $baseBooking())->where('payment_status', 'unpaid')->count();
+            $pendingPayment = (clone $baseBooking())->where('payment_status', 'pending')->count();
+            $dpPaidBookings = (clone $baseBooking())->where('payment_status', 'dp_paid')->count();
+            $paidInFull = (clone $baseBooking())->where('payment_status', 'paid')->count();
+            $failedPayments = (clone $baseBooking())->where('payment_status', 'failed')->count();
+
+            $totalCollected = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(paid_amount), 0) as total')
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
                 ->value('total') ?? 0;
-            $totalOutstanding = Booking::selectRaw('COALESCE(SUM(remaining_amount), 0) as total')
+            $totalOutstanding = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(remaining_amount), 0) as total')
                 ->where('remaining_amount', '>', 0)
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
                 ->value('total') ?? 0;
@@ -92,7 +102,7 @@ class DashboardController extends Controller
             );
         });
 
-        $popularDoctors = $this->getPopularDoctors();
+        $popularDoctors = $this->getPopularDoctors($clinicId);
 
         $totalRevenue = $dashboardStats['totalRevenue'];
         $todayRevenue = $dashboardStats['todayRevenue'];
@@ -109,16 +119,18 @@ class DashboardController extends Controller
         $totalCollected = $dashboardStats['totalCollected'];
         $totalOutstanding = $dashboardStats['totalOutstanding'];
 
-        // Recent bookings - optimized with specific columns only
+        // Recent bookings — clinic scoped
         $recentBookings = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time', 'created_at')
             ->with(['user:id,name,email', 'pet:id,name,user_id', 'doctor:id,name,specialization'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
 
-        // Upcoming appointments - optimized with specific columns only
+        // Upcoming appointments — clinic scoped
         $upcomingAppointments = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time')
             ->with(['user:id,name,phone', 'pet:id,name,user_id', 'doctor:id,name'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->where('status', 'confirmed')
             ->where('booking_date', '>=', now()->toDateString())
             ->orderBy('booking_date')
@@ -126,25 +138,36 @@ class DashboardController extends Controller
             ->limit(3)
             ->get();
 
-        // Recent payments - optimized
+        // Recent payments — clinic scoped
         $recentPayments = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'paid_amount', 'total_amount', 'payment_status', 'payment_type', 'remaining_amount', 'updated_at')
             ->where('paid_amount', '>', 0)
             ->with(['user:id,name', 'pet:id,name'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->orderBy('updated_at', 'desc')
             ->limit(5)
             ->get();
 
-        // Bookings with outstanding balance - optimized
+        // Bookings with outstanding balance — clinic scoped
         $outstandingBookings = Booking::select('id', 'user_id', 'pet_id', 'remaining_amount', 'payment_type')
             ->where('remaining_amount', '>', 0)
             ->whereNotIn('payment_status', ['failed', 'unpaid'])
             ->with(['user:id,name', 'pet:id,name'])
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->orderBy('remaining_amount', 'desc')
             ->limit(5)
             ->get();
 
-        // Midtrans transaction count (bookings with Midtrans method)
-        $midtransTransactions = Booking::where('payment_method', 'midtrans')->count();
+        // Midtrans transaction count — clinic scoped.
+        // PHASE 3 (B11): `payment_method` stores the selected method NAME
+        // (QRIS/GoPay/...), never the literal 'midtrans', so the old counter
+        // was ~always 0. Count bookings with Midtrans-processed events
+        // instead (same Blade variable, corrected value).
+        $clinicBookingIds = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->select('id');
+        $midtransTransactions = \Illuminate\Support\Facades\DB::table('payment_events')
+            ->whereIn('booking_id', $clinicBookingIds)
+            ->distinct()
+            ->count('booking_id');
 
         return view('admin.dashboard', compact(
             'todayBookings',
@@ -176,12 +199,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get monthly bookings data for chart (last 6 months)
+     * Get monthly bookings data for chart (last 6 months) — clinic scoped
      */
-    private function getMonthlyBookingData(): array
+    private function getMonthlyBookingData(?int $clinicId): array
     {
         $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
-        $raw = Booking::where('booking_date', '>=', $sixMonthsAgo)
+        $raw = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->where('booking_date', '>=', $sixMonthsAgo)
             ->selectRaw("DATE_FORMAT(booking_date, '%Y-%m') as month")
             ->selectRaw('COUNT(*) as count')
             ->groupBy('month')
@@ -201,12 +225,13 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get monthly revenue data for chart (last 6 months)
+     * Get monthly revenue data for chart (last 6 months) — clinic scoped
      */
-    private function getMonthlyRevenueData(): array
+    private function getMonthlyRevenueData(?int $clinicId): array
     {
         $sixMonthsAgo = Carbon::now()->subMonths(5)->startOfMonth();
-        $raw = MedicalRecord::where('created_at', '>=', $sixMonthsAgo)
+        $raw = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->where('created_at', '>=', $sixMonthsAgo)
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as month")
             ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
             ->groupBy('month')
@@ -226,11 +251,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get daily revenue data for chart (last 7 days)
+     * Get daily revenue data for chart (last 7 days) — clinic scoped
      */
-    private function getDailyRevenueData(): array
+    private function getDailyRevenueData(?int $clinicId): array
     {
-        $raw = MedicalRecord::where('created_at', '>=', Carbon::now()->subDays(6)->startOfDay())
+        $raw = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->where('created_at', '>=', Carbon::now()->subDays(6)->startOfDay())
             ->selectRaw("DATE_FORMAT(created_at, '%Y-%m-%d') as day")
             ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
             ->groupBy('day')
@@ -250,11 +276,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get booking status distribution
+     * Get booking status distribution — clinic scoped
      */
-    private function getBookingStatusDistribution(): array
+    private function getBookingStatusDistribution(?int $clinicId): array
     {
-        $raw = Booking::selectRaw('status, COUNT(*) as count')
+        $raw = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->selectRaw('status, COUNT(*) as count')
             ->groupBy('status')
             ->pluck('count', 'status');
 
@@ -267,11 +294,12 @@ class DashboardController extends Controller
     }
 
     /**
-     * Get top 5 doctors by booking count
+     * Get top 5 doctors by booking count — clinic scoped
      */
-    private function getPopularDoctors(): array
+    private function getPopularDoctors(?int $clinicId): array
     {
         $doctors = Doctor::select('id', 'name')
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->withCount('bookings')
             ->orderBy('bookings_count', 'desc')
             ->limit(5)
@@ -285,7 +313,50 @@ class DashboardController extends Controller
 
     public function auditLogs()
     {
-        $logs = AuditLog::with('user')->latest()->paginate(50);
+        $clinicId = currentClinicId();
+        $logs = AuditLog::with('user')
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->latest()
+            ->paginate(50);
         return view('admin.audit-logs', compact('logs'));
+    }
+
+    /**
+     * System-wide dashboard for super_admin
+     */
+    private function superAdminDashboard()
+    {
+        // PHASE 5: constrain per-row counts to the same denominators as the
+        // summary cards (active doctors/services, role=user) so rows and
+        // cards cannot disagree.
+        $clinics = Clinic::withCount([
+            'doctors' => fn ($q) => $q->where('is_active', true),
+            'services' => fn ($q) => $q->where('is_active', true),
+            'bookings',
+            'users' => fn ($q) => $q->where('role', 'user'),
+        ])
+            ->orderBy('name')
+            ->get();
+
+        $totalClinics = $clinics->count();
+        $activeClinics = $clinics->where('is_active', true)->count();
+        $totalDoctors = Doctor::where('is_active', true)->count();
+        $totalServices = Service::where('is_active', true)->count();
+        $totalBookings = Booking::count();
+        $totalUsers = User::where('role', 'user')->count();
+        $pendingJoinRequests = ClinicJoinRequest::where('status', 'pending')->count();
+        $totalRevenue = MedicalRecord::selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')->value('total') ?? 0;
+
+        return view('admin.super-dashboard', compact(
+            'clinics',
+            'totalClinics',
+            'activeClinics',
+            'totalDoctors',
+            'totalServices',
+            'totalBookings',
+            'totalUsers',
+            'pendingJoinRequests',
+            'totalRevenue'
+        ));
     }
 }

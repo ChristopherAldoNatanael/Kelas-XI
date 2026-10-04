@@ -107,6 +107,6 @@ class NotificationSettingsController extends Controller
 
         return redirect()
             ->route('admin.notification-settings.index')
-            ->with('success', 'Notification template settings updated successfully.');
+            ->with('success', 'Template notifikasi berhasil diperbarui.');
     }
 }

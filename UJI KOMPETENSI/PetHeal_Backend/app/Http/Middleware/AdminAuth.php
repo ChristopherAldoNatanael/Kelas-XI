@@ -21,11 +21,27 @@ class AdminAuth
             return redirect()->route('admin.login');
         }
 
-        // Check if user is admin
-        if (Auth::user()->role !== 'admin') {
+        // Allow super_admin, clinic_admin, and legacy admin
+        $allowedRoles = ['super_admin', 'clinic_admin', 'admin'];
+        if (!in_array(Auth::user()->role, $allowedRoles)) {
             Auth::logout();
             return redirect()->route('admin.login')
                 ->withErrors(['email' => 'Anda tidak memiliki akses admin.']);
+        }
+
+        // PHASE 1 (D1, fail-closed): tenant roles must be bound to a clinic.
+        // Previously a tenant user with clinic_id = NULL silently inherited
+        // the super_admin overview (every `when($clinicId, ...)` became unscoped).
+        // PHASE 3 (F-03): the clinic must also be ACTIVE — suspending a
+        // clinic (toggleActive) must actually stop its admins. super_admin
+        // without clinic keeps overview (existing behavior).
+        if (Auth::user()->role !== 'super_admin') {
+            $clinic = Auth::user()->clinic;
+            if (!Auth::user()->clinic_id || !$clinic || !$clinic->is_active) {
+                Auth::logout();
+                return redirect()->route('admin.login')
+                    ->withErrors(['email' => __('auth.inactive_clinic')]);
+            }
         }
 
         return $next($request);

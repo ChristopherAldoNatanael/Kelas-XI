@@ -1,31 +1,84 @@
-# API_CONTRACT.md — Endpoint Lama vs Baru
+# API_CONTRACT.md — Frozen Contract (Phase 2, 2026-10-03)
 
-## Aturan Emas
-- JANGAN hapus/rename endpoint lama. JANGAN hapus field response lama. Tambahan = field baru `clinic:{id,name,slug,logo_url,primary_color}`.
-- Request lama tetap valid. `clinic_slug` / `X-Clinic-Slug` = opsional tahap transisi, wajib setelah Fase 2 untuk katalog.
+> Kontrak beku untuk Android. Source of truth = kode + `API_DOCUMENTATION.md`.
+> Revisi ini menggantikan klaim lama yang terbukti tidak sesuai kode
+> (`?clinic_slug` wajib untuk doctors, objek `clinic` di semua respons,
+> `PUT /bookings`, `POST/PUT/DELETE /medical-records`, `POST /admin/clinics/switch`).
 
-## Endpoint Lama (tetap, jangan breaking)
-- `POST /api/auth/login {email,password,fcm_token?,device_type?}` → `{success,token,user{id,...}}`
-- `POST /api/auth/register-direct {name,email,password,phone?,fcm_token?,device_type?}`
-- `POST /api/auth/firebase-login {id_token,fcm_token?,device_type?}`, `POST /api/auth/register {id_token,name,phone?,...}`
-- `GET /api/health` → `{success,message,data{database,firebase,midtrans,storage,routes}}`
-- `GET /api/payment-methods`, `GET /api/services`, `GET /api/services/{id}` (publik — akan difilter klinik)
-- `POST /api/midtrans/webhook` (Midtrans, tanpa auth)
-- Proteksi: `auth/profile`, `dashboard`, `pets*`, `doctors*`, `bookings*`, `medical-records*`, `payment/*`, `notifications*`, `device-token` (lihat PROJECT_CONTEXT.md).
+## Aturan Emas (tetap)
 
-## Endpoint Baru (Fase 2)
-### Publik (tanpa auth)
-- `GET /public/clinics` → `200 {success:true, data:[{id,name,slug,address,phone,email,logo_url,primary_color,description,doctors_count,services_count}]}` — hanya `is_active=true`, order name.
-- `GET /public/clinics/{slug}` → `200 {success:true, data:{id,name,slug,address,phone,email,logo_url,primary_color,description,doctors_count,services_count}}`, `404` jika slug tak dikenal/nonaktif.
-### Katalog Terfilter (wajib kirim tenant)
-- `GET /api/doctors?clinic_slug=petheal-pusat` + header `X-Clinic-Slug` → hanya dokter klinik itu. Tanpa slug → fallback `user->clinic_id`; tanpa auth → `422 {message:'clinic_slug wajib'}`.
-- `GET /api/services?clinic_slug=...` — sama.
-- `POST /api/bookings {pet_id,doctor_id,service_id?,booking_date,booking_time,...,clinic_slug?}` → validasi `doctor.clinic_id == user.clinic_id (== service.clinic_id jika ada)` else `422 {success:false,message:'Dokter/layanan berbeda klinik'}`.
-- Semua response detail tambah `clinic:{id,name,slug,logo_url,primary_color}`.
-### Admin Klinik (web session)
-- `GET|POST /admin/clinics` (super_admin CRUD + upload logo), `GET /admin/join-requests`, `POST /admin/join-requests/{id}/approve|reject`.
-- Switch klinik super_admin: `POST /admin/clinics/switch {clinic_id}` → set session `current_clinic_id`.
+- JANGAN hapus/rename endpoint. JANGAN hapus field respons. Tambahan bersifat aditif.
+- Request lama tetap valid. Tidak ada field wajib baru pada request existing,
+  kecuali `?clinic_slug=` untuk akses ANONIM ke `/services` (Bearer+klinik tak berubah).
 
-## Header Tenant
-- Android kirim `X-Clinic-Slug: <slug>` di SEMUA request authed (lihat Android/docs). Backend baca: header → fallback `user->clinic_id` → fallback `?clinic_slug=`.
-- Jika ketiganya absen untuk endpoint terfilter → `422`. Jika slug milik klinik lain dari user → `403`.
+## Canonical Shapes (frozen)
+
+- Objek: `{success, message?, data}`. Aksi tanpa payload: `{success, message}`.
+- Koleksi paginated: `{success, data[], pagination:{current_page,last_page,per_page,total}}`
+  → `GET /pets`, `GET /bookings`, `GET /medical-records`, `GET /pets/{id}/medical-records`,
+  `GET /doctors/{id}/reviews` (pagination ditambah Phase 2, aditif).
+- Sub-resource histories: nested `data.{records|vaccinations,pagination}`
+  → `GET weight-history`, `GET vaccinations` (frozen apa adanya).
+- Error: `{success:false, message, errors?}`. 401 selalu `{success:false,
+  message:'Unauthenticated.'}`. 404 API selalu `{success:false, message}`.
+- Pengecualian frozen: `POST /midtrans/webhook` (`{status}/{error}`),
+  `GET /payment/transaction-status` sukses (raw Midtrans),
+  `GET /bookings/{id}/medical-record` kosong (`200 data:null`),
+  `GET /payment/preflight` (selalu bawa `data`).
+
+## Auth (frozen)
+
+- `POST /api/auth/login {email,password,fcm_token?,clinic_slug?}` →
+  `{success,message,data:{token,user}}`. `clinic_slug` opsional; mismatch → 403.
+- `POST /api/auth/register-direct {name,email(unique),password min:8,phone?,fcm_token?,clinic_slug?}`.
+  Tanpa slug → `clinic_id=null` → proteksi 403 sampai diikat klinik.
+- `POST /api/auth/firebase-login {id_token! (ID token, BUKAN firebase_uid),fcm_token?,clinic_slug?}`
+  (auto-create). `POST /api/auth/register {id_token!,name!,phone?,...}` (409 bila sudah ada).
+- Password reset: `forgot-password {email}` (selalu 200) → `verify-reset-code {email,code}`
+  → `reset-password {email,code,password(confirmed)}`. Expiry kode 15 mnt.
+- Proteksi: `POST auth/logout`, `GET|PUT auth/profile`, `POST auth/profile/photo`
+  (multipart, throttle uploads), `DELETE auth/account`.
+
+## Katalog & Tenant (frozen, Phase 1+2)
+
+- Tenant = `users.clinic_id`. `X-Clinic-Slug` opsional; mismatch → 403.
+  Tenant tanpa klinik → 403 di semua proteksi. `super_admin` tanpa klinik = overview.
+- `GET /api/doctors` (+`/{id}`, `/slots?date=`, `/reviews`) — Bearer saja cukup
+  (filter via klinik user). TIDAK wajib `?clinic_slug` (klaim lama dicabut).
+- `GET /api/services`, `GET /api/services/{id}` — Bearer+klinik (aliran Android,
+  tak berubah) ATAU anonim + `?clinic_slug=` eksplisit (tanpa slug → 422,
+  slug asing → 404).
+- `GET /public/clinics`, `GET /public/clinics/{slug}` (404 bila asing/nonaktif),
+  `GET /payment-methods` (global) — publik.
+- `POST /api/bookings` — validasi tenant-aware: `pet` milik user,
+  `doctor`/`service` seklinik + aktif → ID lintas klinik = `422 {success:false,errors}`.
+- `POST /api/doctors/{id}/reviews` — `booking_id` milik reviewer + completed +
+  seklinik dokter → lintas klinik = 422.
+- `POST /admin/switch-clinic {clinic_id}` (path benar; klaim lama `/admin/clinics/switch` salah).
+  Web session, bukan API.
+
+## Endpoint Tidak Ada (koreksi dokumen lama — JANGAN dipakai klien)
+
+- `PUT /bookings/{id}` → 405 (resource hanya index/store/show/destroy).
+- `POST/PUT/DELETE /medical-records` → 404/405 (hanya index/show + `/{id}/pay`, `/{id}/payment-status`).
+- Respons slots = `{success,data:[{time,available}]}` (BUKAN `{doctor_id,date,available_slots}`).
+
+## Naming Freeze (tidak ada yang dihapus)
+
+Plural: `pets, doctors, bookings, medical-records, notifications, services,
+payment-methods, public/clinics`. Legacy dipertahankan: `device-token`,
+`payment/*`, `bookings/{id}/medical-record`, `dashboard`, `health`,
+`weight-history` vs `weight-records`, action-POST (`cancel/reschedule/pay/
+read-all/sync-status/snap-token/preflight/remaining`), param camelCase
+(`{petId},{recordId},{vaccinationId},{bookingId},{orderId}`) + `{id}/{slug}`.
+
+## Backward Compatibility (wajib dijaga Android)
+
+1. Raw `transaction-status` JANGAN di-envelope (DTO parse raw).
+2. `GET /services` Bearer-tanpa-slug JANGAN diwajibkan slug (interceptor tanpa slug).
+3. `data` nested weight/vaccination JANGAN dipindah ke top-level.
+4. `data:null` medical-record kosong JANGAN jadi 404.
+5. Key error `message` JANGAN dihapus (parser baca `message/detail/error/errors`).
+6. `message` sukses JANGAN dihapus (DTO punya field `message`).
+7. Duplikat `POST /pets/with-photo`, `PUT /auth/profile` vs `POST /auth/profile/photo`
+   dipertahankan (klien memakai keduanya di path berbeda).

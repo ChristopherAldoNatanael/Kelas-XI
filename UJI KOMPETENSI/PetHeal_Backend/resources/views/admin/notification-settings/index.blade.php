@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Notification Settings - PetHeal Admin')
+@section('title', 'Notification Settings - VCMS Admin')
 @section('header', 'Notification Settings')
 
 @section('content')

@@ -1,18 +1,25 @@
 <!DOCTYPE html>
-<html class="light" lang="en">
+{{-- PHASE 4: lang follows the active locale (was hardcoded "en"). --}}
+<html class="light" lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title', 'PetHeal Admin')</title>
+    @php
+        $clinic = currentClinic();
+        $clinicName = $clinic?->name ?? 'VCMS';
+        $clinicLogo = $clinic?->logo_url;
+        $clinicColor = $clinic?->primary_color ?? '#10B981';
+    @endphp
+    <title>@yield('title', $clinicName . ' Admin')</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style type="text/tailwindcss">
         :root {
-            --primary: #10B981;
-            --primary-muted: #059669;
+            --primary: {{ $clinicColor }};
+            --primary-muted: {{ $clinicColor }};
             --sidebar-text: #94A3B8;
             --sidebar-active-text: #FFFFFF;
             --glass-bg: rgba(255, 255, 255, 0.8);
@@ -206,7 +213,7 @@
             theme: {
                 extend: {
                     colors: {
-                        primary: "#10B981",
+                        primary: "{{ $clinicColor }}",
                         secondary: "#3B82F6",
                         "background-light": "#F8FAFC",
                         "background-dark": "#0B0E11",
@@ -229,9 +236,15 @@
             <div class="sidebar-header p-4 pb-4 flex items-center gap-3 flex-shrink-0">
                 <div class="logo-text-wrap flex items-center gap-3 flex-1">
                     <a href="/" class="logo-link bg-white/10 p-1.5 rounded-lg block hover:bg-white/20 transition-colors flex-shrink-0">
-                        <img src="/logo.png" alt="PetHeal" class="h-7 w-auto block" fetchpriority="high" width="140" height="28">
+                        @if($clinicLogo)
+                            <img src="{{ $clinicLogo }}" alt="{{ $clinicName }}" class="h-7 w-auto block" fetchpriority="high" width="140" height="28">
+                        @else
+                            <div class="h-7 w-7 rounded flex items-center justify-center text-white text-xs font-bold" style="background-color: {{ $clinicColor }}">
+                                {{ strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $clinicName), 0, 2) ?: 'PH') }}
+                            </div>
+                        @endif
                     </a>
-                    <span class="sidebar-text font-semibold text-lg text-white tracking-tight">PetHeal</span>
+                    <span class="sidebar-text font-semibold text-lg text-white tracking-tight">{{ $clinicName }}</span>
                 </div>
                 <button id="sidebar-toggle" class="sidebar-toggle text-slate-400 hover:text-white transition-all p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0" title="Toggle sidebar">
                     <span class="material-symbols-outlined sidebar-toggle-icon text-xl">chevron_left</span>
@@ -239,84 +252,114 @@
             </div>
 
             <nav class="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar pb-4">
-                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">Core Dashboard</p>
+                @if($isSuperAdmin && !$clinic)
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">{{ __('menu.super_admin') }}</p>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('admin.dashboard') ? 'active-nav-item' : 'font-medium' }} relative" href="{{ route('admin.dashboard') }}">
+                    @if(request()->routeIs('admin.dashboard'))
+                    <div class="active-indicator"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0">dashboard</span>
+                    <span class="sidebar-text text-sm">{{ __('menu.system_overview') }}</span>
+                </a>
+                @else
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">{{ $clinicName }}</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('admin.dashboard') ? 'active-nav-item' : 'font-medium' }} relative" href="{{ route('admin.dashboard') }}">
                     @if(request()->routeIs('admin.dashboard'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">grid_view</span>
-                    <span class="sidebar-text text-sm">Overview</span>
+                    <span class="sidebar-text text-sm">{{ __('menu.overview') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.users.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.users.index') }}">
                     @if(request()->routeIs('admin.users.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">group</span>
-                    <span class="sidebar-text">Patients</span>
+                    <span class="sidebar-text">{{ __('menu.patients') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.bookings.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.bookings.index') }}">
                     @if(request()->routeIs('admin.bookings.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">calendar_today</span>
-                    <span class="sidebar-text">Appointments</span>
+                    <span class="sidebar-text">{{ __('menu.appointments') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.doctors.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.doctors.index') }}">
                     @if(request()->routeIs('admin.doctors.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">medical_services</span>
-                    <span class="sidebar-text">Veterinarians</span>
+                    <span class="sidebar-text">{{ __('menu.veterinarians') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.services.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.services.index') }}">
                     @if(request()->routeIs('admin.services.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">price_change</span>
-                    <span class="sidebar-text text-sm">Services</span>
+                    <span class="sidebar-text text-sm">{{ __('menu.services') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medical-records.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.medical-records.index') }}">
                     @if(request()->routeIs('admin.medical-records.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">clinical_notes</span>
-                    <span class="sidebar-text">Medical Records</span>
+                    <span class="sidebar-text">{{ __('menu.medical_records') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.payments.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.payments.index') }}">
                     @if(request()->routeIs('admin.payments.*'))
                     <div class="active-indicator"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0">payments</span>
-                    <span class="sidebar-text">Payments</span>
+                    <span class="sidebar-text">{{ __('menu.payments') }}</span>
                 </a>
+                @endif
                 <div class="pt-8">
-                    <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">Administration</p>
+                    <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">{{ __('menu.administration') }}</p>
+                    @if($isSuperAdmin)
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.clinics.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.clinics.index') }}">
+                        @if(request()->routeIs('admin.clinics.*'))
+                        <div class="active-indicator"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0">local_hospital</span>
+                        <span class="sidebar-text">{{ __('menu.clinics') }}</span>
+                    </a>
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.join-requests') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.join-requests') }}">
+                        @if(request()->routeIs('admin.join-requests'))
+                        <div class="active-indicator"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0">person_add</span>
+                        <span class="sidebar-text">{{ __('menu.join_requests') }}</span>
+                    </a>
+                    @endif
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.audit-logs') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.audit-logs') }}">
                         @if(request()->routeIs('admin.audit-logs'))
                         <div class="active-indicator"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0">history</span>
-                        <span class="sidebar-text">Audit Logs</span>
+                        <span class="sidebar-text">{{ __('menu.audit_logs') }}</span>
                     </a>
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.settings') }}">
                         @if(request()->routeIs('admin.settings'))
                         <div class="active-indicator"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0">settings</span>
-                        <span class="sidebar-text">Settings</span>
+                        <span class="sidebar-text">{{ __('menu.settings') }}</span>
                     </a>
+                    {{-- PHASE 4: notification templates are global + super_admin-only backend (403 for clinic_admin) — hide the dead-end link. --}}
+                    @if($isSuperAdmin)
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.notification-settings.*') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.notification-settings.index') }}">
                         @if(request()->routeIs('admin.notification-settings.*'))
                         <div class="active-indicator"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0">notifications_active</span>
-                        <span class="sidebar-text">Notifications</span>
+                        <span class="sidebar-text">{{ __('menu.notifications') }}</span>
                     </a>
+                    @endif
                     <form method="POST" action="{{ route('admin.logout') }}">
                         @csrf
                         <button type="submit" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium w-full text-left">
                             <span class="material-symbols-outlined text-[20px] flex-shrink-0">logout</span>
-                            <span class="sidebar-text">Logout</span>
+                            <span class="sidebar-text">{{ __('menu.logout') }}</span>
                         </button>
                     </form>
                 </div>
@@ -329,7 +372,13 @@
                     </div>
                     <div class="user-info-text flex-1 min-w-0">
                         <p class="text-xs font-medium text-white/90 truncate">{{ Auth::user()->name ?? 'Admin' }}</p>
-                        <p class="text-[9px] text-slate-500 truncate uppercase tracking-widest font-bold">Administrator</p>
+                        <p class="text-[9px] text-slate-500 truncate uppercase tracking-widest font-bold">
+                            @if($isSuperAdmin)
+                                Super Admin
+                            @else
+                                {{ $clinicName }}
+                            @endif
+                        </p>
                     </div>
                 </div>
             </div>
@@ -342,9 +391,31 @@
                     <h1 class="text-base font-semibold text-slate-900 dark:text-white tracking-tight">@yield('header', 'Executive Dashboard')</h1>
                 </div>
                 <div class="flex items-center gap-4">
+                    @if($isSuperAdmin)
+                    <form method="POST" action="{{ route('admin.switch-clinic') }}" id="clinic-switcher-form" class="hidden md:flex items-center gap-2">
+                        @csrf
+                        <span class="material-symbols-outlined text-sm text-slate-400">swap_horiz</span>
+                        <select name="clinic_id" id="clinic-switcher" onchange="document.getElementById('clinic-switcher-form').submit()" class="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 cursor-pointer outline-none">
+                            <option value="" {{ session('current_clinic_id') ? '' : 'selected' }}>— System Overview —</option>
+                            @foreach(($allClinics ?? collect()) as $c)
+                                <option value="{{ $c->id }}" {{ ($clinic?->id === $c->id) ? 'selected' : '' }}>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                    @else
+                    <div class="hidden md:flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700">
+                        <span class="material-symbols-outlined text-sm">local_hospital</span>
+                        <span>{{ $clinicName }}</span>
+                    </div>
+                    @endif
                     <div class="hidden md:flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700">
                         <span class="material-symbols-outlined text-sm">calendar_month</span>
                         <span>{{ now()->format('M d, Y') }}</span>
+                    </div>
+                    {{-- Language Switcher --}}
+                    <div class="hidden md:flex items-center gap-1">
+                        <a href="?lang=id" class="px-2 py-1 rounded text-[10px] font-bold transition-all {{ app()->getLocale() === 'id' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600' }}">ID</a>
+                        <a href="?lang=en" class="px-2 py-1 rounded text-[10px] font-bold transition-all {{ app()->getLocale() === 'en' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600' }}">EN</a>
                     </div>
                     <button id="darkModeToggle" class="flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all" title="Toggle Dark Mode">
                         <span class="material-symbols-outlined text-lg" id="darkModeIcon">dark_mode</span>
@@ -439,7 +510,11 @@
             @if(session('error'))
                 showToast('{{ session('error') }}', 'error');
             @endif
-
+            {{-- PHASE 4: warning flashes (booking/payment flows) were silently dropped + handler left unclosed. --}}
+            @if(session('warning'))
+                showToast('{{ session('warning') }}', 'warning');
+            @endif
+        });
 
     </script>
 </body>

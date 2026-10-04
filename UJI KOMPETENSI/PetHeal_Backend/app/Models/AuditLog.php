@@ -8,6 +8,7 @@ class AuditLog extends Model
 {
     protected $fillable = [
         'user_id',
+        'clinic_id',
         'action',
         'model_type',
         'model_id',
@@ -21,10 +22,16 @@ class AuditLog extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function clinic()
+    {
+        return $this->belongsTo(Clinic::class);
+    }
+
     public static function log($action, $description = null, $model = null)
     {
         return static::create([
             'user_id' => auth()->id(),
+            'clinic_id' => currentClinicId(),
             'action' => $action,
             'model_type' => $model ? get_class($model) : null,
             'model_id' => $model ? $model->id : null,

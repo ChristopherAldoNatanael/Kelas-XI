@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -33,6 +34,20 @@ class AppServiceProvider extends ServiceProvider
         if ($isProduction || ($isNgrok && $isHttpsUrl)) {
             URL::forceScheme('https');
         }
+        
+        // Share $isSuperAdmin and $allClinics with all admin views
+        View::composer('admin.*', function ($view) {
+            $user = auth()->user();
+            $isSuperAdmin = $user && $user->role === 'super_admin';
+            $view->with('isSuperAdmin', $isSuperAdmin);
+
+            if ($isSuperAdmin) {
+                $clinics = \Illuminate\Support\Facades\Cache::remember('admin_active_clinics', 300, function () {
+                    return \App\Models\Clinic::where('is_active', true)->orderBy('name')->get();
+                });
+                $view->with('allClinics', $clinics);
+            }
+        });
         
         // Configure rate limiters
         RateLimiter::for('api', function (Request $request) {
