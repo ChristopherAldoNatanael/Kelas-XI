@@ -19,6 +19,14 @@ class MedicalRecordRepository @Inject constructor(
     private val recordsByPetCache = mutableMapOf<Int, List<MedicalRecord>>()
     private val recordByBookingCache = mutableMapOf<Int, MedicalRecord?>()
 
+    /** PHASE 7: user-scoped caches must not survive account switch/delete. */
+    fun clearCaches() {
+        recordsCache = null
+        recordDetailCache.clear()
+        recordsByPetCache.clear()
+        recordByBookingCache.clear()
+    }
+
     suspend fun getMedicalRecords(forceRefresh: Boolean = false): Result<List<MedicalRecord>> {
         if (!forceRefresh) {
             recordsCache?.let { return Result.Success(it) }

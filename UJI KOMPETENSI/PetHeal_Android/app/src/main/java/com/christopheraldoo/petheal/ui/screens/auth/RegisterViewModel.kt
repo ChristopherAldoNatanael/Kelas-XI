@@ -16,6 +16,9 @@ import javax.inject.Inject
 data class RegisterUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    // PHASE 7: same safety net as login (defensive; email register requires
+    // a slug upfront so this should rarely trigger).
+    val needsClinicSetup: Boolean = false,
     val error: String? = null
 )
 
@@ -27,24 +30,34 @@ class RegisterViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
 
-    fun register(name: String, email: String, password: String) {
+    fun register(name: String, email: String, password: String, clinicSlug: String? = null) {
         viewModelScope.launch {
             _uiState.value = RegisterUiState(isLoading = true)
             val fcmToken = try { FirebaseMessaging.getInstance().token.await() } catch (e: Exception) { null }
-            when (val result = authRepository.registerWithEmailPassword(email, password, name, fcmToken)) {
-                is Result.Success -> _uiState.value = RegisterUiState(isSuccess = true)
+            when (val result = authRepository.registerWithEmailPassword(email, password, name, fcmToken, clinicSlug)) {
+                is Result.Success ->
+                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
+                        _uiState.value = RegisterUiState(needsClinicSetup = true)
+                    } else {
+                        _uiState.value = RegisterUiState(isSuccess = true)
+                    }
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }
         }
     }
 
-    fun registerWithGoogleIdToken(idToken: String, name: String) {
+    fun registerWithGoogleIdToken(idToken: String, name: String, clinicSlug: String? = null) {
         viewModelScope.launch {
             _uiState.value = RegisterUiState(isLoading = true)
             val fcmToken = try { FirebaseMessaging.getInstance().token.await() } catch (e: Exception) { null }
-            when (val result = authRepository.registerWithGoogle(idToken, name, null, fcmToken)) {
-                is Result.Success -> _uiState.value = RegisterUiState(isSuccess = true)
+            when (val result = authRepository.registerWithGoogle(idToken, name, null, fcmToken, clinicSlug)) {
+                is Result.Success ->
+                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
+                        _uiState.value = RegisterUiState(needsClinicSetup = true)
+                    } else {
+                        _uiState.value = RegisterUiState(isSuccess = true)
+                    }
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }

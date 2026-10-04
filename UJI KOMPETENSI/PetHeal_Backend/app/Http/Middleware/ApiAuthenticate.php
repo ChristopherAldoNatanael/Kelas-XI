@@ -40,6 +40,17 @@ class ApiAuthenticate
         // `if ($clinicId)` filter and could read/book across all clinics.
         // super_admin keeps existing behavior (may operate without clinic).
         // PHASE 3 (F-03): the bound clinic must also be ACTIVE.
+        // PHASE 7 fix: self account-deletion bypasses BOTH tenant checks
+        // below. AuthController@deleteAccount is strictly self-scoped (only
+        // the caller's own rows + own tokens), so tenant binding/mismatch
+        // must never trap a user inside an account they cannot remove —
+        // whether clinic-less, suspended, or carrying a stale slug header.
+        // Bearer + Sanctum authentication above still applies.
+        $isSelfDelete = $request->isMethod('delete') && $request->is('api/auth/account');
+        if ($isSelfDelete) {
+            return $next($request);
+        }
+
         if ($user->role !== 'super_admin') {
             $clinic = $user->clinic;
             if (!$user->clinic_id || !$clinic || !$clinic->is_active) {

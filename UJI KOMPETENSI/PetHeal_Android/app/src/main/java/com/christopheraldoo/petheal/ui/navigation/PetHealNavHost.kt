@@ -31,6 +31,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.christopheraldoo.petheal.ui.screens.auth.CompleteSetupScreen
 import com.christopheraldoo.petheal.ui.screens.auth.LoginScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OnboardingScreen
 import com.christopheraldoo.petheal.ui.screens.auth.RegisterScreen
@@ -62,6 +63,19 @@ fun PetHealNavHost(
     viewModel: NavigationViewModel = hiltViewModel()
 ) {
     val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = false)
+
+    // PHASE 7 (§21): a 401 on any authenticated call ends the session
+    // exactly once — return to login without loops or crashes.
+    LaunchedEffect(Unit) {
+        viewModel.sessionEvents.collect { event ->
+            if (event === com.christopheraldoo.petheal.data.local.SessionEvents.SessionExpired) {
+                android.util.Log.i("PetHealNavHost", "Session expired (401) — navigating to login")
+                navController.navigate(Screen.Login.route) {
+                    popUpTo(0) { inclusive = true }
+                }
+            }
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -107,6 +121,11 @@ fun PetHealNavHost(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onNavigateToCompleteSetup = {
+                    navController.navigate(Screen.CompleteSetup.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToRegister = {
                     navController.navigate(Screen.Register.route)
                 }
@@ -120,8 +139,29 @@ fun PetHealNavHost(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onNavigateToCompleteSetup = {
+                    navController.navigate(Screen.CompleteSetup.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
                 onNavigateBack = {
                     navController.popBackStack()
+                }
+            )
+        }
+
+        // PHASE 7: clinic-less accounts finish binding here, then Home.
+        composable(Screen.CompleteSetup.route) {
+            CompleteSetupScreen(
+                onSetupComplete = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onLoggedOut = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }

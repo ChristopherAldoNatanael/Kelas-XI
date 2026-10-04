@@ -5,6 +5,8 @@ sealed class Screen(val route: String) {
     object Onboarding     : Screen("onboarding")
     object Login          : Screen("login")
     object Register       : Screen("register")
+    // PHASE 7: finish-setup for accounts born without a clinic binding.
+    object CompleteSetup  : Screen("complete-setup")
     object Home           : Screen("home")
 
     // ── Pets ────────────────────────────────────────────────────────────────

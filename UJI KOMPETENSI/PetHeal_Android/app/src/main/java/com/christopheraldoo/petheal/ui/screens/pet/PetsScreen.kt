@@ -818,6 +818,13 @@ fun PetDetailScreen(
                         weightTrend = state.weightChange?.trend,
                         onAddWeight = { showWeightDialog = true },
                         onAddVaccination = { showVaccinationDialog = true },
+                        // PHASE 7: delete affordances (declared endpoints).
+                        onDeleteWeight = { recordId ->
+                            viewModel.deleteWeightRecord(petId, recordId)
+                        },
+                        onDeleteVaccination = { vaccinationId ->
+                            viewModel.deleteVaccination(petId, vaccinationId)
+                        },
                         surfaceColor = surfaceColor,
                         textPrimary = textPrimary,
                         textMuted = textMuted,
@@ -967,6 +974,8 @@ private fun HealthTrackingSection(
     weightTrend: String?,
     onAddWeight: () -> Unit,
     onAddVaccination: () -> Unit,
+    onDeleteWeight: (Int) -> Unit = {},
+    onDeleteVaccination: (Int) -> Unit = {},
     surfaceColor: Color,
     textPrimary: Color,
     textMuted: Color,
@@ -1041,7 +1050,8 @@ private fun HealthTrackingSection(
                             title = "${record.weight ?: 0.0} kg",
                             subtitle = listOfNotNull(record.recordedAt, record.notes).joinToString(" • ").ifBlank { "Weight record" },
                             textPrimary = textPrimary,
-                            textMuted = textMuted
+                            textMuted = textMuted,
+                            onDelete = record.id?.let { id -> { onDeleteWeight(id) } }
                         )
                     }
                 }
@@ -1096,7 +1106,8 @@ private fun HealthTrackingSection(
                                 }
                             }.ifBlank { vaccine.veterinarian ?: "Vaccination record" },
                             textPrimary = textPrimary,
-                            textMuted = textMuted
+                            textMuted = textMuted,
+                            onDelete = vaccine.id?.let { id -> { onDeleteVaccination(id) } }
                         )
                     }
                 }
@@ -1110,7 +1121,9 @@ private fun HealthMiniRow(
     title: String,
     subtitle: String,
     textPrimary: Color,
-    textMuted: Color
+    textMuted: Color,
+    // PHASE 7: optional delete (wires the declared DELETE endpoints).
+    onDelete: (() -> Unit)? = null
 ) {
     Row(
         modifier = Modifier
@@ -1127,9 +1140,19 @@ private fun HealthMiniRow(
                 .background(PetPrimary)
         )
         Spacer(Modifier.width(10.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
             Text(subtitle, fontSize = 12.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (onDelete != null) {
+            IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                Icon(
+                    imageVector = Icons.Filled.DeleteOutline,
+                    contentDescription = "Hapus",
+                    tint = Color(0xFFEF4444),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
     }
 }
@@ -1611,18 +1634,97 @@ fun AddPetScreen(
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val state by viewModel.addEditState.collectAsState()
-    LaunchedEffect(state.isSuccess) { if (state.isSuccess) { viewModel.clearAddEditState(); onPetAdded() } }
+    // PHASE 7: confirm success explicitly instead of silently popping back.
+    var showSuccessDialog by remember { mutableStateOf(false) }
+    var formKey by remember { mutableStateOf(0) }
+    LaunchedEffect(state.isSuccess) {
+        if (state.isSuccess) showSuccessDialog = true
+    }
 
-    PetFormScreen(
-        title = "Add New Pet",
-        submitLabel = "Save Pet Profile",
-        isLoading = state.isLoading,
-        error = state.error,
-        onNavigateBack = onNavigateBack,
-        onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile ->
-            viewModel.addPet(name, species, breed, gender, dateOfBirth, age, weight, photoFile)
-        }
-    )
+    if (showSuccessDialog) {
+        val petName = state.createdPetName.orEmpty()
+        AlertDialog(
+            onDismissRequest = { /* force an explicit choice */ },
+            icon = {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(PetPrimary.copy(alpha = 0.12f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = PetPrimary,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
+            },
+            title = {
+                Text(
+                    "Hewan Berhasil Ditambahkan",
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            text = {
+                Text(
+                    if (petName.isNotBlank()) {
+                        "$petName sudah masuk ke daftar My Pets dan siap untuk dibuatkan janji konsultasi."
+                    } else {
+                        "Data hewan baru sudah masuk ke daftar My Pets."
+                    },
+                    fontSize = 14.sp,
+                    lineHeight = 20.sp,
+                    textAlign = TextAlign.Center,
+                    color = PetMuted,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showSuccessDialog = false
+                        viewModel.clearAddEditState()
+                        onPetAdded()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PetPrimary,
+                        contentColor = Color(0xFFF6F8F6)
+                    )
+                ) {
+                    Text("Lihat Daftar", fontWeight = FontWeight.SemiBold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showSuccessDialog = false
+                        viewModel.clearAddEditState()
+                        formKey++
+                    }
+                ) {
+                    Text("Tambah Lagi", color = PetPrimary, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        )
+    }
+
+    key(formKey) {
+        PetFormScreen(
+            title = "Add New Pet",
+            submitLabel = "Save Pet Profile",
+            isLoading = state.isLoading,
+            error = state.error,
+            onNavigateBack = onNavigateBack,
+            onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile ->
+                viewModel.addPet(name, species, breed, gender, dateOfBirth, age, weight, photoFile)
+            }
+        )
+    }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1714,6 +1816,20 @@ private fun PetFormScreen(
 
     var name          by remember(initialName)        { mutableStateOf(initialName) }
     var species       by remember(initialSpecies)     { mutableStateOf(initialSpecies) }
+    // PHASE 7: "Other" reveals a free-text species field. If an existing
+    // record already holds a custom value, restore it into that field.
+    val speciesOptions = listOf("Dog", "Cat", "Bird", "Rabbit", "Other")
+    var customSpecies by remember(initialSpecies) {
+        mutableStateOf(
+            if (initialSpecies.isNotBlank() && initialSpecies !in speciesOptions) initialSpecies else ""
+        )
+    }
+    // Normalize legacy/custom values to the Other branch (edit flow).
+    LaunchedEffect(initialSpecies) {
+        if (initialSpecies.isNotBlank() && initialSpecies !in speciesOptions) {
+            species = "Other"
+        }
+    }
     var breed         by remember(initialBreed)       { mutableStateOf(initialBreed) }
     var gender        by remember(initialGender)      { mutableStateOf(initialGender) }
     var dateOfBirth   by remember(initialDateOfBirth) { mutableStateOf(initialDateOfBirth) }
@@ -1815,7 +1931,7 @@ private fun PetFormScreen(
         }
     }
 
-    val speciesOptions = listOf("Dog", "Cat", "Bird", "Rabbit", "Other")    // ── Native DatePickerDialog ───────────────────────────────────────────
+    // ── Native DatePickerDialog ───────────────────────────────────────────
     if (showDatePicker) {
         val calendar = Calendar.getInstance()
         // Pre-fill picker with existing value if valid (YYYY-MM-DD)
@@ -2110,8 +2226,16 @@ private fun PetFormScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(species.ifBlank { "Select" }, fontSize = 14.sp,
-                                        color = if (species.isBlank()) textMuted else textPrimary)
+                                    // PHASE 7: show the typed value once Other is specified.
+                                    val speciesLabel = when {
+                                        species == "Other" && customSpecies.isNotBlank() -> customSpecies
+                                        species == "Other" -> "Other…"
+                                        species.isBlank() -> "Select"
+                                        else -> species
+                                    }
+                                    Text(speciesLabel, fontSize = 14.sp,
+                                        color = if (species.isBlank()) textMuted else textPrimary,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     Icon(Icons.Filled.ExpandMore, null, tint = textMuted, modifier = Modifier.size(20.dp))
                                 }
                                 DropdownMenu(expanded = expandSpecies,
@@ -2124,6 +2248,24 @@ private fun PetFormScreen(
                                         )
                                     }
                                 }
+                            }
+                            // PHASE 7: free-text species for "Other" (e.g. Hamster,
+                            // Iguana). Sent as-is; backend accepts any string ≤100.
+                            AnimatedVisibility(
+                                visible = species == "Other",
+                                enter = fadeIn(animationSpec = tween(200)) +
+                                    slideInVertically(animationSpec = tween(200)) { it / 3 },
+                            ) {
+                                PetTextField(
+                                    value = customSpecies,
+                                    onValueChange = { customSpecies = it.take(100) },
+                                    placeholder = "Tulis jenis hewan…",
+                                    surfaceColor = surfaceColor,
+                                    textPrimary = textPrimary,
+                                    textMuted = textMuted,
+                                    borderColor = borderColor,
+                                    imeAction = ImeAction.Next
+                                )
                             }
                         }
 
@@ -2246,12 +2388,16 @@ private fun PetFormScreen(
                 .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp))
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
+            // PHASE 7: "Other" submits the typed value; blank custom blocks.
+            val effectiveSpecies =
+                if (species == "Other") customSpecies.trim() else species.trim()
+            val isSpeciesValid = effectiveSpecies.isNotBlank()
             Button(
                 onClick = {
                     focusManager.clearFocus()
                     onSubmit(
                         name.trim(),
-                        species.trim(),
+                        effectiveSpecies,
                         breed.trim().ifBlank { null },
                         gender.lowercase(),
                         dateOfBirth.trim().ifBlank { null },
@@ -2262,7 +2408,7 @@ private fun PetFormScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading && name.isNotBlank() && species.isNotBlank(),
+                enabled = !isLoading && name.isNotBlank() && isSpeciesValid,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPrimary,
                     contentColor = Color(0xFFF6F8F6),

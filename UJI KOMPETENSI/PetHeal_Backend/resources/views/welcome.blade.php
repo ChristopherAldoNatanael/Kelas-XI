@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>PetHeal — Booking Klinik Hewan (Android + Web Admin)</title>
     <meta name="description" content="PetHeal: aplikasi booking dokter hewan multi-klinik. Satu APK Android untuk pemilik hewan, satu panel web untuk admin klinik. Booking, pembayaran Midtrans, rekam medis digital, dan pengingat otomatis.">
+    <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -88,14 +89,8 @@
 <!-- Navigasi -->
 <header class="sticky top-0 z-50 bg-paper/90 backdrop-blur border-b border-[#E7DFCF]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6">
-        <a href="/" class="flex items-center gap-2.5">
-            <span class="w-9 h-9 rounded-xl bg-pine-800 text-white flex items-center justify-center">
-                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 13.2c-2.6 0-5.4 2-5.4 4.3 0 1.4 1 2.3 2.4 2.3 1 0 1.9-.5 3-1.5 1.1 1 2 1.5 3 1.5 1.4 0 2.4-.9 2.4-2.3 0-2.3-2.8-4.3-5.4-4.3ZM7.2 8.4c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Zm9.6 0c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1ZM9.6 3.5c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1Zm4.8 0c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Z"/></svg>
-            </span>
-            <span class="leading-none">
-                <span class="block font-serif font-semibold text-[19px] tracking-tight">PetHeal</span>
-                <span class="block text-[11px] text-stone-500 font-medium tracking-wide">Klinik hewan · booking & rekam medis</span>
-            </span>
+        <a href="/" class="flex items-center">
+            <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" class="h-10 w-auto bg-white rounded-xl px-2 py-1 border border-[#E7DFCF]" fetchpriority="high">
         </a>
         <nav class="hidden md:flex items-center gap-6 text-[14px] font-medium text-stone-600 ml-4">
             <a href="#alur" class="navlink hover:text-ink">Alur</a>
@@ -464,11 +459,8 @@
 <footer class="border-t border-[#E7DFCF] bg-[#F3EDE0]/60">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid md:grid-cols-4 gap-8">
         <div class="md:col-span-2">
-            <div class="flex items-center gap-2.5">
-                <span class="w-8 h-8 rounded-lg bg-pine-800 text-white flex items-center justify-center">
-                    <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 13.2c-2.6 0-5.4 2-5.4 4.3 0 1.4 1 2.3 2.4 2.3 1 0 1.9-.5 3-1.5 1.1 1 2 1.5 3 1.5 1.4 0 2.4-.9 2.4-2.3 0-2.3-2.8-4.3-5.4-4.3ZM7.2 8.4c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Zm9.6 0c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1ZM9.6 3.5c-1 .3-1.6 1.6-1.3 3 .3 1.4 1.4 2.4 2.4 2.1 1-.3 1.6-1.6 1.3-3-.3-1.4-1.4-2.4-2.4-2.1Zm4.8 0c-1-.3-2.1.7-2.4 2.1-.3 1.4.3 2.7 1.3 3 1 .3 2.1-.7 2.4-2.1.3-1.4-.3-2.7-1.3-3Z"/></svg>
-                </span>
-                <span class="font-serif font-semibold text-[17px]">PetHeal</span>
+            <div class="flex items-center">
+                <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" class="h-9 w-auto bg-white rounded-lg px-2 py-1 border border-[#E7DFCF]" loading="lazy">
             </div>
             <p class="mt-3 text-[13.5px] text-stone-600 leading-relaxed max-w-sm">Sistem booking klinik hewan multi-klinik: aplikasi Android (Kotlin, Jetpack Compose) + backend Laravel + panel admin web. Dibuat sebagai bahan Uji Kompetensi — didokumentasikan, diuji, dan bisa didemo.</p>
             <p class="mt-4 font-mono text-[12px] text-stone-500">{{ $baseUrl }}/ · /admin · /api/health</p>

@@ -1,62 +1,79 @@
 package com.christopheraldoo.petheal.data.repository
 
 import android.util.Log
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
+import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class DoctorRepository @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val preferencesManager: PreferencesManager
 ) {
     companion object {
         private const val TAG = "DoctorRepository"
     }
 
     // ── In-memory cache ──────────────────────────────────────────────────────
-    // Simpan hasil fetch di RAM. Selama sesi berjalan, buka halaman berulang
-    // kali langsung pakai cache — tidak perlu network sama sekali.
+    // PHASE 7: tenant-aware. Backend scopes doctors by the caller's clinic,
+    // so the cache key includes the clinic slug — Clinic A must never read
+    // Clinic B's cached list (matches AGENTS.md key-by-slug plan).
     private var cachedDoctors: List<Doctor>? = null
-    private val cachedDoctorById = mutableMapOf<Int, Doctor>()
+    private val cachedDoctorById = mutableMapOf<String, Doctor>()
     private var cacheTimestamp: Long = 0L
+    private var cachedSlug: String? = null
     private val CACHE_TTL_MS = 5 * 60 * 1000L  // 5 menit
 
-    private fun isCacheValid() =
-        cachedDoctors != null && (System.currentTimeMillis() - cacheTimestamp) < CACHE_TTL_MS
+    private fun cacheKey(doctorId: Int, slug: String?): String = "${slug ?: "-"}:$doctorId"
+
+    private fun isCacheValid(slug: String?) =
+        cachedDoctors != null && cachedSlug == slug &&
+            (System.currentTimeMillis() - cacheTimestamp) < CACHE_TTL_MS
 
     suspend fun getDoctors(forceRefresh: Boolean = false): Result<List<Doctor>> {
-        if (!forceRefresh && isCacheValid()) {
+        // PHASE 7: resolve tenant first so cache + request agree on scope.
+        val slug = runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
+        if (!forceRefresh && isCacheValid(slug)) {
             return Result.Success(cachedDoctors!!)
+        }
+        if (cachedSlug != slug) {
+            cachedDoctors = null
+            cachedDoctorById.clear()
+            cacheTimestamp = 0L
         }
         return try {
             val response = apiService.getDoctors()
             if (response.isSuccessful && response.body()?.success == true) {
                 val doctors = response.body()?.data ?: emptyList()
                 cachedDoctors = doctors
+                cachedSlug = slug
                 cacheTimestamp = System.currentTimeMillis()
-                doctors.forEach { if (it.id != null) cachedDoctorById[it.id] = it }
+                doctors.forEach { if (it.id != null) cachedDoctorById[cacheKey(it.id, slug)] = it }
                 Result.Success(doctors)
             } else {
                 Log.e(TAG, "getDoctors failed: ${response.body()?.message} (HTTP ${response.code()})")
-                cachedDoctors?.let { return Result.Success(it) }
+                cachedDoctors?.let { if (cachedSlug == slug) return Result.Success(it) }
                 Result.Error(response.body()?.message ?: "Failed to get doctors")
             }
         } catch (e: Exception) {
             Log.e(TAG, "getDoctors exception", e)
-            cachedDoctors?.let { return Result.Success(it) }
+            cachedDoctors?.let { if (cachedSlug == slug) return Result.Success(it) }
             Result.Error("Network error: ${e.message}")
         }
     }
 
     suspend fun getDoctor(id: Int): Result<Doctor> {
-        cachedDoctorById[id]?.let { return Result.Success(it) }
+        val slug = runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
+        cachedDoctorById[cacheKey(id, slug)]?.let { return Result.Success(it) }
         return try {
             val response = apiService.getDoctor(id)
             if (response.isSuccessful && response.body()?.success == true) {
                 val doctor = response.body()?.data
                 if (doctor != null) {
-                    cachedDoctorById[id] = doctor
+                    cachedDoctorById[cacheKey(id, slug)] = doctor
                     Result.Success(doctor)
                 } else {
                     Result.Error("Doctor not found")
@@ -129,6 +146,7 @@ class DoctorRepository @Inject constructor(
     /** Panggil setelah booking berhasil dibuat agar cache diperbarui */
     fun invalidateCache() {
         cachedDoctors = null
+        cachedDoctorById.clear()
         cacheTimestamp = 0L
     }
 }

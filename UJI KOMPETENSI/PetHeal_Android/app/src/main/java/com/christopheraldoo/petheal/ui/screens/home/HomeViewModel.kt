@@ -7,8 +7,8 @@ import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.DashboardData
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.Vaccination
-import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.repository.AuthRepository
+import com.christopheraldoo.petheal.data.repository.DashboardRepository
 import com.christopheraldoo.petheal.data.repository.NotificationRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +23,10 @@ import javax.inject.Inject
 data class HomeUiState(
     val userName: String = "",
     val userPhoto: String? = null,
+    // PHASE 7: dynamic tenant branding (backend-owned, safe fallbacks).
+    val clinicName: String? = null,
+    val clinicLogo: String? = null,
+    val clinicColor: String? = null,
     val upcomingBooking: Booking? = null,
     val isLoading: Boolean = true,
     val isBookingLoading: Boolean = false,
@@ -45,7 +49,7 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val apiService: ApiService,
+    private val dashboardRepository: DashboardRepository,
     private val preferencesManager: PreferencesManager,
     private val authRepository: AuthRepository,
     private val notificationRepository: NotificationRepository
@@ -83,7 +87,23 @@ class HomeViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(unreadNotificationCount = count)
             }
         }
-        
+        // PHASE 7: tenant branding follows persisted clinic choice.
+        viewModelScope.launch {
+            preferencesManager.clinicName.collect { name ->
+                _uiState.value = _uiState.value.copy(clinicName = name)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicLogo.collect { logo ->
+                _uiState.value = _uiState.value.copy(clinicLogo = logo)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicColor.collect { color ->
+                _uiState.value = _uiState.value.copy(clinicColor = color)
+            }
+        }
+
         loadBookingData()
     }
 
@@ -108,10 +128,11 @@ class HomeViewModel @Inject constructor(
             }
 
             val dashboardDeferred = async {
-                try {
-                    val response = apiService.getDashboard()
-                    if (response.isSuccessful) response.body()?.data else null
-                } catch (e: Exception) { null }
+                // PHASE 7: via repository (VM no longer touches ApiService).
+                when (val result = dashboardRepository.getDashboard()) {
+                    is Result.Success -> result.data
+                    else -> null
+                }
             }
 
             profileDeferred.await()

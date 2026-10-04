@@ -31,6 +31,15 @@ class PreferencesManager @Inject constructor(
         private val KEY_FCM_TOKEN = stringPreferencesKey("fcm_token")
         private val KEY_AUTH_PROVIDER = stringPreferencesKey("auth_provider")
         private val KEY_HAS_SEEN_ONBOARDING = stringPreferencesKey("has_seen_onboarding")
+
+        // PHASE 7: selected tenant (1 APK dinamis). Survives logout so the
+        // picker is not forced on every login; refreshed from login response.
+        private val KEY_CLINIC_ID = stringPreferencesKey("clinic_id")
+        private val KEY_CLINIC_NAME = stringPreferencesKey("clinic_name")
+        private val KEY_CLINIC_SLUG = stringPreferencesKey("clinic_slug")
+        private val KEY_CLINIC_LOGO = stringPreferencesKey("clinic_logo")
+        private val KEY_CLINIC_COLOR = stringPreferencesKey("clinic_color")
+        private val KEY_CLINIC_ADDRESS = stringPreferencesKey("clinic_address")
     }
 
     val authToken: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -69,6 +78,30 @@ class PreferencesManager @Inject constructor(
         preferences[KEY_HAS_SEEN_ONBOARDING] == "true"
     }
 
+    val clinicSlug: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_SLUG]
+    }
+
+    val clinicName: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_NAME]
+    }
+
+    val clinicLogo: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_LOGO]
+    }
+
+    val clinicColor: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_COLOR]
+    }
+
+    val clinicAddress: Flow<String?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_ADDRESS]
+    }
+
+    val clinicId: Flow<Int?> = context.dataStore.data.map { preferences ->
+        preferences[KEY_CLINIC_ID]?.toIntOrNull()
+    }
+
     suspend fun setOnboardingSeen() {
         context.dataStore.edit { preferences ->
             preferences[KEY_HAS_SEEN_ONBOARDING] = "true"
@@ -104,6 +137,41 @@ class PreferencesManager @Inject constructor(
     suspend fun saveFcmToken(token: String) {
         context.dataStore.edit { preferences ->
             preferences[KEY_FCM_TOKEN] = token
+        }
+    }
+
+    suspend fun saveClinic(
+        id: Int?,
+        name: String?,
+        slug: String?,
+        logoUrl: String?,
+        color: String?,
+        address: String?
+    ) {
+        context.dataStore.edit { preferences ->
+            if (id != null) preferences[KEY_CLINIC_ID] = id.toString()
+            else preferences.remove(KEY_CLINIC_ID)
+            if (!name.isNullOrBlank()) preferences[KEY_CLINIC_NAME] = name
+            else preferences.remove(KEY_CLINIC_NAME)
+            if (!slug.isNullOrBlank()) preferences[KEY_CLINIC_SLUG] = slug
+            else preferences.remove(KEY_CLINIC_SLUG)
+            if (!logoUrl.isNullOrBlank()) preferences[KEY_CLINIC_LOGO] = logoUrl
+            else preferences.remove(KEY_CLINIC_LOGO)
+            if (!color.isNullOrBlank()) preferences[KEY_CLINIC_COLOR] = color
+            else preferences.remove(KEY_CLINIC_COLOR)
+            if (!address.isNullOrBlank()) preferences[KEY_CLINIC_ADDRESS] = address
+            else preferences.remove(KEY_CLINIC_ADDRESS)
+        }
+    }
+
+    suspend fun clearClinic() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_CLINIC_ID)
+            preferences.remove(KEY_CLINIC_NAME)
+            preferences.remove(KEY_CLINIC_SLUG)
+            preferences.remove(KEY_CLINIC_LOGO)
+            preferences.remove(KEY_CLINIC_COLOR)
+            preferences.remove(KEY_CLINIC_ADDRESS)
         }
     }
 

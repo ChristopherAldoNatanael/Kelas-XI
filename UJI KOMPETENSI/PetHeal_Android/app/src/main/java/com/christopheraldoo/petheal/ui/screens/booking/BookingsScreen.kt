@@ -756,6 +756,17 @@ fun BookingDetailScreen(
     if (showRescheduleDialog) {
         var selectedDate by remember { mutableStateOf(LocalDate.now().plusDays(1)) }
         var selectedTime by remember { mutableStateOf("10:00") }
+        // PHASE 7: live availability for this booking's doctor (fallback to
+        // the static grid only when the slots call yields nothing).
+        val rescheduleDoctorId = state.booking?.doctorId
+        androidx.compose.runtime.LaunchedEffect(selectedDate, rescheduleDoctorId) {
+            if (rescheduleDoctorId != null) {
+                viewModel.loadRescheduleSlots(rescheduleDoctorId, selectedDate)
+            }
+        }
+        val liveTimes = state.rescheduleSlots.filter { it.available }.map { it.time }
+        val fallbackTimes = listOf("09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00")
+        val rescheduleTimes = liveTimes.ifEmpty { fallbackTimes }
         
         AlertDialog(
             onDismissRequest = { showRescheduleDialog = false },
@@ -795,10 +806,9 @@ fun BookingDetailScreen(
                         }
                     }
                     
-                    // Simple time selector
-                    val times = listOf("09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00")
+                    // Time selector: live slots when available, static fallback.
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(times) { time ->
+                        items(rescheduleTimes) { time ->
                             val isSelected = time == selectedTime
                             Surface(
                                 shape = RoundedCornerShape(8.dp),

@@ -45,6 +45,8 @@ data class PetDetailUiState(
 data class AddEditPetUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    // PHASE 7: name of the just-created pet for the success confirmation.
+    val createdPetName: String? = null,
     val error: String? = null
 )
 
@@ -250,6 +252,49 @@ class PetsViewModel @Inject constructor(
         }
     }
 
+    /** PHASE 7: wire declared DELETE endpoints (were endpoint mati). */
+    fun deleteWeightRecord(petId: Int, recordId: Int) {
+        viewModelScope.launch {
+            _detailState.value = _detailState.value.copy(
+                isHealthActionLoading = true, error = null, healthMessage = null
+            )
+            when (val result = petRepository.deleteWeightRecord(petId, recordId)) {
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(
+                        isHealthActionLoading = false,
+                        healthMessage = "Weight record deleted"
+                    )
+                    loadPetDetail(petId, forceRefresh = true)
+                }
+                is Result.Error -> _detailState.value = _detailState.value.copy(
+                    isHealthActionLoading = false, error = result.message
+                )
+                else -> Unit
+            }
+        }
+    }
+
+    fun deleteVaccination(petId: Int, vaccinationId: Int) {
+        viewModelScope.launch {
+            _detailState.value = _detailState.value.copy(
+                isHealthActionLoading = true, error = null, healthMessage = null
+            )
+            when (val result = petRepository.deleteVaccination(petId, vaccinationId)) {
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(
+                        isHealthActionLoading = false,
+                        healthMessage = "Vaccination deleted"
+                    )
+                    loadPetDetail(petId, forceRefresh = true)
+                }
+                is Result.Error -> _detailState.value = _detailState.value.copy(
+                    isHealthActionLoading = false, error = result.message
+                )
+                else -> Unit
+            }
+        }
+    }
+
     fun addPet(
         name: String, species: String, breed: String?,
         gender: String?, dateOfBirth: String?,
@@ -265,7 +310,7 @@ class PetsViewModel @Inject constructor(
             )
             when (val result = petRepository.createPet(request, photoFile)) {
                 is Result.Success -> {
-                    _addEditState.value = AddEditPetUiState(isSuccess = true)
+                    _addEditState.value = AddEditPetUiState(isSuccess = true, createdPetName = name)
                     loadPets()
                 }
                 is Result.Error -> _addEditState.value = AddEditPetUiState(error = result.message)

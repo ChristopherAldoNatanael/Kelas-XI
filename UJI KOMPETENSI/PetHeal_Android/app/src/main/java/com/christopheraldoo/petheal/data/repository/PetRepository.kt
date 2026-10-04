@@ -26,7 +26,16 @@ class PetRepository @Inject constructor(
         return try {
             val errJson = errorBody()?.string()
             if (!errJson.isNullOrBlank()) {
-                JSONObject(errJson).optString("message", fallback).ifBlank { fallback }
+                // PHASE 7: also surface the first field error from frozen
+                // 422 {success:false,message,errors:{field:[msg]}}.
+                val json = JSONObject(errJson)
+                val fromErrors = json.optJSONObject("errors")
+                    ?.keys()?.asSequence()
+                    ?.mapNotNull { key ->
+                        json.optJSONObject("errors")?.optJSONArray(key)?.optString(0)
+                    }?.firstOrNull { !it.isNullOrBlank() }
+                fromErrors?.takeIf { it.isNotBlank() }
+                    ?: json.optString("message", fallback).ifBlank { fallback }
             } else {
                 fallback
             }
@@ -274,6 +283,37 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "addVaccination($petId) exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    /** PHASE 7: wire the declared DELETE endpoints (were endpoint mati). */
+    suspend fun deleteWeightRecord(petId: Int, recordId: Int): Result<Unit> {
+        return try {
+            val response = apiService.deleteWeightRecord(petId, recordId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                logError("deleteWeightRecord($petId,$recordId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to delete weight record"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteWeightRecord exception", e)
+            Result.Error("Network error: ${e.message}")
+        }
+    }
+
+    suspend fun deleteVaccination(petId: Int, vaccinationId: Int): Result<Unit> {
+        return try {
+            val response = apiService.deleteVaccination(petId, vaccinationId)
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                logError("deleteVaccination($petId,$vaccinationId)", response.code(), response.body()?.message)
+                Result.Error(response.errorMessage("Failed to delete vaccination"))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "deleteVaccination exception", e)
             Result.Error("Network error: ${e.message}")
         }
     }

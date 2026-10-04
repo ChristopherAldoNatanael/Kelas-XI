@@ -16,6 +16,7 @@ return [
     'medical_records' => 'Rekam Medis',
     'payments' => 'Pembayaran',
     'clinics' => 'Klinik',
+    'clinic_profile' => 'Profil Klinik',
     'join_requests' => 'Permintaan Gabung',
     'audit_logs' => 'Log Audit',
     'settings' => 'Pengaturan',

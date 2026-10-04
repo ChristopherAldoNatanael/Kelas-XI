@@ -196,11 +196,15 @@ fun PaymentScreen(
                     title = paymentContextTitle,
                     subtitle = paymentContextSubtitle,
                     error = state.error ?: "Unknown error",
+                    // PHASE 7: guard against retry spam — every retry mints a
+                    // fresh Snap token server-side.
                     onRetry = {
-                        when {
-                            medicalRecordId != null -> viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
-                            isRemainingPayment -> viewModel.initiateRemainingPayment(booking.id ?: 0, user)
-                            else -> viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, booking.id ?: 0)
+                        if (!state.isLoading) {
+                            when {
+                                medicalRecordId != null -> viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
+                                isRemainingPayment -> viewModel.initiateRemainingPayment(booking.id ?: 0, user)
+                                else -> viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, booking.id ?: 0)
+                            }
                         }
                     },
                     onNavigateBack = onNavigateBack,

@@ -16,6 +16,7 @@ return [
     'medical_records' => 'Medical Records',
     'payments' => 'Payments',
     'clinics' => 'Clinics',
+    'clinic_profile' => 'Clinic Profile',
     'join_requests' => 'Join Requests',
     'audit_logs' => 'Audit Logs',
     'settings' => 'Settings',

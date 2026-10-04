@@ -54,7 +54,10 @@ data class BookingDetailUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isCancelled: Boolean = false,
-    val isRescheduled: Boolean = false
+    val isRescheduled: Boolean = false,
+    // PHASE 7: real availability for the reschedule dialog (was hardcoded).
+    val rescheduleSlots: List<TimeSlot> = emptyList(),
+    val isSlotsLoading: Boolean = false
 )
 
 data class CreateBookingUiState(
@@ -321,6 +324,20 @@ class BookingViewModel @Inject constructor(
                     isLoading = false, error = r.message
                 )
                 else -> Unit
+            }
+        }
+    }
+
+    /** PHASE 7: reschedule dialog uses live slots, like the create flow. */
+    fun loadRescheduleSlots(doctorId: Int, date: LocalDate) {
+        viewModelScope.launch {
+            _detailState.value = _detailState.value.copy(isSlotsLoading = true)
+            val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
+            when (val r = doctorRepository.getDoctorSlots(doctorId, dateStr)) {
+                is Result.Success -> _detailState.value = _detailState.value.copy(
+                    rescheduleSlots = r.data, isSlotsLoading = false
+                )
+                else -> _detailState.value = _detailState.value.copy(isSlotsLoading = false)
             }
         }
     }

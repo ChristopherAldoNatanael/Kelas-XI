@@ -31,6 +31,11 @@ interface ApiService {
     @POST("auth/logout")
     suspend fun logout(): Response<MessageResponse>
 
+    // PHASE 7: declared (backend DELETE /api/auth/account exists); used for
+    // account removal flows incl. integration-probe cleanup.
+    @DELETE("auth/account")
+    suspend fun deleteAccount(): Response<MessageResponse>
+
     @GET("auth/profile")
     suspend fun getProfile(): Response<ApiResponse<User>>
 
@@ -118,12 +123,24 @@ interface ApiService {
         @Path("vaccinationId") vaccinationId: Int
     ): Response<MessageResponse>
 
+    // ============= PUBLIC CLINICS (multi-tenant picker, no auth) =============
+    @GET("public/clinics")
+    suspend fun getPublicClinics(): Response<PublicClinicsResponse>
+
+    @GET("public/clinics/{slug}")
+    suspend fun getPublicClinic(@Path("slug") slug: String): Response<ClinicDetailResponse>
+
     // ============= SERVICES =============
+    // PHASE 7: anonymous callers MUST pass clinic_slug (backend 422 otherwise).
+    // Authenticated users are scoped by their own clinic server-side.
     @GET("services")
-    suspend fun getServices(): Response<ServicesResponse>
+    suspend fun getServices(@Query("clinic_slug") clinicSlug: String? = null): Response<ServicesResponse>
 
     @GET("services/{id}")
-    suspend fun getService(@Path("id") id: Int): Response<ServiceResponse>
+    suspend fun getService(
+        @Path("id") id: Int,
+        @Query("clinic_slug") clinicSlug: String? = null
+    ): Response<ServiceResponse>
 
     // ============= DOCTORS =============
     @GET("doctors")

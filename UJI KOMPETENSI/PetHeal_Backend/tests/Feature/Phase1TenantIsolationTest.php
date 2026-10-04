@@ -240,6 +240,38 @@ class Phase1TenantIsolationTest extends TestCase
         ])->assertStatus(403);
     }
 
+    public function test_null_clinic_user_can_still_delete_own_account(): void
+    {
+        // PHASE 7 fix: self-deletion is strictly self-scoped, so the clinic
+        // gate exempts it. Without this, a clinic-less user could never
+        // remove their own account (fail-closed trap). Tenant reads stay shut.
+        $this->apiAs($this->nullUser)->getJson('/api/pets')->assertStatus(403);
+
+        $nullUserId = $this->nullUser->id;
+        $this->apiAs($this->nullUser)->deleteJson('/api/auth/account')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertNull(User::find($nullUserId));
+    }
+
+    public function test_null_clinic_user_can_delete_own_account_with_slug_header(): void
+    {
+        // PHASE 7 fix, exact app scenario: the Android client always sends
+        // the stored X-Clinic-Slug header — that must not trap a clinic-less
+        // user inside an account they cannot remove either.
+        $this->apiAs($this->nullUser, ['X-Clinic-Slug' => 'petheal-pusat'])
+            ->getJson('/api/pets')->assertStatus(403);
+
+        $nullUserId = $this->nullUser->id;
+        $this->apiAs($this->nullUser, ['X-Clinic-Slug' => 'petheal-pusat'])
+            ->deleteJson('/api/auth/account')
+            ->assertOk()
+            ->assertJsonPath('success', true);
+
+        $this->assertNull(User::find($nullUserId));
+    }
+
     public function test_null_clinic_admin_cannot_enter_web_panel(): void
     {
         $admin = User::create([

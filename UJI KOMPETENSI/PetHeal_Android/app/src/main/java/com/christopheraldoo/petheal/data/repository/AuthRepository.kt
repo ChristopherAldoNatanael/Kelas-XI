@@ -24,7 +24,8 @@ class AuthRepository @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
     private val networkInterceptor: NetworkInterceptor,
     private val deviceTokenRepository: DeviceTokenRepository,
-    private val notificationRepository: NotificationRepository
+    private val notificationRepository: NotificationRepository,
+    private val medicalRecordRepository: MedicalRecordRepository
 ) {
     init {
         // Pre-load token ke cache NetworkInterceptor saat app start
@@ -35,6 +36,32 @@ class AuthRepository @Inject constructor(
     private suspend fun saveTokenAndCache(token: String) {
         preferencesManager.saveAuthToken(token)
         networkInterceptor.updateToken(token)
+    }
+
+    /**
+     * PHASE 7: persist the backend-authoritative tenant binding from
+     * `user.clinic` (id/name/slug/logo/color) and keep the X-Clinic-Slug
+     * header in sync. App is user/pet-owner only: non-user roles are
+     * rejected client-side (server remains the enforcer).
+     */
+    private suspend fun persistClinicBinding(user: User) {
+        val clinic = user.clinic
+        preferencesManager.saveClinic(
+            id = clinic?.id,
+            name = clinic?.name,
+            slug = clinic?.slug,
+            logoUrl = clinic?.logoUrl,
+            color = clinic?.primaryColor,
+            address = null
+        )
+        networkInterceptor.updateClinicSlug(clinic?.slug)
+    }
+
+    private suspend fun rejectNonUserRole(role: String?): Result<AuthData> {
+        networkInterceptor.updateToken(null)
+        return Result.Error(
+            "Akun ini terdaftar sebagai \"$role\". Aplikasi ini hanya untuk pemilik hewan."
+        )
     }
 
     private suspend fun saveAuthProvider(provider: String) {
@@ -90,7 +117,11 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
+                    if (authData.user.role != null && authData.user.role != "user") {
+                        return rejectNonUserRole(authData.user.role)
+                    }
                     saveTokenAndCache(authData.token)
+                    persistClinicBinding(authData.user)
                     saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
@@ -110,7 +141,13 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun registerWithEmailPassword(email: String, password: String, name: String, fcmToken: String?): Result<AuthData> {
+    suspend fun registerWithEmailPassword(
+        email: String,
+        password: String,
+        name: String,
+        fcmToken: String?,
+        clinicSlug: String? = null
+    ): Result<AuthData> {
         return try {
             val response = apiService.register(
                 EmailRegisterRequest(
@@ -119,14 +156,19 @@ class AuthRepository @Inject constructor(
                     password = password,
                     phone = null,
                     fcmToken = fcmToken,
-                    deviceType = "android"
+                    deviceType = "android",
+                    clinicSlug = clinicSlug
                 )
             )
-            
+
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
+                    if (authData.user.role != null && authData.user.role != "user") {
+                        return rejectNonUserRole(authData.user.role)
+                    }
                     saveTokenAndCache(authData.token)
+                    persistClinicBinding(authData.user)
                     saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
@@ -146,19 +188,24 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun loginWithGoogle(idToken: String, fcmToken: String?): Result<AuthData> {
+    suspend fun loginWithGoogle(idToken: String, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> {
         return try {
             val response = apiService.firebaseLogin(
                 LoginRequest(
                     idToken = idToken,
                     fcmToken = fcmToken,
-                    deviceType = "android"
+                    deviceType = "android",
+                    clinicSlug = clinicSlug
                 )
             )
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
+                    if (authData.user.role != null && authData.user.role != "user") {
+                        return rejectNonUserRole(authData.user.role)
+                    }
                     saveTokenAndCache(authData.token)
+                    persistClinicBinding(authData.user)
                     saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
@@ -177,7 +224,7 @@ class AuthRepository @Inject constructor(
             Result.Error(e.message ?: "Network error")
         }
     }
-      suspend fun registerWithGoogle(idToken: String, name: String, phone: String?, fcmToken: String?): Result<AuthData> {
+      suspend fun registerWithGoogle(idToken: String, name: String, phone: String?, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> {
         return try {
             val response = apiService.firebaseRegister(
                 FirebaseRegisterRequest(
@@ -185,13 +232,18 @@ class AuthRepository @Inject constructor(
                     name = name,
                     phone = phone,
                     fcmToken = fcmToken,
-                    deviceType = "android"
+                    deviceType = "android",
+                    clinicSlug = clinicSlug
                 )
             )
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
+                    if (authData.user.role != null && authData.user.role != "user") {
+                        return rejectNonUserRole(authData.user.role)
+                    }
                     saveTokenAndCache(authData.token)
+                    persistClinicBinding(authData.user)
                     saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
                     preferencesManager.saveUserInfo(
                         userId = authData.user.id ?: 0,
@@ -208,6 +260,38 @@ class AuthRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
+        }
+    }
+
+    /**
+     * PHASE 7: permanently delete the current account (Profile → Hapus Akun).
+     * Backend cascades the user's pets/bookings/records/tokens server-side.
+     * Local session is cleared only AFTER the server confirms, so a failed
+     * request never logs the user out by accident.
+     *
+     * PHASE 7 fix: the stored clinic choice is cleared too. The binding
+     * belonged to the deleted account — keeping it made the next Google
+     * login silently re-bind to the OLD clinic (auto-provisioned with the
+     * stale slug) and skip the setup flow. Normal logout keeps the clinic.
+     */
+    suspend fun deleteAccountAndLogout(): Result<Unit> {
+        return try {
+            val response = apiService.deleteAccount()
+            if (response.isSuccessful && response.body()?.success == true) {
+                networkInterceptor.updateToken(null)
+                networkInterceptor.updateClinicSlug(null)
+                firebaseAuth.signOut()
+                runCatching { notificationRepository.clearLocal() }
+                medicalRecordRepository.clearCaches()
+                preferencesManager.clearSession()
+                preferencesManager.clearClinic()
+                Result.Success(Unit)
+            } else {
+                Result.Error(errorMessageFrom(response, "Gagal menghapus akun"))
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AuthRepository", "Delete account failed: ${e.message}", e)
+            Result.Error("Gagal menghapus akun: ${e.message ?: "Unknown error"}")
         }
     }
 
@@ -227,6 +311,8 @@ class AuthRepository @Inject constructor(
             firebaseAuth.signOut()
             // Clear locally stored notifications for the current account
             notificationRepository.clearLocal()
+            // PHASE 7: user-scoped caches must not leak into the next account.
+            medicalRecordRepository.clearCaches()
             // Clear only the session data; keep auth provider for login UX
             preferencesManager.clearSession()
 
@@ -294,13 +380,93 @@ class AuthRepository @Inject constructor(
         return preferencesManager.userId.first()?.toIntOrNull()
     }
 
-    suspend fun requestForgotPassword(email: String): Result<Unit> {
+    /** PHASE 7: remove the current account (used to discard a clinic-less
+     * account before re-registering it bound to a clinic). */
+    suspend fun deleteCurrentAccount(): Result<Unit> {
         return try {
+            val response = apiService.deleteAccount()
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(errorMessageFrom(response, "Failed to remove account"))
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Network error")
+        }
+    }
+
+    /**
+     * PHASE 7: bind a clinic-less Google account to [slug].
+     *
+     * The backend has no "attach clinic later" endpoint, and a null-clinic
+     * account gets 403 on everything — so the repair is: delete the empty
+     * account, then register again with the slug (nothing of value can exist
+     * on it yet). Returns the fresh bound [AuthData] and persists it.
+     */
+    suspend fun reregisterGoogleAccount(slug: String): Result<AuthData> {
+        // 1. Drop the unusable account (server revokes its tokens).
+        when (val dropped = deleteCurrentAccount()) {
+            is Result.Error -> return Result.Error(dropped.message)
+            else -> Unit
+        }
+        networkInterceptor.updateToken(null)
+
+        // 2. Fresh Firebase ID token (user is still signed in to Google).
+        val firebaseUser = firebaseAuth.currentUser
+            ?: return Result.Error("Sesi Google berakhir. Silakan masuk kembali.")
+        val idToken = try {
+            firebaseUser.getIdToken(true).await()?.token
+        } catch (e: Exception) { null }
+            ?: return Result.Error("Gagal mengambil token Google. Coba lagi.")
+
+        // 3. Register bound from the start.
+        val name = runCatching { preferencesManager.userName.first() }.getOrNull()
+            ?.takeIf { it.isNotBlank() }
+            ?: firebaseUser.displayName
+            ?: "Pengguna"
+        val fcmToken = runCatching { preferencesManager.fcmToken.first() }.getOrNull()
+        return when (val result = registerWithGoogle(idToken, name, null, fcmToken, slug)) {
+            is Result.Success -> result
+            is Result.Error -> Result.Error(result.message)
+            else -> Result.Error("Pendaftaran ulang gagal. Coba lagi.")
+        }
+    }
+
+    suspend fun requestForgotPassword(email: String): Result<Unit> {        return try {
             val response = apiService.forgotPassword(ForgotPasswordRequest(email = email))
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.Success(Unit)
             } else {
                 Result.Error(errorMessageFrom(response, "Failed to send reset code"))
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Network error")
+        }
+    }
+
+    /** PHASE 7: complete the reset flow (endpoint was declared but unwired). */
+    suspend fun verifyResetCode(email: String, code: String): Result<Unit> {
+        return try {
+            val response = apiService.verifyResetCode(VerifyResetCodeRequest(email, code))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(errorMessageFrom(response, "Invalid reset code"))
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Network error")
+        }
+    }
+
+    suspend fun resetPassword(email: String, code: String, password: String): Result<Unit> {
+        return try {
+            val response = apiService.resetPassword(
+                ResetPasswordRequest(email, code, password, password)
+            )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                Result.Error(errorMessageFrom(response, "Failed to reset password"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")

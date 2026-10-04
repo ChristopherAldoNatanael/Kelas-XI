@@ -54,6 +54,11 @@ fun ProfileScreen(
 ) {
     val state by viewModel.profileState.collectAsState()
     var showLogoutDialog by remember { mutableStateOf(false) }
+    // PHASE 7: two-step verified deletion (anti-kepencet).
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteStep by remember { mutableStateOf(1) }
+    var deleteUnderstood by remember { mutableStateOf(false) }
+    var deleteConfirmText by remember { mutableStateOf("") }
 
     // Logout confirmation dialog
     if (showLogoutDialog) {
@@ -77,6 +82,120 @@ fun ProfileScreen(
             dismissButton = {
                 TextButton(onClick = { showLogoutDialog = false }) {
                     Text("Cancel", color = Primary)
+                }
+            }
+        )
+    }
+
+    // Delete-account dialog: step 1 = consequences + checklist,
+    // step 2 = type HAPUS. Both gates must pass; nothing fires by tap alone.
+    if (showDeleteDialog) {
+        val busy = state.isDeleting
+        AlertDialog(
+            onDismissRequest = {
+                if (!busy) {
+                    showDeleteDialog = false
+                    deleteStep = 1
+                    deleteUnderstood = false
+                    deleteConfirmText = ""
+                }
+            },
+            containerColor = SurfaceDark,
+            titleContentColor = TextPrimary,
+            textContentColor = TextSecDark,
+            title = { Text("Hapus Akun Permanen", fontWeight = FontWeight.Bold) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (deleteStep == 1) {
+                        Text(
+                            "Tindakan ini menghapus akun Anda secara permanen, " +
+                                "termasuk seluruh data hewan, booking, dan riwayat medis. " +
+                                "Data yang terhapus tidak dapat dikembalikan.",
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp
+                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(enabled = !busy) {
+                                    deleteUnderstood = !deleteUnderstood
+                                }
+                        ) {
+                            Checkbox(
+                                checked = deleteUnderstood,
+                                onCheckedChange = { deleteUnderstood = it },
+                                enabled = !busy
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Saya memahami dan tetap ingin menghapus akun",
+                                fontSize = 13.sp
+                            )
+                        }
+                    } else {
+                        Text(
+                            "Langkah terakhir: ketik HAPUS (huruf kapital semua) " +
+                                "untuk mengonfirmasi.",
+                            fontSize = 13.sp,
+                            lineHeight = 19.sp
+                        )
+                        OutlinedTextField(
+                            value = deleteConfirmText,
+                            onValueChange = { deleteConfirmText = it },
+                            singleLine = true,
+                            enabled = !busy,
+                            placeholder = { Text("Ketik HAPUS") },
+                            keyboardOptions = KeyboardOptions(
+                                capitalization = KeyboardCapitalization.Characters,
+                                keyboardType = KeyboardType.Text
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                if (deleteStep == 1) {
+                    TextButton(
+                        enabled = deleteUnderstood && !busy,
+                        onClick = { deleteStep = 2 }
+                    ) {
+                        Text("Lanjutkan", fontWeight = FontWeight.SemiBold)
+                    }
+                } else {
+                    TextButton(
+                        enabled = deleteConfirmText.trim() == "HAPUS" && !busy,
+                        onClick = {
+                            viewModel.deleteAccount(onDeleted = onLogout)
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = Color(0xFFDC2626)
+                        )
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = Color(0xFFDC2626)
+                            )
+                        } else {
+                            Text("Ya, Hapus Akun Saya", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !busy,
+                    onClick = {
+                        showDeleteDialog = false
+                        deleteStep = 1
+                        deleteUnderstood = false
+                        deleteConfirmText = ""
+                    }
+                ) {
+                    Text("Batal", color = Primary)
                 }
             }
         )
@@ -312,6 +431,43 @@ fun ProfileScreen(
                     Spacer(Modifier.width(8.dp))
                     Text("Log Out", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                // PHASE 7: danger zone — verified two-step deletion.
+                OutlinedButton(
+                    onClick = {
+                        deleteStep = 1
+                        deleteUnderstood = false
+                        deleteConfirmText = ""
+                        showDeleteDialog = true
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = Color(0xFFDC2626)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.DeleteForever,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Hapus Akun", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                }
+                Text(
+                    "Menghapus seluruh data Anda secara permanen",
+                    fontSize = 12.sp,
+                    color = TextSecDark,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
         }
 

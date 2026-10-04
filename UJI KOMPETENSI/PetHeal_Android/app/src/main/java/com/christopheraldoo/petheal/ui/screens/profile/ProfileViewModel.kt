@@ -17,7 +17,10 @@ import javax.inject.Inject
 data class ProfileUiState(
     val user: User? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // PHASE 7: delete-account flow (Profile → danger zone).
+    val isDeleting: Boolean = false,
+    val isDeleted: Boolean = false
 )
 
 data class EditProfileUiState(
@@ -145,6 +148,31 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.logout(fcmToken)
             onLoggedOut()
+        }
+    }
+
+    /** PHASE 7: two-step verified deletion (dialog enforces the checks). */
+    fun deleteAccount(onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            _profileState.value = _profileState.value.copy(
+                isDeleting = true, error = null, isDeleted = false
+            )
+            when (val result = authRepository.deleteAccountAndLogout()) {
+                is Result.Success -> {
+                    _profileState.value = _profileState.value.copy(
+                        isDeleting = false, isDeleted = true
+                    )
+                    onDeleted()
+                }
+                is Result.Error -> {
+                    _profileState.value = _profileState.value.copy(
+                        isDeleting = false, error = result.message
+                    )
+                }
+                else -> {
+                    _profileState.value = _profileState.value.copy(isDeleting = false)
+                }
+            }
         }
     }
 

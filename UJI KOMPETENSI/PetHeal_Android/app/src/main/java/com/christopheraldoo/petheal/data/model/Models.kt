@@ -11,8 +11,47 @@ data class User(
     val role: String? = null,
     val phone: String? = null,
     val photo: String? = null,
+    // PHASE 7: backend binds every user to one clinic (userResponse includes it).
+    val clinic: ClinicRef? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("updated_at") val updatedAt: String? = null
+)
+
+// ============= CLINIC MODELS (multi-tenant) =============
+// Backend: GET /api/public/clinics(+/{slug}), X-Clinic-Slug header,
+// ?clinic_slug= on anonymous catalog calls. User is bound to exactly one.
+data class ClinicRef(
+    val id: Int? = null,
+    val name: String? = null,
+    val slug: String? = null,
+    @SerializedName("logo_url") val logoUrl: String? = null,
+    @SerializedName("primary_color") val primaryColor: String? = null
+)
+
+data class Clinic(
+    val id: Int? = null,
+    val name: String? = null,
+    val slug: String? = null,
+    val address: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    @SerializedName("logo_url") val logoUrl: String? = null,
+    @SerializedName("primary_color") val primaryColor: String? = null,
+    val description: String? = null,
+    @SerializedName("doctors_count") val doctorsCount: Int? = null,
+    @SerializedName("services_count") val servicesCount: Int? = null
+)
+
+data class PublicClinicsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: List<Clinic>? = null
+)
+
+data class ClinicDetailResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: Clinic? = null
 )
 
 data class AuthResponse(
@@ -29,7 +68,9 @@ data class AuthData(
 data class LoginRequest(
     @SerializedName("id_token") val idToken: String,
     @SerializedName("fcm_token") val fcmToken: String? = null,
-    @SerializedName("device_type") val deviceType: String = "android"
+    @SerializedName("device_type") val deviceType: String = "android",
+    // PHASE 7: tenant binding for fresh accounts (backend: optional, validated).
+    @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
 data class EmailPasswordRequest(
@@ -45,7 +86,10 @@ data class EmailRegisterRequest(
     val password: String,
     val phone: String? = null,
     @SerializedName("fcm_token") val fcmToken: String? = null,
-    @SerializedName("device_type") val deviceType: String = "android"
+    @SerializedName("device_type") val deviceType: String = "android",
+    // PHASE 7: without this the new account has clinic_id=null and every
+    // protected call returns 403. Registration UI must supply it.
+    @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
 data class FirebaseRegisterRequest(
@@ -53,7 +97,8 @@ data class FirebaseRegisterRequest(
     val name: String,
     val phone: String? = null,
     @SerializedName("fcm_token") val fcmToken: String? = null,
-    @SerializedName("device_type") val deviceType: String = "android"
+    @SerializedName("device_type") val deviceType: String = "android",
+    @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
 // ============= PET MODELS =============
@@ -81,7 +126,9 @@ data class PetResponse(
 data class PetsResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: List<Pet>? = null
+    val data: List<Pet>? = null,
+    // PHASE 7: backend paginates (per_page, default 50). Parsed, first page used.
+    val pagination: Pagination? = null
 )
 
 data class PhotoUploadResponse(
@@ -221,7 +268,6 @@ data class ServiceResponse(
     val message: String? = null,
     val data: Service? = null
 )
-
 // ============= DOCTOR MODELS =============
 data class Doctor(
     val id: Int? = null,
@@ -239,6 +285,7 @@ data class DoctorsResponse(
     val success: Boolean,
     val message: String? = null,
     val data: List<Doctor>? = null
+    // NOTE: backend doctors list is limit-based, unpaginated by design.
 )
 
 data class DoctorResponse(
@@ -283,7 +330,9 @@ data class DoctorReviewsData(
 data class DoctorReviewsResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: DoctorReviewsData? = null
+    val data: DoctorReviewsData? = null,
+    // PHASE 7: backend paginates server-side (page 1 served, no page param sent).
+    val pagination: Pagination? = null
 )
 
 data class DoctorReviewRequest(
@@ -310,6 +359,9 @@ data class Booking(
     val status: String? = null,
     val notes: String? = null,
     @SerializedName("payment_method_id") val paymentMethodId: Int? = null,
+    // PHASE 7: backend has no payment_method_id column; it stores the
+    // selected method's NAME here. Read this, not paymentMethodId.
+    @SerializedName("payment_method") val paymentMethod: String? = null,
     @SerializedName("payment_type") val paymentType: String? = null,
     @SerializedName("payment_status") val paymentStatus: String? = null,
     @SerializedName("total_amount") val totalAmount: Double? = null,
@@ -334,7 +386,9 @@ data class BookingResponse(
 data class BookingsResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: List<Booking>? = null
+    val data: List<Booking>? = null,
+    // PHASE 7: backend paginates (20 fixed). Parsed, first page used.
+    val pagination: Pagination? = null
 )
 
 data class BookingRequest(
@@ -385,7 +439,9 @@ data class MedicalRecord(
 data class MedicalRecordsResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: List<MedicalRecord>? = null
+    val data: List<MedicalRecord>? = null,
+    // PHASE 7: backend paginates (20 fixed). Parsed, first page used.
+    val pagination: Pagination? = null
 )
 
 data class MedicalRecordResponse(

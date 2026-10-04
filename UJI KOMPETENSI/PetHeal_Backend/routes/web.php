@@ -67,6 +67,12 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/clinics/{clinic}/toggle-active', [App\Http\Controllers\Admin\ClinicController::class, 'toggleActive'])->name('clinics.toggle-active');
     });
 
+    // Clinic profile (own clinic) — clinic_admin + legacy admin may update
+    // their own clinic here. Slug & active status stay super_admin-only
+    // (see ClinicController@updateProfile).
+    Route::get('/clinic-profile', [App\Http\Controllers\Admin\ClinicController::class, 'profile'])->name('clinic-profile');
+    Route::put('/clinic-profile', [App\Http\Controllers\Admin\ClinicController::class, 'updateProfile'])->name('clinic-profile.update');
+
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
 

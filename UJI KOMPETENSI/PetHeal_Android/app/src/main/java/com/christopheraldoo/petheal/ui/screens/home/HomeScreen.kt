@@ -98,6 +98,9 @@ fun HomeScreen(
                 userName = uiState.userName,
                 userPhoto = uiState.userPhoto,
                 unreadNotificationCount = uiState.unreadNotificationCount,
+                clinicName = uiState.clinicName,
+                clinicLogo = uiState.clinicLogo,
+                clinicColor = uiState.clinicColor,
                 onNavigateToNotifications = onNavigateToNotifications
             )
 
@@ -159,8 +162,13 @@ private fun HeaderSection(
     userName: String,
     userPhoto: String?,
     unreadNotificationCount: Int,
+    // PHASE 7: dynamic tenant branding w/ safe fallbacks (never crash).
+    clinicName: String?,
+    clinicLogo: String?,
+    clinicColor: String?,
     onNavigateToNotifications: () -> Unit
 ) {
+    val brandColor = com.christopheraldoo.petheal.ui.theme.ClinicTheme.parsePrimaryColor(clinicColor)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -177,13 +185,15 @@ private fun HeaderSection(
                 modifier = Modifier
                     .size(48.dp)
                     .clip(CircleShape)
-                    .border(2.dp, HomePrimary.copy(alpha = 0.2f), CircleShape)
-                    .background(HomePrimary.copy(alpha = 0.15f))
+                    .border(2.dp, brandColor.copy(alpha = 0.35f), CircleShape)
+                    .background(brandColor.copy(alpha = 0.15f))
             ) {
-                if (!userPhoto.isNullOrBlank()) {
+                // Tenant logo wins; user photo is the fallback; icon last.
+                val logoModel = clinicLogo?.takeIf { it.isNotBlank() } ?: userPhoto
+                if (!logoModel.isNullOrBlank()) {
                     ThumbnailImage(
-                        model = userPhoto,
-                        contentDescription = "Foto Profil",
+                        model = logoModel,
+                        contentDescription = clinicName ?: "Foto Profil",
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
@@ -192,7 +202,7 @@ private fun HeaderSection(
                     Icon(
                         imageVector = Icons.Filled.Person,
                         contentDescription = null,
-                        tint = HomePrimary,
+                        tint = brandColor,
                         modifier = Modifier
                             .size(28.dp)
                             .align(Alignment.Center)
@@ -201,14 +211,37 @@ private fun HeaderSection(
             }
 
             Column {
-                Text(
-                    text = "Selamat datang kembali,",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = HomeTextSecondary
-                )
                 val firstName = userName.trim().split(" ").firstOrNull { it.isNotBlank() }.orEmpty()
-                if (firstName.isBlank()) {
+                // PHASE 7: tenant-aware greeting — "Selamat datang di <Klinik>".
+                if (!clinicName.isNullOrBlank()) {
+                    Text(
+                        text = "Selamat datang di",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = HomeTextSecondary
+                    )
+                    Text(
+                        text = clinicName,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HomeTextPrimary,
+                        maxLines = 1
+                    )
+                    if (firstName.isNotBlank()) {
+                        Text(
+                            text = "Halo, $firstName!",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = HomeTextSecondary
+                        )
+                    }
+                } else if (firstName.isBlank()) {
+                    Text(
+                        text = "Selamat datang kembali,",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = HomeTextSecondary
+                    )
                     Box(
                         modifier = Modifier
                             .width(90.dp)
@@ -217,6 +250,12 @@ private fun HeaderSection(
                             .background(HomeTextPrimary.copy(alpha = 0.12f))
                     )
                 } else {
+                    Text(
+                        text = "Selamat datang kembali,",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = HomeTextSecondary
+                    )
                     Text(
                         text = "$firstName!",
                         fontSize = 20.sp,

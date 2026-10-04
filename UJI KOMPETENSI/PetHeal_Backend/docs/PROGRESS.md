@@ -1,5 +1,15 @@
 # PROGRESS.md — Catatan Pengerjaan (update tiap selesai fase)
 
+## 2026-10-04 — Profil Klinik untuk admin klinik (bukan hanya superadmin)
+- Alasan: form klinik (nama, alamat, telepon, email, logo, warna, deskripsi) sebelumnya hanya di CRUD superadmin; admin klinik hanya bisa lihat di Settings.
+- Route baru (grup `admin.auth`, di luar middleware `super_admin`): `GET /admin/clinic-profile` (`admin.clinic-profile`) + `PUT /admin/clinic-profile` (`admin.clinic-profile.update`) → `ClinicController@profile/updateProfile`.
+- Batasan (sesuai keputusan user): slug & status Aktif TIDAK bisa diubah admin klinik — tidak ada di validasi maupun mass-assignment (`only(name,address,phone,email,primary_color,description)` + logo). Slug dipakai Android sebagai identitas tenant (`X-Clinic-Slug`); nonaktif mengunci seluruh klinik. Keduanya tetap superadmin via CRUD lama.
+- Tenant isolation: non-superadmin selalu resolve dari user login (`requireTenantClinicId`), tanpa parameter ID — tidak bisa menyentuh klinik lain. Superadmin tanpa klinik terpilih di-redirect ke `admin.clinics.index` + warning.
+- View baru `admin/clinics/profile.blade.php` (basis `edit.blade.php`): slug jadi field disabled + catatan terkunci, status jadi badge statis, live preview sidebar/kartu dipertahankan (JS tanpa slug listener), link "pengaturan lengkap" hanya untuk superadmin.
+- Sidebar: link `Profil Klinik` (ikon `store`, `menu.clinic_profile` id/en) muncul bila ada konteks klinik; halaman Settings kini menampilkan link edit untuk semua role (superadmin → `clinics.edit`, lainnya → `clinic-profile`).
+- Lang baru: `menu.clinic_profile`, `clinics.profile_title/slug_locked/need_full_settings/select_clinic_first` (id + en).
+- Verifikasi: `route:list` 2 route baru; `view:cache` OK; `ClinicProfileTest` baru 9 test lolos (view, update, slug/status diabaikan meski dikirim, isolasi antar-klinik, upload logo + hapus file, validasi warna, redirect superadmin overview, guest); `Phase4WebAdminTest` 15 test tetap lolos (total 24 passed, 117 assertions).
+
 ## 2026-10-02 — Fase 0 selesai
 - Audit backend: 36 migration single-tenant, 14 model, route web/api dipetakan. Tidak ada `clinics`/`clinic_id`.
 - Audit Android: 1 APK `com.christopheraldoo.petheal`, branding hardcoded, tanpa konsep klinik.
@@ -151,6 +161,15 @@
 - **Verifikasi**: 208 pemakaian `__()` di admin+layouts, 0 key hilang (id/en); nol duplikat method+URI; migrate:status bersih (21 batch, index Phase 3 ada); regression search bersih (view terhapus tanpa referensi).
 - **Total: 97/97 hijau** (20+19+15+15+11+9+7+1). Dev DB bersih (rollback).
 - **STOP**: tidak lanjut Phase 7/Android. Menunggu verdict READY FOR PHASE 7.
+
+## 2026-10-03 — PHASE 7 Android Foundation & Full Backend Integration selesai- **Prinsip**: ANDROID ADAPT TO BACKEND. Nol perubahan backend (file produk tak tersentuh; kontrak frozen intact).
+- **Android audit**: 25+ screen, VM→Repo→Api, Bearer interceptor, DataStore; temuan: nol konsep klinik, 7 endpoint declared-tak-terpakai, Home panggil Api langsung, cache dokter global, 401 tanpa logout, reschedule jam hardcoded, retry tanpa guard.
+- **Foundation**: DTO klinik + `clinic` di User + `clinic_slug` di request register + `pagination` di list + `payment_method` di Booking; `GET public/clinics(+/{slug})`; `clinic_slug` di getServices; ClinicRepository + picker sheet + branding aman (ClinicTheme); X-Clinic-Slug header (kecuali auth login/register); 401 → clear sesi + event → login (tanpa loop); cache dokter key-by-slug; register wajib slug + role guard user-only; DashboardRepository; forgot 3 langkah; delete weight/vaksinasi UI+repo; slot live di reschedule; guard retry payment; parser `errors[]`; endpoint `DELETE auth/account`.
+- **Tests Android**: 9 parsing kontrak + 8 integrasi backend nyata (login-bind, tenant reads, slug rules, 401, cross-booking 422, register-bind-delete, 422 envelope) — 17/17 hijau. APK debug build sukses (~30MB).
+- **Regresi backend**: 97/97 hijau sesudah Phase 7. Dev DB bersih.
+- **Fix lanjutan (bug backend nyata, minimal, kontrak intact)**: akun tanpa klinik tak bisa hapus akun sendiri karena gate `ApiAuthenticate` memblokir SEMUA endpoint proteksi (termasuk `DELETE /auth/account`) — alur perbaikan akun Google di Android ("Simpan & Lanjutkan") gagal dengan 403 tersebut. `deleteAccount` strictly self-scoped (hanya baris + token milik caller), jadi gate dikecualikan untuk `DELETE api/auth/account` (`ApiAuthenticate.php`). Regression: `test_null_clinic_user_can_still_delete_own_account` (tenant reads tetap 403). Total backend: 98/98 hijau. APK tidak perlu diubah (flow Android sudah benar).
+- **Fix susulan**: aplikasi selalu mengirim header `X-Clinic-Slug` tersimpan, sehingga pengecualian di atas masih tersangkut cek header kedua ("tidak terikat pada klinik manapun"). Hapus-akun-sendiri kini melewati KEDUA cek tenant (token valid tetap wajib). Regression: `test_null_clinic_user_can_delete_own_account_with_slug_header`. Total backend: 99/99 hijau.
+- **STOP**: menunggu verdict READY FOR PRODUCTION-LIKE USER TESTING.
 
 ## Cara Update File Ini
 - Setiap selesai fase di PLAN.md: tambah seksi `## YYYY-MM-DD — Fase N ...`, isi: file diubah, keputusan, hasil tes (curl/http code), masalah tersisa.

@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Admin Klinik</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='%2318C964'><circle cx='5.6' cy='10.2' r='2'/><circle cx='9.4' cy='5.6' r='2.3'/><circle cx='14.6' cy='5.6' r='2.3'/><circle cx='18.4' cy='10.2' r='2'/><path d='M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z'/></g></svg>">
+    <title>Login Admin · PetHeal</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
@@ -324,8 +324,8 @@
         <div class="blob blob-2"></div>
 
         <div class="brand-logo">
-            <span class="logo-badge"><svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.6" cy="10.2" r="2"/><circle cx="9.4" cy="5.6" r="2.3"/><circle cx="14.6" cy="5.6" r="2.3"/><circle cx="18.4" cy="10.2" r="2"/><path d="M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z"/></svg></span>
-            <span>Klinik Hewan<small>Jaringan Klinik</small></span>
+            <span class="logo-badge" style="background: #fff; border-color: rgba(255,255,255,0.4); padding: 4px 8px; width: auto; height: 40px;"><img src="/logo.png" alt="PetHeal — Veterinary Clinic System" style="height: 30px; width: auto; display: block;"></span>
+            <span>PetHeal<small>Veterinary Clinic System</small></span>
         </div>
 
         <div class="brand-content">
@@ -370,8 +370,7 @@
         <div class="form-box">
 
             <div class="mobile-logo">
-                <span class="paw-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.6" cy="10.2" r="2"/><circle cx="9.4" cy="5.6" r="2.3"/><circle cx="14.6" cy="5.6" r="2.3"/><circle cx="18.4" cy="10.2" r="2"/><path d="M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z"/></svg></span>
-                <span>Klinik Hewan</span>
+                <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" style="height: 38px; width: auto; display: block;">
             </div>
 
             <div class="form-header">

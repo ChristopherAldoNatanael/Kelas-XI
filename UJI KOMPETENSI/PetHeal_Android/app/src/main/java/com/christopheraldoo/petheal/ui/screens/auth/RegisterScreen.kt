@@ -4,6 +4,7 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -22,8 +23,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
+import com.christopheraldoo.petheal.R
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -47,9 +51,12 @@ import kotlinx.coroutines.tasks.await
 fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
-    viewModel: RegisterViewModel = hiltViewModel()
+    onNavigateToCompleteSetup: () -> Unit = {},
+    viewModel: RegisterViewModel = hiltViewModel(),
+    pickerViewModel: ClinicPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pickerState by pickerViewModel.uiState.collectAsState()
     val isDark = false
     val bgColor = if (isDark) AuthBgDark else AuthBgLight
     val focusManager = LocalFocusManager.current
@@ -62,6 +69,11 @@ fun RegisterScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
     var isGoogleSigningIn by remember { mutableStateOf(false) }
+    // PHASE 7: tenant binding is mandatory — a slug-less account gets 403
+    // on every protected call. The sheet persists the choice; the slug is
+    // sent with both email and Google registration.
+    var showClinicPicker by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { pickerViewModel.load() }
 
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -90,7 +102,8 @@ fun RegisterScreen(
                             if (firebaseIdToken != null) {
                                 viewModel.registerWithGoogleIdToken(
                                     firebaseIdToken,
-                                    name.trim().ifBlank { account.displayName.orEmpty() }
+                                    name.trim().ifBlank { account.displayName.orEmpty() },
+                                    pickerState.selectedSlug
                                 )
                             } else {
                                 viewModel.setError("Token Firebase tidak berhasil diambil")
@@ -110,6 +123,12 @@ fun RegisterScreen(
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onRegisterSuccess()
+    }
+
+    // PHASE 7: defensive — email register requires a slug, but a null
+    // binding must never land silently on Home.
+    LaunchedEffect(uiState.needsClinicSetup) {
+        if (uiState.needsClinicSetup) onNavigateToCompleteSetup()
     }
 
     Box(
@@ -183,17 +202,14 @@ fun RegisterScreen(
                     .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.logo_android),
+                    contentDescription = "PetHeal logo",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(76.dp)
-                        .background(AuthPrimary.copy(alpha = 0.16f), RoundedCornerShape(24.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Pets, contentDescription = null,
-                        tint = AuthPrimary, modifier = Modifier.size(32.dp)
-                    )
-                }
+                        .clip(RoundedCornerShape(22.dp))
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Buat Akun",
@@ -333,11 +349,53 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
+            // ── Klinik (wajib — akun terikat satu klinik) ─────────────
+            AuthFieldLabel("Klinik", isDark)
+            Spacer(modifier = Modifier.height(8.dp))
+            val pickedClinicName = pickerState.clinics
+                .firstOrNull { it.slug == pickerState.selectedSlug }?.name
+            OutlinedButton(
+                onClick = { showClinicPicker = true },
+                modifier = Modifier.fillMaxWidth().height(56.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp,
+                    if (isDark) AuthBorderDark else Color(0xFFE2E8F0)),
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (isDark) AuthSurfaceDark else Color.White,
+                    contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+                )
+            ) {
+                Icon(
+                    Icons.Filled.LocalHospital, null,
+                    tint = AuthTextSecondary, modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    pickedClinicName ?: "Pilih klinik Anda",
+                    fontSize = 15.sp,
+                    fontWeight = if (pickedClinicName != null) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (pickedClinicName != null) (if (isDark) Color.White else Color(0xFF0F172A)) else AuthTextSecondary,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Start
+                )
+            }
+            if (pickerState.selectedSlug.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    "Akun harus terikat pada satu klinik",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(28.dp))
+
             // ── Register button ───────────────────────────────────────
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.register(name.trim(), email.trim(), password)
+                    viewModel.register(name.trim(), email.trim(), password, pickerState.selectedSlug)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -345,7 +403,8 @@ fun RegisterScreen(
                     containerColor = AuthPrimary, contentColor = AuthBgDark),
                 enabled = !uiState.isLoading && name.isNotBlank()
                         && email.isNotBlank() && password.length >= 8
-                        && passwordsMatch && confirmPassword.isNotBlank(),
+                        && passwordsMatch && confirmPassword.isNotBlank()
+                        && !pickerState.selectedSlug.isNullOrBlank(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 if (uiState.isLoading) {
@@ -400,6 +459,7 @@ fun RegisterScreen(
                     contentColor = if (isDark) Color.White else Color(0xFF0F172A)
                 ),
                 enabled = !uiState.isLoading && !isGoogleSigningIn
+                        && !pickerState.selectedSlug.isNullOrBlank()
             ) {
                 if (isGoogleSigningIn) {
                     CircularProgressIndicator(
@@ -438,11 +498,19 @@ fun RegisterScreen(
                     onClick = onNavigateBack,
                     contentPadding = PaddingValues(0.dp)
                 ) {
-                    Text("Masuk",
+                Text("Masuk",
                         fontSize = 13.sp, fontWeight = FontWeight.Bold,
                         color = AuthPrimary)
                 }
             }
         }
+    }
+
+    if (showClinicPicker) {
+        ClinicPickerSheet(
+            onDismiss = { showClinicPicker = false },
+            onClinicSelected = { showClinicPicker = false },
+            viewModel = pickerViewModel
+        )
     }
 }

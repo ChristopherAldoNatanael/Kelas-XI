@@ -136,4 +136,79 @@ class ClinicController extends Controller
         $status = $clinic->is_active ? __('clinics.activated') : __('clinics.deactivated');
         return redirect()->back()->with('success', __('clinics.toggle_success', ['name' => $clinic->name, 'status' => $status]));
     }
+
+    /**
+     * Show the editable profile of the current user's own clinic.
+     *
+     * Any admin role with a clinic context (clinic_admin, legacy admin,
+     * super_admin with a selected clinic) may open this page.
+     */
+    public function profile()
+    {
+        $clinic = currentClinic();
+
+        if (!$clinic) {
+            // super_admin in system-overview mode has no clinic context.
+            return redirect()->route('admin.clinics.index')
+                ->with('warning', __('clinics.select_clinic_first'));
+        }
+
+        return view('admin.clinics.profile', compact('clinic'));
+    }
+
+    /**
+     * Update the current user's own clinic (limited fields).
+     *
+     * Deliberately excludes `slug` (used by the Android app as the tenant
+     * identity via X-Clinic-Slug — changing it orphans mobile sessions)
+     * and `is_active` (deactivating locks out the whole clinic including
+     * the editor). Both stay super_admin-only via update().
+     */
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if ($user->role === 'super_admin') {
+            $clinic = currentClinic();
+
+            if (!$clinic) {
+                return redirect()->route('admin.clinics.index')
+                    ->with('warning', __('clinics.select_clinic_first'));
+            }
+        } else {
+            // Tenant roles may only touch their own clinic — resolved from
+            // the authenticated user, never from URL/input parameters.
+            $clinic = Clinic::findOrFail(requireTenantClinicId($user));
+        }
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'address' => 'required|string',
+            'phone' => 'nullable|string|max:50',
+            'email' => 'nullable|email|max:255',
+            'logo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
+            'primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+            'description' => 'nullable|string',
+        ]);
+
+        $data = collect($validated)->only(['name', 'address', 'phone', 'email', 'primary_color', 'description'])->toArray();
+
+        if ($request->hasFile('logo')) {
+            // Delete old logo if exists
+            if ($clinic->logo_path && !filter_var($clinic->logo_path, FILTER_VALIDATE_URL)) {
+                Storage::disk('public')->delete($clinic->logo_path);
+            }
+            $fileName = time() . '_' . uniqid() . '.jpg';
+            $data['logo_path'] = ImageService::process(
+                $request->file('logo'),
+                'clinics/' . $fileName,
+                400,
+                85
+            );
+        }
+
+        $clinic->update($data);
+
+        return redirect()->route('admin.clinic-profile')->with('success', __('clinics.updated_success'));
+    }
 }

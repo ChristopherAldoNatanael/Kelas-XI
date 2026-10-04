@@ -21,7 +21,15 @@ class PaymentRepository @Inject constructor(
         return runCatching {
             if (errorBody.startsWith("{")) {
                 val json = JSONObject(errorBody)
+                // PHASE 7: frozen 422 carries errors:{field:[msg]} — surface the
+                // first field error like the auth parser does.
+                val fromErrors = json.optJSONObject("errors")
+                    ?.keys()?.asSequence()
+                    ?.mapNotNull { key ->
+                        json.optJSONObject("errors")?.optJSONArray(key)?.optString(0)
+                    }?.firstOrNull { !it.isNullOrBlank() }
                 when {
+                    !fromErrors.isNullOrBlank() -> fromErrors
                     json.optString("detail").isNotBlank() -> json.optString("detail")
                     json.optString("message").isNotBlank() -> json.optString("message")
                     json.optString("error").isNotBlank() -> json.optString("error")

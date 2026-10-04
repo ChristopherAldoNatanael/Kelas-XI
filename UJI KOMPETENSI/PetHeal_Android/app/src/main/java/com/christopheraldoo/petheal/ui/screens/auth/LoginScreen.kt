@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -23,8 +24,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -35,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
+import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
@@ -58,9 +62,12 @@ internal val AuthTextSecondary  = Color(0xFF9DB9A6)
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
-    viewModel: LoginViewModel = hiltViewModel()
+    onNavigateToCompleteSetup: () -> Unit = {},
+    viewModel: LoginViewModel = hiltViewModel(),
+    pickerViewModel: ClinicPickerViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pickerState by pickerViewModel.uiState.collectAsState()
     val authProvider by viewModel.authProvider.collectAsState(initial = null)
     val isDark = false
     val bgColor = if (isDark) AuthBgDark else AuthBgLight
@@ -74,6 +81,15 @@ fun LoginScreen(
     var forgotPasswordEmail by remember { mutableStateOf("") }
     var forgotPasswordMessage by remember { mutableStateOf<String?>(null) }
     var isForgotPasswordLoading by remember { mutableStateOf(false) }
+    // PHASE 7: full reset flow (backend: forgot → verify → reset).
+    var forgotStep by remember { mutableStateOf(1) }
+    var forgotCode by remember { mutableStateOf("") }
+    var forgotNewPassword by remember { mutableStateOf("") }
+    var forgotBusy by remember { mutableStateOf(false) }
+    // PHASE 7: tenant hint for Google sign-in (new accounts bind on create).
+    var showClinicPicker by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) { pickerViewModel.load() }
 
     // Google Sign-In client
     val googleSignInClient = remember {
@@ -103,7 +119,7 @@ fun LoginScreen(
                             val authResult = firebaseAuth.signInWithCredential(credential).await()
                             val firebaseIdToken = authResult.user?.getIdToken(true)?.await()?.token
                             if (firebaseIdToken != null) {
-                                viewModel.loginWithGoogleIdToken(firebaseIdToken)
+                                viewModel.loginWithGoogleIdToken(firebaseIdToken, pickerState.selectedSlug)
                             } else {
                                 viewModel.setError("Token Firebase tidak berhasil diambil")
                             }
@@ -120,6 +136,12 @@ fun LoginScreen(
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onLoginSuccess()
+    }
+
+    // PHASE 7: clinic-less accounts (e.g. older Google sign-ins) finish
+    // binding before entering Home — otherwise every call is a 403.
+    LaunchedEffect(uiState.needsClinicSetup) {
+        if (uiState.needsClinicSetup) onNavigateToCompleteSetup()
     }
 
     Box(
@@ -185,17 +207,14 @@ fun LoginScreen(
                     .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Box(
+                Image(
+                    painter = painterResource(id = R.drawable.logo_android),
+                    contentDescription = "PetHeal logo",
+                    contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(76.dp)
-                        .background(AuthPrimary.copy(alpha = 0.16f), RoundedCornerShape(24.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Filled.Pets, contentDescription = null,
-                        tint = AuthPrimary, modifier = Modifier.size(32.dp)
-                    )
-                }
+                        .clip(RoundedCornerShape(22.dp))
+                )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     text = "Selamat Datang Kembali",
@@ -278,6 +297,9 @@ fun LoginScreen(
                         onClick = {
                             forgotPasswordEmail = email.trim()
                             forgotPasswordMessage = null
+                            forgotStep = 1
+                            forgotCode = ""
+                            forgotNewPassword = ""
                             showForgotPasswordDialog = true
                         }
                     ) {
@@ -292,6 +314,34 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(4.dp))
             }
+
+            // ── Klinik (info tenant aktif + ganti sebelum login Google) ──
+            val pickedName = pickerState.clinics
+                .firstOrNull { it.slug == pickerState.selectedSlug }?.name
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = if (pickedName != null) "Klinik: $pickedName" else "Klinik: belum dipilih",
+                    fontSize = 13.sp,
+                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = { showClinicPicker = true }) {
+                    Text(
+                        if (pickedName != null) "Ganti" else "Pilih",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AuthPrimary
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // ── Login button ──────────────────────────────────────────
             Button(
@@ -413,69 +463,135 @@ fun LoginScreen(
         }
 
         if (showForgotPasswordDialog) {
+            // PHASE 7: 3-step reset (kirim kode → verifikasi + sandi baru).
             AlertDialog(
                 onDismissRequest = {
-                    if (!isForgotPasswordLoading) {
+                    if (!isForgotPasswordLoading && !forgotBusy) {
                         showForgotPasswordDialog = false
                     }
                 },
                 title = { Text("Reset Kata Sandi") },
                 text = {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(
-                            "Masukkan email Anda untuk menerima kode reset kata sandi.",
-                            fontSize = 13.sp
-                        )
-                        OutlinedTextField(
-                            value = forgotPasswordEmail,
-                            onValueChange = { forgotPasswordEmail = it },
-                            singleLine = true,
-                            label = { Text("Email") },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        if (forgotStep == 1) {
+                            Text(
+                                "Masukkan email Anda untuk menerima kode reset kata sandi.",
+                                fontSize = 13.sp
+                            )
+                            OutlinedTextField(
+                                value = forgotPasswordEmail,
+                                onValueChange = { forgotPasswordEmail = it },
+                                singleLine = true,
+                                label = { Text("Email") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text(
+                                forgotPasswordMessage ?: "Masukkan kode 6 digit dan kata sandi baru.",
+                                fontSize = 13.sp
+                            )
+                            OutlinedTextField(
+                                value = forgotCode,
+                                onValueChange = { forgotCode = it },
+                                singleLine = true,
+                                label = { Text("Kode reset") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            OutlinedTextField(
+                                value = forgotNewPassword,
+                                onValueChange = { forgotNewPassword = it },
+                                singleLine = true,
+                                label = { Text("Kata sandi baru (min. 8)") },
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 },
                 confirmButton = {
                     TextButton(
-                        enabled = !isForgotPasswordLoading && forgotPasswordEmail.isNotBlank(),
+                        enabled = if (forgotStep == 1) {
+                            !isForgotPasswordLoading && forgotPasswordEmail.isNotBlank()
+                        } else {
+                            !forgotBusy && forgotCode.isNotBlank() && forgotNewPassword.length >= 8
+                        },
                         onClick = {
-                            isForgotPasswordLoading = true
-                            viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
-                                isForgotPasswordLoading = false
-                                when (result) {
-                                    is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                        forgotPasswordMessage = "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}."
-                                        showForgotPasswordDialog = false
+                            if (forgotStep == 1) {
+                                isForgotPasswordLoading = true
+                                viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
+                                    isForgotPasswordLoading = false
+                                    when (result) {
+                                        is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                                            forgotPasswordMessage =
+                                                "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}."
+                                            forgotStep = 2
+                                        }
+                                        is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                                            viewModel.setError(result.message)
+                                        }
+                                        else -> Unit
                                     }
-
-                                    is com.christopheraldoo.petheal.data.repository.Result.Error -> {
-                                        viewModel.setError(result.message)
+                                }
+                            } else {
+                                forgotBusy = true
+                                viewModel.verifyResetCode(forgotPasswordEmail.trim(), forgotCode.trim()) { v ->
+                                    when (v) {
+                                        is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                                            viewModel.resetPassword(
+                                                forgotPasswordEmail.trim(),
+                                                forgotCode.trim(),
+                                                forgotNewPassword
+                                            ) { r ->
+                                                forgotBusy = false
+                                                when (r) {
+                                                    is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                                                        forgotPasswordMessage =
+                                                            "Kata sandi berhasil diatur ulang. Silakan masuk."
+                                                        showForgotPasswordDialog = false
+                                                    }
+                                                    is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                                                        viewModel.setError(r.message)
+                                                    }
+                                                    else -> Unit
+                                                }
+                                            }
+                                        }
+                                        is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                                            forgotBusy = false
+                                            viewModel.setError(v.message)
+                                        }
+                                        else -> Unit
                                     }
-
-                                    else -> Unit
                                 }
                             }
                         }
                     ) {
-                        if (isForgotPasswordLoading) {
+                        if (isForgotPasswordLoading || forgotBusy) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
                                 color = AuthPrimary
                             )
                         } else {
-                            Text("Kirim Kode")
+                            Text(if (forgotStep == 1) "Kirim Kode" else "Atur Ulang Sandi")
                         }
                     }
                 },
                 dismissButton = {
                     TextButton(
-                        enabled = !isForgotPasswordLoading,
+                        enabled = !isForgotPasswordLoading && !forgotBusy,
                         onClick = { showForgotPasswordDialog = false }
                     ) {
                         Text("Batal")
                     }
                 }
+            )
+        }
+
+        if (showClinicPicker) {
+            ClinicPickerSheet(
+                onDismiss = { showClinicPicker = false },
+                onClinicSelected = { showClinicPicker = false },
+                viewModel = pickerViewModel
             )
         }
     }

@@ -18,6 +18,8 @@ import javax.inject.Inject
 data class LoginUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    // PHASE 7: Google accounts born without a clinic must finish setup first.
+    val needsClinicSetup: Boolean = false,
     val error: String? = null
 )
 
@@ -40,21 +42,31 @@ class LoginViewModel @Inject constructor(
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
             when (val result = authRepository.loginWithEmailPassword(email, password, fcmToken)) {
-                is Result.Success -> _uiState.value = LoginUiState(isSuccess = true)
+                is Result.Success ->
+                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
+                        _uiState.value = LoginUiState(needsClinicSetup = true)
+                    } else {
+                        _uiState.value = LoginUiState(isSuccess = true)
+                    }
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }
         }
     }
 
-    fun loginWithGoogleIdToken(idToken: String) {
+    fun loginWithGoogleIdToken(idToken: String, clinicSlug: String? = null) {
         viewModelScope.launch {
             _uiState.value = LoginUiState(isLoading = true)
             val fcmToken = try {
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
-            when (val result = authRepository.loginWithGoogle(idToken, fcmToken)) {
-                is Result.Success -> _uiState.value = LoginUiState(isSuccess = true)
+            when (val result = authRepository.loginWithGoogle(idToken, fcmToken, clinicSlug)) {
+                is Result.Success ->
+                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
+                        _uiState.value = LoginUiState(needsClinicSetup = true)
+                    } else {
+                        _uiState.value = LoginUiState(isSuccess = true)
+                    }
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }
@@ -72,6 +84,20 @@ class LoginViewModel @Inject constructor(
     fun requestForgotPassword(email: String, onResult: (Result<Unit>) -> Unit) {
         viewModelScope.launch {
             onResult(authRepository.requestForgotPassword(email))
+        }
+    }
+
+    /** PHASE 7: code verification step (was endpoint mati). */
+    fun verifyResetCode(email: String, code: String, onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            onResult(authRepository.verifyResetCode(email, code))
+        }
+    }
+
+    /** PHASE 7: final step of the reset flow (was endpoint mati). */
+    fun resetPassword(email: String, code: String, password: String, onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            onResult(authRepository.resetPassword(email, code, password))
         }
     }
 }

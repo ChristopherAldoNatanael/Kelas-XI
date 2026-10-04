@@ -5,9 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="icon" type="image/png" href="/favicon.png">
     @php
         $clinic = currentClinic();
-        $clinicName = $clinic?->name ?? 'VCMS';
+        $clinicName = $clinic?->name ?? 'PetHeal';
         $clinicLogo = $clinic?->logo_url;
         $clinicColor = $clinic?->primary_color ?? '#10B981';
     @endphp
@@ -235,13 +236,11 @@
         <aside id="sidebar" class="flex-shrink-0 flex flex-col border-r border-white/5 h-full overflow-hidden bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950">
             <div class="sidebar-header p-4 pb-4 flex items-center gap-3 flex-shrink-0">
                 <div class="logo-text-wrap flex items-center gap-3 flex-1">
-                    <a href="/" class="logo-link bg-white/10 p-1.5 rounded-lg block hover:bg-white/20 transition-colors flex-shrink-0">
+                    <a href="/" class="logo-link bg-white p-1.5 rounded-lg block hover:bg-slate-200 transition-colors flex-shrink-0">
                         @if($clinicLogo)
-                            <img src="{{ $clinicLogo }}" alt="{{ $clinicName }}" class="h-7 w-auto block" fetchpriority="high" width="140" height="28">
+                            <img src="{{ $clinicLogo }}" alt="{{ $clinicName }}" class="h-7 w-auto block rounded" fetchpriority="high" width="158" height="56">
                         @else
-                            <div class="h-7 w-7 rounded flex items-center justify-center text-white text-xs font-bold" style="background-color: {{ $clinicColor }}">
-                                {{ strtoupper(substr(preg_replace('/[^A-Za-z]/', '', $clinicName), 0, 2) ?: 'PH') }}
-                            </div>
+                            <img src="/logo.png" alt="{{ $clinicName }}" class="h-7 w-auto block rounded" fetchpriority="high" width="158" height="56">
                         @endif
                     </a>
                     <span class="sidebar-text font-semibold text-lg text-white tracking-tight">{{ $clinicName }}</span>
@@ -329,6 +328,15 @@
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0">person_add</span>
                         <span class="sidebar-text">{{ __('menu.join_requests') }}</span>
+                    </a>
+                    @endif
+                    @if($clinic)
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.clinic-profile') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.clinic-profile') }}">
+                        @if(request()->routeIs('admin.clinic-profile'))
+                        <div class="active-indicator"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0">store</span>
+                        <span class="sidebar-text">{{ __('menu.clinic_profile') }}</span>
                     </a>
                     @endif
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.audit-logs') ? 'active-nav-item' : '' }} relative" href="{{ route('admin.audit-logs') }}">

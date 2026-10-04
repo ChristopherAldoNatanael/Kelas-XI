@@ -35,6 +35,10 @@
         <div class="mt-4 pt-4 border-t border-slate-100">
             <a href="{{ route('admin.clinics.edit', $clinic) }}" class="text-sm text-primary hover:underline font-medium">{{ __('auth.edit_clinic_details') }}</a>
         </div>
+        @else
+        <div class="mt-4 pt-4 border-t border-slate-100">
+            <a href="{{ route('admin.clinic-profile') }}" class="text-sm text-primary hover:underline font-medium">{{ __('auth.edit_clinic_details') }}</a>
+        </div>
         @endif
     </div>
     @endif

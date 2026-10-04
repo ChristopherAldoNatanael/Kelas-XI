@@ -27,12 +27,23 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-    // Backend URL loaded from BuildConfig (set in build.gradle.kts from local.properties)
-    private val BASE_URL = BuildConfig.BACKEND_BASE_URL
+    // Backend URL loaded from BuildConfig (set in build.gradle.kts from local.properties).
+    // PHASE 7 fix: normalize defensively. A URL without the /api/ suffix (or
+    // without trailing slash) previously produced HTML 404 pages that Gson
+    // could not parse, surfacing only as "Failed to load clinics".
+    private val BASE_URL = normalizeApiBaseUrl(BuildConfig.BACKEND_BASE_URL)
     private val STORAGE_BASE_URL = normalizeStorageBaseUrl(BASE_URL)
 
     /** Full URL prefix for Laravel public storage files */
     val STORAGE_URL = "${STORAGE_BASE_URL}storage/"
+
+    private fun normalizeApiBaseUrl(rawBaseUrl: String): String {
+        var trimmed = rawBaseUrl.trim().trimEnd('/')
+        if (!trimmed.endsWith("/api", ignoreCase = true)) {
+            trimmed += "/api"
+        }
+        return "$trimmed/"
+    }
 
     private fun normalizeStorageBaseUrl(rawBaseUrl: String): String {
         val trimmed = rawBaseUrl.trim().trimEnd('/')
