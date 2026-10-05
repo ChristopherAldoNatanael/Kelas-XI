@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.ui.screens.payment
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Log
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -67,6 +68,9 @@ fun PaymentScreen(
     onBookingUpdated: () -> Unit = {},
     isRemainingPayment: Boolean = false, // NEW: Flag to indicate this is a remaining payment
     medicalRecordId: Int? = null,
+    // Kode enabled_payments Midtrans dari pilihan di Buat Booking.
+    // Null/empty = daftar lengkap (al Behavior lama untuk sisa/medical).
+    enabledPayments: List<String>? = null,
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -121,7 +125,8 @@ fun PaymentScreen(
             val amount = if (isDpPayment) booking.dpAmount ?: totalAmount else booking.totalAmount ?: totalAmount
             viewModel.initiatePayment(
                 booking = booking, user = user, isDpPayment = isDpPayment,
-                totalAmount = amount, bookingId = safeBookingId
+                totalAmount = amount, bookingId = safeBookingId,
+                enabledPayments = enabledPayments
             )
         }
     }
@@ -203,6 +208,22 @@ fun PaymentScreen(
                         Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                         Text("Menyiapkan pembayaran yang aman", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
                         Text(paymentContextSubtitle, fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center)
+                        midtransCodesLabel(enabledPayments)?.let { methodLabel ->
+                            Surface(
+                                shape = RoundedCornerShape(50),
+                                color = PayPrimary.copy(alpha = 0.1f),
+                                border = BorderStroke(1.dp, PayPrimary.copy(alpha = 0.25f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(Icons.Filled.Payment, null, tint = PayPrimary, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Midtrans: $methodLabel", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PayPrimary)
+                                }
+                            }
+                        }
                         Surface(
                             shape = RoundedCornerShape(18.dp),
                             color = Color(0xFFF8FAFC),
@@ -238,7 +259,7 @@ fun PaymentScreen(
                             when {
                                 medicalRecordId != null -> viewModel.initiateMedicalRecordExtraPayment(medicalRecordId)
                                 isRemainingPayment -> bookingId?.let { viewModel.initiateRemainingPayment(it, user) }
-                                else -> bookingId?.let { viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, it) }
+                                else -> bookingId?.let { viewModel.initiatePayment(booking, user, isDpPayment, totalAmount, it, enabledPayments) }
                             }
                         }
                     },
@@ -265,14 +286,19 @@ fun PaymentScreen(
                         bookingId = webBookingId ?: 0,
                         orderId = state.orderId, // Use the order ID stored when Snap token was created
                         paymentContextTitle = paymentContextTitle,
-                        onPaymentResult = { orderId, status, paymentType ->
+                        onPaymentResult = { orderId, status, paymentType, background ->
                             Log.d(TAG, "Payment callback: orderId=$orderId, status=$status")
-                            viewModel.handlePaymentResult(orderId, status, paymentType)
+                            viewModel.handlePaymentResult(orderId, status, paymentType, background)
                         },
                         onClose = {
                             Log.d(TAG, "User exited payment, checking status")
                             webBookingId?.let { viewModel.checkPaymentStatusOnExit(it) }
                         },
+                        onCheckStatus = {
+                            Log.d(TAG, "Manual status check requested")
+                            webBookingId?.let { viewModel.refreshBookingStatus(it) }
+                        },
+                        quietTick = state.quietPollTick,
                         onError = { error -> Log.e(TAG, "WebView error: $error") },
                         textPrimary = textPrimary
                     )
@@ -314,14 +340,20 @@ private fun PaymentWebView(
     bookingId: Int,
     orderId: String?,
     paymentContextTitle: String,
-    onPaymentResult: (String, String?, String?) -> Unit,
+    onPaymentResult: (String, String?, String?, Boolean) -> Unit,
     onClose: () -> Unit,
+    onCheckStatus: () -> Unit = {},
     onError: (String) -> Unit = {},
-    textPrimary: Color
+    textPrimary: Color,
+    quietTick: Int = 0
 ) {
     val urlToLoad = redirectUrl ?: return
     var hasLoadedUrl by remember { mutableStateOf(false) }
     var isProcessingCallback by remember { mutableStateOf(false) }
+    // Poll diam-diam yang masih pending membuka lagi deteksi berikutnya.
+    LaunchedEffect(quietTick) {
+        if (quietTick > 0) isProcessingCallback = false
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // WebView in background
@@ -367,7 +399,7 @@ private fun PaymentWebView(
                                 
                                 // Handle the payment result
                                 // This will trigger backend polling if status is unknown
-                                onPaymentResult(detectedOrderId, status, paymentType)
+                                onPaymentResult(detectedOrderId, status, paymentType, false)
                                 
                                 // Don't close WebView immediately - let the result dialog handle navigation
                                 // The WebView will be replaced by the dialog overlay
@@ -380,6 +412,44 @@ private fun PaymentWebView(
                         override fun onPageFinished(view: WebView?, url: String?) {
                             super.onPageFinished(view, url)
                             hasLoadedUrl = true
+                            // Metode yang tidak redirect ke /finish (simulator
+                            // GoPay/DANA/QRIS) terdeteksi dari pola URL sukses.
+                            // Status null → poll backend untuk kebenarannya.
+                            val loaded = url.orEmpty()
+                            if (!isProcessingCallback && isCompletionUrl(loaded)) {
+                                isProcessingCallback = true
+                                val uri = android.net.Uri.parse(loaded)
+                                val detectedOrderId = uri.getQueryParameter("order_id")
+                                    ?: uri.getQueryParameter("orderId")
+                                    ?: orderId ?: "BOOKING-$bookingId"
+                                Log.d(TAG, "Completion page detected, polling status for $detectedOrderId")
+                                onPaymentResult(
+                                    detectedOrderId,
+                                    uri.getQueryParameter("transaction_status"),
+                                    uri.getQueryParameter("payment_type"),
+                                    true
+                                )
+                            }
+                        }
+
+                        override fun onReceivedError(
+                            view: WebView?,
+                            request: WebResourceRequest?,
+                            error: WebResourceError?
+                        ) {
+                            super.onReceivedError(view, request, error)
+                            // Deeplink ke aplikasi eksternal (gojek://, dana://)
+                            // gagal dibuka WebView = user diarahkan keluar untuk
+                            // bayar. Cek status sekali saat ia kembali.
+                            val failing = request?.url?.toString().orEmpty()
+                            if (!isProcessingCallback &&
+                                request?.isForMainFrame == true &&
+                                !(failing.startsWith("http://") || failing.startsWith("https://"))
+                            ) {
+                                isProcessingCallback = true
+                                Log.d(TAG, "External deeplink after payment, polling status: $failing")
+                                onPaymentResult(orderId ?: "BOOKING-$bookingId", null, null, true)
+                            }
                         }
                     }
                 }
@@ -403,11 +473,36 @@ private fun PaymentWebView(
                     Icon(Icons.Filled.Close, contentDescription = "Tutup pembayaran", tint = textPrimary)
                 }
                 Text(paymentContextTitle, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                Spacer(Modifier.size(48.dp))
+                // GoPay sandbox tidak selalu redirect balik setelah bayar —
+                // tombol ini mem-poll status ke backend lalu lanjut otomatis.
+                IconButton(onClick = onCheckStatus) {
+                    Icon(Icons.Filled.Sync, contentDescription = "Cek status pembayaran", tint = textPrimary)
+                }
             }
             androidx.compose.material3.Divider(color = Color(0xFFE2E8F0))
         }
     }
+}
+
+/**
+ * Pola URL yang menandakan alur bayar selesai di halaman tersebut.
+ * Hanya pola kuat (sukses/finish/settlement) — halaman instruksi VA atau
+ * QR yang masih menunggu TIDAK mengandung pola ini, jadi tidak ada
+ * pengecekan prematur yang mengusir user dari checkout.
+ */
+private fun isCompletionUrl(url: String): Boolean {
+    val u = url.lowercase()
+    if (u.startsWith("petheal://")) return true
+    if (!u.startsWith("http://") && !u.startsWith("https://")) return false
+    // Halaman Snap transaksi (vtweb) tidak pernah mengandung penanda ini.
+    val markers = listOf(
+        "transaction_status=capture",
+        "transaction_status=settlement",
+        "/finish", "finish?",
+        "payment_success", "payment-success",
+        "success", "successful", "settlement", "berhasil"
+    )
+    return markers.any { u.contains(it) }
 }
 
 /**

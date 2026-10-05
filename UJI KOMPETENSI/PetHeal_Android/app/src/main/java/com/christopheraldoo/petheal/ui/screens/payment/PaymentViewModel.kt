@@ -25,7 +25,10 @@ data class PaymentUiState(
     val error: String? = null,
     val paymentResult: PaymentResult? = null,
     val isPaymentCompleted: Boolean = false,
-    val isPaymentCanceled: Boolean = false
+    val isPaymentCanceled: Boolean = false,
+    // Bertambah tiap poll diam-diam yang hasilnya masih pending — sinyal
+    // bagi WebView untuk membuka kembali deteksi tanpa mengganggu user.
+    val quietPollTick: Int = 0
 )
 
 @HiltViewModel
@@ -64,13 +67,16 @@ class PaymentViewModel @Inject constructor(
      * @param isDpPayment Whether this is a DP (Down Payment) or full payment
      * @param totalAmount The amount to charge (in IDR)
      * @param bookingId The booking ID for the order ID
+     * @param enabledPayments Kode metode Midtrans dari pilihan user di Buat
+     * Booking (mis. ["qris"]). Null/empty = daftar lengkap default.
      */
     fun initiatePayment(
         booking: Booking,
         user: User?,
         isDpPayment: Boolean,
         totalAmount: Double,
-        bookingId: Int
+        bookingId: Int,
+        enabledPayments: List<String>? = null
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -124,14 +130,11 @@ class PaymentViewModel @Inject constructor(
             )
 
             // Build snap token request
-            val request = SnapTokenRequest(
-                transactionDetails = TransactionDetails(
-                    orderId = orderId,
-                    grossAmount = grossAmount
-                ),
-                customerDetails = customerDetails,
-                itemDetails = itemDetails,
-                enabledPayments = listOf(
+            // Pilihan user membatasi daftar di Snap (QRIS → hanya QRIS, dst).
+            // Tanpa pilihan (sisa/medical) tampilkan semua seperti dulu.
+            val requestedPayments = enabledPayments?.filter { it.isNotBlank() }.orEmpty()
+            val snapPayments = if (requestedPayments.isEmpty()) {
+                listOf(
                     "credit_card",
                     "gopay",
                     "shopeepay",
@@ -142,7 +145,17 @@ class PaymentViewModel @Inject constructor(
                     "permata_va",
                     "cimb_va",
                     "qris"
+                )
+            } else requestedPayments
+            Log.d(TAG, "enabled_payments for booking $bookingId: $snapPayments")
+            val request = SnapTokenRequest(
+                transactionDetails = TransactionDetails(
+                    orderId = orderId,
+                    grossAmount = grossAmount
                 ),
+                customerDetails = customerDetails,
+                itemDetails = itemDetails,
+                enabledPayments = snapPayments,
                 creditCard = CreditCardConfig(secure = true)
             )
 
@@ -224,11 +237,14 @@ class PaymentViewModel @Inject constructor(
      * @param orderId The order ID of the transaction
      * @param transactionStatus The status returned by Midtrans
      * @param paymentType The payment type used
+     * @param background True bila dipicu deteksi otomatis WebView (bukan aksi
+     * user). Hasil pending TIDAK menutup checkout — user tetap di halaman.
      */
     fun handlePaymentResult(
         orderId: String,
         transactionStatus: String?,
-        paymentType: String?
+        paymentType: String?,
+        background: Boolean = false
     ) {
         currentOrderId = orderId
         retryCount = 0
@@ -253,7 +269,7 @@ class PaymentViewModel @Inject constructor(
             // If status is unknown, poll the backend for transaction status
             if (transactionStatus == null || mappedStatus == "unknown") {
                 Log.w(TAG, "Transaction status unknown, polling backend for orderId: $orderId")
-                checkTransactionStatusWithFallback(orderId)
+                checkTransactionStatusWithFallback(orderId, background = background)
                 return@launch
             }
 
@@ -283,7 +299,8 @@ class PaymentViewModel @Inject constructor(
      */
     private fun checkTransactionStatusWithFallback(
         orderId: String,
-        retryCount: Int = 0
+        retryCount: Int = 0,
+        background: Boolean = false
     ) {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
@@ -305,6 +322,17 @@ class PaymentViewModel @Inject constructor(
                     }
 
                     Log.d(TAG, "Transaction status poll success - status: $status, appStatus: $appStatus")
+
+                    // Poll diam-diam yang ternyata masih pending = user belum
+                    // selesai bayar. Tetap di WebView, beri sinyal agar
+                    // deteksi dibuka lagi untuk penyelesaian berikutnya.
+                    if (background && appStatus == "pending") {
+                        _uiState.value = _uiState.value.copy(
+                            isLoading = false,
+                            quietPollTick = _uiState.value.quietPollTick + 1
+                        )
+                        return@launch
+                    }
 
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
@@ -328,9 +356,16 @@ class PaymentViewModel @Inject constructor(
                         Log.w(TAG, "Transaction status check failed, retrying ($retryCount/3): ${result.message}")
                         // Retry after 2 seconds
                         kotlinx.coroutines.delay(2000)
-                        checkTransactionStatusWithFallback(orderId, retryCount + 1)
+                        checkTransactionStatusWithFallback(orderId, retryCount + 1, background)
                     } else {
                         Log.e(TAG, "Transaction status check failed after retries: ${result.message}")
+                        if (background) {
+                            _uiState.value = _uiState.value.copy(
+                                isLoading = false,
+                                quietPollTick = _uiState.value.quietPollTick + 1
+                            )
+                            return@launch
+                        }
                         _uiState.value = _uiState.value.copy(
                             isLoading = false,
                             paymentResult = PaymentResult(

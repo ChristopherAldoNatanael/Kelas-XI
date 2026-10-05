@@ -45,6 +45,7 @@ import coil.request.ImageRequest
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.PaymentMethod
 import com.christopheraldoo.petheal.ui.components.EmptyBookingsState
+import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingCard
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingList
 import com.christopheraldoo.petheal.util.HapticFeedback
@@ -1447,7 +1448,7 @@ fun CreateBookingScreen(
     doctorId: Int,
     petId: Int,
     onNavigateBack: () -> Unit,
-    onBookingCreated: (Int, Boolean, Double) -> Unit,  // (bookingId, isDp, amount)
+    onBookingCreated: (Int, Boolean, Double, String) -> Unit,  // (bookingId, isDp, amount, midtransMethodsCsv)
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.createState.collectAsState()
@@ -1464,9 +1465,12 @@ fun CreateBookingScreen(
         if (state.isCreated && createdId != null) {
             val amount = if (state.selectedPaymentType == "dp") state.dpAmount else state.totalAmount
             val isDp = state.selectedPaymentType == "dp"
-            Log.d("CreateBooking", "Booking created: id=$createdId, isDp=$isDp, amount=$amount")
+            // Teruskan pilihan metode ke Midtrans agar Snap langsung membuka
+            // metode tersebut. "" = daftar lengkap (perilaku lama).
+            val methodsCsv = state.selectedPaymentMethod?.toMidtransCodes()?.joinToString(",").orEmpty()
+            Log.d("CreateBooking", "Booking created: id=$createdId, isDp=$isDp, amount=$amount, methods=$methodsCsv")
             viewModel.clearCreateState()
-            onBookingCreated(createdId, isDp, amount)
+            onBookingCreated(createdId, isDp, amount, methodsCsv)
         }
     }
 
@@ -1847,6 +1851,25 @@ fun CreateBookingScreen(
                         if (ewalletMethods.isNotEmpty()) {
                             PaymentMethodGroup("E-Wallet", ewalletMethods, state.selectedPaymentMethod, surface, isDark, textPrimary, textSecondary, dividerColor, Color(0xFF8B5CF6)) {
                                 viewModel.selectPaymentMethod(it)
+                            }
+                        }
+                    }
+                    // Konfirmasi: Midtrans langsung membuka metode terpilih.
+                    state.selectedPaymentMethod?.let { chosen ->
+                        Card(
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = BkPrimary.copy(alpha = 0.08f))
+                        ) {
+                            Row(
+                                Modifier.padding(12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Filled.CheckCircle, null, tint = BkPrimary, modifier = Modifier.size(18.dp))
+                                Text(
+                                    "Saat bayar, Midtrans langsung membuka ${chosen.name ?: "metode ini"}.",
+                                    fontSize = 12.sp, color = textSecondary
+                                )
                             }
                         }
                     }

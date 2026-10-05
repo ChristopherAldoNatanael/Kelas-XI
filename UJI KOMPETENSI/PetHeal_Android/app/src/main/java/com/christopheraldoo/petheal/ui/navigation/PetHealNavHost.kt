@@ -310,9 +310,9 @@ fun PetHealNavHost(
                 doctorId = doctorId,
                 petId = petId,
                 onNavigateBack = { navController.popBackStack() },
-                onBookingCreated = { bookingId, isDp, amount ->
+                onBookingCreated = { bookingId, isDp, amount, methodsCsv ->
                     // Navigate to payment screen with correct payment type and amount
-                    navController.navigate(Screen.Payment.createRoute(bookingId, isDp, amount)) {
+                    navController.navigate(Screen.Payment.createRoute(bookingId, isDp, amount, methodsCsv = methodsCsv)) {
                         popUpTo(Screen.CreateBooking.route) { inclusive = true }
                     }
                 }
@@ -504,6 +504,10 @@ fun PetHealNavHost(
                 navArgument("isRemaining") { 
                     type = NavType.BoolType
                     defaultValue = false
+                },
+                navArgument("methods") {
+                    type = NavType.StringType
+                    defaultValue = ""
                 }
             )
         ) { backStackEntry ->
@@ -511,6 +515,13 @@ fun PetHealNavHost(
             val isDp = backStackEntry.arguments?.getBoolean("isDp") ?: false
             val totalAmount = backStackEntry.arguments?.getFloat("totalAmount")?.toDouble() ?: 0.0
             val isRemaining = backStackEntry.arguments?.getBoolean("isRemaining") ?: false
+            // Kode enabled_payments Midtrans dari pilihan di Buat Booking
+            // ("" = daftar lengkap default). Tidak mengubah alur lain.
+            val methodsCsv = backStackEntry.arguments?.getString("methods").orEmpty()
+            val enabledPayments = methodsCsv.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .ifEmpty { null }
 
             val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
             val paymentNavState by paymentNavViewModel.state.collectAsState()
@@ -557,25 +568,26 @@ fun PetHealNavHost(
                         isDpPayment = isDp,
                         totalAmount = totalAmount,
                         isRemainingPayment = isRemaining, // NEW: Pass isRemaining flag
+                        enabledPayments = enabledPayments,
                         onPaymentSuccess = { orderId ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!")
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining)) { inclusive = true }
+                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.")
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining)) { inclusive = true }
+                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
                         },
                         onPaymentFailed = { errorMsg ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute("booking-$bookingId", "failed", errorMsg)
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining)) { inclusive = true }
+                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
                         },
                         onNavigateBack = { navController.popBackStack() },
