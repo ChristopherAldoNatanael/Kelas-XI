@@ -40,8 +40,10 @@ import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Shield
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -151,7 +153,9 @@ fun MedicalRecordsScreen(
                                 totalRecords = state.filteredRecords.size,
                                 pendingExtra = pendingExtra,
                                 totalCost = totalCost,
-                                onNavigateBack = onNavigateBack
+                                isRefreshing = state.isLoading,
+                                onNavigateBack = onNavigateBack,
+                                onRefresh = { viewModel.refreshRecords() }
                             )
                         }
 
@@ -220,12 +224,27 @@ fun MedicalRecordDetailScreen(
     recordId: Int,
     onNavigateBack: () -> Unit,
     onNavigateToExtraPayment: (bookingId: Int, recordId: Int, amount: Double) -> Unit = { _, _, _ -> },
+    onNavigateToDoctor: (doctorId: Int) -> Unit = {},
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
+    val ratingReminder by viewModel.ratingReminder.collectAsState()
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
+    }
+
+    // Reminder rating hanya dicek setelah record tersedia (unlocked).
+    // Guard di ViewModel memastikan tidak terpicu ulang oleh recomposition.
+    val loadedRecord = state.record
+    LaunchedEffect(
+        loadedRecord?.id,
+        loadedRecord?.canViewFullRecord,
+        loadedRecord?.extraPaymentStatus
+    ) {
+        if (loadedRecord != null && !state.isLoading) {
+            viewModel.checkRatingReminder(loadedRecord)
+        }
     }
 
     Surface(
@@ -276,6 +295,24 @@ fun MedicalRecordDetailScreen(
                                 onNavigateToExtraPayment(bookingId, record.id ?: recordId, amount)
                             }
                         )
+                    }
+
+                    // Reminder rating: inline card (tidak mengganggu), hanya saat
+                    // record unlocked. CTA masuk ke dialog rating dokter.
+                    val currentReminder = ratingReminder
+                    if (currentReminder != null) {
+                        item {
+                            MedicalRatingReminderCard(
+                                doctorName = currentReminder.doctorName,
+                                petName = currentReminder.petName,
+                                onRateClick = {
+                                    viewModel.consumeRatingReminderForNavigation()?.let { reminder ->
+                                        onNavigateToDoctor(reminder.doctorId)
+                                    }
+                                },
+                                onDismiss = { viewModel.dismissRatingReminder() }
+                            )
+                        }
                     }
 
                     item {
@@ -389,7 +426,9 @@ private fun MedicalRecordListHero(
     totalRecords: Int,
     pendingExtra: Int,
     totalCost: Double,
-    onNavigateBack: () -> Unit
+    isRefreshing: Boolean = false,
+    onNavigateBack: () -> Unit,
+    onRefresh: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -430,6 +469,32 @@ private fun MedicalRecordListHero(
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                // Fallback manual: muat ulang setelah payment sukses.
+                // Cara utama tetap otomatis via MedicalRefreshManager.
+                IconButton(
+                    onClick = onRefresh,
+                    enabled = !isRefreshing,
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(MrSurface.copy(alpha = 0.88f))
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            color = MrPrimaryDeep,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    } else {
+                        Icon(
+                            Icons.Filled.Refresh,
+                            contentDescription = "Muat ulang",
+                            tint = MrTextPrimary,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
 
@@ -1034,6 +1099,105 @@ private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MedicalRatingReminderCard(
+    doctorName: String,
+    petName: String?,
+    onRateClick: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MrSurface),
+        border = BorderStroke(1.dp, MrPrimary.copy(alpha = 0.25f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(MrPrimarySoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        tint = MrPrimaryDeep,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Bagaimana pengalaman Anda dengan dokter?",
+                        color = MrTextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 21.sp
+                    )
+                    Text(
+                        text = buildString {
+                            append("Berikan rating dan review untuk ")
+                            append(doctorName)
+                            if (!petName.isNullOrBlank()) append(" atas perawatan $petName")
+                            append(" untuk membantu meningkatkan kualitas layanan.")
+                        },
+                        color = MrTextSecondary,
+                        fontSize = 13.sp,
+                        lineHeight = 20.sp
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Button(
+                    onClick = onRateClick,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MrPrimary,
+                        contentColor = Color.White
+                    )
+                ) {
+                    Icon(
+                        Icons.Filled.Star,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Beri Rating", fontWeight = FontWeight.Bold)
+                }
+                OutlinedButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    border = BorderStroke(1.dp, MrBorder)
+                ) {
+                    Text("Nanti", color = MrTextSecondary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

@@ -100,8 +100,14 @@ fun PaymentScreen(
         bookingId?.let { viewModel.checkPaymentStatusOnExit(it) } ?: onNavigateBack()
     }
 
-    // Initiate payment on first load
+    // Initiate payment on first load. Guard: ViewModel selamat dari rotasi,
+    // tapi LaunchedEffect(Unit) jalan ulang — tanpa guard ini satu rotasi
+    // = satu Snap token/order baru (duplikat order di backend).
     LaunchedEffect(Unit) {
+        val s = viewModel.uiState.value
+        if (s.snapToken != null || s.snapRedirectUrl != null || s.isLoading || s.isPaymentCompleted) {
+            return@LaunchedEffect
+        }
         if (bookingId == null && medicalRecordId == null) return@LaunchedEffect
         val safeBookingId = bookingId ?: 0
 
@@ -120,10 +126,14 @@ fun PaymentScreen(
         }
     }
 
-    // Handle payment completion with delay for better UX
+    // Handle payment completion with delay for better UX.
+    // Guard paymentNavigated: tanpa ini, rotasi selama jeda delay
+    // memicu navigasi sukses/pending dua kali (backstack ganda).
+    var paymentNavigated by remember { mutableStateOf(false) }
     LaunchedEffect(state.isPaymentCompleted) {
         val result = state.paymentResult
-        if (state.isPaymentCompleted && result != null && !showResultDialog) {
+        if (state.isPaymentCompleted && result != null && !showResultDialog && !paymentNavigated) {
+            paymentNavigated = true
             resultOrderId = result.orderId
             resultDialogType = result.status
             showResultDialog = true

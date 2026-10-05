@@ -27,6 +27,30 @@ class MedicalRecordRepository @Inject constructor(
         recordByBookingCache.clear()
     }
 
+    /**
+     * Invalidasi cache setelah additional payment sukses — tanpa ini,
+     * [getMedicalRecords]/[getMedicalRecord] mengembalikan data terkunci
+     * yang lama dari RAM sehingga user harus restart aplikasi.
+     */
+    fun invalidateAll() {
+        recordsCache = null
+        recordsByPetCache.clear()
+    }
+
+    fun invalidateRecord(id: Int) {
+        recordDetailCache.remove(id)
+        recordByBookingCache.entries.removeAll { it.value?.id == id }
+        // Daftar ikut basi karena status pembayaran item berubah.
+        recordsCache = null
+        recordsByPetCache.clear()
+    }
+
+    fun invalidateByBooking(bookingId: Int) {
+        recordByBookingCache.remove(bookingId)
+        recordsCache = null
+        recordsByPetCache.clear()
+    }
+
     suspend fun getMedicalRecords(forceRefresh: Boolean = false): Result<List<MedicalRecord>> {
         if (!forceRefresh) {
             recordsCache?.let { return Result.Success(it) }

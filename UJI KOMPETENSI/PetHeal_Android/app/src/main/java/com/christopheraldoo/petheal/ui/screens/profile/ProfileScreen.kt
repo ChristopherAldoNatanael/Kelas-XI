@@ -1,5 +1,12 @@
 package com.christopheraldoo.petheal.ui.screens.profile
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.net.Uri
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
@@ -22,14 +29,26 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.util.MediumImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.compressImageFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ─── Brand tokens ─────────────────────────────────────────────────────────────
 private val Primary       = Color(0xFF18C964)
@@ -60,6 +79,120 @@ fun ProfileScreen(
     var deleteStep by remember { mutableStateOf(1) }
     var deleteUnderstood by remember { mutableStateOf(false) }
     var deleteConfirmText by remember { mutableStateOf("") }
+
+    // ── Ganti foto profil (badge kamera) ──────────────────────────────────
+    // Alur sama seperti form hewan: kamera/galeri → kompres background
+    // (batas backend 4096KB) → upload otomatis.
+    val context = LocalContext.current
+    var showPhotoSheet by remember { mutableStateOf(false) }
+    var pendingLaunch by remember { mutableStateOf<String?>(null) } // "camera" | "gallery"
+    var previewPhotoUri by remember { mutableStateOf<Uri?>(null) }
+    var isProcessingPhoto by remember { mutableStateOf(false) }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var cameraFile by remember { mutableStateOf<File?>(null) }
+    val photoScope = rememberCoroutineScope()
+
+    fun processAndUpload(rawFileProvider: () -> File?) {
+        isProcessingPhoto = true
+        photoScope.launch(Dispatchers.Default) {
+            val compressed = try {
+                val raw = rawFileProvider()
+                if (raw != null) compressImageFile(context, raw) ?: raw else null
+            } catch (_: Exception) { null }
+            withContext(Dispatchers.Main) {
+                isProcessingPhoto = false
+                if (compressed != null && compressed.exists()) {
+                    viewModel.uploadProfilePhoto(compressed)
+                }
+            }
+        }
+    }
+
+    val galleryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            previewPhotoUri = uri
+            processAndUpload { copyUriToFile(context, uri) }
+        }
+    }
+
+    val cameraLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.TakePicture()
+    ) { success: Boolean ->
+        if (success && cameraUri != null) {
+            previewPhotoUri = cameraUri
+            val captured = cameraFile
+            processAndUpload { captured }
+        }
+    }
+
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val (uri, file) = createProfileImageFile(context)
+            cameraUri = uri; cameraFile = file
+            cameraLauncher.launch(uri)
+        }
+    }
+
+    val storagePermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) galleryLauncher.launch("image/*")
+    }
+
+    fun launchCamera() {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            val (uri, file) = createProfileImageFile(context)
+            cameraUri = uri; cameraFile = file
+            cameraLauncher.launch(uri)
+        } else {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
+    fun launchGallery() {
+        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            Manifest.permission.READ_MEDIA_IMAGES
+        } else {
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(context, storagePermission) ==
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            galleryLauncher.launch("image/*")
+        } else {
+            storagePermissionLauncher.launch(storagePermission)
+        }
+    }
+
+    // Sheet harus tertutup penuh dulu sebelum kamera dibuka (pola form hewan).
+    LaunchedEffect(showPhotoSheet) {
+        if (!showPhotoSheet && pendingLaunch != null) {
+            kotlinx.coroutines.delay(150)
+            when (pendingLaunch) {
+                "camera" -> launchCamera()
+                "gallery" -> launchGallery()
+            }
+            pendingLaunch = null
+        }
+    }
+
+    // Preview lokal dibersihkan setelah upload selesai (sukses pakai URL baru,
+    // gagal kembali ke foto lama + snackbar error yang sudah ada).
+    LaunchedEffect(state.isUploadingPhoto) {
+        if (!state.isUploadingPhoto && state.error == null && state.photoMessage != null) {
+            previewPhotoUri = null
+        }
+    }
+    LaunchedEffect(state.error) {
+        if (state.error != null) previewPhotoUri = null
+    }
 
     // Logout confirmation dialog
     if (showLogoutDialog) {
@@ -202,6 +335,15 @@ fun ProfileScreen(
         )
     }
 
+    // ── Photo source sheet (gaya sama seperti form hewan) ───────────────
+    if (showPhotoSheet) {
+        ProfilePhotoSheet(
+            onCamera = { pendingLaunch = "camera"; showPhotoSheet = false },
+            onGallery = { pendingLaunch = "gallery"; showPhotoSheet = false },
+            onDismiss = { showPhotoSheet = false }
+        )
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -224,7 +366,8 @@ fun ProfileScreen(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Avatar
+                    // Avatar (ketuk badge kamera untuk ganti foto)
+                    val isPhotoBusy = isProcessingPhoto || state.isUploadingPhoto
                     Box(contentAlignment = Alignment.BottomEnd) {
                         Box(
                             modifier = Modifier
@@ -234,8 +377,16 @@ fun ProfileScreen(
                                 .background(BorderDark),
                             contentAlignment = Alignment.Center
                         ) {
+                            val preview = previewPhotoUri
                             val photo = buildPhotoUrl(state.user?.photo)
-                            if (!photo.isNullOrBlank()) {
+                            if (preview != null) {
+                                MediumImage(
+                                    model = preview,
+                                    contentDescription = "Pratinjau foto profil",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                                )
+                            } else if (!photo.isNullOrBlank()) {
                                 MediumImage(
                                     model = photo,
                                     contentDescription = "Profile Photo",
@@ -250,21 +401,37 @@ fun ProfileScreen(
                                     modifier = Modifier.size(48.dp)
                                 )
                             }
+                            if (isPhotoBusy) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                        .background(Color.Black.copy(alpha = 0.45f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        strokeWidth = 3.dp,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                }
+                            }
                         }
-                        // Camera badge
+                        // Camera badge — kini fungsional.
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .size(32.dp)
                                 .clip(CircleShape)
-                                .background(Primary)
-                                .border(2.dp, BgDark, CircleShape),
+                                .background(if (isPhotoBusy) TextSecDark else Primary)
+                                .border(2.dp, BgDark, CircleShape)
+                                .clickable(enabled = !isPhotoBusy) { showPhotoSheet = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 imageVector = Icons.Filled.CameraAlt,
-                                contentDescription = null,
+                                contentDescription = "Ganti foto profil",
                                 tint = PrimaryFg,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         }
                     }
@@ -487,6 +654,24 @@ fun ProfileScreen(
                 }
             ) {
                 Text(err)
+            }
+        }
+
+        // Success snackbar untuk upload foto profil
+        state.photoMessage?.let { msg ->
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
+                containerColor = Color(0xFFE8FFF1),
+                contentColor = Color(0xFF047857),
+                dismissAction = {
+                    IconButton(onClick = { viewModel.clearPhotoMessage() }) {
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = Color(0xFF047857))
+                    }
+                }
+            ) {
+                Text(msg)
             }
         }
 
@@ -813,5 +998,104 @@ private fun EditField(
             ),
             modifier = Modifier.fillMaxWidth()
         )
+    }
+}
+
+// ── Helper: file sementara untuk kamera (pola sama seperti form hewan) ─────
+private fun createProfileImageFile(context: Context): Pair<Uri, File> {
+    val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+    val dir = File(context.getExternalFilesDir("Pictures"), "").also { it.mkdirs() }
+    val file = File(dir, "PROFILE_${timeStamp}.jpg")
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    return Pair(uri, file)
+}
+
+// ── Helper: salin URI galeri ke file cache (kompresi dilakukan terpisah) ───
+private fun copyUriToFile(context: Context, uri: Uri): File? {
+    return try {
+        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val cacheFile = File(context.cacheDir, "profile_pick_${timeStamp}.jpg")
+        context.contentResolver.openInputStream(uri)?.use { input ->
+            FileOutputStream(cacheFile).use { output -> input.copyTo(output) }
+        }
+        cacheFile
+    } catch (_: Exception) { null }
+}
+
+// ── Bottom sheet sumber foto (gaya sama seperti form hewan) ─────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfilePhotoSheet(
+    onCamera: () -> Unit,
+    onGallery: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = SurfaceDark
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 40.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                "Ganti Foto Profil",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = TextPrimary,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(BgDark)
+                    .clickable(onClick = onCamera)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.CameraAlt, null, tint = Primary, modifier = Modifier.size(22.dp))
+                }
+                Column {
+                    Text("Ambil Foto", fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 15.sp)
+                    Text("Gunakan kamera", color = TextSecDark, fontSize = 12.sp)
+                }
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(BgDark)
+                    .clickable(onClick = onGallery)
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Primary.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.PhotoLibrary, null, tint = Primary, modifier = Modifier.size(22.dp))
+                }
+                Column {
+                    Text("Pilih dari Galeri", fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 15.sp)
+                    Text("Ambil dari foto Anda", color = TextSecDark, fontSize = 12.sp)
+                }
+            }
+        }
     }
 }

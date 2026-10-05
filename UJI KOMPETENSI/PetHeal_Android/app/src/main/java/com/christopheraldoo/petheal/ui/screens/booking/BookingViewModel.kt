@@ -31,10 +31,9 @@ enum class BookingSortOrder {
 enum class BookingDateFilter {
     ALL,           // Semua
     TODAY,         // Hari Ini
-    YESTERDAY,     // Kemarin
-    LAST_WEEK,     // 1 Minggu
-    LAST_MONTH,    // 1 Bulan
-    LAST_3_MONTHS  // 3 Bulan
+    TOMORROW,      // Besok
+    THIS_WEEK,     // Minggu Ini (Senin–Minggu berjalan)
+    THIS_MONTH     // Bulan Ini
 }
 
 data class BookingsUiState(
@@ -115,7 +114,10 @@ class BookingViewModel @Inject constructor(
             bookingRefreshManager.refreshVersion.collect { version ->
                 if (version > 0 && version > lastHandledRefreshVersion) {
                     lastHandledRefreshVersion = version
-                    loadBookings()
+                    // WAJIB force: tanpa ini early-return di bawah membuat
+                    // booking baru (mis. dibuat hari ini) tidak pernah
+                    // diambil ulang → filter "Hari Ini" tampak kosong.
+                    loadBookings(forceRefresh = true)
                 }
             }
         }
@@ -196,71 +198,84 @@ class BookingViewModel @Inject constructor(
     }
 
     /**
-     * Apply date filter and sort order to a list of bookings
+     * Apply date filter and sort order to a list of bookings.
+     *
+     * Desain: opsi filter berorientasi JADWAL (melihat ke depan), karena isi
+     * My Booking mayoritas appointment mendatang — filter retrospektif
+     * ("Kemarin/1 Minggu lalu") membuat booking besok tidak pernah ketemu.
+     * Semua tanggal dinormalisasi ke 10 char pertama (aman untuk datetime).
      */
     private fun applyFiltersAndSort(bookings: List<Booking>): List<Booking> {
         var filtered = bookings
+        val today = LocalDate.now()
 
         // Apply date filter
         filtered = when (_listState.value.dateFilter) {
             BookingDateFilter.ALL -> filtered
             BookingDateFilter.TODAY -> {
-                val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                filtered.filter { it.bookingDate == today }
+                val todayStr = today.format(DateTimeFormatter.ISO_LOCAL_DATE)
+                filtered.filter { normalizeBookingDate(it.bookingDate) == todayStr }
             }
-            BookingDateFilter.YESTERDAY -> {
-                val yesterday = LocalDate.now().minusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
-                filtered.filter { it.bookingDate == yesterday }
+            BookingDateFilter.TOMORROW -> {
+                val tomorrowStr = today.plusDays(1).format(DateTimeFormatter.ISO_LOCAL_DATE)
+                filtered.filter { normalizeBookingDate(it.bookingDate) == tomorrowStr }
             }
-            BookingDateFilter.LAST_WEEK -> {
-                val oneWeekAgo = LocalDate.now().minusWeeks(1)
+            BookingDateFilter.THIS_WEEK -> {
+                // Senin–Minggu minggu berjalan (mencakup yang lewat +
+                // yang akan datang minggu ini).
+                val startOfWeek = today.minusDays((today.dayOfWeek.value - 1).toLong())
+                val endOfWeek = startOfWeek.plusDays(6)
                 filtered.filter { booking ->
-                    try {
-                        val bookingDate = LocalDate.parse(booking.bookingDate, DateTimeFormatter.ISO_LOCAL_DATE)
-                        !bookingDate.isBefore(oneWeekAgo)
-                    } catch (e: Exception) {
-                        false
-                    }
+                    val bookingDate = parseBookingDate(booking.bookingDate)
+                    bookingDate != null && !bookingDate.isBefore(startOfWeek) && !bookingDate.isAfter(endOfWeek)
                 }
             }
-            BookingDateFilter.LAST_MONTH -> {
-                val oneMonthAgo = LocalDate.now().minusMonths(1)
+            BookingDateFilter.THIS_MONTH -> {
                 filtered.filter { booking ->
-                    try {
-                        val bookingDate = LocalDate.parse(booking.bookingDate, DateTimeFormatter.ISO_LOCAL_DATE)
-                        !bookingDate.isBefore(oneMonthAgo)
-                    } catch (e: Exception) {
-                        false
-                    }
-                }
-            }
-            BookingDateFilter.LAST_3_MONTHS -> {
-                val threeMonthsAgo = LocalDate.now().minusMonths(3)
-                filtered.filter { booking ->
-                    try {
-                        val bookingDate = LocalDate.parse(booking.bookingDate, DateTimeFormatter.ISO_LOCAL_DATE)
-                        !bookingDate.isBefore(threeMonthsAgo)
-                    } catch (e: Exception) {
-                        false
-                    }
+                    val bookingDate = parseBookingDate(booking.bookingDate)
+                    bookingDate != null &&
+                        bookingDate.year == today.year &&
+                        bookingDate.month == today.month
                 }
             }
         }
 
-        // Apply sort
+        // Apply sort (tanggal kosong selalu paling bawah di kedua mode).
         filtered = when (_listState.value.sortOrder) {
             BookingSortOrder.NEWEST_FIRST -> {
-                filtered.sortedWith(compareByDescending<Booking> { it.bookingDate ?: "" }
+                filtered.sortedWith(compareBy<Booking> { it.bookingDate == null }
+                    .thenByDescending { it.bookingDate ?: "" }
                     .thenByDescending { it.bookingTime ?: "" })
             }
             BookingSortOrder.OLDEST_FIRST -> {
-                filtered.sortedWith(compareBy<Booking> { it.bookingDate ?: "" }
+                filtered.sortedWith(compareBy<Booking> { it.bookingDate == null }
+                    .thenBy { it.bookingDate ?: "" }
                     .thenBy { it.bookingTime ?: "" })
             }
         }
 
         Log.d("BookingViewModel", "Filtered bookings: ${filtered.size} (from ${bookings.size})")
         return filtered
+    }
+
+    /** Ambil "YYYY-MM-DD" dari bookingDate mentah (aman untuk datetime). */
+    private fun normalizeBookingDate(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+        return try {
+            raw.trim().take(10).takeIf { it.length == 10 }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Parse bookingDate mentah menjadi LocalDate (toleran datetime). */
+    private fun parseBookingDate(raw: String?): LocalDate? {
+        val normalized = normalizeBookingDate(raw) ?: return null
+        return try {
+            LocalDate.parse(normalized, DateTimeFormatter.ISO_LOCAL_DATE)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     fun loadBookingDetail(id: Int, forceRefresh: Boolean = false) {
@@ -302,9 +317,13 @@ class BookingViewModel @Inject constructor(
         viewModelScope.launch {
             _detailState.value = _detailState.value.copy(isLoading = true)
             when (val r = bookingRepository.cancelBooking(id, reason)) {
-                is Result.Success -> _detailState.value = _detailState.value.copy(
-                    isLoading = false, isCancelled = true, booking = r.data
-                )
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(
+                        isLoading = false, isCancelled = true, booking = r.data
+                    )
+                    // Daftar ikut basi (status berubah) → minta semua VM list reload.
+                    bookingRefreshManager.requestRefresh()
+                }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isLoading = false, error = r.message
                 )
@@ -317,9 +336,13 @@ class BookingViewModel @Inject constructor(
         viewModelScope.launch {
             _detailState.value = _detailState.value.copy(isLoading = true)
             when (val r = bookingRepository.rescheduleBooking(id, newDate, newTime)) {
-                is Result.Success -> _detailState.value = _detailState.value.copy(
-                    isLoading = false, isRescheduled = true, booking = r.data
-                )
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(
+                        isLoading = false, isRescheduled = true, booking = r.data
+                    )
+                    // Tanggal berubah → posisi di daftar/filter ikut berubah.
+                    bookingRefreshManager.requestRefresh()
+                }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isLoading = false, error = r.message
                 )
@@ -453,6 +476,9 @@ class BookingViewModel @Inject constructor(
                         isCreated = true,
                         createdBookingId = bookingId
                     )
+                    // Booking baru wajib langsung masuk daftar (mencakup alur
+                    // tanpa/tunda pembayaran yang tidak lewat PaymentResult).
+                    bookingRefreshManager.requestRefresh()
                 }
                 is Result.Error -> _createState.value = _createState.value.copy(
                     isLoading = false, error = r.message

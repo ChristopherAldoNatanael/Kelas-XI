@@ -2,14 +2,18 @@ package com.christopheraldoo.petheal.ui.screens.medicalrecord
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
+import com.christopheraldoo.petheal.data.repository.MedicalRefreshManager
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.model.Pet
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -29,15 +33,31 @@ data class MedicalRecordDetailUiState(
     val error: String? = null
 )
 
+/**
+ * Reminder rating dokter — hanya untuk satu rekam medis yang SUDAH tersedia.
+ * Dimunculkan sekali per appointment (persisted via ratingPromptedIds +
+ * in-memory session guard) dan tidak pernah sebelum record unlocked.
+ */
+data class MedicalRatingReminder(
+    val bookingId: Int,
+    val doctorId: Int,
+    val doctorName: String,
+    val petName: String?
+)
+
 @HiltViewModel
 class MedicalRecordsViewModel @Inject constructor(
     private val medicalRecordRepository: MedicalRecordRepository,
-    private val petRepository: PetRepository
+    private val petRepository: PetRepository,
+    private val doctorRepository: DoctorRepository,
+    private val preferencesManager: PreferencesManager,
+    private val medicalRefreshManager: MedicalRefreshManager
 ) : ViewModel() {
 
     private var hasLoadedAllRecords = false
     private var lastLoadedPetId: Int? = null
     private var lastLoadedRecordId: Int? = null
+    private var lastHandledMedicalRefresh = 0L
 
     // ── List state ────────────────────────────────────────────────────────────
     private val _listState = MutableStateFlow(MedicalRecordsUiState())
@@ -51,9 +71,35 @@ class MedicalRecordsViewModel @Inject constructor(
     private val _pets = MutableStateFlow<List<Pet>>(emptyList())
     val pets: StateFlow<List<Pet>> = _pets.asStateFlow()
 
+    // ── Rating reminder (detail only, sekali per appointment) ─────────────────
+    private val _ratingReminder = MutableStateFlow<MedicalRatingReminder?>(null)
+    val ratingReminder: StateFlow<MedicalRatingReminder?> = _ratingReminder.asStateFlow()
+    private var lastCheckedRatingKey: String? = null
+    private val reminderDismissedInSession = mutableSetOf<String>()
+
     // ── Available filter categories ───────────────────────────────────────────
     // Stable filter keys (never shown). Labels are Indonesian via [filterLabel].
     val filterCategories = listOf("all", "vaccination", "checkup", "surgery", "lab")
+
+    init {
+        // Auto-refresh setelah additional payment sukses: lewati cache RAM
+        // (root cause: stale cache membuat user harus restart aplikasi).
+        // Pola yang sama dengan BookingViewModel + BookingRefreshManager.
+        viewModelScope.launch {
+            medicalRefreshManager.refreshVersion.collect { version ->
+                if (version > 0 && version > lastHandledMedicalRefresh) {
+                    lastHandledMedicalRefresh = version
+                    medicalRecordRepository.invalidateAll()
+                    hasLoadedAllRecords = false
+                    lastLoadedPetId = null
+                    loadRecords(forceRefresh = true)
+                    lastLoadedRecordId?.let { recordId ->
+                        loadRecord(recordId, forceRefresh = true)
+                    }
+                }
+            }
+        }
+    }
 
     fun filterLabel(key: String): String = when (key) {
         "vaccination" -> "Vaksinasi"
@@ -96,6 +142,13 @@ class MedicalRecordsViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** Refresh manual (pull-to-refresh fallback + retry): tetap aman & idempoten. */
+    fun refreshRecords() {
+        medicalRecordRepository.invalidateAll()
+        hasLoadedAllRecords = false
+        loadRecords(forceRefresh = true)
     }
 
     fun loadRecordsByPet(petId: Int, forceRefresh: Boolean = false) {
@@ -164,6 +217,13 @@ class MedicalRecordsViewModel @Inject constructor(
         }
     }
 
+    /** Refresh manual untuk detail (dipakai retry + fallback pull-to-refresh). */
+    fun refreshRecord(id: Int) {
+        medicalRecordRepository.invalidateRecord(id)
+        lastCheckedRatingKey = null
+        loadRecord(id, forceRefresh = true)
+    }
+
     fun loadPets() {
         viewModelScope.launch {
             when (val result = petRepository.getPets()) {
@@ -198,5 +258,97 @@ class MedicalRecordsViewModel @Inject constructor(
                 else          -> true
             }
         }
+    }
+
+    // ── Rating reminder ───────────────────────────────────────────────────────
+    // Syarat tampil: record SUDAH unlocked (canViewFullRecord authoritative).
+    // Tidak tampil saat terkunci, tidak tampil ulang setelah review/dismiss,
+    // dan tidak terpicu ulang oleh recomposition (guard lastCheckedRatingKey).
+
+    fun checkRatingReminder(record: MedicalRecord) {
+        val bookingId = record.bookingId ?: record.booking?.id ?: return
+        val doctorId = record.doctorId
+            ?: record.doctor?.id
+            ?: record.booking?.doctorId
+            ?: record.booking?.doctor?.id
+            ?: return
+        val key = "$bookingId-$doctorId"
+        // Guard recomposition: satu record hanya dicek sekali per data baru.
+        if (key == lastCheckedRatingKey && _ratingReminder.value?.bookingId == bookingId) return
+        lastCheckedRatingKey = key
+        if (key in reminderDismissedInSession) {
+            _ratingReminder.value = null
+            return
+        }
+
+        val extra = record.extraPaymentStatus
+        val unlocked = when {
+            record.canViewFullRecord == true -> true
+            record.canViewFullRecord == false -> false
+            extra == "paid" || extra == "not_required" || extra == null -> true
+            else -> false
+        }
+        if (!unlocked) {
+            _ratingReminder.value = null
+            return
+        }
+
+        viewModelScope.launch {
+            try {
+                val prompted = preferencesManager.ratingPromptedIds.first()
+                if (bookingId.toString() in prompted) {
+                    _ratingReminder.value = null
+                    return@launch
+                }
+                // Sudah pernah review untuk booking ini? → jangan tampilkan lagi.
+                when (val reviews = doctorRepository.getDoctorReviews(doctorId)) {
+                    is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                        val alreadyReviewed = reviews.data.reviews?.any { it.bookingId == bookingId } == true
+                        if (alreadyReviewed) {
+                            runCatching { preferencesManager.markRatingPrompted(listOf(bookingId)) }
+                            _ratingReminder.value = null
+                            return@launch
+                        }
+                    }
+                    else -> Unit
+                }
+                val doctorName = record.doctor?.name
+                    ?: record.booking?.doctor?.name
+                    ?: "Dokter"
+                val petName = record.pet?.name ?: record.booking?.pet?.name
+                _ratingReminder.value = MedicalRatingReminder(
+                    bookingId = bookingId,
+                    doctorId = doctorId,
+                    doctorName = doctorName,
+                    petName = petName
+                )
+            } catch (_: Exception) {
+                // Reminder adalah courtesy — gagal cek = tidak tampil, tanpa error.
+                _ratingReminder.value = null
+            }
+        }
+    }
+
+    /** Tutup reminder ("Nanti" / close): tandai agar tidak muncul lagi untuk appointment ini. */
+    fun dismissRatingReminder() {
+        val current = _ratingReminder.value ?: return
+        val key = "${current.bookingId}-${current.doctorId}"
+        reminderDismissedInSession.add(key)
+        viewModelScope.launch {
+            runCatching { preferencesManager.markRatingPrompted(listOf(current.bookingId)) }
+            _ratingReminder.value = null
+        }
+    }
+
+    /** Dipanggil saat user menekan CTA "Beri Rating": navigasi + tandai sekali. */
+    fun consumeRatingReminderForNavigation(): MedicalRatingReminder? {
+        val current = _ratingReminder.value ?: return null
+        val key = "${current.bookingId}-${current.doctorId}"
+        reminderDismissedInSession.add(key)
+        viewModelScope.launch {
+            runCatching { preferencesManager.markRatingPrompted(listOf(current.bookingId)) }
+        }
+        _ratingReminder.value = null
+        return current
     }
 }

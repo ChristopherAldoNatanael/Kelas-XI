@@ -7,6 +7,7 @@ import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
+import com.christopheraldoo.petheal.data.repository.MedicalRefreshManager
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,7 +27,8 @@ data class PaymentNavState(
 class PaymentNavViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
     private val authRepository: AuthRepository,
-    private val bookingRefreshManager: BookingRefreshManager
+    private val bookingRefreshManager: BookingRefreshManager,
+    private val medicalRefreshManager: MedicalRefreshManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PaymentNavState())
@@ -62,5 +64,15 @@ class PaymentNavViewModel @Inject constructor(
 
     fun notifyBookingUpdated() {
         bookingRefreshManager.requestRefresh()
+    }
+
+    /**
+     * Dipanggil setelah additional (extra) payment rekam medis sukses:
+     * menginvalidasi sinyal medical agar list + detail melakukan
+     * force re-fetch dan status terkunci → tersedia tanpa restart.
+     */
+    fun notifyMedicalUpdated() {
+        bookingRefreshManager.requestRefresh()
+        medicalRefreshManager.requestRefresh()
     }
 }

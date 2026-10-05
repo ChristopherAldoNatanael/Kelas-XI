@@ -155,14 +155,6 @@ fun HomeScreen(
                     dueVaccinationCount = uiState.dueVaccinationCount,
                     overdueVaccinationCount = uiState.overdueVaccinationCount
                 )
-                Spacer(modifier = Modifier.height(14.dp))
-                AttentionPanel(
-                    outstandingAmount = uiState.outstandingAmount,
-                    confirmedBookings = uiState.confirmedBookings,
-                    followUpDueCount = uiState.followUpDueCount,
-                    dueVaccinationCount = uiState.dueVaccinationCount,
-                    overdueVaccinationCount = uiState.overdueVaccinationCount
-                )
             }
 
             UpcomingBookingSection(
@@ -624,55 +616,6 @@ private fun OperationalMetricCard(
             Text(text = title, fontSize = 12.sp, fontWeight = FontWeight.Medium, color = HomeTextSecondary)
             Text(text = value, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
             Text(text = helper, fontSize = 11.sp, lineHeight = 16.sp, color = HomeTextSecondary)
-        }
-    }
-}
-
-@Composable
-private fun AttentionPanel(
-    outstandingAmount: Double,
-    confirmedBookings: Int,
-    followUpDueCount: Int,
-    dueVaccinationCount: Int,
-    overdueVaccinationCount: Int
-) {
-    Card(
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = HomeSurface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, HomeBorder)
-    ) {
-        Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text("Prioritas Operasional", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = HomeTextPrimary)
-                    Text("Ringkasan item yang paling layak Anda tindak lanjuti hari ini", fontSize = 12.sp, color = HomeTextSecondary)
-                }
-                Text(
-                    text = "Rp ${formatCurrency(outstandingAmount)}",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (outstandingAmount > 0) Color(0xFFEA580C) else HomeTextPrimary
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                AttentionPill("Terkonfirmasi", confirmedBookings.toString(), HomeTextPrimary)
-                AttentionPill("Follow-up", followUpDueCount.toString(), HomeTextPrimary)
-                AttentionPill("Vaksin Jatuh Tempo", dueVaccinationCount.toString(), HomeTextPrimary)
-                if (overdueVaccinationCount > 0) {
-                    AttentionPill("Terlambat", overdueVaccinationCount.toString(), Color(0xFFB91C1C))
-                }
-            }
         }
     }
 }

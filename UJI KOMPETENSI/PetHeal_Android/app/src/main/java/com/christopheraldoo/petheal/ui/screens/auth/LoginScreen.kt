@@ -4,7 +4,6 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -86,7 +85,8 @@ fun LoginScreen(
     var forgotNewPassword by rememberSaveable { mutableStateOf("") }
     var forgotPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var forgotBusy by rememberSaveable { mutableStateOf(false) }
-    // PHASE 7: tenant hint for Google sign-in (new accounts bind on create).
+    // PHASE 7: tenant hint HANYA untuk login email. Login Google selalu
+    // mengirim null (klinik ikut akun, backend yang menentukan).
     var showClinicPicker by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -120,7 +120,12 @@ fun LoginScreen(
                             val authResult = firebaseAuth.signInWithCredential(credential).await()
                             val firebaseIdToken = authResult.user?.getIdToken(true)?.await()?.token
                             if (firebaseIdToken != null) {
-                                viewModel.loginWithGoogleIdToken(firebaseIdToken, pickerState.selectedSlug)
+                                // Akun Google yang SUDAH terikat klinik harus lolos apa
+                                // pun pilihan lokal: backend 403 bila slug lokal ≠
+                                // klinik akun. Kirim null → klinik ikut akun
+                                // (server-side). Akun Google BARU tanpa klinik
+                                // otomatis diarahkan ke CompleteSetup.
+                                viewModel.loginWithGoogleIdToken(firebaseIdToken, null)
                             } else {
                                 viewModel.setError("Token Firebase tidak berhasil diambil")
                             }
@@ -317,7 +322,8 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
-            // ── Klinik (info tenant aktif + ganti sebelum login Google) ──
+            // ── Klinik (HANYA untuk login email — tombol Google di bawah
+            // mengabaikan pilihan ini dan memakai klinik milik akun) ──
             val pickedName = pickerState.clinics
                 .firstOrNull { it.slug == pickerState.selectedSlug }?.name
             Row(
@@ -328,7 +334,7 @@ fun LoginScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = if (pickedName != null) "Klinik: $pickedName" else "Klinik: belum dipilih",
+                    text = if (pickedName != null) "Klinik (login email): $pickedName" else "Klinik (login email): belum dipilih",
                     fontSize = 13.sp,
                     color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
                     modifier = Modifier.weight(1f)
@@ -672,12 +678,10 @@ internal fun AuthTextField(
 
 @Composable
 internal fun GoogleLogoIcon(modifier: Modifier = Modifier) {
-    Canvas(modifier = modifier.size(22.dp)) {
-        val r = size.minDimension / 2f
-        drawArc(Color(0xFF4285F4), -90f,  90f, useCenter = true)
-        drawArc(Color(0xFF34A853),   0f,  90f, useCenter = true)
-        drawArc(Color(0xFFFBBC05),  90f,  90f, useCenter = true)
-        drawArc(Color(0xFFEA4335), 180f,  90f, useCenter = true)
-        drawCircle(Color.White, radius = r * 0.60f)
-    }
+    // Logo "G" Google resmi (vector 4 warna) — dipakai Login + Register.
+    Image(
+        painter = painterResource(id = R.drawable.ic_google_g),
+        contentDescription = "Google",
+        modifier = modifier.size(22.dp)
+    )
 }

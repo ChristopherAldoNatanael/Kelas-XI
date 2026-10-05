@@ -49,6 +49,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
+import coil.request.ImageRequest
 import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.Vaccination
@@ -56,6 +58,7 @@ import com.christopheraldoo.petheal.data.model.WeightRecord
 import com.christopheraldoo.petheal.ui.components.EmptyPetsState
 import com.christopheraldoo.petheal.ui.components.EmptySearchState
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.compressImageFile
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.MediumImage
 import java.io.File
@@ -64,6 +67,9 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 private val PetPrimary       = Color(0xFF18C964)
@@ -1901,6 +1907,26 @@ private fun PetFormScreen(
     // ── Permission state ──────────────────────────────────────────────────
     var pendingAction by remember { mutableStateOf<String?>(null) } // "camera" or "gallery"
 
+    // Kompresi + copy file itu I/O berat — wajib di background agar UI tidak
+    // freeze/ANR (decode foto 12MP di main thread bisa bikin jank).
+    val photoScope = rememberCoroutineScope()
+    var isProcessingPhoto by remember { mutableStateOf(false) }
+
+    /** Salin (galeri) / ambil (kamera) lalu kompres di background. */
+    fun processPickedPhoto(rawFileProvider: () -> File?) {
+        isProcessingPhoto = true
+        photoScope.launch(Dispatchers.Default) {
+            val result = try {
+                val raw = rawFileProvider()
+                if (raw != null) compressImageFile(context, raw) ?: raw else null
+            } catch (_: Exception) { null }
+            withContext(Dispatchers.Main) {
+                selectedPhotoFile = result
+                isProcessingPhoto = false
+            }
+        }
+    }
+
     // ── Activity Result Launchers ─────────────────────────────────────────
 
     // Gallery picker
@@ -1909,7 +1935,8 @@ private fun PetFormScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             selectedPhotoUri = uri
-            selectedPhotoFile = uriToFile(context, uri)
+            // Kompres sebelum upload: file galeri bisa > 4MB (batas backend 4096KB).
+            processPickedPhoto { uriToFile(context, uri) }
         }
     }
 
@@ -1919,7 +1946,10 @@ private fun PetFormScreen(
     ) { success: Boolean ->
         if (success && cameraUri != null) {
             selectedPhotoUri = cameraUri
-            selectedPhotoFile = cameraFile
+            // Foto kamera resolusi penuh (8-20MB) wajib dikompres agar
+            // tidak ditolak backend ("must not be greater than 4096 kilobytes").
+            val captured = cameraFile
+            processPickedPhoto { captured }
         }
     }
 
@@ -2186,10 +2216,17 @@ private fun PetFormScreen(
                         var photoFailed by remember(selectedPhotoUri, existingFullUrl) { mutableStateOf(false) }
 
                         if (hasPhoto && !photoFailed) {
-                            // If user picked a new photo, show local URI; otherwise show remote URL
+                            // If user picked a new photo, show local URI; otherwise show remote URL.
+                            // Decode dibatasi 600px (preview hanya 220dp) agar tidak makan memori.
                             val imageModel: Any = selectedPhotoUri ?: existingFullUrl.orEmpty()
                             AsyncImage(
-                                model = imageModel,
+                                model = ImageRequest.Builder(context)
+                                    .data(imageModel)
+                                    .memoryCachePolicy(CachePolicy.ENABLED)
+                                    .diskCachePolicy(CachePolicy.ENABLED)
+                                    .size(600)
+                                    .crossfade(200)
+                                    .build(),
                                 contentDescription = "Foto hewan",
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -2228,6 +2265,55 @@ private fun PetFormScreen(
                                 Text("Kamera atau Galeri", fontSize = 11.sp, color = textMuted.copy(alpha = 0.7f))
                             }
                         }
+                        // Overlay saat foto sedang diproses di background.
+                        if (isProcessingPhoto) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color.Black.copy(alpha = 0.35f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    CircularProgressIndicator(
+                                        color = Color.White,
+                                        strokeWidth = 3.dp,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        "Memproses foto...",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Peringatan dini bila file masih melebihi batas backend (4096KB)
+                // — kompresi otomatis di atas seharusnya sudah mencegahnya.
+                val photoSizeKB = remember(selectedPhotoFile) {
+                    selectedPhotoFile?.takeIf { it.exists() }?.length()?.div(1024) ?: 0L
+                }
+                if (photoSizeKB > 4096) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFEF4444).copy(alpha = 0.1f))
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Filled.Warning, null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                        Text(
+                            "Ukuran foto terlalu besar (${photoSizeKB / 1024}MB). Pilih foto lain atau ulangi pengambilan gambar.",
+                            color = Color(0xFFEF4444), fontSize = 13.sp
+                        )
                     }
                 }
 
@@ -2444,8 +2530,10 @@ private fun PetFormScreen(
             val effectiveSpecies =
                 if (species == "Other") customSpecies.trim() else species.trim()
             val isSpeciesValid = effectiveSpecies.isNotBlank()
+            val isPhotoTooLarge = (selectedPhotoFile?.takeIf { it.exists() }?.length() ?: 0L) > 4096L * 1024L
             Button(
                 onClick = {
+                    if (isPhotoTooLarge || isProcessingPhoto) return@Button
                     focusManager.clearFocus()
                     onSubmit(
                         name.trim(),
@@ -2460,7 +2548,7 @@ private fun PetFormScreen(
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading && name.isNotBlank() && isSpeciesValid,
+                enabled = !isLoading && name.isNotBlank() && isSpeciesValid && !isPhotoTooLarge && !isProcessingPhoto,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPrimary,
                     contentColor = Color(0xFFF6F8F6),

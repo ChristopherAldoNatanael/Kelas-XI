@@ -141,18 +141,22 @@ fun BookingsScreen(
     // State for filter/sort bottom sheet
     var showFilterSheet by remember { mutableStateOf(false) }
     val view = LocalView.current
-    val activeBookingsCount = remember(state.bookings) {
-        state.bookings.count { it.status == "pending" || it.status == "confirmed" }
+    // Ringkasan dihitung dari SEMUA booking (bukan hasil filter) agar angka
+    // tidak melompat dan section tidak hilang saat filter menghasilkan kosong.
+    val activeBookingsCount = remember(state.allBookings) {
+        state.allBookings.count { it.status == "pending" || it.status == "confirmed" }
     }
-    val completedBookingsCount = remember(state.bookings) {
-        state.bookings.count { it.status == "completed" }
+    val completedBookingsCount = remember(state.allBookings) {
+        state.allBookings.count { it.status == "completed" }
     }
-    val paymentAttentionCount = remember(state.bookings) {
-        state.bookings.count {
+    val paymentAttentionCount = remember(state.allBookings) {
+        state.allBookings.count {
             val paymentStatus = it.paymentStatus?.lowercase()
             paymentStatus != null && paymentStatus !in setOf("paid", "not_required")
         }
     }
+    // Filter aktif (dipakai empty-state agar pesan + reset kontekstual).
+    val isDateFiltered = state.dateFilter != BookingDateFilter.ALL
 
     Box(Modifier.fillMaxSize().background(bg)) {
         Column(Modifier.fillMaxSize()) {
@@ -195,7 +199,7 @@ fun BookingsScreen(
                             lineHeight = 19.sp,
                             color = textSecondary
                         )
-                        if (state.bookings.isNotEmpty()) {
+                        if (state.allBookings.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(14.dp))
                             BookingOverviewRow(
                                 activeCount = activeBookingsCount,
@@ -267,13 +271,24 @@ fun BookingsScreen(
                         item { ErrorBanner(listError ?: "Gagal memuat booking") }
                     }
                     if (state.bookings.isEmpty()) {
-                        item { 
-                            EmptyBookingsState(
-                                onBookNow = onNavigateToDoctors
-                            ) 
+                        item {
+                            if (isDateFiltered && state.allBookings.isNotEmpty()) {
+                                FilteredBookingsEmptyState(
+                                    filterLabel = getDateFilterLabel(state.dateFilter),
+                                    onClearFilter = { viewModel.setDateFilter(BookingDateFilter.ALL) },
+                                    onResetAll = { viewModel.resetFilters() }
+                                )
+                            } else {
+                                EmptyBookingsState(
+                                    onBookNow = onNavigateToDoctors
+                                )
+                            }
                         }
                     } else {
-                        items(state.bookings) { booking ->
+                        items(
+                            items = state.bookings,
+                            key = { booking -> booking.id ?: booking.hashCode() }
+                        ) { booking ->
                             BookingCard(
                                 booking = booking,
                                 isDark = isDark,
@@ -298,13 +313,17 @@ fun BookingsScreen(
             }
         }
 
-        // Filter/Sort Bottom Sheet
+        // Filter/Sort Bottom Sheet — memilih tanggal langsung menutup sheet
+        // agar daftar yang terfilter segera terlihat (UI langsung memperbarui).
         if (showFilterSheet) {
             BookingFilterBottomSheet(
                 currentSortOrder = state.sortOrder,
                 currentDateFilter = state.dateFilter,
                 onSortOrderChanged = { viewModel.setSortOrder(it) },
-                onDateFilterChanged = { viewModel.setDateFilter(it) },
+                onDateFilterChanged = {
+                    viewModel.setDateFilter(it)
+                    showFilterSheet = false
+                },
                 onResetFilters = { viewModel.resetFilters() },
                 onDismiss = { showFilterSheet = false }
             )
@@ -395,10 +414,78 @@ private fun getDateFilterLabel(filter: BookingDateFilter): String {
     return when (filter) {
         BookingDateFilter.ALL -> "Semua"
         BookingDateFilter.TODAY -> "Hari Ini"
-        BookingDateFilter.YESTERDAY -> "Kemarin"
-        BookingDateFilter.LAST_WEEK -> "1 Minggu"
-        BookingDateFilter.LAST_MONTH -> "1 Bulan"
-        BookingDateFilter.LAST_3_MONTHS -> "3 Bulan"
+        BookingDateFilter.TOMORROW -> "Besok"
+        BookingDateFilter.THIS_WEEK -> "Minggu Ini"
+        BookingDateFilter.THIS_MONTH -> "Bulan Ini"
+    }
+}
+
+/**
+ * Empty state khusus saat filter tanggal menghasilkan nol booking:
+ * menegaskan filter yang aktif + selected date terlihat + reset jelas.
+ * Mengikuti token warna/huruf layar ini (tanpa style baru).
+ */
+@Composable
+private fun FilteredBookingsEmptyState(
+    filterLabel: String,
+    onClearFilter: () -> Unit,
+    onResetAll: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(BkPrimary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.CalendarMonth,
+                    contentDescription = null,
+                    tint = BkPrimary,
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            Text(
+                text = "Tidak ada booking ($filterLabel)",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF0F172A),
+                textAlign = TextAlign.Center
+            )
+            Text(
+                text = "Coba pilih tanggal lain atau atur ulang filter untuk melihat semua booking.",
+                fontSize = 13.sp,
+                lineHeight = 19.sp,
+                color = Color(0xFF64748B),
+                textAlign = TextAlign.Center
+            )
+            Button(
+                onClick = onClearFilter,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = BkPrimary,
+                    contentColor = Color(0xFF052E14)
+                )
+            ) {
+                Text("Tampilkan Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+            }
+            TextButton(onClick = onResetAll) {
+                Text("Atur Ulang Filter", fontSize = 12.sp, color = BkPrimary)
+            }
+        }
     }
 }
 
@@ -489,10 +576,9 @@ private fun BookingFilterBottomSheet(
                     val dateFilters = listOf(
                         BookingDateFilter.ALL to "Semua",
                         BookingDateFilter.TODAY to "Hari Ini",
-                        BookingDateFilter.YESTERDAY to "Kemarin",
-                        BookingDateFilter.LAST_WEEK to "1 Minggu",
-                        BookingDateFilter.LAST_MONTH to "1 Bulan",
-                        BookingDateFilter.LAST_3_MONTHS to "3 Bulan"
+                        BookingDateFilter.TOMORROW to "Besok",
+                        BookingDateFilter.THIS_WEEK to "Minggu Ini",
+                        BookingDateFilter.THIS_MONTH to "Bulan Ini"
                     )
                     dateFilters.forEach { (filter, label) ->
                         FilterChip(
@@ -917,6 +1003,7 @@ fun BookingDetailScreen(
                                 .diskCachePolicy(CachePolicy.ENABLED)
                                 .memoryCacheKey(photo)
                                 .diskCacheKey(photo)
+                                .size(800)
                                 .crossfade(200)
                                 .build(),
                             contentDescription = "Foto dokter",

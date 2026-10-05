@@ -353,6 +353,9 @@ fun PetHealNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToExtraPayment = { bookingId, payRecordId, amount ->
                     navController.navigate(Screen.MedicalExtraPayment.createRoute(bookingId, payRecordId, amount))
+                },
+                onNavigateToDoctor = { doctorId ->
+                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, true))
                 }
             )
         }
@@ -478,7 +481,7 @@ fun PetHealNavHost(
                             }
                         },
                         onNavigateBack = { navController.popBackStack() },
-                        onBookingUpdated = { paymentNavViewModel.notifyBookingUpdated() }
+                        onBookingUpdated = { paymentNavViewModel.notifyMedicalUpdated() }
                     )
                     }
                 }

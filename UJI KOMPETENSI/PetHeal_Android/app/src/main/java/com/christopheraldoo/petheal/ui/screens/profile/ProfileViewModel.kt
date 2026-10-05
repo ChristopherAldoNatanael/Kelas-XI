@@ -20,7 +20,10 @@ data class ProfileUiState(
     val error: String? = null,
     // PHASE 7: delete-account flow (Profile → danger zone).
     val isDeleting: Boolean = false,
-    val isDeleted: Boolean = false
+    val isDeleted: Boolean = false,
+    // Upload foto profil via badge kamera.
+    val isUploadingPhoto: Boolean = false,
+    val photoMessage: String? = null
 )
 
 data class EditProfileUiState(
@@ -182,6 +185,37 @@ class ProfileViewModel @Inject constructor(
 
     fun clearEditSuccess() {
         _editState.value = _editState.value.copy(isSuccess = false)
+    }
+
+    /** Upload foto profil yang sudah dikompres (≤4096KB) di sisi UI. */
+    fun uploadProfilePhoto(photoFile: java.io.File) {
+        viewModelScope.launch {
+            _profileState.value = _profileState.value.copy(
+                isUploadingPhoto = true, error = null, photoMessage = null
+            )
+            when (val result = authRepository.uploadProfilePhoto(photoFile)) {
+                is Result.Success -> {
+                    _profileState.value = _profileState.value.copy(
+                        user = result.data,
+                        isUploadingPhoto = false,
+                        photoMessage = "Foto profil berhasil diperbarui"
+                    )
+                }
+                is Result.Error -> {
+                    _profileState.value = _profileState.value.copy(
+                        isUploadingPhoto = false,
+                        error = result.message
+                    )
+                }
+                else -> {
+                    _profileState.value = _profileState.value.copy(isUploadingPhoto = false)
+                }
+            }
+        }
+    }
+
+    fun clearPhotoMessage() {
+        _profileState.value = _profileState.value.copy(photoMessage = null)
     }
 
     fun clearError() {

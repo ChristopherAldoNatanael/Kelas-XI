@@ -7,6 +7,8 @@ import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -362,7 +364,7 @@ class AuthRepository @Inject constructor(
             val response = apiService.updateProfile(
                 mapOf("name" to name, "phone" to (phone ?: ""))
             )
-            
+
             if (response.isSuccessful && response.body()?.success == true) {
                 val user = response.body()?.data
                 if (user != null) {
@@ -372,6 +374,42 @@ class AuthRepository @Inject constructor(
                 }
             } else {
                 Result.Error(response.body()?.message ?: "Failed to update profile")
+            }
+        } catch (e: Exception) {
+            Result.Error(e.message ?: "Network error")
+        }
+    }
+
+    /**
+     * Upload foto profil (dipakai badge kamera di ProfileScreen).
+     * File HARUS sudah dikompres di sisi UI (≤4096KB, lihat ImageCompressor)
+     * karena backend menolak field `photo` di atas batas tersebut.
+     * Sukses → cache DataStore ikut diperbarui agar Home/Profile langsung
+     * menampilkan foto baru tanpa reload manual.
+     */
+    suspend fun uploadProfilePhoto(photoFile: java.io.File): Result<User> {
+        return try {
+            if (!photoFile.exists()) return Result.Error("File foto tidak ditemukan")
+            val photoPart = okhttp3.MultipartBody.Part.createFormData(
+                "photo", photoFile.name,
+                photoFile.asRequestBody("image/*".toMediaTypeOrNull())
+            )
+            val response = apiService.uploadProfilePhoto(photoPart)
+            if (response.isSuccessful && response.body()?.success == true) {
+                val user = response.body()?.data
+                if (user != null) {
+                    preferencesManager.saveUserInfo(
+                        userId = user.id ?: preferencesManager.userId.first()?.toIntOrNull() ?: 0,
+                        email = user.email ?: preferencesManager.userEmail.first().orEmpty(),
+                        name = user.name ?: preferencesManager.userName.first().orEmpty(),
+                        photo = user.photo
+                    )
+                    Result.Success(user)
+                } else {
+                    Result.Error("Invalid response")
+                }
+            } else {
+                Result.Error(errorMessageFrom(response, "Gagal mengunggah foto profil"))
             }
         } catch (e: Exception) {
             Result.Error(e.message ?: "Network error")
