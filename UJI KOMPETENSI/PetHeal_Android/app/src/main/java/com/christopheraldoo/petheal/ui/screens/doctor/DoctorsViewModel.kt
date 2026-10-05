@@ -68,6 +68,18 @@ class DoctorsViewModel @Inject constructor(
 
     init {
         loadDoctors()
+        // Layar list & detail memakai instance ViewModel berbeda. Ketika
+        // detail mem-patch rating di repository, list ikut sinkron dari
+        // snapshot cache tanpa network call / tanpa refresh manual.
+        viewModelScope.launch {
+            doctorRepository.ratingVersion.collect { version ->
+                if (version == 0L) return@collect
+                val snapshot = doctorRepository.snapshotDoctors()
+                if (snapshot.isNotEmpty()) {
+                    _listState.value = _listState.value.copy(doctors = snapshot)
+                }
+            }
+        }
     }
 
     fun loadDoctors() {
@@ -178,11 +190,16 @@ class DoctorsViewModel @Inject constructor(
         }
     }
 
-    private fun loadReviewableBookings(doctorId: Int) {
+    private fun loadReviewableBookings(doctorId: Int, knownReviewedIds: Set<Int>? = null) {
         viewModelScope.launch {
             when (val result = bookingRepository.getBookings()) {
                 is Result.Success -> {
-                    val reviewedBookingIds = _detailState.value.reviews.mapNotNull { it.bookingId }.toSet()
+                    // Pakai ID review yang baru dimuat bila tersedia — membaca
+                    // state.reviews di sini bisa kena race dengan loadReviews
+                    // yang berjalan paralel, sehingga booking yang baru
+                    // dinilai tetap muncul sebagai "bisa dinilai".
+                    val reviewedBookingIds = knownReviewedIds
+                        ?: _detailState.value.reviews.mapNotNull { it.bookingId }.toSet()
                     _detailState.value = _detailState.value.copy(
                         reviewableBookings = result.data.filter { booking ->
                             booking.doctorId == doctorId &&
@@ -210,15 +227,61 @@ class DoctorsViewModel @Inject constructor(
                         isSubmittingReview = false,
                         reviewMessage = "Ulasan Anda telah dikirim. Terima kasih!"
                     )
-                    loadReviews(doctorId)
-                    loadReviewableBookings(doctorId)
-                    refreshDoctorsInBackground()
+                    // Refresh berurutan (bukan paralel): reviews dulu sampai
+                    // dapat angka authoritative, baru turunkan ke cache +
+                    // daftar booking yang bisa dinilai. Tanpa ini, angka di
+                    // UI tetap memakai snapshot lama sampai refresh manual.
+                    refreshRatingAfterSubmit(doctorId, submittedBookingId = bookingId)
                 }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isSubmittingReview = false,
                     error = result.message
                 )
                 else -> Unit
+            }
+        }
+    }
+
+    /**
+     * Muat ulang reviews → patch cache repo + salinan doctor di detail →
+     * muat ulang booking yang bisa dinilai. Satu alur, tanpa mengandalkan
+     * caller untuk me-refresh layar lain.
+     */
+    private suspend fun refreshRatingAfterSubmit(doctorId: Int, submittedBookingId: Int) {
+        when (val result = doctorRepository.getDoctorReviews(doctorId)) {
+            is Result.Success -> {
+                val data = result.data
+                val freshReviews = data.reviews.orEmpty()
+                val freshAvg = data.averageRating ?: 0.0
+                val freshTotal = data.totalReviews ?: freshReviews.size
+                _detailState.value = _detailState.value.copy(
+                    reviews = freshReviews,
+                    averageRating = freshAvg,
+                    totalReviews = freshTotal,
+                    // Salinan doctor di detail ikut diperbarui agar header
+                    // (rating) konsisten dengan angka ulasan terbaru.
+                    doctor = _detailState.value.doctor?.copy(
+                        averageRating = freshAvg,
+                        reviewsCount = freshTotal
+                    )
+                )
+                // Sebarkan ke cache list + per-ID: layar list (instance VM
+                // lain) menerima via ratingVersion tanpa refresh manual.
+                doctorRepository.updateCachedRating(doctorId, freshAvg, freshTotal)
+                val reviewedIds = freshReviews.mapNotNull { it.bookingId }.toSet() +
+                    submittedBookingId
+                loadReviewableBookings(doctorId, knownReviewedIds = reviewedIds)
+            }
+            else -> {
+                // Fallback: minimal pastikan booking yang baru dinilai
+                // tidak ditawarkan lagi, lalu coba sinkron biasa.
+                loadReviews(doctorId)
+                loadReviewableBookings(
+                    doctorId,
+                    knownReviewedIds = _detailState.value.reviews
+                        .mapNotNull { it.bookingId }.toSet() + submittedBookingId
+                )
+                refreshDoctorsInBackground()
             }
         }
     }

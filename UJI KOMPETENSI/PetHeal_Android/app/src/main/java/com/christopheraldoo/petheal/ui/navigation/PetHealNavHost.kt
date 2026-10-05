@@ -38,6 +38,7 @@ import com.christopheraldoo.petheal.ui.screens.auth.RegisterScreen
 import com.christopheraldoo.petheal.ui.screens.auth.SplashScreen
 import com.christopheraldoo.petheal.ui.screens.booking.BookingDetailScreen
 import com.christopheraldoo.petheal.ui.screens.booking.BookingsScreen
+import com.christopheraldoo.petheal.ui.screens.booking.BookingStartScreen
 import com.christopheraldoo.petheal.ui.screens.booking.CreateBookingScreen
 import com.christopheraldoo.petheal.ui.screens.doctor.DoctorDetailScreen
 import com.christopheraldoo.petheal.ui.screens.doctor.DoctorsScreen
@@ -180,6 +181,7 @@ fun PetHealNavHost(
             HomeScreen(
                 onNavigateToPets = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Pets) },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
+                onNavigateToBookingStart = { navController.navigate(Screen.BookingStart.route) },
                 onNavigateToDoctor = { doctorId, autoReview ->
                     navController.navigate(Screen.DoctorDetail.createRoute(doctorId, autoReview))
                 },
@@ -264,13 +266,7 @@ fun PetHealNavHost(
             DoctorDetailScreen(
                 doctorId = doctorId,
                 autoOpenReview = autoReview,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToBooking = { petId ->
-                    navController.navigate(Screen.CreateBooking.createRoute(doctorId, petId))
-                },
-                onNavigateToAddPet = {
-                    navController.navigate(Screen.AddPet.route)
-                }
+                onNavigateBack = { navController.popBackStack() }
             )
         }
 
@@ -279,6 +275,7 @@ fun PetHealNavHost(
             BookingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
+                onNavigateToBookingStart = { navController.navigate(Screen.BookingStart.route) },
                 onNavigateToBookingDetail = { bookingId ->
                     navController.navigate(Screen.BookingDetail.createRoute(bookingId))
                 },
@@ -289,7 +286,17 @@ fun PetHealNavHost(
             )
         }
 
-        // "bookings/create/{doctorId}/{petId}" must be before "bookings/{bookingId}"
+        // "bookings/start" + "bookings/create/{doctorId}/{petId}" must be before "bookings/{bookingId}"
+        composable(Screen.BookingStart.route) {
+            BookingStartScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
+                onContinue = { doctorId, petId ->
+                    navController.navigate(Screen.CreateBooking.createRoute(doctorId, petId))
+                }
+            )
+        }
+
         composable(
             route = Screen.CreateBooking.route,
             arguments = listOf(

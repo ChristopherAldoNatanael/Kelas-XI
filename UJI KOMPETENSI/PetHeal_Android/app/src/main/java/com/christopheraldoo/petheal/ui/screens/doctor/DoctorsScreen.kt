@@ -36,13 +36,15 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
-import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.data.model.TimeSlot
 import com.christopheraldoo.petheal.ui.components.SkeletonDoctorList
 import com.christopheraldoo.petheal.util.buildPhotoUrl
@@ -51,6 +53,12 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val TAG = "DoctorPhoto"
+
+/** Label jumlah ulasan konsisten di semua layar: "1 ulasan" / "3 ulasan". */
+private fun reviewCountLabel(total: Int): String =
+    if (total == 1) "1 ulasan" else "$total ulasan"
+
+private fun formatAvgRating(avg: Double): String = "%.1f".format(avg)
 
 private val Primary     = Color(0xFF18C964)
 private val PrimaryFg   = Color(0xFF052E14)
@@ -99,31 +107,6 @@ private fun DocPhoto(
 }
 
 @Composable
-private fun PetPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
-    val context = LocalContext.current
-    val fullUrl = remember(url) { buildPhotoUrl(url) }
-    var hasError by remember(fullUrl) { mutableStateOf(false) }
-    
-    if (!fullUrl.isNullOrBlank() && !hasError) {
-        AsyncImage(
-            model = ImageRequest.Builder(context)
-                .data(fullUrl)
-                .memoryCachePolicy(CachePolicy.ENABLED)
-                .diskCachePolicy(CachePolicy.ENABLED)
-                .size(160, 160)
-                .crossfade(200)
-                .build(),
-            contentDescription = "Pet Photo",
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize().clip(CircleShape),
-            onError = { Log.e(TAG, "Failed to load pet photo: $fullUrl"); hasError = true }
-        )
-    } else {
-        Icon(Icons.Filled.Pets, contentDescription = null, tint = TextSecDark, modifier = Modifier.size(size * 0.5f))
-    }
-}
-
-@Composable
 fun DoctorsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDoctorDetail: (Int) -> Unit,
@@ -131,6 +114,16 @@ fun DoctorsScreen(
 ) {
     val state by viewModel.listState.collectAsState()
     val focusManager = LocalFocusManager.current
+    // Kembali dari detail (mis. setelah kirim review) → sinkronkan daftar
+    // dari cache yang sudah di-patch. Murah: tanpa spinner bila cache ada.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.loadDoctors()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     Column(modifier = Modifier.fillMaxSize().background(BgDark)) {
         Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(top = 44.dp, start = 8.dp, end = 20.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -138,7 +131,11 @@ fun DoctorsScreen(
                 Spacer(Modifier.width(4.dp))
                 Column {
                     Text("Cari Dokter", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("${state.doctors.size} dokter tersedia", color = TextSecDark, fontSize = 12.sp)
+                    Text(
+                        if (state.doctors.isEmpty()) "Jelajahi dokter di klinik ini"
+                        else "${state.doctors.size} dokter tersedia · ketuk untuk lihat profil",
+                        color = TextSecDark, fontSize = 12.sp
+                    )
                 }
             }
         }
@@ -184,14 +181,11 @@ fun DoctorsScreen(
 fun DoctorDetailScreen(
     doctorId: Int,
     onNavigateBack: () -> Unit,
-    onNavigateToBooking: (Int) -> Unit,
-    onNavigateToAddPet: () -> Unit = {},
     // PHASE 9: dibuka dari pengingat rating → dialog nilai langsung terbuka.
     autoOpenReview: Boolean = false,
     viewModel: DoctorsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
-    var showPetSheet by remember { mutableStateOf(false) }
     var showReviewDialog by remember { mutableStateOf(false) }
     // Konsumsi sekali: dialog terbuka otomatis hanya setelah daftar booking
     // yang bisa dinilai termuat (tidak kosong) — rotasi tidak membuka ulang.
@@ -214,19 +208,12 @@ fun DoctorDetailScreen(
             }
         )
     }
-    if (showPetSheet) {
-        PetPickerSheet(
-            pets = state.pets,
-            onDismiss = { showPetSheet = false },
-            onSelected = { petId -> showPetSheet = false; onNavigateToBooking(petId) }
-        )
-    }
     Box(modifier = Modifier.fillMaxSize().background(BgDark)) {
         if (state.isLoading) {
             CircularProgressIndicator(color = Primary, modifier = Modifier.align(Alignment.Center))
         } else {
-            Column(modifier = Modifier.fillMaxSize()) {
-                Column(modifier = Modifier.fillMaxSize().weight(1f).verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    // ── Profil dokter ─────────────────────────────────
                     Box(modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SurfaceDark, BgDark))).padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onNavigateBack, modifier = Modifier.align(Alignment.Top)) {
@@ -242,25 +229,41 @@ fun DoctorDetailScreen(
                                 Spacer(Modifier.height(3.dp))
                                 Text(text = state.doctor?.specialization ?: "Dokter Hewan", color = Primary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.height(6.dp))
-                                val days = state.doctor?.availableDays
-                                if (!days.isNullOrBlank()) {
-                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clip(RoundedCornerShape(50)).background(BorderDark).padding(horizontal = 8.dp, vertical = 3.dp)) {
-                                        Icon(Icons.Outlined.CalendarMonth, contentDescription = null, tint = TextSecDark, modifier = Modifier.size(12.dp))
+                                // Rating memakai angka authoritative dari endpoint
+                                // reviews — sama dengan yang di-patch ke list,
+                                // jadi konsisten dengan kartu di Cari Dokter.
+                                if (state.totalReviews > 0) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
-                                        Text(days, color = TextSecDark, fontSize = 11.sp)
+                                        Text(formatAvgRating(state.averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(" · ${reviewCountLabel(state.totalReviews)}", color = TextSecDark, fontSize = 12.sp)
                                     }
+                                } else {
+                                    Text("Belum ada ulasan", color = TextSecDark, fontSize = 12.sp)
                                 }
                             }
                         }
                     }
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     Spacer(Modifier.height(20.dp))
-                    Text("Pilih Tanggal", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
+                    // ── Tentang dokter ────────────────────────────────
+                    Text("Tentang Dokter", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
+                    Spacer(Modifier.height(10.dp))
+                    DoctorAboutCard(
+                        specialization = state.doctor?.specialization,
+                        availableDays = state.doctor?.availableDays,
+                        availableTime = state.doctor?.availableTime,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    // ── Jadwal / ketersediaan (pratinjau) ─────────────
+                    Text("Jadwal Praktik", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 20.dp))
                     Spacer(Modifier.height(10.dp))
                     DatePickerRow(selectedDate = state.selectedDate, onDateSelected = { viewModel.onDateSelected(doctorId, it) })
-                    Spacer(Modifier.height(20.dp))
+                    Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 20.dp)) {
-                        Text("Slot Tersedia", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                        Text("Slot Tersedia", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
                         if (state.isSlotsLoading) CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(16.dp))
                     }
                     Text(
@@ -279,83 +282,10 @@ fun DoctorDetailScreen(
                         onSubmitReview = { showReviewDialog = true },
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
-                    if (state.pets.isEmpty() && !state.isLoading) {
-                        Spacer(Modifier.height(20.dp))
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFFFF7ED))
-                                .border(1.dp, Color(0xFFFCA5A5), RoundedCornerShape(16.dp))
-                                .padding(16.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Filled.Info,
-                                    contentDescription = null,
-                                    tint = Color(0xFFEA580C),
-                                    modifier = Modifier.size(22.dp)
-                                )
-                                Spacer(Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        "Tambah hewan dulu",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 14.sp,
-                                        color = Color(0xFF92400E)
-                                    )
-                                    Spacer(Modifier.height(2.dp))
-                                    Text(
-                                        "Kamu belum punya hewan yang terdaftar. Tambah hewan untuk mulai membuat janji dengan dokter ini.",
-                                        fontSize = 12.sp,
-                                        lineHeight = 18.sp,
-                                        color = Color(0xFFB45309)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(100.dp))
+                    // Halaman ini murni discovery: profil, jadwal, dan ulasan.
+                    // Booking hanya lewat alur "Buat Booking" (transaksi).
+                    Spacer(Modifier.height(32.dp))
                 }
-                Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(horizontal = 20.dp, vertical = 16.dp)) {
-                    if (state.pets.isEmpty()) {
-                        // User has no pet — guide them to add one before booking.
-                        // Without this the booking CTA is a dead-end.
-                        Button(
-                            onClick = onNavigateToAddPet,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Primary,
-                                contentColor = PrimaryFg
-                            ),
-                            modifier = Modifier.fillMaxWidth().height(52.dp)
-                        ) {
-                            Icon(Icons.Filled.Pets, null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                "Tambah Hewan untuk Booking",
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 15.sp
-                            )
-                        }
-                    } else {
-                        Button(
-                            onClick = {
-                                if (state.pets.size == 1) state.pets.first().id?.let(onNavigateToBooking) else showPetSheet = true
-                            },
-                            enabled = state.doctor != null,
-                            shape = RoundedCornerShape(14.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = Primary, contentColor = PrimaryFg, disabledContainerColor = BorderDark, disabledContentColor = TextSecDark),
-                            modifier = Modifier.fillMaxWidth().height(52.dp)
-                        ) {
-                            Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(text = "Buat Janji", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
-                        }
-                    }
-                }
-            }
         }
         state.error?.let { err ->
             Snackbar(
@@ -371,6 +301,61 @@ fun DoctorDetailScreen(
                 contentColor = Color(0xFF047857),
                 dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Color(0xFF047857)) } }
             ) { Text(message) }
+        }
+    }
+}
+
+@Composable
+private fun DoctorAboutCard(
+    specialization: String?,
+    availableDays: String?,
+    availableTime: String?,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(SurfaceDark)
+            .border(1.dp, BorderDark, RoundedCornerShape(16.dp))
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        DoctorAboutRow(
+            icon = Icons.Outlined.MedicalServices,
+            label = "Spesialisasi",
+            value = specialization ?: "Dokter Hewan"
+        )
+        DoctorAboutRow(
+            icon = Icons.Outlined.CalendarMonth,
+            label = "Hari praktik",
+            value = availableDays?.takeIf { it.isNotBlank() } ?: "Jadwal menyusul"
+        )
+        DoctorAboutRow(
+            icon = Icons.Outlined.Schedule,
+            label = "Jam praktik",
+            value = availableTime?.takeIf { it.isNotBlank() } ?: "Jadwal menyusul"
+        )
+    }
+}
+
+@Composable
+private fun DoctorAboutRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
+    value: String
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                .background(Primary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column {
+            Text(label, color = TextSecDark, fontSize = 11.sp)
+            Text(value, color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
@@ -398,10 +383,14 @@ private fun DoctorReviewsSection(
                 modifier = Modifier.clip(RoundedCornerShape(50)).background(BorderDark).padding(horizontal = 10.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(15.dp))
-                Spacer(Modifier.width(4.dp))
-                Text("%.1f".format(averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Text(" ($totalReviews)", color = TextSecDark, fontSize = 12.sp)
+                if (totalReviews > 0) {
+                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(15.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text(formatAvgRating(averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Text(" · ${reviewCountLabel(totalReviews)}", color = TextSecDark, fontSize = 12.sp)
+                } else {
+                    Text("Belum ada ulasan", color = TextSecDark, fontSize = 12.sp)
+                }
             }
         }
         Spacer(Modifier.height(10.dp))
@@ -438,7 +427,16 @@ private fun DoctorReviewsSection(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceDark).border(1.dp, BorderDark, RoundedCornerShape(12.dp)).padding(18.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Belum ada ulasan", color = TextSecDark, fontSize = 13.sp)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Belum ada ulasan untuk dokter ini", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
+                    if (reviewableBookingsCount == 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Ulasan dari pemilik hewan lain akan tampil di sini setelah kunjungan selesai.",
+                            color = TextSecDark.copy(alpha = 0.8f), fontSize = 12.sp, textAlign = TextAlign.Center
+                        )
+                    }
+                }
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -569,12 +567,13 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
             Spacer(Modifier.height(3.dp))
             Text(text = doctor.specialization ?: "Dokter Hewan", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(6.dp))
-            if (doctor.averageRating != null) {
+            val avg = doctor.averageRating
+            if (avg != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(13.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("%.1f".format(doctor.averageRating), color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(" (${doctor.reviewsCount ?: 0})", color = TextSecDark, fontSize = 11.sp)
+                    Text(formatAvgRating(avg), color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(" · ${reviewCountLabel(doctor.reviewsCount ?: 0)}", color = TextSecDark, fontSize = 11.sp)
                 }
                 Spacer(Modifier.height(6.dp))
             }
@@ -640,33 +639,6 @@ private fun TimeSlotsGrid(slots: List<TimeSlot>, isSlotsLoading: Boolean, modifi
                 ) {
                     Text(text = slot.time, color = if (slot.available) TextPrimary else TextSecDark.copy(alpha = 0.4f), fontSize = 13.sp, fontWeight = if (slot.available) FontWeight.Medium else FontWeight.Normal)
                 }
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PetPickerSheet(pets: List<Pet>, onDismiss: () -> Unit, onSelected: (Int) -> Unit) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss, containerColor = SurfaceDark,
-        dragHandle = { Box(modifier = Modifier.padding(vertical = 10.dp).width(36.dp).height(4.dp).clip(RoundedCornerShape(50)).background(BorderDark)) }
-    ) {
-        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 40.dp)) {
-            Text("Pilih Hewan", color = TextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 16.dp))
-            pets.forEach { pet ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable { pet.id?.let(onSelected) }.padding(12.dp)) {
-                    Box(modifier = Modifier.size(44.dp).clip(CircleShape).background(BorderDark), contentAlignment = Alignment.Center) {
-                        PetPhoto(url = pet.photo, size = 44.dp)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(pet.name ?: "—", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Text("${pet.species ?: ""} ${if (!pet.breed.isNullOrBlank()) "• ${pet.breed}" else ""}".trim(), color = TextSecDark, fontSize = 12.sp)
-                    }
-                    Icon(Icons.Filled.ChevronRight, null, tint = TextSecDark, modifier = Modifier.size(18.dp))
-                }
-                Divider(color = BorderDark, thickness = 0.5.dp)
             }
         }
     }

@@ -80,6 +80,7 @@ fun HomeScreen(
     onNavigateToPets: () -> Unit,
     onNavigateToDoctors: () -> Unit,
     onNavigateToBookings: () -> Unit,
+    onNavigateToBookingStart: () -> Unit = {},
     onNavigateToBookingDetail: (Int) -> Unit = {},
     onNavigateToMedicalRecords: () -> Unit,
     onNavigateToProfile: () -> Unit,
@@ -161,11 +162,13 @@ fun HomeScreen(
                 uiState = uiState,
                 onNavigateToBookings = onNavigateToBookings,
                 onNavigateToBookingDetail = onNavigateToBookingDetail,
-                onNavigateToDoctors = onNavigateToDoctors
+                onNavigateToDoctors = onNavigateToDoctors,
+                onNavigateToBookingStart = onNavigateToBookingStart
             )
 
             QuickActionsSection(
                 onNavigateToDoctors = onNavigateToDoctors,
+                onNavigateToBookingStart = onNavigateToBookingStart,
                 onNavigateToPets = onNavigateToPets,
                 onNavigateToMedicalRecords = onNavigateToMedicalRecords
             )
@@ -625,7 +628,8 @@ private fun UpcomingBookingSection(
     uiState: HomeUiState,
     onNavigateToBookings: () -> Unit,
     onNavigateToBookingDetail: (Int) -> Unit,
-    onNavigateToDoctors: () -> Unit
+    onNavigateToDoctors: () -> Unit,
+    onNavigateToBookingStart: () -> Unit = {}
 ) {
     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 16.dp)) {
         Row(
@@ -729,7 +733,7 @@ private fun UpcomingBookingSection(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Button(
-                            onClick = { uiState.upcomingBooking?.id?.let(onNavigateToBookingDetail) ?: onNavigateToDoctors() },
+                            onClick = { uiState.upcomingBooking?.id?.let(onNavigateToBookingDetail) ?: onNavigateToBookingStart() },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(42.dp),
@@ -787,6 +791,7 @@ private fun DoctorPhotoCard(photo: String?) {
 @Composable
 private fun QuickActionsSection(
     onNavigateToDoctors: () -> Unit,
+    onNavigateToBookingStart: () -> Unit = {},
     onNavigateToPets: () -> Unit,
     onNavigateToMedicalRecords: () -> Unit
 ) {
@@ -803,7 +808,7 @@ private fun QuickActionsSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", Color(0xFFDBEAFE), Color(0xFF2563EB), onNavigateToDoctors)
+            QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", Color(0xFFDBEAFE), Color(0xFF2563EB), onNavigateToBookingStart)
             QuickActionItem(Icons.Filled.Pets, "Hewan\nSaya", Color(0xFFF3E8FF), Color(0xFF9333EA), onNavigateToPets)
             QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", Color(0xFFFFEDD5), Color(0xFFEA580C), onNavigateToMedicalRecords)
             QuickActionItem(Icons.Filled.MedicalServices, "Cari\nDokter", Color(0xFFFFE4E6), Color(0xFFDB2777), onNavigateToDoctors)

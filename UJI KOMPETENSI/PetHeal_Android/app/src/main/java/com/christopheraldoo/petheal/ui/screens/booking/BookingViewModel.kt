@@ -36,6 +36,25 @@ enum class BookingDateFilter {
     THIS_MONTH     // Bulan Ini
 }
 
+data class BookingStartUiState(
+    val pets: List<Pet> = emptyList(),
+    val doctors: List<Doctor> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val searchQuery: String = "",
+    val selectedPetId: Int? = null,
+    val selectedDoctorId: Int? = null
+) {
+    val filteredDoctors: List<Doctor>
+        get() = if (searchQuery.isBlank()) doctors
+                else doctors.filter {
+                    it.name?.contains(searchQuery, ignoreCase = true) == true ||
+                    it.specialization?.contains(searchQuery, ignoreCase = true) == true
+                }
+    val canContinue: Boolean
+        get() = selectedPetId != null && selectedDoctorId != null
+}
+
 data class BookingsUiState(
     val bookings: List<Booking> = emptyList(),
     val allBookings: List<Booking> = emptyList(), // Store all bookings for filtering
@@ -107,6 +126,10 @@ class BookingViewModel @Inject constructor(
     private val _createState = MutableStateFlow(CreateBookingUiState())
     val createState: StateFlow<CreateBookingUiState> = _createState.asStateFlow()
 
+    // ── BookingStart (alur transaksi mandiri: hewan + dokter ringkas) ──
+    private val _startState = MutableStateFlow(BookingStartUiState())
+    val startState: StateFlow<BookingStartUiState> = _startState.asStateFlow()
+
     private var lastHandledRefreshVersion = 0L
 
     init {
@@ -118,6 +141,17 @@ class BookingViewModel @Inject constructor(
                     // booking baru (mis. dibuat hari ini) tidak pernah
                     // diambil ulang → filter "Hari Ini" tampak kosong.
                     loadBookings(forceRefresh = true)
+                }
+            }
+        }
+        // Rating yang di-patch dari layar detail ikut terlihat di pilihan
+        // dokter alur booking tanpa refresh manual.
+        viewModelScope.launch {
+            doctorRepository.ratingVersion.collect { version ->
+                if (version == 0L) return@collect
+                val snapshot = doctorRepository.snapshotDoctors()
+                if (snapshot.isNotEmpty()) {
+                    _startState.value = _startState.value.copy(doctors = snapshot)
                 }
             }
         }
@@ -490,6 +524,64 @@ class BookingViewModel @Inject constructor(
 
     fun clearCreateState() {
         _createState.value = CreateBookingUiState()
+    }
+
+    // ── BookingStart: entry transaksi (hewan + dokter, tanpa profil) ──────
+    // Layar ini hanya memilih "untuk siapa" dan "dengan siapa". Layanan,
+    // tanggal, jam, dan pembayaran tetap di CreateBookingScreen agar tidak
+    // ada duplikasi logika pembuatan booking.
+    fun loadBookingStartData() {
+        viewModelScope.launch {
+            val current = _startState.value
+            _startState.value = current.copy(
+                isLoading = current.pets.isEmpty() && current.doctors.isEmpty(),
+                error = null
+            )
+            val pets = when (val r = petRepository.getPets()) {
+                is Result.Success -> r.data
+                else -> current.pets
+            }
+            var doctors = when (val r = doctorRepository.getDoctors(forceRefresh = false)) {
+                is Result.Success -> r.data
+                else -> current.doctors
+            }
+            if (doctors.isEmpty()) {
+                when (val r = doctorRepository.getDoctors(forceRefresh = true)) {
+                    is Result.Success -> doctors = r.data
+                    is Result.Error -> _startState.value =
+                        _startState.value.copy(error = r.message)
+                    else -> Unit
+                }
+            } else {
+                viewModelScope.launch {
+                    when (val r = doctorRepository.getDoctors(forceRefresh = true)) {
+                        is Result.Success -> if (r.data.isNotEmpty()) {
+                            _startState.value = _startState.value.copy(doctors = r.data)
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+            _startState.value = _startState.value.copy(
+                isLoading = false, pets = pets, doctors = doctors
+            )
+        }
+    }
+
+    fun onStartSearch(query: String) {
+        _startState.value = _startState.value.copy(searchQuery = query)
+    }
+
+    fun selectStartPet(petId: Int) {
+        _startState.value = _startState.value.copy(selectedPetId = petId)
+    }
+
+    fun selectStartDoctor(doctorId: Int) {
+        _startState.value = _startState.value.copy(selectedDoctorId = doctorId)
+    }
+
+    fun clearStartError() {
+        _startState.value = _startState.value.copy(error = null)
     }
 
     private fun setCreateError(message: String) {

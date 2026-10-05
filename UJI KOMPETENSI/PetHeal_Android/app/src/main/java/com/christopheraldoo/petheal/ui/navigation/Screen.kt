@@ -28,6 +28,9 @@ sealed class Screen(val route: String) {
 
     // ── Bookings ────────────────────────────────────────────────────────────
     object Bookings       : Screen("bookings")
+    // Entry transaksi mandiri (hewan + dokter ringkas). Daftarkan sebelum
+    // "bookings/{bookingId}" agar tidak tertelan pola argumen.
+    object BookingStart   : Screen("bookings/start")
     object CreateBooking  : Screen("bookings/create/{doctorId}/{petId}") {  // before BookingDetail
         fun createRoute(doctorId: Int, petId: Int) = "bookings/create/$doctorId/$petId"
     }

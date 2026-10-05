@@ -125,6 +125,7 @@ fun BookingsScreen(
     onNavigateToDoctors: () -> Unit,
     onNavigateToBookingDetail: (Int) -> Unit,
     onNavigateToPayment: (Int, Boolean, Double, Boolean) -> Unit, // NEW: (bookingId, isDp, totalAmount, isRemaining)
+    onNavigateToBookingStart: (() -> Unit)? = null,
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: BookingViewModel = hiltViewModel()
 ) {
@@ -280,7 +281,9 @@ fun BookingsScreen(
                                 )
                             } else {
                                 EmptyBookingsState(
-                                    onBookNow = onNavigateToDoctors
+                                    // Alur transaksi langsung; discovery tetap
+                                    // tersedia via tab/beranda bila dibutuhkan.
+                                    onBookNow = { onNavigateToBookingStart?.invoke() ?: onNavigateToDoctors() }
                                 )
                             }
                         }
@@ -1590,6 +1593,20 @@ fun CreateBookingScreen(
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(doc.name ?: "–", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                 Text(doc.specialization ?: "Veterinarian", fontSize = 13.sp, color = BkPrimary, fontWeight = FontWeight.Medium)
+                                // Ringkas saja: rating + jam praktik. Profil lengkap
+                                // (ulasan, tentang) ada di alur Cari Dokter.
+                                val createAvg = doc.averageRating
+                                if (createAvg != null) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(12.dp))
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            "%.1f".format(createAvg) +
+                                                " · " + (doc.reviewsCount ?: 0).let { if (it == 1) "1 ulasan" else "$it ulasan" },
+                                            fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
                                 doc.availableTime?.let {
                                     Text(it, fontSize = 11.sp, color = textSecondary)
                                 }
