@@ -565,6 +565,11 @@ class BookingViewModel @Inject constructor(
             _startState.value = _startState.value.copy(
                 isLoading = false, pets = pets, doctors = doctors
             )
+            // Pasangan rating mencurigakan (avg > 0 tapi 0 ulasan) langsung
+            // dibetulkan dari server; hasilnya mengalir lewat ratingVersion.
+            viewModelScope.launch {
+                runCatching { doctorRepository.revalidateSuspiciousRatings(doctors) }
+            }
         }
     }
 

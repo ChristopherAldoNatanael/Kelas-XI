@@ -250,6 +250,13 @@ class DoctorController extends Controller
             'review' => $request->review,
         ]);
 
+        // Daftar dokter (index) di-cache 15 menit beserta agregat ratingnya,
+        // sedangkan endpoint reviews selalu live. Tanpa ini, list tetap
+        // menampilkan angka lama (mis. 5.0/1) padahal detail sudah 4.5/2 —
+        // dan refresh dari Android tidak akan pernah bisa memperbaikinya.
+        // Pola sama seperti Admin\DoctorController::refreshDoctorApiCache.
+        Cache::forever('active_doctors_version', now()->timestamp);
+
         return response()->json([
             'success' => true,
             'message' => 'Review submitted successfully',

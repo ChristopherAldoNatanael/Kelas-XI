@@ -77,6 +77,7 @@ class HomeViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(HomeUiState())
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
+    private var lastLoadAt = 0L
 
     init {
         // 1. Observe DataStore userName live — updates UI the moment it changes (INSTANT)
@@ -127,9 +128,15 @@ class HomeViewModel @Inject constructor(
         loadBookingData()
     }
 
-    fun loadBookingData() {
+    fun loadBookingData(quiet: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isBookingLoading = true, loadError = null)
+            // Mode quiet (kembali dari layar lain): jangan tampilkan skeleton
+            // bila data sudah ada — update diam-diam di background.
+            val silent = quiet && _uiState.value.upcomingBooking != null &&
+                !_uiState.value.isLoading
+            if (!silent) {
+                _uiState.value = _uiState.value.copy(isBookingLoading = true, loadError = null)
+            }
 
             // Fetch fresh profile (in background to update cache) + upcoming bookings
             val profileDeferred = async {
@@ -160,6 +167,7 @@ class HomeViewModel @Inject constructor(
             when (val dashboardResult = dashboardDeferred.await()) {
                 is Result.Success -> {
                     val dashboard = dashboardResult.data
+                    lastLoadAt = System.currentTimeMillis()
                     _uiState.value = _uiState.value.copy(
                     upcomingBooking = dashboard.bookings.upcoming.firstOrNull(),
                     totalPets = dashboard.pets.total,
@@ -185,7 +193,8 @@ class HomeViewModel @Inject constructor(
                     ?: "Gagal memuat ringkasan"
                 _uiState.value = _uiState.value.copy(
                     isBookingLoading = false,
-                    loadError = message
+                    // Quiet gagal → pertahankan data lama, jangan tampilkan banner.
+                    loadError = if (silent) _uiState.value.loadError else message
                 )
             }
         }
@@ -195,6 +204,17 @@ class HomeViewModel @Inject constructor(
     // Keep loadHomeData for manual refresh (pull-to-refresh)
     fun refresh() {
         loadBookingData()
+    }
+
+    /**
+     * Revalidasi ringan saat kembali ke Beranda (mis. setelah kirim review
+     * atau buat booking di layar lain): hanya reload bila data lebih tua
+     * dari [maxAgeMs], tanpa skeleton, tanpa error banner bila gagal.
+     */
+    fun refreshIfStale(maxAgeMs: Long = 60_000) {
+        if (System.currentTimeMillis() - lastLoadAt < maxAgeMs) return
+        loadBookingData(quiet = true)
+        loadPendingReviews()
     }
 
     /**

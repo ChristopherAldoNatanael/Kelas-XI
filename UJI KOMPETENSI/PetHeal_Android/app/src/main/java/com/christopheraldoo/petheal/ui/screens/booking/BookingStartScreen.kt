@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -118,7 +120,8 @@ fun BookingStartScreen(
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth()
-                        .padding(top = 44.dp, start = 8.dp, end = 20.dp, bottom = 4.dp),
+                        .statusBarsPadding()
+                        .padding(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 4.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
@@ -259,7 +262,7 @@ fun BookingStartScreen(
         }
 
         // ── Bottom bar: ringkasan + satu CTA ──
-        Surface(color = BsSurface, shadowElevation = 0.dp) {
+        Surface(color = BsSurface, shadowElevation = 0.dp, modifier = Modifier.navigationBarsPadding()) {
             Column {
                 Divider(color = BsBorder, thickness = 0.5.dp)
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
@@ -451,7 +454,8 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
             )
             Spacer(Modifier.height(2.dp))
             val avg = doctor.averageRating
-            if (avg != null) {
+            val startReviewTotal = doctor.reviewsCount ?: 0
+            if (avg != null && avg > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
@@ -459,10 +463,12 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
                         "%.1f".format(avg),
                         color = BsTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold
                     )
-                    Text(
-                        " · ${bsReviewLabel(doctor.reviewsCount ?: 0)}",
-                        color = BsTextSecondary, fontSize = 11.sp
-                    )
+                    if (startReviewTotal > 0) {
+                        Text(
+                            " · ${bsReviewLabel(startReviewTotal)}",
+                            color = BsTextSecondary, fontSize = 11.sp
+                        )
+                    }
                 }
             } else {
                 Text("Belum ada ulasan", color = BsTextSecondary, fontSize = 11.sp)

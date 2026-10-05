@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -24,8 +25,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -34,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -48,6 +54,7 @@ import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.TimeSlot
 import com.christopheraldoo.petheal.ui.components.SkeletonDoctorList
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -124,18 +131,38 @@ fun DoctorsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    // Notice refresh hilang sendiri setelah 3 detik.
+    val currentNotice = state.notice
+    LaunchedEffect(currentNotice) {
+        if (currentNotice != null) {
+            delay(3000)
+            viewModel.clearNotice()
+        }
+    }
     Column(modifier = Modifier.fillMaxSize().background(BgDark)) {
-        Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(top = 44.dp, start = 8.dp, end = 20.dp, bottom = 14.dp)) {
+        Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).statusBarsPadding().padding(start = 8.dp, end = 20.dp, top = 8.dp, bottom = 14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onNavigateBack) { Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary) }
                 Spacer(Modifier.width(4.dp))
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text("Cari Dokter", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(
                         if (state.doctors.isEmpty()) "Jelajahi dokter di klinik ini"
                         else "${state.doctors.size} dokter tersedia · ketuk untuk lihat profil",
                         color = TextSecDark, fontSize = 12.sp
                     )
+                }
+                // Tombol refresh eksplisit — selalu paksa ambil dari network.
+                if (state.isRefreshing) {
+                    CircularProgressIndicator(
+                        color = Primary, strokeWidth = 2.dp,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                } else {
+                    IconButton(onClick = { viewModel.refreshDoctors() }) {
+                        Icon(Icons.Filled.Refresh, contentDescription = "Perbarui daftar dokter", tint = TextPrimary)
+                    }
                 }
             }
         }
@@ -164,14 +191,98 @@ fun DoctorsScreen(
         }
         Divider(color = BorderDark, thickness = 0.5.dp)
         val listError = state.error
-        when {
-            state.isLoading -> SkeletonDoctorList(count = 4)
-            listError != null -> DoctorsErrorState(message = listError, onRetry = viewModel::loadDoctors)
-            state.filtered.isEmpty() -> DoctorsEmptyState(hasQuery = state.searchQuery.isNotBlank())
-            else -> LazyColumn(contentPadding = PaddingValues(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items(state.filtered, key = { it.id ?: 0 }) { doctor ->
-                    DoctorCard(doctor = doctor, onClick = { doctor.id?.let(onNavigateToDoctorDetail) })
+        // Pull-to-refresh custom (tanpa dependensi baru): tarik dari posisi
+        // paling atas melewati ambang → refresh paksa dari network.
+        val doctorListState = rememberLazyListState()
+        var pullOffsetPx by remember { mutableFloatStateOf(0f) }
+        val density = LocalDensity.current
+        val pullThresholdPx = remember(density) { with(density) { 90.dp.toPx() } }
+        val pullConnection = remember(state.isRefreshing) {
+            object : NestedScrollConnection {
+                override fun onPreScroll(
+                    available: Offset,
+                    source: NestedScrollSource
+                ): Offset {
+                    if (source != NestedScrollSource.Drag || state.isRefreshing) {
+                        return Offset.Zero
+                    }
+                    val atTop = doctorListState.firstVisibleItemIndex == 0 &&
+                        doctorListState.firstVisibleItemScrollOffset == 0
+                    if (!atTop) {
+                        if (available.y < 0) pullOffsetPx = 0f
+                        return Offset.Zero
+                    }
+                    if (available.y > 0) {
+                        pullOffsetPx = (pullOffsetPx + available.y * 0.5f)
+                            .coerceAtMost(pullThresholdPx * 1.5f)
+                        if (pullOffsetPx >= pullThresholdPx) {
+                            pullOffsetPx = 0f
+                            viewModel.refreshDoctors()
+                        }
+                    } else if (available.y < 0) {
+                        pullOffsetPx = (pullOffsetPx + available.y).coerceAtLeast(0f)
+                    }
+                    // Tidak consume — list tetap menerima scroll seperti biasa.
+                    return Offset.Zero
                 }
+            }
+        }
+        Box(modifier = Modifier.fillMaxSize().nestedScroll(pullConnection)) {
+            when {
+                state.isLoading || (state.isRefreshing && state.doctors.isEmpty()) -> SkeletonDoctorList(count = 4)
+                listError != null -> DoctorsErrorState(message = listError, onRetry = viewModel::refreshDoctors)
+                state.filtered.isEmpty() -> DoctorsEmptyState(hasQuery = state.searchQuery.isNotBlank())
+                else -> LazyColumn(
+                    state = doctorListState,
+                    contentPadding = PaddingValues(
+                        start = 16.dp, top = 16.dp, end = 16.dp,
+                        // Item terakhir harus bisa terlihat penuh di atas gesture bar.
+                        bottom = 16.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(state.filtered, key = { it.id ?: 0 }) { doctor ->
+                        DoctorCard(doctor = doctor, onClick = { doctor.id?.let(onNavigateToDoctorDetail) })
+                    }
+                }
+            }
+            // Indikator tarikan / refresh di atas daftar.
+            val showPull = pullOffsetPx > 8f || state.isRefreshing
+            if (showPull) {
+                val progress = (pullOffsetPx / pullThresholdPx).coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (state.isRefreshing) {
+                        CircularProgressIndicator(
+                            color = Primary, strokeWidth = 3.dp,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    } else {
+                        CircularProgressIndicator(
+                            progress = progress,
+                            color = Primary,
+                            strokeWidth = 3.dp,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
+            }
+            // Konfirmasi hasil refresh — user tahu aksinya benar terjadi,
+            // walau angkanya sama (data memang belum berubah di server).
+            state.notice?.let { notice ->
+                Snackbar(
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                        .navigationBarsPadding().padding(16.dp),
+                    containerColor = SurfaceDark,
+                    contentColor = TextPrimary,
+                    dismissAction = {
+                        IconButton(onClick = viewModel::clearNotice) {
+                            Icon(Icons.Filled.Close, null, tint = TextSecDark)
+                        }
+                    }
+                ) { Text(notice, fontSize = 13.sp) }
             }
         }
     }
@@ -212,7 +323,7 @@ fun DoctorDetailScreen(
         if (state.isLoading) {
             CircularProgressIndicator(color = Primary, modifier = Modifier.align(Alignment.Center))
         } else {
-                Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())) {
                     // ── Profil dokter ─────────────────────────────────
                     Box(modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SurfaceDark, BgDark))).padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -239,6 +350,8 @@ fun DoctorDetailScreen(
                                         Text(formatAvgRating(state.averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         Text(" · ${reviewCountLabel(state.totalReviews)}", color = TextSecDark, fontSize = 12.sp)
                                     }
+                                } else if (state.isReviewsLoading) {
+                                    Text("Memuat rating…", color = TextSecDark, fontSize = 12.sp)
                                 } else {
                                     Text("Belum ada ulasan", color = TextSecDark, fontSize = 12.sp)
                                 }
@@ -278,6 +391,7 @@ fun DoctorDetailScreen(
                         averageRating = state.averageRating,
                         totalReviews = state.totalReviews,
                         reviews = state.reviews,
+                        isReviewsLoading = state.isReviewsLoading,
                         reviewableBookingsCount = state.reviewableBookings.size,
                         onSubmitReview = { showReviewDialog = true },
                         modifier = Modifier.padding(horizontal = 20.dp)
@@ -365,6 +479,7 @@ private fun DoctorReviewsSection(
     averageRating: Double,
     totalReviews: Int,
     reviews: List<DoctorReview>,
+    isReviewsLoading: Boolean = false,
     reviewableBookingsCount: Int,
     onSubmitReview: () -> Unit,
     modifier: Modifier = Modifier
@@ -388,6 +503,10 @@ private fun DoctorReviewsSection(
                     Spacer(Modifier.width(4.dp))
                     Text(formatAvgRating(averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Text(" · ${reviewCountLabel(totalReviews)}", color = TextSecDark, fontSize = 12.sp)
+                } else if (isReviewsLoading) {
+                    CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Memuat…", color = TextSecDark, fontSize = 12.sp)
                 } else {
                     Text("Belum ada ulasan", color = TextSecDark, fontSize = 12.sp)
                 }
@@ -427,14 +546,22 @@ private fun DoctorReviewsSection(
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(SurfaceDark).border(1.dp, BorderDark, RoundedCornerShape(12.dp)).padding(18.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Belum ada ulasan untuk dokter ini", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
-                    if (reviewableBookingsCount == 0) {
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            "Ulasan dari pemilik hewan lain akan tampil di sini setelah kunjungan selesai.",
-                            color = TextSecDark.copy(alpha = 0.8f), fontSize = 12.sp, textAlign = TextAlign.Center
-                        )
+                if (isReviewsLoading) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(10.dp))
+                        Text("Memuat ulasan…", color = TextSecDark, fontSize = 13.sp)
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Belum ada ulasan untuk dokter ini", color = TextSecDark, fontSize = 13.sp, textAlign = TextAlign.Center)
+                        if (reviewableBookingsCount == 0) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Ulasan dari pemilik hewan lain akan tampil di sini setelah kunjungan selesai.",
+                                color = TextSecDark.copy(alpha = 0.8f), fontSize = 12.sp, textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -481,7 +608,10 @@ private fun SubmitReviewDialog(
         textContentColor = TextSecDark,
         title = { Text("Beri Nilai Dokter", fontWeight = FontWeight.Bold) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.verticalScroll(rememberScrollState())
+            ) {
                 Text(
                     "Pilih booking yang sudah selesai, lalu berikan rating dan catatan (opsional).",
                     color = TextSecDark,
@@ -568,12 +698,18 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
             Text(text = doctor.specialization ?: "Dokter Hewan", color = Primary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(6.dp))
             val avg = doctor.averageRating
-            if (avg != null) {
+            val reviewTotal = doctor.reviewsCount ?: 0
+            if (avg != null && avg > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(13.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(formatAvgRating(avg), color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                    Text(" · ${reviewCountLabel(doctor.reviewsCount ?: 0)}", color = TextSecDark, fontSize = 11.sp)
+                    // Invariant: rata-rata > 0 berarti minimal ada 1 ulasan.
+                    // Kalau jumlahnya 0, nilainya pasti basi (revalidasi
+                    // berjalan di background) — jangan tampilkan "0 ulasan".
+                    if (reviewTotal > 0) {
+                        Text(" · ${reviewCountLabel(reviewTotal)}", color = TextSecDark, fontSize = 11.sp)
+                    }
                 }
                 Spacer(Modifier.height(6.dp))
             }

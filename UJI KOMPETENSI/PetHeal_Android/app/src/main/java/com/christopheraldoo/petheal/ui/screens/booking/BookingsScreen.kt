@@ -167,8 +167,9 @@ fun BookingsScreen(
                     Row(
                         Modifier
                             .fillMaxWidth()
+                            .statusBarsPadding()
                             .padding(horizontal = 8.dp)
-                            .padding(top = 44.dp, bottom = 12.dp),
+                            .padding(top = 8.dp, bottom = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1028,7 +1029,7 @@ fun BookingDetailScreen(
                     }
                     // Back
                     Box(
-                        Modifier.padding(top = 44.dp, start = 16.dp).size(40.dp).clip(CircleShape).background(Color.Black.copy(0.3f)).clickable { onNavigateBack() },
+                        Modifier.statusBarsPadding().padding(top = 8.dp, start = 16.dp).size(40.dp).clip(CircleShape).background(Color.Black.copy(0.3f)).clickable { onNavigateBack() },
                         contentAlignment = Alignment.Center
                     ) { Icon(Icons.Filled.ArrowBack, "Kembali", tint = Color.White, modifier = Modifier.size(22.dp)) }
 
@@ -1039,7 +1040,7 @@ fun BookingDetailScreen(
                         else -> Color(0xFF6B7280)
                     }
                     Surface(
-                        modifier = Modifier.align(Alignment.TopEnd).padding(top = 48.dp, end = 16.dp),
+                        modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 16.dp),
                         shape = RoundedCornerShape(20.dp), color = statusColor.copy(alpha = 0.9f)
                     ) {
                         Text(
@@ -1489,7 +1490,7 @@ fun CreateBookingScreen(
             ) {
                 Column(Modifier.fillMaxWidth()) {
                     Row(
-                        Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 44.dp, bottom = 4.dp),
+                        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp).padding(top = 8.dp, bottom = 4.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -1596,13 +1597,14 @@ fun CreateBookingScreen(
                                 // Ringkas saja: rating + jam praktik. Profil lengkap
                                 // (ulasan, tentang) ada di alur Cari Dokter.
                                 val createAvg = doc.averageRating
-                                if (createAvg != null) {
+                                val createReviewTotal = doc.reviewsCount ?: 0
+                                if (createAvg != null && createAvg > 0) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(12.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text(
                                             "%.1f".format(createAvg) +
-                                                " · " + (doc.reviewsCount ?: 0).let { if (it == 1) "1 ulasan" else "$it ulasan" },
+                                                if (createReviewTotal > 0) " · " + if (createReviewTotal == 1) "1 ulasan" else "$createReviewTotal ulasan" else "",
                                             fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium
                                         )
                                     }
@@ -1992,7 +1994,7 @@ fun CreateBookingScreen(
 
         // ── Sticky bottom bar ─────────────────────────────────────────
         Surface(
-            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
+            modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding(),
             color = bg.copy(alpha = 0.97f),
             shadowElevation = 0.dp
         ) {

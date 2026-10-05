@@ -24,7 +24,9 @@ import javax.inject.Inject
 data class DoctorsUiState(
     val doctors: List<Doctor> = emptyList(),
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val error: String? = null,
+    val notice: String? = null,
     val searchQuery: String = ""
 ) {
     val filtered: List<Doctor>
@@ -47,6 +49,7 @@ data class DoctorDetailUiState(
     val totalReviews: Int = 0,
     val isLoading: Boolean = false,
     val isSlotsLoading: Boolean = false,
+    val isReviewsLoading: Boolean = false,
     val isSubmittingReview: Boolean = false,
     val reviewMessage: String? = null,
     val error: String? = null
@@ -93,6 +96,7 @@ class DoctorsViewModel @Inject constructor(
                     )
                     // Jika cache sudah ada, lanjut refresh background tanpa blocking UI
                     if (cached.data.isNotEmpty()) {
+                        revalidateRatings(cached.data)
                         refreshDoctorsInBackground()
                         return@launch
                     }
@@ -102,9 +106,12 @@ class DoctorsViewModel @Inject constructor(
 
             // Tahap 2: fetch dari network (hanya jika cache kosong)
             when (val result = doctorRepository.getDoctors(forceRefresh = true)) {
-                is Result.Success -> _listState.value = _listState.value.copy(
-                    doctors = result.data, isLoading = false
-                )
+                is Result.Success -> {
+                    _listState.value = _listState.value.copy(
+                        doctors = result.data, isLoading = false
+                    )
+                    revalidateRatings(result.data)
+                }
                 is Result.Error -> _listState.value = _listState.value.copy(
                     isLoading = false, error = result.message
                 )
@@ -120,6 +127,7 @@ class DoctorsViewModel @Inject constructor(
                 is Result.Success -> {
                     if (result.data.isNotEmpty()) {
                         _listState.value = _listState.value.copy(doctors = result.data)
+                        revalidateRatings(result.data)
                     }
                 }
                 else -> Unit // Biarkan — cache lama tetap tampil
@@ -127,8 +135,57 @@ class DoctorsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Periksa pasangan rating tiap baris di background: kalau ada
+     * rata-rata > 0 dengan jumlah 0, betulkan dari server. Hasil patch
+     * masuk lewat ratingVersion sehingga UI ter-update sendiri.
+     */
+    private fun revalidateRatings(doctors: List<Doctor>) {
+        viewModelScope.launch {
+            runCatching { doctorRepository.revalidateSuspiciousRatings(doctors) }
+        }
+    }
+
     fun onSearchChange(q: String) {
         _listState.value = _listState.value.copy(searchQuery = q)
+    }
+
+    /**
+     * Refresh paksa dari network (dipakai pull-to-refresh & tombol retry).
+     * List lama tetap tampil selama memuat; gagal refresh tidak menghapus
+     * data yang sudah ada.
+     */
+    fun refreshDoctors() {
+        if (_listState.value.isRefreshing) return
+        viewModelScope.launch {
+            _listState.value = _listState.value.copy(isRefreshing = true, error = null, notice = null)
+            when (val result = doctorRepository.getDoctors(forceRefresh = true)) {
+                is Result.Success -> {
+                    _listState.value = _listState.value.copy(
+                        doctors = result.data,
+                        isRefreshing = false,
+                        notice = "Daftar dokter diperbarui · ${
+                            java.time.LocalTime.now().format(
+                                java.time.format.DateTimeFormatter.ofPattern("HH:mm")
+                            )
+                        }"
+                    )
+                    revalidateRatings(result.data)
+                }
+                is Result.Error -> _listState.value = _listState.value.copy(
+                    isRefreshing = false,
+                    // Hanya tampilkan error fullscreen bila belum ada data.
+                    error = if (_listState.value.doctors.isEmpty()) result.message else null,
+                    notice = if (_listState.value.doctors.isNotEmpty())
+                        "Gagal memperbarui, menampilkan data terakhir" else null
+                )
+                else -> _listState.value = _listState.value.copy(isRefreshing = false)
+            }
+        }
+    }
+
+    fun clearNotice() {
+        _listState.value = _listState.value.copy(notice = null)
     }    fun loadDoctorDetail(doctorId: Int) {
         viewModelScope.launch {
             _detailState.value = DoctorDetailUiState(isLoading = true)
@@ -152,8 +209,12 @@ class DoctorsViewModel @Inject constructor(
 
             // Load slots untuk tanggal default
             loadSlots(doctorId, _detailState.value.selectedDate)
-            loadReviews(doctorId)
-            loadReviewableBookings(doctorId)
+            // BERURUTAN: reviews dulu (authoritative), baru hitung booking
+            // yang bisa dinilai. Kalau paralel, booking yang SUDAH direview
+            // lolos ke dialog → submit ditolak server (409) → user melihat
+            // "failed to submit review" padahal bukan kesalahannya.
+            val reviewedIds = fetchReviews(doctorId)
+            loadReviewableBookings(doctorId, knownReviewedIds = reviewedIds)
         }
     }
 
@@ -178,14 +239,30 @@ class DoctorsViewModel @Inject constructor(
     }
 
     private fun loadReviews(doctorId: Int) {
-        viewModelScope.launch {
-            when (val result = doctorRepository.getDoctorReviews(doctorId)) {
-                is Result.Success -> _detailState.value = _detailState.value.copy(
-                    reviews = result.data.reviews.orEmpty(),
+        viewModelScope.launch { fetchReviews(doctorId) }
+    }
+
+    /**
+     * Muat reviews dan kembalikan ID booking yang sudah direview.
+     * Suspend agar caller bisa berurutan: hitung reviewable SETELAH data
+     * ini tiba, bukan dari state yang mungkin masih kosong.
+     */
+    private suspend fun fetchReviews(doctorId: Int): Set<Int> {
+        _detailState.value = _detailState.value.copy(isReviewsLoading = true)
+        return when (val result = doctorRepository.getDoctorReviews(doctorId)) {
+            is Result.Success -> {
+                val reviews = result.data.reviews.orEmpty()
+                _detailState.value = _detailState.value.copy(
+                    reviews = reviews,
                     averageRating = result.data.averageRating ?: 0.0,
-                    totalReviews = result.data.totalReviews ?: 0
+                    totalReviews = result.data.totalReviews ?: 0,
+                    isReviewsLoading = false
                 )
-                else -> Unit
+                reviews.mapNotNull { it.bookingId }.toSet()
+            }
+            else -> {
+                _detailState.value = _detailState.value.copy(isReviewsLoading = false)
+                _detailState.value.reviews.mapNotNull { it.bookingId }.toSet()
             }
         }
     }
@@ -216,6 +293,17 @@ class DoctorsViewModel @Inject constructor(
 
     fun submitReview(doctorId: Int, bookingId: Int, rating: Int, review: String?) {
         viewModelScope.launch {
+            // Cegah double-rating di sisi klien: kalau booking ini sudah ada
+            // di daftar review yang dimuat, jangan panggil API (server
+            // menjawab 409) — beri tahu user dengan bahasa yang jelas.
+            if (_detailState.value.reviews.any { it.bookingId == bookingId }) {
+                _detailState.value = _detailState.value.copy(
+                    reviewMessage = "Kunjungan ini sudah pernah Anda nilai.",
+                    error = null
+                )
+                refreshRatingAfterSubmit(doctorId, submittedBookingId = bookingId)
+                return@launch
+            }
             _detailState.value = _detailState.value.copy(
                 isSubmittingReview = true,
                 reviewMessage = null,
@@ -233,10 +321,24 @@ class DoctorsViewModel @Inject constructor(
                     // UI tetap memakai snapshot lama sampai refresh manual.
                     refreshRatingAfterSubmit(doctorId, submittedBookingId = bookingId)
                 }
-                is Result.Error -> _detailState.value = _detailState.value.copy(
-                    isSubmittingReview = false,
-                    error = result.message
-                )
+                is Result.Error -> {
+                    // Server menolak double-rating dengan 409. Jangan tampilkan
+                    // pesan teknis — anggap review sudah ada lalu sinkronkan
+                    // daftar agar booking itu tidak ditawarkan lagi.
+                    if (result.message.contains("already reviewed", ignoreCase = true)) {
+                        _detailState.value = _detailState.value.copy(
+                            isSubmittingReview = false,
+                            error = null,
+                            reviewMessage = "Kunjungan ini sudah pernah Anda nilai."
+                        )
+                        refreshRatingAfterSubmit(doctorId, submittedBookingId = bookingId)
+                    } else {
+                        _detailState.value = _detailState.value.copy(
+                            isSubmittingReview = false,
+                            error = result.message
+                        )
+                    }
+                }
                 else -> Unit
             }
         }
@@ -248,6 +350,7 @@ class DoctorsViewModel @Inject constructor(
      * caller untuk me-refresh layar lain.
      */
     private suspend fun refreshRatingAfterSubmit(doctorId: Int, submittedBookingId: Int) {
+        _detailState.value = _detailState.value.copy(isReviewsLoading = true)
         when (val result = doctorRepository.getDoctorReviews(doctorId)) {
             is Result.Success -> {
                 val data = result.data
@@ -258,6 +361,7 @@ class DoctorsViewModel @Inject constructor(
                     reviews = freshReviews,
                     averageRating = freshAvg,
                     totalReviews = freshTotal,
+                    isReviewsLoading = false,
                     // Salinan doctor di detail ikut diperbarui agar header
                     // (rating) konsisten dengan angka ulasan terbaru.
                     doctor = _detailState.value.doctor?.copy(
@@ -275,6 +379,7 @@ class DoctorsViewModel @Inject constructor(
             else -> {
                 // Fallback: minimal pastikan booking yang baru dinilai
                 // tidak ditawarkan lagi, lalu coba sinkron biasa.
+                _detailState.value = _detailState.value.copy(isReviewsLoading = false)
                 loadReviews(doctorId)
                 loadReviewableBookings(
                     doctorId,

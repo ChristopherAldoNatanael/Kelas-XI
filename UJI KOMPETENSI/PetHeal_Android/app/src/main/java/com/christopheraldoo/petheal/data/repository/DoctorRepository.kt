@@ -26,6 +26,7 @@ class DoctorRepository @Inject constructor(
     // Clinic B's cached list (matches AGENTS.md key-by-slug plan).
     private var cachedDoctors: List<Doctor>? = null
     private val cachedDoctorById = mutableMapOf<String, Doctor>()
+    private val cachedDoctorAt = mutableMapOf<String, Long>()
     private var cacheTimestamp: Long = 0L
     private var cachedSlug: String? = null
     private val CACHE_TTL_MS = 5 * 60 * 1000L  // 5 menit
@@ -55,6 +56,7 @@ class DoctorRepository @Inject constructor(
         if (cachedSlug != slug) {
             cachedDoctors = null
             cachedDoctorById.clear()
+            cachedDoctorAt.clear()
             cacheTimestamp = 0L
         }
         return try {
@@ -64,7 +66,12 @@ class DoctorRepository @Inject constructor(
                 cachedDoctors = doctors
                 cachedSlug = slug
                 cacheTimestamp = System.currentTimeMillis()
-                doctors.forEach { if (it.id != null) cachedDoctorById[cacheKey(it.id, slug)] = it }
+                doctors.forEach {
+                    if (it.id != null) {
+                        cachedDoctorById[cacheKey(it.id, slug)] = it
+                        cachedDoctorAt[cacheKey(it.id, slug)] = cacheTimestamp
+                    }
+                }
                 Result.Success(doctors)
             } else {
                 Log.e(TAG, "getDoctors failed: ${response.body()?.message} (HTTP ${response.code()})")
@@ -80,13 +87,21 @@ class DoctorRepository @Inject constructor(
 
     suspend fun getDoctor(id: Int): Result<Doctor> {
         val slug = runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
-        cachedDoctorById[cacheKey(id, slug)]?.let { return Result.Success(it) }
+        val key = cacheKey(id, slug)
+        // Cache per-ID WAJIB ada TTL-nya: tanpa ini, salinan dokter yang
+        // dibaca sekali tidak pernah diperbarui (stale selamanya) meski
+        // data server (nama/foto/rating) sudah berubah.
+        val cachedAt = cachedDoctorAt[key] ?: 0L
+        if (System.currentTimeMillis() - cachedAt < CACHE_TTL_MS) {
+            cachedDoctorById[key]?.let { return Result.Success(it) }
+        }
         return try {
             val response = apiService.getDoctor(id)
             if (response.isSuccessful && response.body()?.success == true) {
                 val doctor = response.body()?.data
                 if (doctor != null) {
                     cachedDoctorById[cacheKey(id, slug)] = doctor
+                    cachedDoctorAt[cacheKey(id, slug)] = System.currentTimeMillis()
                     Result.Success(doctor)
                 } else {
                     Result.Error("Doctor not found")
@@ -147,8 +162,17 @@ class DoctorRepository @Inject constructor(
                 response.body()?.data?.let { Result.Success(it) }
                     ?: Result.Error("Review was submitted but response was empty")
             } else {
-                Log.e(TAG, "submitDoctorReview($doctorId) failed: ${response.body()?.message} (HTTP ${response.code()})")
-                Result.Error(response.body()?.message ?: "Failed to submit review")
+                // Pada HTTP error, response.body() null — baca pesan asli
+                // server dari errorBody (mis. 409 "already reviewed") agar
+                // ViewModel bisa menanganinya dengan pesan yang ramah.
+                val serverMsg = runCatching {
+                    response.errorBody()?.string()?.let { body ->
+                        Regex("\"message\"\\s*:\\s*\"([^\"]+)\"")
+                            .find(body)?.groupValues?.getOrNull(1)
+                    }
+                }.getOrNull()
+                Log.e(TAG, "submitDoctorReview($doctorId) failed: ${serverMsg ?: "?"} (HTTP ${response.code()})")
+                Result.Error(serverMsg ?: "Failed to submit review")
             }
         } catch (e: Exception) {
             Log.e(TAG, "submitDoctorReview($doctorId) exception", e)
@@ -160,6 +184,7 @@ class DoctorRepository @Inject constructor(
     fun invalidateCache() {
         cachedDoctors = null
         cachedDoctorById.clear()
+        cachedDoctorAt.clear()
         cacheTimestamp = 0L
     }
 
@@ -189,6 +214,7 @@ class DoctorRepository @Inject constructor(
                 cachedDoctorById[key]?.let { doctor ->
                     cachedDoctorById[key] =
                         doctor.copy(averageRating = averageRating, reviewsCount = totalReviews)
+                    cachedDoctorAt[key] = System.currentTimeMillis()
                     changed = true
                 }
             }
@@ -197,4 +223,29 @@ class DoctorRepository @Inject constructor(
 
     /** Snapshot cache list untuk sinkronisasi antar-ViewModel tanpa network. */
     fun snapshotDoctors(): List<Doctor> = cachedDoctors.orEmpty()
+
+    /**
+     * Revalidasi baris yang mencurigakan: rata-rata > 0 tapi jumlah ulasan
+     * 0. Pasangan seperti itu tidak mungkin berasal dari satu respons
+     * server yang utuh (keduanya dihitung dari tabel yang sama), jadi itu
+     * tanda salah satu nilainya basi — ambil pasangan authoritative dari
+     * endpoint reviews lalu patch cache. Diam-diam, tanpa loading UI.
+     */
+    suspend fun revalidateSuspiciousRatings(doctors: List<Doctor>) {
+        doctors
+            .filter { (it.averageRating ?: 0.0) > 0.0 && (it.reviewsCount ?: 0) <= 0 && it.id != null }
+            .take(5)
+            .forEach { doctor ->
+                val id = doctor.id ?: return@forEach
+                Log.w(TAG, "revalidateSuspiciousRatings: doctorId=$id avg=${doctor.averageRating} count=${doctor.reviewsCount}")
+                when (val r = getDoctorReviews(id)) {
+                    is Result.Success -> {
+                        val avg = r.data.averageRating ?: 0.0
+                        val total = r.data.totalReviews ?: r.data.reviews.orEmpty().size
+                        updateCachedRating(id, avg, total)
+                    }
+                    else -> Unit
+                }
+            }
+    }
 }

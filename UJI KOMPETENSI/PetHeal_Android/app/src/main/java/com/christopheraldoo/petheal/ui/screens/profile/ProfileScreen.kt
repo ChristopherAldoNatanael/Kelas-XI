@@ -713,7 +713,8 @@ fun EditProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(SurfaceDark)
-                    .padding(top = 44.dp, start = 8.dp, end = 20.dp, bottom = 14.dp)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, start = 8.dp, end = 20.dp, bottom = 14.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,

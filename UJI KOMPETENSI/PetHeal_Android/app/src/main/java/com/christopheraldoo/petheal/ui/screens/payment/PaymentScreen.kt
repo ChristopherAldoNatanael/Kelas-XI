@@ -395,7 +395,7 @@ private fun PaymentWebView(
         // Header overlay (CLICKABLE!)
         Column(modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter)) {
             Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp).padding(top = 44.dp, bottom = 12.dp),
+                modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 8.dp).padding(top = 8.dp, bottom = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {

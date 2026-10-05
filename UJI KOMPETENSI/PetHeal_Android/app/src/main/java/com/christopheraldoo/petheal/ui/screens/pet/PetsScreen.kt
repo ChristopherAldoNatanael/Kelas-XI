@@ -127,7 +127,8 @@ fun PetsScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 8.dp)
-                        .padding(top = 44.dp, bottom = 12.dp)
+                        .statusBarsPadding()
+                        .padding(top = 8.dp, bottom = 12.dp)
                 ) {
                     Row(
                         modifier = Modifier
@@ -601,7 +602,8 @@ fun PetDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp)
-                            .padding(top = 44.dp, bottom = 12.dp),
+                            .statusBarsPadding()
+                            .padding(top = 8.dp, bottom = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -2162,7 +2164,8 @@ private fun PetFormScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp)
-                            .padding(top = 44.dp, bottom = 12.dp),
+                            .statusBarsPadding()
+                            .padding(top = 8.dp, bottom = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
