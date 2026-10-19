@@ -1008,7 +1008,7 @@ fun BookingDetailScreen(
             }
         } else {
             val booking = state.booking
-            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {                // Hero
+            Column(Modifier.fillMaxSize().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(bottom = 24.dp)) {                // Hero
                 Box(Modifier.fillMaxWidth().height(240.dp)) {
                     val photo = buildPhotoUrl(booking?.doctor?.photo)
                     val context = LocalContext.current

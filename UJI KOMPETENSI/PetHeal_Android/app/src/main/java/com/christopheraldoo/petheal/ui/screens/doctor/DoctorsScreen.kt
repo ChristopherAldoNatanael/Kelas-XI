@@ -332,7 +332,7 @@ fun DoctorDetailScreen(
         if (state.isLoading) {
             CircularProgressIndicator(color = Primary, modifier = Modifier.align(Alignment.Center))
         } else {
-                Column(modifier = Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())) {
                     // ── Profil dokter ─────────────────────────────────
                     Box(modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SurfaceDark, BgDark))).padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -412,14 +412,14 @@ fun DoctorDetailScreen(
         }
         state.error?.let { err ->
             Snackbar(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
                 containerColor = ErrorSoft, contentColor = Error,
                 dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Error) } }
             ) { Text(err) }
         }
         state.reviewMessage?.let { message ->
             Snackbar(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
                 containerColor = Color(0xFFE8FFF1),
                 contentColor = SuccessDeep,
                 dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = SuccessDeep) } }

@@ -69,19 +69,24 @@ class OtpService
 
     /**
      * Kirim kode lewat email. Kegagalan TIDAK memblokir alur user, tetapi
-     * selalu tercatat di log: sebelumnya error ditelan diam-diam, jadi
-     * aplikasi bilang "kode terkirim" padahal tidak ada email yang keluar.
+     * selalu tercatat di log dan dilaporkan lewat nilai balik `false`, supaya
+     * pemanggil bisa jujur bilang "email gagal dikirim" alih-alih mengklaim
+     * kode sudah terkirim padahal tidak ada email yang keluar.
      */
-    public function send(string $email, string $purpose, string $code): void
+    public function send(string $email, string $purpose, string $code): bool
     {
         try {
             Mail::to($email)->send(new OtpMail($code, $purpose, $this->ttlMinutes($purpose)));
+
+            return true;
         } catch (\Exception $e) {
             Log::warning('OTP email gagal dikirim', [
                 'email' => $email,
                 'purpose' => $purpose,
                 'error' => $e->getMessage(),
             ]);
+
+            return false;
         }
     }
 
@@ -112,19 +117,19 @@ class OtpService
             ->first();
 
         if (!$record) {
-            return $this->fail('Kode OTP tidak ditemukan. Minta kode baru.');
+            return $this->fail('Kode OTP tidak ditemukan. Silakan minta kode baru.');
         }
 
         if ($record->consumed_at !== null) {
-            return $this->fail('Kode OTP sudah dipakai. Minta kode baru.');
+            return $this->fail('Kode OTP telah digunakan. Silakan minta kode baru.');
         }
 
         if (now()->greaterThan(\Carbon\Carbon::parse($record->expires_at))) {
-            return $this->fail('Kode OTP sudah kedaluwarsa. Minta kode baru.');
+            return $this->fail('Kode OTP telah kedaluwarsa. Silakan minta kode baru.');
         }
 
         if ((int) $record->attempts >= self::MAX_ATTEMPTS) {
-            return $this->fail('Terlalu banyak percobaan salah. Minta kode baru.', 429);
+            return $this->fail('Terlalu banyak percobaan salah. Silakan minta kode baru.', 429);
         }
 
         if (!Hash::check($code, $record->code_hash)) {
@@ -133,8 +138,8 @@ class OtpService
 
             return $this->fail(
                 $remaining > 0
-                    ? "Kode OTP salah. Sisa {$remaining} percobaan."
-                    : 'Kode OTP salah. Minta kode baru.'
+                    ? "Kode OTP yang Anda masukkan salah. Sisa percobaan: {$remaining}."
+                    : 'Kode OTP yang Anda masukkan salah. Silakan minta kode baru.'
             );
         }
 

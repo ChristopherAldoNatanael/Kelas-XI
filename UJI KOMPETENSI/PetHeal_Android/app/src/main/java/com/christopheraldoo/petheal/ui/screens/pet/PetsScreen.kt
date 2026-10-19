@@ -592,6 +592,7 @@ fun PetDetailScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .padding(bottom = 24.dp)
             ) {
@@ -2531,6 +2532,7 @@ private fun PetFormScreen(
                 .fillMaxWidth()
                 .background(bgColor.copy(alpha = 0.95f))
                 .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp))
+                .navigationBarsPadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             // PHASE 7: "Other" submits the typed value; blank custom blocks.

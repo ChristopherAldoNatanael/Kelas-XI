@@ -95,7 +95,10 @@ fun OnboardingScreen(
             .background(bgColor)
     ) {
         Column(
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
             // ── Header ───────────────────────────────────────────────────
             Row(

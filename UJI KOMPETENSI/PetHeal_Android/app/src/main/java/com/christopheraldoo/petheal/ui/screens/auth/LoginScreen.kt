@@ -45,13 +45,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.data.local.PreferencesManager
-import com.christopheraldoo.petheal.ui.components.OtpInput
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -59,6 +57,8 @@ import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.OutlineStrong
 import com.christopheraldoo.petheal.ui.theme.PrimaryWash
 import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.Surface
 
 // ── Brand colors — satu sumber: ui/theme/Color.kt ────────────────────────────
@@ -85,31 +85,15 @@ fun LoginScreen(
     var password by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var showForgotPasswordDialog by rememberSaveable { mutableStateOf(false) }
-    var forgotPasswordEmail by rememberSaveable { mutableStateOf("") }
+    // Catatan sukses yang tampil di layar masuk setelah lembar reset selesai.
     var forgotPasswordMessage by rememberSaveable { mutableStateOf<String?>(null) }
-    var isForgotPasswordLoading by rememberSaveable { mutableStateOf(false) }
-    // PHASE 7: full reset flow (backend: forgot → verify → reset).
-    var forgotStep by rememberSaveable { mutableStateOf(1) }
-    var forgotCode by rememberSaveable { mutableStateOf("") }
-    var forgotNewPassword by rememberSaveable { mutableStateOf("") }
-    var forgotPasswordVisible by rememberSaveable { mutableStateOf(false) }
-    var forgotBusy by rememberSaveable { mutableStateOf(false) }
-    // Hitung mundur kirim ulang kode reset (anti-spam & anti rate-limit).
-    var forgotResendCountdown by rememberSaveable { mutableStateOf(0) }
+    val resetDoneBanner = stringResource(R.string.reset_done_banner)
     // PHASE 7: tenant hint HANYA untuk login email. Login Google selalu
     // mengirim null (klinik ikut akun, backend yang menentukan).
     var showClinicPicker by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { pickerViewModel.load() }
-
-    // Hitung mundur kirim ulang kode reset: turun 1 detik sampai 0.
-    LaunchedEffect(forgotResendCountdown) {
-        if (forgotResendCountdown > 0) {
-            delay(1_000)
-            forgotResendCountdown--
-        }
-    }
 
     // Google Sign-In client
     val googleSignInClient = remember {
@@ -321,11 +305,7 @@ fun LoginScreen(
                 Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
                     TextButton(
                         onClick = {
-                            forgotPasswordEmail = email.trim()
                             forgotPasswordMessage = null
-                            forgotStep = 1
-                            forgotCode = ""
-                            forgotNewPassword = ""
                             showForgotPasswordDialog = true
                         }
                     ) {
@@ -457,15 +437,30 @@ fun LoginScreen(
                     modifier = Modifier.fillMaxWidth())
             }
 
-            forgotPasswordMessage?.let {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = it,
-                    color = AuthPrimary,
-                    fontSize = 12.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth()
-                )
+            forgotPasswordMessage?.let { message ->
+                Spacer(modifier = Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(SuccessSoft)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.CheckCircle,
+                        contentDescription = null,
+                        tint = SuccessDeep,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = message,
+                        color = SuccessDeep,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
+                }
             }
 
             // ── Footer ────────────────────────────────────────────────
@@ -490,190 +485,17 @@ fun LoginScreen(
         }
 
         if (showForgotPasswordDialog) {
-            // PHASE 7: 3-step reset (kirim kode → verifikasi + sandi baru).
-            AlertDialog(
-                onDismissRequest = {
-                    if (!isForgotPasswordLoading && !forgotBusy) {
-                        showForgotPasswordDialog = false
-                    }
-                },
-                title = { Text("Reset Kata Sandi") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        if (forgotStep == 1) {
-                            Text(
-                                "Masukkan email Anda untuk menerima kode reset kata sandi.",
-                                fontSize = 13.sp
-                            )
-                            OutlinedTextField(
-                                value = forgotPasswordEmail,
-                                onValueChange = { forgotPasswordEmail = it },
-                                singleLine = true,
-                                label = { Text("Email") },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Email,
-                                    imeAction = ImeAction.Next
-                                ),
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        } else {
-                            Text(
-                                forgotPasswordMessage ?: "Masukkan kode 6 digit dan kata sandi baru.",
-                                fontSize = 13.sp
-                            )
-                            Text(
-                                stringResource(R.string.reset_code_label),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            OtpInput(
-                                value = forgotCode,
-                                onValueChange = { forgotCode = it },
-                                enabled = !forgotBusy,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.End,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                TextButton(
-                                    enabled = !forgotBusy && forgotResendCountdown == 0,
-                                    contentPadding = PaddingValues(0.dp),
-                                    onClick = {
-                                        if (isForgotPasswordLoading || forgotBusy) return@TextButton
-                                        isForgotPasswordLoading = true
-                                        viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
-                                            isForgotPasswordLoading = false
-                                            when (result) {
-                                                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                                    forgotResendCountdown = 60
-                                                    forgotPasswordMessage =
-                                                        "Kode baru sudah dikirim ke ${forgotPasswordEmail.trim()}. Cek juga folder Spam/Promosi."
-                                                }
-                                                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
-                                                    viewModel.setError(result.message)
-                                                }
-                                                else -> Unit
-                                            }
-                                        }
-                                    }
-                                ) {
-                                    Text(
-                                        text = if (forgotResendCountdown > 0) {
-                                            stringResource(R.string.otp_resend_wait, forgotResendCountdown)
-                                        } else {
-                                            stringResource(R.string.reset_resend_action)
-                                        },
-                                        fontSize = 12.sp
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = forgotNewPassword,
-                                onValueChange = { forgotNewPassword = it },
-                                singleLine = true,
-                                label = { Text("Kata sandi baru (min. 8)") },
-                                visualTransformation = if (forgotPasswordVisible) VisualTransformation.None
-                                    else PasswordVisualTransformation(),
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Password,
-                                    imeAction = ImeAction.Done
-                                ),
-                                trailingIcon = {
-                                    IconButton(onClick = { forgotPasswordVisible = !forgotPasswordVisible }) {
-                                        Icon(
-                                            imageVector = if (forgotPasswordVisible) Icons.Filled.Visibility
-                                                else Icons.Filled.VisibilityOff,
-                                            contentDescription = if (forgotPasswordVisible) "Sembunyikan kata sandi" else "Tampilkan kata sandi"
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        enabled = if (forgotStep == 1) {
-                            !isForgotPasswordLoading && forgotPasswordEmail.isNotBlank()
-                        } else {
-                            !forgotBusy && forgotCode.length == 6 && forgotNewPassword.length >= 8
-                        },
-                        onClick = {
-                            if (forgotStep == 1) {
-                                isForgotPasswordLoading = true
-                                viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
-                                    isForgotPasswordLoading = false
-                                    when (result) {
-                                        is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                            forgotPasswordMessage =
-                                                "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}. Cek juga folder Spam/Promosi."
-                                            forgotResendCountdown = 60
-                                            forgotStep = 2
-                                        }
-                                        is com.christopheraldoo.petheal.data.repository.Result.Error -> {
-                                            viewModel.setError(result.message)
-                                        }
-                                        else -> Unit
-                                    }
-                                }
-                            } else {
-                                forgotBusy = true
-                                viewModel.verifyResetCode(forgotPasswordEmail.trim(), forgotCode.trim()) { v ->
-                                    when (v) {
-                                        is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                            viewModel.resetPassword(
-                                                forgotPasswordEmail.trim(),
-                                                forgotCode.trim(),
-                                                forgotNewPassword
-                                            ) { r ->
-                                                forgotBusy = false
-                                                when (r) {
-                                                    is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                                                        forgotPasswordMessage =
-                                                            "Kata sandi berhasil diatur ulang. Silakan masuk."
-                                                        showForgotPasswordDialog = false
-                                                    }
-                                                    is com.christopheraldoo.petheal.data.repository.Result.Error -> {
-                                                        viewModel.setError(r.message)
-                                                    }
-                                                    else -> Unit
-                                                }
-                                            }
-                                        }
-                                        is com.christopheraldoo.petheal.data.repository.Result.Error -> {
-                                            forgotBusy = false
-                                            viewModel.setError(v.message)
-                                        }
-                                        else -> Unit
-                                    }
-                                }
-                            }
-                        }
-                    ) {
-                        if (isForgotPasswordLoading || forgotBusy) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp,
-                                color = AuthPrimary
-                            )
-                        } else {
-                            Text(if (forgotStep == 1) "Kirim Kode" else "Atur Ulang Sandi")
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(
-                        enabled = !isForgotPasswordLoading && !forgotBusy,
-                        onClick = { showForgotPasswordDialog = false }
-                    ) {
-                        Text("Batal")
-                    }
+            ResetPasswordSheet(
+                initialEmail = email.trim(),
+                viewModel = viewModel,
+                onDismiss = { showForgotPasswordDialog = false },
+                onCompleted = {
+                    forgotPasswordMessage = resetDoneBanner
+                    showForgotPasswordDialog = false
                 }
             )
         }
+
 
         if (showClinicPicker) {
             ClinicPickerSheet(

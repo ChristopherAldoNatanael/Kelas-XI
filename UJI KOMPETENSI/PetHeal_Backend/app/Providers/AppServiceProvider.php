@@ -66,6 +66,13 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by(strtolower((string) $request->input('email')) . '|' . $request->ip());
         });
 
+        // Verifikasi kode reset dilonggarkan seperti otp-verify: satu percobaan
+        // = verify + reset (2 request), dan salah kode sudah dibatasi 5x di
+        // OtpService. Throttle ketat di sini hanya mengunci user yang salah ketik.
+        RateLimiter::for('password-reset-verify', function (Request $request) {
+            return Limit::perMinute(10)->by(strtolower((string) $request->input('email')) . '|' . $request->ip());
+        });
+
         // Kirim kode OTP dibatasi ketat (memakai kuota email Gmail), sementara
         // verifikasi kode dibatasi longgar: percobaan salah sudah dibatasi di
         // OtpService (maks 5 per kode), jadi throttle ketat di sini hanya akan

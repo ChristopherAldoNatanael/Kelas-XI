@@ -33,8 +33,8 @@
 
                 <tr>
                     <td style="padding:30px 40px 0;">
-                        <p style="margin:0;font-family:{{ $font }};font-size:16px;font-weight:700;letter-spacing:-0.01em;color:#087A3A;">PetHeal</p>
-                        <p style="margin:3px 0 0;font-family:{{ $font }};font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:{{ $muted }};">Aplikasi kesehatan hewan</p>
+                        <p style="margin:0;font-family:{{ $font }};font-size:18px;font-weight:700;letter-spacing:-0.01em;color:#087A3A;">PetHeal</p>
+                        <p style="margin:4px 0 0;font-family:{{ $font }};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:{{ $muted }};">Aplikasi kesehatan hewan</p>
                     </td>
                 </tr>
 

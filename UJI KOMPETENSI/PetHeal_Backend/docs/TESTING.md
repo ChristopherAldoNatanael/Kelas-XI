@@ -31,3 +31,26 @@ curl.exe -s -X POST -H "Authorization: Bearer $TOKEN_PUSAT" -H "Content-Type: ap
 ## Regresi (setiap fase)
 - `/` = 200, `/admin/login` = 200 (lokal + ngrok), `/api/health` success, tidak ada `Unsupported SSL request`.
 - Export PDF/CSV bookings & payments per klinik tetap terunduh. FCM + Midtrans Sandbox tetap jalan.
+
+## Automated Tests
+
+Backend (117 test: 116 Feature + 1 Unit) — `phpunit.xml` memakai DB terpisah supaya data demo `pet_heal` tidak pernah tersentuh:
+
+```powershell
+# sekali saja
+mysql -u root -e "CREATE DATABASE IF NOT EXISTS pet_heal_test CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+$env:DB_DATABASE="pet_heal_test"; php artisan migrate --force; Remove-Item Env:DB_DATABASE
+
+# setiap kali
+php artisan test        # ±2 menit, harus 117 passed
+```
+
+Android (20 test JVM):
+
+```powershell
+cd ..\PetHeal_Android
+.\gradlew testDebugUnitTest              # BackendIntegrationTest butuh backend di 127.0.0.1:8000
+.\gradlew testDebugUnitTest -Dbackend.url=https://<ngrok>/api/   # arahkan ke tunnel
+```
+
+`BackendIntegrationTest` otomatis di-skip (bukan gagal) kalau `backend.url` tidak menjawab dalam 2 detik.

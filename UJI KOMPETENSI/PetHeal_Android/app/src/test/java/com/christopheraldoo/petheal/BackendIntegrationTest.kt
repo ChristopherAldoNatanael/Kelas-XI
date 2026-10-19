@@ -11,6 +11,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume
 import org.junit.BeforeClass
 import org.junit.Test
 import retrofit2.Retrofit
@@ -31,7 +32,7 @@ class BackendIntegrationTest {
 
     companion object {
         val BASE_URL: String =
-            System.getProperty("backend.url", "http://127.0.0.1:8000/api/")
+            System.getProperty("backend.url") ?: "http://127.0.0.1:8000/api/"
 
         lateinit var api: ApiService
         lateinit var httpClient: OkHttpClient
@@ -43,12 +44,34 @@ class BackendIntegrationTest {
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
+
+            // Tes ini butuh backend NYATA di BASE_URL. Kalau server tidak
+            // hidup, lewati seluruh kelas dengan pesan jelas alih-alih
+            // membuat `./gradlew test` merah karena connection refused.
+            Assume.assumeTrue(
+                "Backend tidak terjangkau di $BASE_URL — jalankan " +
+                    "`php artisan serve --port=8000` lalu ulangi.",
+                backendReachable()
+            );
             api = Retrofit.Builder()
                 .baseUrl(BASE_URL)
                 .client(httpClient)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService::class.java)
+        }
+
+        /** Cek cepat (2 detik) apakah BASE_URL melayani HTTP. */
+        private fun backendReachable(): Boolean = try {
+            val probe = OkHttpClient.Builder()
+                .connectTimeout(2, TimeUnit.SECONDS)
+                .readTimeout(2, TimeUnit.SECONDS)
+                .build()
+            probe.newCall(Request.Builder().url(BASE_URL).build())
+                .execute()
+                .use { true }
+        } catch (e: Exception) {
+            false
         }
 
         fun authHeader(token: String) = "Bearer $token"

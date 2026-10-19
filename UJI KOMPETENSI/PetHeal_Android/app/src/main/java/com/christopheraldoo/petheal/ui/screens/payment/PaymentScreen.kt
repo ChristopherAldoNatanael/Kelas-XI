@@ -617,7 +617,7 @@ fun PaymentErrorScreen(
     textPrimary: Color,
     textSecondary: Color
 ) {
-    Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+    Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
         Box(modifier = Modifier.size(92.dp).clip(RoundedCornerShape(28.dp)).background(ErrorStrong.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
             Icon(Icons.Filled.Error, contentDescription = null, tint = ErrorStrong, modifier = Modifier.size(40.dp))
         }
@@ -693,8 +693,9 @@ fun PaymentResultScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(56.dp))
+        Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState()).padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            // Status bar sudah ditangani statusBarsPadding(); sisakan napas kecil saja.
+            Spacer(Modifier.height(8.dp))
             Surface(
                 shape = RoundedCornerShape(32.dp),
                 color = titleColor.copy(alpha = 0.1f),

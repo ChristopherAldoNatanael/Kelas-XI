@@ -37,7 +37,31 @@
     <string name="otp_verify_action">Verifikasi</string>
     <string name="otp_change_email">Ganti email</string>
 
-    <!-- Reset kata sandi (dialog di layar masuk) -->
-    <string name="reset_code_label">Kode OTP</string>
+    <!-- Reset kata sandi (lembar di layar masuk) -->
+    <string name="reset_code_label">Kode verifikasi</string>
     <string name="reset_resend_action">Kirim ulang kode</string>
+    <string name="reset_eyebrow">Pemulihan akun</string>
+    <string name="reset_title_email">Atur ulang kata sandi</string>
+    <string name="reset_desc_email">Masukkan email yang terdaftar. Kami mengirim kode 6 digit untuk memastikan akun ini benar milik Anda.</string>
+    <string name="reset_email_label">Email terdaftar</string>
+    <string name="reset_email_placeholder">nama@email.com</string>
+    <string name="reset_action_send">Kirim kode</string>
+    <string name="reset_expiry_hint">Kode berlaku 15 menit. Bila tidak masuk, periksa folder Spam atau Promosi.</string>
+    <string name="reset_title_code">Masukkan kode</string>
+    <string name="reset_desc_code">Kode 6 digit dikirim ke %1$s</string>
+    <string name="reset_change_email">Ubah</string>
+    <string name="reset_password_label">Kata sandi baru</string>
+    <string name="reset_password_placeholder">Minimal 8 karakter</string>
+    <string name="reset_action_save">Simpan kata sandi</string>
+    <string name="reset_strength_strong">Kuat</string>
+    <string name="reset_rule_length">Minimal 8 karakter</string>
+    <string name="reset_rule_case">Tambahkan huruf besar</string>
+    <string name="reset_rule_digit">Tambahkan angka</string>
+    <string name="reset_success_title">Kata sandi diperbarui</string>
+    <string name="reset_success_desc">Gunakan kata sandi baru untuk masuk. Perangkat yang sudah masuk tetap menggunakan sesinya.</string>
+    <string name="reset_success_action">Kembali ke masuk</string>
+    <string name="reset_done_banner">Kata sandi berhasil diperbarui. Silakan masuk.</string>
+    <string name="reset_error_email">Masukkan alamat email yang valid.</string>
+    <string name="reset_error_password">Kata sandi minimal 8 karakter.</string>
+    <string name="reset_close">Tutup</string>
 </resources>

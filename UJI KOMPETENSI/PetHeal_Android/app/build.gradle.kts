@@ -78,6 +78,15 @@ android {
     }
 }
 
+// BackendIntegrationTest memanggil backend nyata. URL bisa diarahkan ke
+// lingkungan lain (mis. ngrok) dengan: ./gradlew test -Dbackend.url=https://.../api/
+tasks.withType<Test>().configureEach {
+    systemProperty(
+        "backend.url",
+        System.getProperty("backend.url") ?: "http://127.0.0.1:8000/api/"
+    )
+}
+
 dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")

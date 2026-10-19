@@ -149,7 +149,12 @@ class AuthRepository @Inject constructor(
         if (message.isNullOrBlank()) message = fallback
 
         // Throttle Laravel (429) memakai teks framework → ganti pesan ramah.
-        if (response?.code() == 429) {
+        // Pesan 429 yang spesifik dari backend (mis. "sisa percobaan OTP" atau
+        // "minta kode baru") DIPERTAHANKAN supaya user tahu langkah berikutnya;
+        // menunggu saja tidak selalu menyelesaikan masalah.
+        val isGenericThrottle = rawErrorBody.isBlank() ||
+            message.orEmpty().startsWith("Too Many Attempts", ignoreCase = true)
+        if (response?.code() == 429 && isGenericThrottle) {
             message = "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi."
         }
 

@@ -29,6 +29,13 @@ Route::middleware('throttle:auth')->group(function () {
 // Password reset (public)
 Route::middleware('throttle:password-reset')->group(function () {
     Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword']);
+});
+
+// Verifikasi & simpan kata sandi baru dipisah dari throttle kirim kode.
+// Satu percobaan reset = 2 request (verify + reset), jadi kuota 3/menit yang
+// dipakai bersama membuat percobaan kedua hampir selalu kena 429. Percobaan
+// kode yang salah tetap dibatasi OtpService (maks 5 per kode).
+Route::middleware('throttle:password-reset-verify')->group(function () {
     Route::post('/auth/verify-reset-code', [AuthController::class, 'verifyResetCode']);
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 });

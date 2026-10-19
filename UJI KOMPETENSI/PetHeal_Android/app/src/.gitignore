@@ -1,0 +1,7 @@
+# Build-type source sets Android (app/src/debug, app/src/release) adalah kode
+# sumber, bukan output build. Tanpa pengecualian ini, aturan `**/debug/` di
+# .gitignore root repo membuat network_security_config debug tidak ikut ter-commit.
+!debug/
+!debug/**
+!release/
+!release/**

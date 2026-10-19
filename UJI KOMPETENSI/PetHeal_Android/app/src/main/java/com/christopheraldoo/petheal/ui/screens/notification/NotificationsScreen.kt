@@ -24,6 +24,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -208,7 +211,15 @@ fun NotificationsScreen(
                     }
                 }
                 LazyColumn(
-                    contentPadding = PaddingValues(vertical = 14.dp, horizontal = 16.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        top = 14.dp,
+                        end = 16.dp,
+                        // Item terakhir harus bisa dibaca penuh di atas gesture bar.
+                        bottom = 14.dp + WindowInsets.navigationBars
+                            .asPaddingValues()
+                            .calculateBottomPadding()
+                    ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(items = uiState.notifications, key = { it.id }) { notif ->

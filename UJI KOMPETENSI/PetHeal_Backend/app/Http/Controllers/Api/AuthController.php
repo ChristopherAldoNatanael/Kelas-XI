@@ -227,11 +227,14 @@ class AuthController extends Controller
         ];
 
         $code = $this->otpService->issue($email, OtpService::PURPOSE_REGISTER, $payload);
-        $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
+        $mailSent = $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
 
         return response()->json([
             'success' => true,
-            'message' => 'Kode OTP dikirim ke email Anda. Cek juga folder Spam/Promosi.',
+            'message' => $mailSent
+                ? 'Kode OTP dikirim ke email Anda. Cek juga folder Spam/Promosi.'
+                : 'Kode sudah dibuat, tetapi email gagal dikirim. Coba kirim ulang beberapa saat lagi.',
+            'mail_sent' => $mailSent,
             'data' => [
                 'email' => $email,
                 'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_REGISTER),
@@ -259,11 +262,14 @@ class AuthController extends Controller
         }
 
         $code = $this->otpService->issue($email, OtpService::PURPOSE_REGISTER, $payload);
-        $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
+        $mailSent = $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
 
         return response()->json([
             'success' => true,
-            'message' => 'Kode OTP baru sudah dikirim.',
+            'message' => $mailSent
+                ? 'Kode OTP baru sudah dikirim.'
+                : 'Kode baru sudah dibuat, tetapi email gagal dikirim. Coba lagi beberapa saat lagi.',
+            'mail_sent' => $mailSent,
             'data' => [
                 'email' => $email,
                 'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_REGISTER),
@@ -659,10 +665,12 @@ class AuthController extends Controller
         );
 
         if (!$result['ok']) {
+            // Pakai pesan + status dari OtpService supaya user tahu sisa
+            // percobaan, kode kedaluwarsa, atau harus minta kode baru (429).
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid reset code',
-            ], 400);
+                'message' => $result['message'],
+            ], $result['status']);
         }
 
         return response()->json([
@@ -689,8 +697,8 @@ class AuthController extends Controller
         if (!$result['ok']) {
             return response()->json([
                 'success' => false,
-                'message' => 'Invalid reset code',
-            ], 400);
+                'message' => $result['message'],
+            ], $result['status']);
         }
 
         $user = User::where('email', $email)->first();

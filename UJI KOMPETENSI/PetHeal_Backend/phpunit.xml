@@ -7,11 +7,18 @@
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
     </testsuites>
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
+        <!-- DB terpisah supaya `php artisan test` tidak pernah menyentuh data
+             demo di `pet_heal`. Buat sekali: CREATE DATABASE pet_heal_test;
+             lalu DB_DATABASE=pet_heal_test php artisan migrate. -->
+        <env name="DB_DATABASE" value="pet_heal_test"/>
     </php>
 </phpunit>

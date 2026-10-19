@@ -17,7 +17,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -72,6 +74,8 @@ fun HelpSupportScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(bg)
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
     ) {
         Box(
@@ -82,7 +86,7 @@ fun HelpSupportScreen(
                         listOf(Color.White, PrimaryLight)
                     )
                 )
-                .padding(top = 42.dp, start = 18.dp, end = 18.dp, bottom = 26.dp)
+                .padding(top = 18.dp, start = 18.dp, end = 18.dp, bottom = 26.dp)
         ) {
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {

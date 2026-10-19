@@ -751,6 +751,7 @@ fun EditProfileScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
                     .imePadding()
                     .padding(horizontal = 20.dp)

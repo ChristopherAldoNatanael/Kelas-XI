@@ -195,6 +195,14 @@
 - **Fix susulan**: aplikasi selalu mengirim header `X-Clinic-Slug` tersimpan, sehingga pengecualian di atas masih tersangkut cek header kedua ("tidak terikat pada klinik manapun"). Hapus-akun-sendiri kini melewati KEDUA cek tenant (token valid tetap wajib). Regression: `test_null_clinic_user_can_delete_own_account_with_slug_header`. Total backend: 99/99 hijau.
 - **STOP**: menunggu verdict READY FOR PRODUCTION-LIKE USER TESTING.
 
+## 2026-10-19 — Hardening pasca UAT OTP (tanpa ubah kontrak & alur)
+- **Test suite dihidupkan**: `phpunit.xml` sebelumnya hanya punya testsuite `Unit`, jadi `php artisan test` cuma menjalankan 1 test dari 117 yang tersedia. Kini Feature ikut jalan di DB terpisah `pet_heal_test` (`phpunit.xml` `DB_DATABASE`) — data demo `pet_heal` tak tersentuh. Hasil: **117 passed / 593 assertions**.
+- **OTP email jujur**: `OtpService::send()` mengembalikan `bool`. `request-otp` & `resend-otp` kini membalas `mail_sent` + pesan "email gagal dikirim" saat SMTP menolak, bukan lagi mengklaim terkirim. `forgot-password` sengaja TIDAK diubah (anti-enumeration). Diverifikasi dengan SMTP mati: `mail_sent=false`, pesan sesuai.
+- **Reset sandi konsisten**: `AuthController::resetPassword` meneruskan `$result['message']` + `$result['status']` dari `OtpService` (sebelumnya selalu 400 "Invalid reset code", sehingga "sisa percobaan" hilang).
+- **Android**: `app/src/debug/res/xml/network_security_config.xml` mengizinkan cleartext HANYA untuk `10.0.2.2`/`127.0.0.1`/`localhost` di build debug; release tetap melarang total. `BackendIntegrationTest` pakai `Assume` (skip rapi saat backend mati) + `-Dbackend.url=` benar-benar diteruskan ke JVM (`app/build.gradle.kts`). Hasil: 20/20 lulus dengan backend hidup, 11 lulus + 9 skip saat backend mati.
+- **Diketahui belum diperbaiki**: `assembleRelease` gagal di R8 ("Library class java.util.* implements program class ...") — pre-existing, butuh sesi terpisah; APK debug tetap normal.
+- **Tidak diubah**: routing, limiter, kontrak API, alur UI, data demo.
+
 ## Cara Update File Ini
 - Setiap selesai fase di PLAN.md: tambah seksi `## YYYY-MM-DD — Fase N ...`, isi: file diubah, keputusan, hasil tes (curl/http code), masalah tersisa.
 - Contoh: `- Ubah Admin/BookingController.php:12 tambah where clinic_id. Tes: admin A /admin/bookings hanya 5 data A. Sisa: export PDF belum filter.`
