@@ -3,5 +3,9 @@
     <style name="Base.Theme.PetHeal" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your dark theme here. -->
         <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+        <!-- Kept identical to the light theme: the app always renders the light
+             palette, so a light window background avoids a dark flash on night mode. -->
+        <item name="android:windowBackground">@color/splash_background</item>
     </style>
 </resources>

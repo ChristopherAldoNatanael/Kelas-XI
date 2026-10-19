@@ -15,7 +15,13 @@ import javax.inject.Singleton
 
 sealed class Result<out T> {
     data class Success<T>(val data: T) : Result<T>()
-    data class Error(val message: String) : Result<Nothing>()
+
+    /**
+     * @param code `code` stabil dari backend (mis. firebase_token_expired)
+     *             atau fallback `http_<status>` — dipakai penentuan apakah
+     *             login Google boleh dicoba ulang dengan token baru.
+     */
+    data class Error(val message: String, val code: String? = null) : Result<Nothing>()
     object Loading : Result<Nothing>()
 }
 
@@ -70,11 +76,22 @@ class AuthRepository @Inject constructor(
         preferencesManager.saveAuthProvider(provider)
     }
 
-    private fun errorMessageFrom(response: retrofit2.Response<*>?, fallback: String): String {
+    private data class ApiErrorDetails(val message: String, val code: String?)
+
+    /**
+     * Parse errorBody SEKALI (stream hanya bisa dibaca sekali) menjadi
+     * message + code. Code diambil dari field `code` backend; bila tidak
+     * ada, fallback `http_<status>` agar caller tetap tahu kelas error-nya.
+     */
+    private fun errorDetailsFrom(response: retrofit2.Response<*>?, fallback: String): ApiErrorDetails {
         val rawErrorBody = runCatching { response?.errorBody()?.string() }.getOrNull()?.trim().orEmpty()
+        var message: String? = null
+        var jsonCode: String? = null
+
         if (rawErrorBody.isNotBlank()) {
             val parsedMessage = runCatching {
                 val json = JSONObject(rawErrorBody)
+                jsonCode = json.optString("code").takeIf { it.isNotBlank() }
                 when {
                     json.has("message") -> json.optString("message")
                     json.has("error") -> json.optString("error")
@@ -91,19 +108,77 @@ class AuthRepository @Inject constructor(
                 }
             }.getOrNull()
 
-            if (!parsedMessage.isNullOrBlank()) return parsedMessage
-            return rawErrorBody
+            message = if (!parsedMessage.isNullOrBlank()) parsedMessage else rawErrorBody
         }
 
-        val bodyMessage = runCatching {
-            when (val body = response?.body()) {
-                is AuthResponse -> body.message
-                is MessageResponse -> body.message
-                else -> null
-            }
-        }.getOrNull()
+        if (message.isNullOrBlank()) {
+            message = runCatching {
+                when (val body = response?.body()) {
+                    is AuthResponse -> body.message
+                    is MessageResponse -> body.message
+                    else -> null
+                }
+            }.getOrNull()?.takeIf { it.isNotBlank() }
+        }
 
-        return bodyMessage?.takeIf { it.isNotBlank() } ?: fallback
+        if (message.isNullOrBlank()) message = fallback
+
+        // Throttle Laravel (429) memakai teks framework → ganti pesan ramah.
+        if (response?.code() == 429) {
+            message = "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi."
+        }
+
+        val code = jsonCode ?: response?.code()
+            ?.takeIf { it in 400..599 }
+            ?.let { "http_$it" }
+
+        return ApiErrorDetails(message, code)
+    }
+
+    private fun errorMessageFrom(response: retrofit2.Response<*>?, fallback: String): String =
+        errorDetailsFrom(response, fallback).message
+
+    private fun errorResultFrom(response: retrofit2.Response<*>?, fallback: String): Result.Error =
+        errorDetailsFrom(response, fallback).let { Result.Error(it.message, it.code) }
+
+    private fun networkError(e: Exception): Result.Error {
+        android.util.Log.e("AuthRepository", "Network failure: ${e.message}", e)
+        return Result.Error(
+            "Tidak dapat terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
+            "network_error"
+        )
+    }
+
+    /** Backend menolak token Firebase → boleh retry sekali dengan token baru. */
+    private fun Result.Error.isFirebaseTokenRejection(): Boolean =
+        code?.startsWith("firebase_token") == true || code == "http_401"
+
+    /** Ambil ID token Firebase SEGAR (force refresh) dari sesi Google aktif. */
+    private suspend fun freshFirebaseIdToken(): String? {
+        val user = firebaseAuth.currentUser ?: return null
+        return try {
+            user.getIdToken(true).await()?.token
+        } catch (e: Exception) {
+            android.util.Log.w("AuthRepository", "Gagal refresh ID token: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Jalankan login/register Google; kalau server menolak token-nya,
+     * ulangi SEKALI dengan token hasil force-refresh (menutup kasus token
+     * basi / selisih jam perangkat vs server).
+     */
+    private suspend fun withFreshTokenRetry(
+        idToken: String,
+        attempt: suspend (String) -> Result<AuthData>
+    ): Result<AuthData> {
+        val first = attempt(idToken)
+        if (first !is Result.Error || !first.isFirebaseTokenRejection()) return first
+
+        val freshToken = freshFirebaseIdToken()
+        if (freshToken == null || freshToken == idToken) return first
+        return attempt(freshToken)
     }
 
     suspend fun loginWithEmailPassword(
@@ -139,13 +214,13 @@ class AuthRepository @Inject constructor(
                     )
                     Result.Success(authData)
                 } else {
-                    Result.Error("Invalid response")
+                    Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
             } else {
-                Result.Error(errorMessageFrom(response, "Login failed"))
+                errorResultFrom(response, "Login gagal")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            networkError(e)
         }
     }
 
@@ -186,17 +261,24 @@ class AuthRepository @Inject constructor(
                     )
                     Result.Success(authData)
                 } else {
-                    Result.Error("Invalid response")
+                    Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
             } else {
-                Result.Error(errorMessageFrom(response, "Registration failed"))
+                errorResultFrom(response, "Pendaftaran gagal")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            networkError(e)
         }
     }
 
-    suspend fun loginWithGoogle(idToken: String, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> {
+    /**
+     * Login Google. Bila server menolak ID token (401 / kedaluwarsa /
+     * selisih jam), token dipaksa-refresh lalu dicoba ulang SEKALI.
+     */
+    suspend fun loginWithGoogle(idToken: String, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> =
+        withFreshTokenRetry(idToken) { token -> attemptFirebaseLogin(token, fcmToken, clinicSlug) }
+
+    private suspend fun attemptFirebaseLogin(idToken: String, fcmToken: String?, clinicSlug: String?): Result<AuthData> {
         return try {
             val response = apiService.firebaseLogin(
                 LoginRequest(
@@ -223,16 +305,23 @@ class AuthRepository @Inject constructor(
                     )
                     Result.Success(authData)
                 } else {
-                    Result.Error("Invalid response")
+                    Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
             } else {
-                Result.Error(errorMessageFrom(response, "Login failed"))
+                errorResultFrom(response, "Login gagal")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            networkError(e)
         }
     }
-      suspend fun registerWithGoogle(idToken: String, name: String, phone: String?, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> {
+
+    /**
+     * Register Google — retry token-baru yang sama dengan [loginWithGoogle].
+     */
+    suspend fun registerWithGoogle(idToken: String, name: String, phone: String?, fcmToken: String?, clinicSlug: String? = null): Result<AuthData> =
+        withFreshTokenRetry(idToken) { token -> attemptFirebaseRegister(token, name, phone, fcmToken, clinicSlug) }
+
+    private suspend fun attemptFirebaseRegister(idToken: String, name: String, phone: String?, fcmToken: String?, clinicSlug: String?): Result<AuthData> {
         return try {
             val response = apiService.firebaseRegister(
                 FirebaseRegisterRequest(
@@ -261,13 +350,13 @@ class AuthRepository @Inject constructor(
                     )
                     Result.Success(authData)
                 } else {
-                    Result.Error("Invalid response")
+                    Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
             } else {
-                Result.Error(errorMessageFrom(response, "Registration failed"))
+                errorResultFrom(response, "Pendaftaran gagal")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            networkError(e)
         }
     }
 

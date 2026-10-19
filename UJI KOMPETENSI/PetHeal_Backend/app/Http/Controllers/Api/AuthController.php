@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\FirebaseTokenException;
 use App\Mail\PasswordResetMail;
 use App\Models\User;
 use App\Models\DeviceToken;
@@ -48,6 +49,19 @@ class AuthController extends Controller
                 'device_type' => $deviceType,
             ]
         );
+    }
+
+    /**
+     * Envelope error verifikasi Firebase token: status + message jelas
+     * + `code` stabil untuk keputusan client (retry token baru vs tunggu).
+     */
+    private function firebaseTokenError(FirebaseTokenException $e)
+    {
+        return response()->json([
+            'success' => false,
+            'message' => $e->getMessage(),
+            'code' => $e->getErrorCode(),
+        ], $e->getStatus());
     }
 
     /**
@@ -217,21 +231,19 @@ class AuthController extends Controller
     public function firebaseLogin(Request $request)
     {
         $request->validate([
-            'id_token' => 'required|string',
+            'id_token' => 'required|string|max:8192',
             'fcm_token' => 'nullable|string',
             'clinic_slug' => 'nullable|string',
         ]);
 
         $idToken = $request->input('id_token');
 
-        // Verify Firebase ID Token
-        $firebaseUser = $this->firebaseService->verifyIdToken($idToken);
-
-        if (!$firebaseUser) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid Firebase token',
-            ], 401);
+        // Verify Firebase ID Token — gagal verifikasi melempar error berkode
+        // (expired / malformed / project beda / layanan keys tidak tersedia).
+        try {
+            $firebaseUser = $this->firebaseService->verifyIdToken($idToken);
+        } catch (FirebaseTokenException $e) {
+            return $this->firebaseTokenError($e);
         }
 
         // Find or create user — search by firebase_uid first, then by email
@@ -259,6 +271,15 @@ class AuthController extends Controller
         }
 
         if (!$user) {
+            // Token valid tapi tanpa email → tidak bisa bikin akun (users.email NOT NULL)
+            if (!$firebaseUser['email']) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Akun Google ini tidak memiliki email sehingga tidak dapat digunakan.',
+                    'code' => 'firebase_email_missing',
+                ], 422);
+            }
+
             // Create new user
             $user = User::create([
                 'firebase_uid' => $firebaseUser['uid'],
@@ -292,7 +313,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         $request->validate([
-            'id_token' => 'required|string',
+            'id_token' => 'required|string|max:8192',
             'name' => 'required|string|max:255',
             'phone' => 'nullable|string|max:20',
             'fcm_token' => 'nullable|string',
@@ -301,14 +322,11 @@ class AuthController extends Controller
 
         $idToken = $request->input('id_token');
 
-        // Verify Firebase ID Token
-        $firebaseUser = $this->firebaseService->verifyIdToken($idToken);
-
-        if (!$firebaseUser) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Invalid Firebase token',
-            ], 401);
+        // Verify Firebase ID Token (error berkode, lihat firebaseLogin)
+        try {
+            $firebaseUser = $this->firebaseService->verifyIdToken($idToken);
+        } catch (FirebaseTokenException $e) {
+            return $this->firebaseTokenError($e);
         }
 
         // Check if user already exists
@@ -319,6 +337,15 @@ class AuthController extends Controller
                 'success' => false,
                 'message' => 'User already exists. Please login instead.',
             ], 409);
+        }
+
+        // Token valid tapi tanpa email → users.email NOT NULL, tolak dengan jelas
+        if (!$firebaseUser['email']) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun Google ini tidak memiliki email sehingga tidak dapat digunakan.',
+                'code' => 'firebase_email_missing',
+            ], 422);
         }
 
         // Resolve clinic if provided

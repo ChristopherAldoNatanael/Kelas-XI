@@ -3,6 +3,10 @@
     <style name="Base.Theme.PetHeal" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+
+        <!-- The app renders a fixed light theme (PetHealTheme darkTheme=false), so the
+             pre-Compose window matches the splash background to avoid any flash. -->
+        <item name="android:windowBackground">@color/splash_background</item>
     </style>
 
     <style name="Theme.PetHeal" parent="Base.Theme.PetHeal" />

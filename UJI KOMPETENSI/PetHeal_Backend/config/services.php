@@ -45,6 +45,10 @@ return [
     'firebase' => [
         'project_id' => env('FIREBASE_PROJECT_ID', 'petheal-d8c3d'),
         'credentials' => env('FIREBASE_CREDENTIALS', storage_path('app/firebase-service-account.json')),
+        // Toleransi selisih jam (detik) saat verifikasi ID token.
+        // Tanpa leeway, token dengan iat "di masa depan" beberapa detik
+        // (jam HP > jam server) gagal → login Google 401.
+        'token_leeway' => env('FIREBASE_TOKEN_LEEWAY', 60),
     ],
 
     /*

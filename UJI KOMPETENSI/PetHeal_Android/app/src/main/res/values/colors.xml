@@ -2,4 +2,7 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- Matches the splash surface so the first frame never flashes white/black. -->
+    <color name="splash_background">#FFF6F8F6</color>
 </resources>

@@ -1,3 +1,17 @@
 <resources>
     <string name="app_name">PetHeal</string>
+
+    <!-- Splash / start-up screen -->
+    <string name="splash_tagline">Pendamping kesehatan untuk sahabat terbaik Anda</string>
+    <string name="splash_version">Versi %1$s</string>
+    <string name="splash_status_preparing">Menyiapkan aplikasi…</string>
+    <string name="splash_status_restoring">Memuat sesi Anda…</string>
+    <string name="splash_status_connecting">Memeriksa koneksi…</string>
+    <string name="splash_status_syncing">Menyinkronkan data…</string>
+    <string name="splash_status_offline">Menunggu koneksi internet…</string>
+    <string name="splash_status_ready">Siap</string>
+    <string name="splash_offline_title">Tidak ada koneksi internet</string>
+    <string name="splash_offline_message">Periksa Wi-Fi atau data seluler Anda, lalu coba lagi.</string>
+    <string name="splash_offline_continue">Lanjutkan</string>
+    <string name="splash_retry">Coba lagi</string>
 </resources>
