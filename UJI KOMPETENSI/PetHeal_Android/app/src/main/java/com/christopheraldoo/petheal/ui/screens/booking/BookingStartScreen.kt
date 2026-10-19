@@ -1,5 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.booking
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,17 +78,16 @@ import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.Pet
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.ui.theme.Star
+import com.christopheraldoo.petheal.util.reviewCountLabel
 
-private val BsPrimary = Color(0xFF18C964)
-private val BsPrimaryFg = Color(0xFF052E14)
-private val BsBg = Color(0xFFF6F8F6)
-private val BsSurface = Color.White
-private val BsBorder = Color(0xFFE2E8F0)
-private val BsTextPrimary = Color(0xFF0F172A)
-private val BsTextSecondary = Color(0xFF64748B)
-
-private fun bsReviewLabel(total: Int): String =
-    if (total == 1) "1 ulasan" else "$total ulasan"
+private val BsPrimary = Primary
+private val BsPrimaryFg = OnPrimaryStrong
+private val BsBg = Background
+private val BsSurface = Surface
+private val BsBorder = Outline
+private val BsTextPrimary = OnBackground
+private val BsTextSecondary = TextSecondary
 
 // ── Entry point alur transaksi booking ──────────────────────────────────────
 // Berbeda dari Cari Dokter (discovery): layar ini tidak menampilkan profil
@@ -457,7 +464,7 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
             val startReviewTotal = doctor.reviewsCount ?: 0
             if (avg != null && avg > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(12.dp))
+                    Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(
                         "%.1f".format(avg),
@@ -465,7 +472,7 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
                     )
                     if (startReviewTotal > 0) {
                         Text(
-                            " · ${bsReviewLabel(startReviewTotal)}",
+                            " · ${reviewCountLabel(startReviewTotal)}",
                             color = BsTextSecondary, fontSize = 11.sp
                         )
                     }

@@ -1,5 +1,9 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -40,15 +44,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.BuildConfig
+import com.christopheraldoo.petheal.ui.theme.Primary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(
     onNavigateBack: () -> Unit
 ) {
-    val bgColor = Color(0xFFF6F8F6)
-    val textColor = Color(0xFF0F172A)
-    val secondaryColor = Color(0xFF64748B)
+    val bgColor = Background
+    val textColor = OnBackground
+    val secondaryColor = TextSecondary
     var legalDialog by remember { mutableStateOf<String?>(null) }
 
     legalDialog?.let { type ->
@@ -95,7 +100,7 @@ fun AboutScreen(
                 modifier = Modifier
                     .size(100.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF18C964))
+                    .background(Primary)
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {

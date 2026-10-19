@@ -1,5 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -15,22 +17,19 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Primary
 
-// Theme Colors
-private val SettingsBgDark = Color(0xFFF6F8F6)
-private val SettingsSurfaceDark = Color.White
-private val SettingsBorderDark = Color(0x1AFFFFFF)
-private val SettingsTextPrimary = Color(0xFFE8F5E9)
-private val SettingsTextSecondary = Color(0xFF9DB9A6)
+// Warna dari ui/theme/Color.kt — jangan hardcode hex.
+private val SettingsTextSecondary = TextSecondary
 
 @Composable
 fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
-    val isDark = false
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isDark) SettingsSurfaceDark else Color.White
+            containerColor = Color.White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -39,7 +38,7 @@ fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Un
                 text = title,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isDark) SettingsTextSecondary else Color(0xFF64748B),
+                color = TextSecondary,
                 modifier = Modifier.padding(bottom = 8.dp, start = 4.dp)
             )
             content()
@@ -56,8 +55,7 @@ fun SettingsActionRow(
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
-    val isDark = false
-    val textColor = if (isDark) SettingsTextPrimary else Color(0xFF0F172A)
+    val textColor = OnBackground
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -69,7 +67,7 @@ fun SettingsActionRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color(0xFF18C964),
+            tint = Primary,
             modifier = Modifier.size(24.dp)
         )
         Spacer(modifier = Modifier.width(16.dp))

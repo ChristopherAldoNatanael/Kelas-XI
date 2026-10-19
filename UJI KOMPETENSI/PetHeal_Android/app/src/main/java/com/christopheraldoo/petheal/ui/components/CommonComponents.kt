@@ -47,6 +47,11 @@ import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 
 /**
  * PHASE 7 PRODUCTION: shared design-system primitives.
@@ -207,8 +212,8 @@ fun SecondaryButton(
     leadingIcon: ImageVector? = null,
     destructive: Boolean = false
 ) {
-    val tint = if (destructive) Color(0xFFEF4444) else MaterialTheme.colorScheme.onSurface
-    val borderColor = if (destructive) Color(0xFFFCA5A5) else Outline
+    val tint = if (destructive) ErrorStrong else MaterialTheme.colorScheme.onSurface
+    val borderColor = if (destructive) ErrorSoft else Outline
     OutlinedButton(
         onClick = onClick,
         enabled = enabled && !isLoading,
@@ -273,9 +278,9 @@ fun Banner(
     isError: Boolean = false,
     onDismiss: (() -> Unit)? = null
 ) {
-    val bg = if (isError) Color(0xFFFFEBEE) else Color(0xFFE8F5E9)
-    val fg = if (isError) Color(0xFFDC2626) else Color(0xFF047857)
-    val iconBg = if (isError) Color(0xFFEF4444).copy(alpha = 0.12f) else Primary.copy(alpha = 0.12f)
+    val bg = if (isError) ErrorSoft else SuccessSoft
+    val fg = if (isError) Error else SuccessDeep
+    val iconBg = if (isError) ErrorStrong.copy(alpha = 0.12f) else Primary.copy(alpha = 0.12f)
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -364,12 +369,12 @@ fun ErrorStateView(
             modifier = Modifier
                 .size(72.dp)
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFFEF4444).copy(alpha = 0.10f)),
+                .background(ErrorStrong.copy(alpha = 0.10f)),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "!",
-                color = Color(0xFFEF4444),
+                color = ErrorStrong,
                 fontWeight = FontWeight.Bold,
                 fontSize = 32.sp
             )

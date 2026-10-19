@@ -21,7 +21,7 @@
 
 ## 5. Gaya Kode
 - Kotlin + Compose idiomatis, ViewModel → Repository → ApiService. Jangan panggil Retrofit langsung dari Composable selain via VM (kecuali pola existing memaksa).
-- Warna via `ClinicColors`/`LocalClinicColors` (setelah Fase 4), jangan hardcode hex baru. Hapus duplikat `0xFF2BEE6C` di Splash.
+- Warna: token semantik di `ui/theme/Color.kt` (peta lengkap di `docs/UI_CONVENTIONS.md`) — DILARANG menambah `Color(0xFF...)` baru di layar. Dinamis per klinik (`ClinicTheme.parsePrimaryColor`, dipakai Home + ClinicPickerSheet) hanya untuk branding; `LocalClinicColors` (Fase 4) belum dikerjakan.
 - String user-facing dari `clinic_name`/DataStore atau `strings.xml`, jangan literal "PetHeal" baru.
 
 ## 6. Kapan Bertanya

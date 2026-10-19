@@ -1,5 +1,10 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -49,16 +54,19 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.WarningDeep
 
 @Composable
 fun HelpSupportScreen(
     onNavigateBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val bg = Color(0xFFF6F8F6)
-    val primary = Color(0xFF18C964)
-    val textPrimary = Color(0xFF0F172A)
-    val textSecondary = Color(0xFF64748B)
+    val bg = Background
+    val primary = Primary
+    val textPrimary = OnBackground
+    val textSecondary = TextSecondary
 
     Column(
         modifier = Modifier
@@ -71,7 +79,7 @@ fun HelpSupportScreen(
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.White, Color(0xFFEAF9F0))
+                        listOf(Color.White, PrimaryLight)
                     )
                 )
                 .padding(top = 42.dp, start = 18.dp, end = 18.dp, bottom = 26.dp)
@@ -176,7 +184,7 @@ fun HelpSupportScreen(
                             .background(Color(0xFFF97316).copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.BugReport, contentDescription = null, tint = Color(0xFFEA580C))
+                        Icon(Icons.Filled.BugReport, contentDescription = null, tint = WarningDeep)
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
@@ -215,15 +223,15 @@ private fun SupportShortcut(
             ) {
                 Icon(icon, contentDescription = null, tint = accent)
             }
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
-            Text(subtitle, fontSize = 12.sp, color = Color(0xFF64748B))
+            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnBackground)
+            Text(subtitle, fontSize = 12.sp, color = TextSecondary)
         }
     }
 }
 
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+    Text(text, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = OnBackground)
 }
 
 @Composable
@@ -239,16 +247,16 @@ private fun FaqCard(question: String, answer: String) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = Color(0xFF18C964), modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(10.dp))
-                Text(question, modifier = Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF0F172A))
-                Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = Color(0xFF64748B))
+                Text(question, modifier = Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+                Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = TextSecondary)
             }
             if (expanded) {
                 Spacer(Modifier.height(12.dp))
-                Divider(color = Color(0xFFE2E8F0))
+                Divider(color = Outline)
                 Spacer(Modifier.height(12.dp))
-                Text(answer, fontSize = 13.sp, lineHeight = 20.sp, color = Color(0xFF64748B))
+                Text(answer, fontSize = 13.sp, lineHeight = 20.sp, color = TextSecondary)
             }
         }
     }

@@ -1,5 +1,22 @@
 package com.christopheraldoo.petheal.ui.screens.medicalrecord
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.Info
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.Tertiary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -80,26 +97,29 @@ import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.util.formatDateSafe
+import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.util.formatRupiahCompact
 
-private val MrBackground = Color(0xFFF4F8F5)
-private val MrSurface = Color(0xFFFFFFFF)
-private val MrSurfaceAlt = Color(0xFFF8FBF9)
-private val MrBorder = Color(0xFFE2E8F0)
-private val MrTextPrimary = Color(0xFF0F172A)
-private val MrTextSecondary = Color(0xFF64748B)
-private val MrPrimary = Color(0xFF10B981)
-private val MrPrimaryDeep = Color(0xFF047857)
-private val MrPrimarySoft = Color(0xFFDDF8EA)
-private val MrAmber = Color(0xFFF59E0B)
-private val MrAmberSoft = Color(0xFFFEF3C7)
-private val MrSky = Color(0xFF0EA5E9)
-private val MrSkySoft = Color(0xFFE0F2FE)
-private val MrRose = Color(0xFFE11D48)
-private val MrRoseSoft = Color(0xFFFFE4E6)
-private val MrSlateSoft = Color(0xFFF1F5F9)
+private val MrBackground = Background
+private val MrSurface = Surface
+private val MrSurfaceAlt = SurfaceVariant
+private val MrBorder = Outline
+private val MrTextPrimary = OnBackground
+private val MrTextSecondary = TextSecondary
+private val MrPrimary = Primary
+private val MrPrimaryDeep = SuccessDeep
+private val MrPrimarySoft = PrimaryLight
+private val MrAmber = Tertiary
+private val MrAmberSoft = WarningSoft
+private val MrSky = Info
+private val MrSkySoft = InfoSoft
+private val MrRose = ErrorStrong
+private val MrRoseSoft = ErrorSoft
+private val MrSlateSoft = SurfaceMuted
 
 @Composable
 fun MedicalRecordsScreen(
@@ -537,7 +557,7 @@ private fun MedicalRecordListHero(
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
                     title = "Total Biaya",
-                    value = formatCurrencyCompact(totalCost),
+                    value = formatRupiahCompact(totalCost),
                     icon = Icons.Filled.ReceiptLong,
                     accent = MrSky,
                     accentSoft = MrSkySoft
@@ -654,7 +674,7 @@ private fun MedicalRecordListCard(
     val pet = record.booking?.pet ?: record.pet
     val doctor = record.booking?.doctor ?: record.doctor
     val nextVisit = parseLocalDate(record.nextVisitDate)
-    val createdDate = formatDate(record.createdAt, "dd MMM yyyy")
+    val createdDate = formatDateSafe(record.createdAt, "dd MMM yyyy")
     val totalCost = recordTotalCost(record)
     val extraStatus = record.extraPaymentStatus ?: "not_required"
     val statusPalette = paymentPalette(extraStatus)
@@ -751,7 +771,7 @@ private fun MedicalRecordListCard(
                 MetricMiniCard(
                     modifier = Modifier.weight(1f),
                     title = "Total Cost",
-                    value = formatCurrencyCompact(totalCost),
+                    value = formatRupiahCompact(totalCost),
                     icon = Icons.Filled.ReceiptLong,
                     accent = MrPrimary,
                     background = MrPrimarySoft
@@ -798,7 +818,7 @@ private fun MedicalRecordDetailHero(
 ) {
     val pet = record.booking?.pet ?: record.pet
     val doctor = record.booking?.doctor ?: record.doctor
-    val createdDate = formatDate(record.createdAt, "dd MMM yyyy")
+    val createdDate = formatDateSafe(record.createdAt, "dd MMM yyyy")
     val paymentPalette = paymentPalette(record.extraPaymentStatus)
 
     Box(
@@ -866,7 +886,7 @@ private fun MedicalRecordDetailHero(
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
                     title = "Total Cost",
-                    value = formatCurrencyCompact(record.totalMedicalCost ?: recordTotalCost(record)),
+                    value = formatRupiahCompact(record.totalMedicalCost ?: recordTotalCost(record)),
                     icon = Icons.Filled.Payments,
                     accent = MrPrimary,
                     accentSoft = MrPrimarySoft
@@ -874,7 +894,7 @@ private fun MedicalRecordDetailHero(
                 HeroStatCard(
                     modifier = Modifier.weight(1f),
                     title = "Extra Payment",
-                    value = formatCurrencyCompact(record.extraPaymentAmount ?: 0.0),
+                    value = formatRupiahCompact(record.extraPaymentAmount ?: 0.0),
                     icon = Icons.Filled.ReceiptLong,
                     accent = MrAmber,
                     accentSoft = MrAmberSoft
@@ -943,7 +963,7 @@ private fun MedicalRecordPaymentSection(
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
                 title = "Konsultasi",
-                value = formatCurrencyCompact(record.cost ?: 0.0),
+                value = formatRupiahCompact(record.cost ?: 0.0),
                 icon = Icons.Filled.HealthAndSafety,
                 accent = MrPrimary,
                 background = MrPrimarySoft
@@ -951,7 +971,7 @@ private fun MedicalRecordPaymentSection(
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
                 title = "Tindakan",
-                value = formatCurrencyCompact(record.treatmentCost ?: 0.0),
+                value = formatRupiahCompact(record.treatmentCost ?: 0.0),
                 icon = Icons.Filled.Vaccines,
                 accent = MrSky,
                 background = MrSkySoft
@@ -959,7 +979,7 @@ private fun MedicalRecordPaymentSection(
             MetricMiniCard(
                 modifier = Modifier.weight(1f),
                 title = "Obat",
-                value = formatCurrencyCompact(record.medicineCost ?: 0.0),
+                value = formatRupiahCompact(record.medicineCost ?: 0.0),
                 icon = Icons.Filled.MedicalServices,
                 accent = MrAmber,
                 background = MrAmberSoft
@@ -992,9 +1012,9 @@ private fun MedicalRecordPaymentSection(
                     )
                 }
 
-                BillingRow("Total biaya medis", formatCurrency(record.totalMedicalCost ?: recordTotalCost(record)))
-                BillingRow("Biaya tambahan", formatCurrency(record.extraPaymentAmount ?: 0.0))
-                BillingRow("Tambahan terbayar", formatCurrency(record.extraPaymentPaidAmount ?: 0.0))
+                BillingRow("Total biaya medis", formatRupiah(record.totalMedicalCost ?: recordTotalCost(record)))
+                BillingRow("Biaya tambahan", formatRupiah(record.extraPaymentAmount ?: 0.0))
+                BillingRow("Tambahan terbayar", formatRupiah(record.extraPaymentPaidAmount ?: 0.0))
                 BillingRow(
                     "Akses rekam lengkap",
                     if (record.canViewFullRecord == true) "Tersedia" else "Terkunci sampai pembayaran lunas"
@@ -1214,7 +1234,7 @@ private fun RecordMetaFooter(record: MedicalRecord) {
     ) {
         Divider(color = MrBorder)
         Text(
-            text = "Recorded ${formatDate(record.createdAt, "dd MMM yyyy • HH:mm")}",
+            text = "Recorded ${formatDateSafe(record.createdAt, "dd MMM yyyy • HH:mm")}",
             color = MrTextSecondary,
             fontSize = 12.sp
         )
@@ -1524,7 +1544,7 @@ private fun MedicalRecordErrorState(
                     Button(
                         onClick = onBack,
                         shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color(0xFF052E16))
+                        colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = OnPrimaryStrong)
                     ) {
                         Text("Back", fontWeight = FontWeight.SemiBold)
                     }
@@ -1554,34 +1574,6 @@ private fun paymentStatusLabel(status: String?): String = when (status) {
 private fun recordTotalCost(record: MedicalRecord): Double {
     return record.totalMedicalCost
         ?: ((record.cost ?: 0.0) + (record.treatmentCost ?: 0.0) + (record.medicineCost ?: 0.0))
-}
-
-private fun formatCurrency(value: Double): String {
-    return "Rp ${String.format("%,.0f", value).replace(",", ".")}"
-}
-
-private fun formatCurrencyCompact(value: Double): String {
-    val formatted = String.format("%,.0f", value).replace(",", ".")
-    if (formatted.length <= 10) return "Rp $formatted"
-    // Compact large amounts with jt/M suffixes instead of mid-digit truncation.
-    return when {
-        value >= 1_000_000_000 -> "Rp ${String.format("%.1f", value / 1_000_000_000)} M"
-        value >= 1_000_000 -> "Rp ${String.format("%.1f", value / 1_000_000)} jt"
-        else -> "Rp ${formatted.take(10)}…"
-    }
-}
-
-private fun formatDate(value: String?, pattern: String): String {
-    if (value.isNullOrBlank()) return "-"
-    return try {
-        LocalDateTime.parse(value.replace(" ", "T").take(19)).format(DateTimeFormatter.ofPattern(pattern))
-    } catch (_: Exception) {
-        try {
-            LocalDate.parse(value.take(10)).format(DateTimeFormatter.ofPattern(pattern))
-        } catch (_: Exception) {
-            value.take(10)
-        }
-    }
 }
 
 private fun parseLocalDate(value: String?): LocalDate? {

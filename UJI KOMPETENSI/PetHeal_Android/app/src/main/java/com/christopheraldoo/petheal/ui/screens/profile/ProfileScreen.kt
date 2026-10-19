@@ -1,5 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.profile
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -49,15 +57,17 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 
-// ─── Brand tokens ─────────────────────────────────────────────────────────────
-private val Primary       = Color(0xFF18C964)
-private val PrimaryFg     = Color(0xFF052E14)
-private val BgDark        = Color(0xFFF6F8F6)
-private val SurfaceDark   = Color.White
-private val BorderDark    = Color(0xFFE2E8F0)
-private val TextPrimary   = Color(0xFF0F172A)
-private val TextSecDark   = Color(0xFF64748B)
+// ─── Brand tokens → satu sumber: ui/theme/Color.kt ───────────────────────────
+private val PrimaryFg     = OnPrimaryStrong
+private val BgDark        = Background
+private val SurfaceDark   = Surface
+private val BorderDark    = Outline
+private val TextPrimary   = OnBackground
+private val TextSecDark   = TextSecondary
 
 // ─── ProfileScreen ─────────────────────────────────────────────────────────────
 @Composable
@@ -304,14 +314,14 @@ fun ProfileScreen(
                             viewModel.deleteAccount(onDeleted = onLogout)
                         },
                         colors = ButtonDefaults.textButtonColors(
-                            contentColor = Color(0xFFDC2626)
+                            contentColor = Error
                         )
                     ) {
                         if (busy) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(18.dp),
                                 strokeWidth = 2.dp,
-                                color = Color(0xFFDC2626)
+                                color = Error
                             )
                         } else {
                             Text("Ya, Hapus Akun Saya", fontWeight = FontWeight.Bold)
@@ -586,7 +596,7 @@ fun ProfileScreen(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Color(0xFFFF6B6B)
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFCA5A5)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, ErrorSoft),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -612,7 +622,7 @@ fun ProfileScreen(
                     },
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFDC2626)
+                        contentColor = Error
                     ),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
                     modifier = Modifier
@@ -645,11 +655,11 @@ fun ProfileScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
-                containerColor = Color(0xFFFFEBEE),
-                contentColor = Color(0xFFDC2626),
+                containerColor = ErrorSoft,
+                contentColor = Error,
                 dismissAction = {
                     IconButton(onClick = { viewModel.clearError() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = Color(0xFFDC2626))
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = Error)
                     }
                 }
             ) {
@@ -664,10 +674,10 @@ fun ProfileScreen(
                     .align(Alignment.BottomCenter)
                     .padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
                 containerColor = Color(0xFFE8FFF1),
-                contentColor = Color(0xFF047857),
+                contentColor = SuccessDeep,
                 dismissAction = {
                     IconButton(onClick = { viewModel.clearPhotoMessage() }) {
-                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = Color(0xFF047857))
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = SuccessDeep)
                     }
                 }
             ) {
@@ -788,17 +798,17 @@ fun EditProfileScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(10.dp))
-                            .background(Color(0xFFFFEBEE))
+                            .background(ErrorSoft)
                             .padding(12.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Filled.ErrorOutline,
                             contentDescription = null,
-                            tint = Color(0xFFDC2626),
+                            tint = Error,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text(err, color = Color(0xFFDC2626), fontSize = 13.sp)
+                        Text(err, color = Error, fontSize = 13.sp)
                     }
                 }
 

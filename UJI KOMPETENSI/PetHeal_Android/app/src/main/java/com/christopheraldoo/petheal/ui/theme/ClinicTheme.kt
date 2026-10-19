@@ -29,9 +29,4 @@ object ClinicTheme {
             FallbackPrimary
         }
     }
-
-    fun isValidBrandColor(raw: String?): Boolean {
-        val value = raw?.trim().orEmpty()
-        return HEX_6.matches(value) || HEX_8.matches(value)
-    }
 }

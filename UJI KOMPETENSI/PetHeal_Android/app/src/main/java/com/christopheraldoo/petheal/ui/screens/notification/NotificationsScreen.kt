@@ -1,5 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.notification
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -63,14 +71,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import com.christopheraldoo.petheal.ui.theme.AccentViolet
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.Info
+import com.christopheraldoo.petheal.ui.theme.Secondary
 
-private val NPrimary = Color(0xFF18C964)
-private val NBg = Color(0xFFF6F8F6)
-private val NSurface = Color.White
-private val NBorder = Color(0xFFE2E8F0)
-private val TextPrimary = Color(0xFF0F172A)
-private val TextSecondary = Color(0xFF64748B)
-private val NUnread = Color(0xFFEAF9F0)
+private val NPrimary = Primary
+private val NBg = Background
+private val NSurface = Surface
+private val NBorder = Outline
+private val TextPrimary = OnBackground
+private val NUnread = PrimaryLight
 
 @Composable
 fun NotificationsScreen(
@@ -101,7 +112,7 @@ fun NotificationsScreen(
                     viewModel.clearAll()
                     showClearDialog = false
                 }) {
-                    Text("Hapus", color = Color(0xFFDC2626), fontWeight = FontWeight.SemiBold)
+                    Text("Hapus", color = Error, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -120,7 +131,7 @@ fun NotificationsScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.White, Color(0xFFEAF9F0))))
+                .background(Brush.verticalGradient(listOf(Color.White, PrimaryLight)))
                 .statusBarsPadding()
                 .padding(top = 8.dp, start = 8.dp, end = 16.dp, bottom = 18.dp)
         ) {
@@ -148,7 +159,7 @@ fun NotificationsScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 NotificationMetric("Belum dibaca", unreadCount.toString(), NPrimary, Modifier.weight(1f))
-                NotificationMetric("Total", uiState.notifications.size.toString(), Color(0xFF0EA5A5), Modifier.weight(1f))
+                NotificationMetric("Total", uiState.notifications.size.toString(), Secondary, Modifier.weight(1f))
             }
         }
 
@@ -347,17 +358,17 @@ private fun notificationIcon(type: String): ImageVector = when (type) {
 }
 
 private fun notificationIconBg(type: String): Color = when (type) {
-    "booking_status" -> Color(0xFFEAF9F0)
+    "booking_status" -> PrimaryLight
     "booking_reminder" -> Color(0xFFEFF6FF)
     "vaccination_reminder" -> Color(0xFFF5F3FF)
     else -> Color.White
 }
 
 private fun notificationIconTint(type: String): Color = when (type) {
-    "booking_status" -> Color(0xFF18C964)
-    "booking_reminder" -> Color(0xFF0EA5E9)
-    "vaccination_reminder" -> Color(0xFF8B5CF6)
-    else -> Color(0xFF64748B)
+    "booking_status" -> Primary
+    "booking_reminder" -> Info
+    "vaccination_reminder" -> AccentViolet
+    else -> TextSecondary
 }
 
 private fun formatTimestamp(epochMs: Long): String {

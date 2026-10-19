@@ -45,6 +45,11 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
+import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 @Composable
 fun RegisterScreen(
@@ -56,8 +61,7 @@ fun RegisterScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pickerState by pickerViewModel.uiState.collectAsState()
-    val isDark = false
-    val bgColor = if (isDark) AuthBgDark else AuthBgLight
+    val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
@@ -135,7 +139,7 @@ fun RegisterScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.White, Color(0xFFF2FBF5), bgColor)
+                    listOf(Color.White, PrimaryWash, bgColor)
                 )
             )
     ) {
@@ -151,13 +155,15 @@ fun RegisterScreen(
                 .size(170.dp)
                 .offset(x = (-80).dp, y = 160.dp)
                 .clip(RoundedCornerShape(64.dp))
-                .background(Color(0xFF0EA5A5).copy(alpha = 0.08f))
+                .background(Secondary.copy(alpha = 0.08f))
         )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
                 .imePadding()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp, bottom = 28.dp)
         ) {
@@ -177,13 +183,13 @@ fun RegisterScreen(
                     Icon(
                         Icons.Filled.ArrowBack,
                         contentDescription = "Kembali",
-                        tint = if (isDark) Color.White else Color(0xFF0F172A)
+                        tint = OnBackground
                     )
                 }
                 Text(
                     text = "Daftar",
                     fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 Box(modifier = Modifier.size(48.dp))
             }
@@ -195,7 +201,7 @@ fun RegisterScreen(
                     .clip(RoundedCornerShape(28.dp))
                     .background(
                         Brush.linearGradient(
-                            listOf(Color.White, Color(0xFFEFFAF3))
+                            listOf(Color.White, PrimaryWash)
                         )
                     )
                     .padding(horizontal = 24.dp, vertical = 28.dp)
@@ -214,14 +220,14 @@ fun RegisterScreen(
                 Text(
                     text = "Buat Akun",
                     fontSize = 25.sp, fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Daftar sekali untuk mengatur hewan, konsultasi dokter, dan rekam medis dengan rapi.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
-                    color = Color(0xFF64748B),
+                    color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
@@ -229,7 +235,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             // ── Full Name ─────────────────────────────────────────────
-            AuthFieldLabel("Nama Lengkap", isDark)
+            AuthFieldLabel("Nama Lengkap")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = name,
@@ -243,13 +249,12 @@ fun RegisterScreen(
                     keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                isDark = isDark
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Email ─────────────────────────────────────────────────
-            AuthFieldLabel("Alamat Email", isDark)
+            AuthFieldLabel("Alamat Email")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = email,
@@ -267,13 +272,12 @@ fun RegisterScreen(
                     keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                isDark = isDark
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Password ──────────────────────────────────────────────
-            AuthFieldLabel("Kata Sandi", isDark)
+            AuthFieldLabel("Kata Sandi")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = password,
@@ -302,13 +306,12 @@ fun RegisterScreen(
                     keyboardType = KeyboardType.Password, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                isDark = isDark
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Confirm Password ──────────────────────────────────────
-            AuthFieldLabel("Konfirmasi Kata Sandi", isDark)
+            AuthFieldLabel("Konfirmasi Kata Sandi")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = confirmPassword,
@@ -333,7 +336,6 @@ fun RegisterScreen(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                isDark = isDark
             )
 
             if (!passwordsMatch) {
@@ -349,7 +351,7 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             // ── Klinik (wajib — akun terikat satu klinik) ─────────────
-            AuthFieldLabel("Klinik", isDark)
+            AuthFieldLabel("Klinik")
             Spacer(modifier = Modifier.height(8.dp))
             val pickedClinicName = pickerState.clinics
                 .firstOrNull { it.slug == pickerState.selectedSlug }?.name
@@ -358,10 +360,10 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp,
-                    if (isDark) AuthBorderDark else Color(0xFFE2E8F0)),
+                    Outline),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (isDark) AuthSurfaceDark else Color.White,
-                    contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+                    containerColor = Color.White,
+                    contentColor = OnBackground
                 )
             ) {
                 Icon(
@@ -373,7 +375,7 @@ fun RegisterScreen(
                     pickedClinicName ?: "Pilih klinik Anda",
                     fontSize = 15.sp,
                     fontWeight = if (pickedClinicName != null) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (pickedClinicName != null) (if (isDark) Color.White else Color(0xFF0F172A)) else AuthTextSecondary,
+                    color = if (pickedClinicName != null) (OnBackground) else AuthTextSecondary,
                     modifier = Modifier.weight(1f),
                     textAlign = TextAlign.Start
                 )
@@ -424,7 +426,7 @@ fun RegisterScreen(
             ) {
                 Divider(
                     modifier = Modifier.weight(1f),
-                    color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                    color = Outline
                 )
                 Text(
                     "  atau lanjutkan dengan  ",
@@ -433,7 +435,7 @@ fun RegisterScreen(
                 )
                 Divider(
                     modifier = Modifier.weight(1f),
-                    color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                    color = Outline
                 )
             }
 
@@ -452,10 +454,10 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(1.dp,
-                    if (isDark) AuthBorderDark else Color(0xFFE2E8F0)),
+                    Outline),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (isDark) AuthSurfaceDark else Color.White,
-                    contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+                    containerColor = Color.White,
+                    contentColor = OnBackground
                 ),
                 enabled = !uiState.isLoading && !isGoogleSigningIn
                         && !pickerState.selectedSlug.isNullOrBlank()
@@ -492,7 +494,7 @@ fun RegisterScreen(
             ) {
                 Text("Sudah punya akun? ",
                     fontSize = 13.sp,
-                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                    color = TextSecondary)
                 TextButton(
                     onClick = onNavigateBack,
                     contentPadding = PaddingValues(0.dp)

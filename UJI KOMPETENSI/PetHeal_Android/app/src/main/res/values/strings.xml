@@ -14,4 +14,10 @@
     <string name="splash_offline_message">Periksa Wi-Fi atau data seluler Anda, lalu coba lagi.</string>
     <string name="splash_offline_continue">Lanjutkan</string>
     <string name="splash_retry">Coba lagi</string>
+
+    <!-- Payment / error umum -->
+    <string name="error_payment_load_title">Gagal Memuat Pembayaran</string>
+    <string name="error_payment_load_message">Data pembayaran tidak bisa dibuka saat ini. Periksa koneksi Anda lalu coba lagi.</string>
+    <string name="action_retry">Coba Lagi</string>
+    <string name="action_back">Kembali</string>
 </resources>

@@ -28,6 +28,29 @@ val TextSecondary = Color(0xFF64748B)
 val TextTertiary = Color(0xFF94A3B8)
 val OnError = Color(0xFFFFFFFF)
 
+// ── Semantic tokens ──────────────────────────────────────────────────────────
+// Nilai di bawah ini sebelumnya ditulis ulang sebagai hex mentah di 15+ layar.
+// Layar WAJIB merujuk ke token ini, bukan menambah Color(0xFF...) baru.
+val ErrorStrong = Color(0xFFEF4444)        // aksi destruktif (hapus, batal)
+val ErrorSoft = Color(0xFFFFEBEE)          // latar banner error
+val Success = Color(0xFF10B981)            // konfirmasi positif
+val SuccessSoft = Color(0xFFE8F5E9)        // latar banner sukses
+val SuccessDeep = Color(0xFF047857)        // teks sukses di latar soft
+val Info = Color(0xFF0EA5E9)               // informasi / jadwal
+val InfoStrong = Color(0xFF3B82F6)         // biru aksen (in-progress, bank transfer)
+val InfoSoft = Color(0xFFE0F2FE)           // latar info
+val WarningDeep = Color(0xFFEA580C)        // peringatan kuat (teks)
+val WarningSoft = Color(0xFFFEF3C7)        // latar peringatan
+val WarningText = Color(0xFF92400E)        // teks peringatan di latar soft
+val Neutral = Color(0xFF6B7280)            // status netral / tidak diketahui
+val AccentViolet = Color(0xFF8B5CF6)       // aksen E-Wallet & follow-up
+val OutlineStrong = Color(0xFFCBD5E1)      // garis input / elemen nonaktif
+val Star = Color(0xFFFFC857)               // rating bintang
+val OnPrimaryStrong = Color(0xFF052E14)    // teks/ikon di atas Primary
+val PrimaryWash = Color(0xFFF2FBF5)        // gradasi putih→hijau (onboarding/auth)
+val SurfaceMuted = Color(0xFFF1F5F9)       // baris/divider halus
+val TextMuted = Color(0xFF334155)          // label sekunder lebih tegas
+
 val StatusPending = Color(0xFFF59E0B)
 val StatusConfirmed = Color(0xFF18C964)
 val StatusCompleted = Color(0xFF2563EB)

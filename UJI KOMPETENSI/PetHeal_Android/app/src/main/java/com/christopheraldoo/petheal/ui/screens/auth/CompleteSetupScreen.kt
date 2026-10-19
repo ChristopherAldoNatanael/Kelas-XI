@@ -40,6 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.local.PreferencesManager
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 /**
  * PHASE 7: finish-setup for accounts without a clinic binding.
@@ -71,7 +75,7 @@ fun CompleteSetupScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color.White, Color(0xFFF2FBF5), Color(0xFFEFFAF3))
+                    listOf(Color.White, PrimaryWash, PrimaryWash)
                 )
             )
     ) {
@@ -87,13 +91,13 @@ fun CompleteSetupScreen(
                     modifier = Modifier
                         .size(72.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFF18C964).copy(alpha = 0.14f)),
+                        .background(Primary.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Domain,
                         contentDescription = null,
-                        tint = Color(0xFF18C964),
+                        tint = Primary,
                         modifier = Modifier.size(34.dp)
                     )
                 }
@@ -102,14 +106,14 @@ fun CompleteSetupScreen(
                     text = "Selesaikan Pendaftaran",
                     fontSize = 22.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Langkah 2 dari 2 — Pilih klinik",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF18C964)
+                    color = Primary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
@@ -117,7 +121,7 @@ fun CompleteSetupScreen(
                         "sehingga layanan belum dapat digunakan. " +
                         "Pilih klinik tempat Anda berobat.",
                     fontSize = 14.sp,
-                    color = Color(0xFF64748B),
+                    color = TextSecondary,
                     textAlign = TextAlign.Center,
                     lineHeight = 20.sp
                 )
@@ -134,7 +138,7 @@ fun CompleteSetupScreen(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = Color(0xFF18C964))
+                        CircularProgressIndicator(color = Primary)
                     }
                 }
                 pickerState.error != null && pickerState.clinics.isEmpty() -> {
@@ -155,7 +159,7 @@ fun CompleteSetupScreen(
                         Button(
                             onClick = { pickerViewModel.load(pickerState.selectedSlug) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF18C964)
+                                containerColor = Primary
                             )
                         ) {
                             Text("Coba Lagi")
@@ -176,14 +180,14 @@ fun CompleteSetupScreen(
                         Text(
                             text = "Belum ada klinik yang tersedia. Coba muat ulang atau hubungi dukungan.",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B),
+                            color = TextSecondary,
                             textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Button(
                             onClick = { pickerViewModel.load(pickerState.selectedSlug) },
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF18C964)
+                                containerColor = Primary
                             )
                         ) {
                             Text("Muat Ulang")
@@ -234,7 +238,7 @@ fun CompleteSetupScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF18C964),
+                        containerColor = Primary,
                         contentColor = Color.White
                     )
                 ) {
@@ -253,7 +257,7 @@ fun CompleteSetupScreen(
                     text = "Akun email yang belum terhubung perlu dikaitkan " +
                         "oleh admin klinik. Silakan keluar lalu hubungi klinik Anda.",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B),
+                    color = TextSecondary,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -269,7 +273,7 @@ fun CompleteSetupScreen(
                         "Keluar",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF64748B)
+                        color = TextSecondary
                     )
                 }
             }

@@ -18,6 +18,7 @@ import com.christopheraldoo.petheal.ui.theme.StatusConfirmed
 import com.christopheraldoo.petheal.ui.theme.StatusPaid
 import com.christopheraldoo.petheal.ui.theme.StatusPending
 import com.christopheraldoo.petheal.ui.theme.StatusRejected
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 @Composable
 fun StatusBadge(
@@ -50,6 +51,6 @@ fun statusColor(status: String?): Color {
         "pending", "dp_pending", "partial" -> StatusPending
         "cancelled", "failed" -> StatusCancelled
         "rejected" -> StatusRejected
-        else -> Color(0xFF64748B)
+        else -> TextSecondary
     }
 }

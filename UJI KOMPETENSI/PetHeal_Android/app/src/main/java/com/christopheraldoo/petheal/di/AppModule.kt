@@ -9,6 +9,7 @@ import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
+import com.christopheraldoo.petheal.data.remote.NetworkMonitor
 import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
 import dagger.Provides
@@ -73,7 +74,8 @@ object AppModule {
     @Singleton
     fun provideOkHttpClient(
         @ApplicationContext context: Context,
-        networkInterceptor: NetworkInterceptor
+        networkInterceptor: NetworkInterceptor,
+        networkMonitor: NetworkMonitor
     ): OkHttpClient {
         // ✅ OPTIMIZED: Add HTTP response cache (10MB)
         // Enables offline viewing of previously loaded pages
@@ -87,7 +89,7 @@ object AppModule {
             .addInterceptor { chain ->
                 var request = chain.request()
                 // Force cache for 60 seconds if offline
-                if (!isNetworkAvailable(context)) {
+                if (!networkMonitor.isOnlineNow()) {
                     request = request.newBuilder()
                         .header("Cache-Control", "public, only-if-cached, max-stale=604800")
                         .build()
@@ -124,20 +126,6 @@ object AppModule {
         }
 
         return builder.build()
-    }
-
-    /**
-     * Check if network is available
-     */
-    private fun isNetworkAvailable(context: Context): Boolean {
-        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? android.net.ConnectivityManager
-        val network = connectivityManager?.activeNetwork
-        val capabilities = connectivityManager?.getNetworkCapabilities(network)
-        return capabilities != null && (
-            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI) ||
-            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_CELLULAR) ||
-            capabilities.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)
-        )
     }
 
     /**

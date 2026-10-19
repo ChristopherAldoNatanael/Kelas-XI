@@ -47,6 +47,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.christopheraldoo.petheal.data.model.Clinic
 import com.christopheraldoo.petheal.ui.theme.ClinicTheme
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 /**
  * PHASE 7: reusable tenant picker bottom sheet.
@@ -86,7 +89,7 @@ fun ClinicPickerSheet(
                     text = "Pilih Klinik",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 IconButton(onClick = { viewModel.load(uiState.selectedSlug) }) {
                     Icon(Icons.Filled.Refresh, contentDescription = "Muat ulang")
@@ -95,7 +98,7 @@ fun ClinicPickerSheet(
             Text(
                 text = "Satu akun terikat pada satu klinik. Data tiap klinik terisolasi penuh.",
                 fontSize = 13.sp,
-                color = Color(0xFF64748B)
+                color = TextSecondary
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -135,7 +138,7 @@ fun ClinicPickerSheet(
                     Text(
                         text = "Belum ada klinik aktif. Hubungi administrator.",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B),
+                        color = TextSecondary,
                         modifier = Modifier.padding(vertical = 24.dp)
                     )
                 }
@@ -177,7 +180,7 @@ fun ClinicPickerRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selected) brand.copy(alpha = 0.10f) else Color(0xFFF8FAFC))
+            .background(if (selected) brand.copy(alpha = 0.10f) else SurfaceVariant)
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -213,7 +216,7 @@ fun ClinicPickerRow(
                 text = clinic.name.orEmpty(),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = OnBackground,
                 maxLines = 1,
                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
             )
@@ -221,7 +224,7 @@ fun ClinicPickerRow(
                 Text(
                     text = clinic.address.orEmpty(),
                     fontSize = 12.sp,
-                    color = Color(0xFF64748B),
+                    color = TextSecondary,
                     maxLines = 2
                 )
             }

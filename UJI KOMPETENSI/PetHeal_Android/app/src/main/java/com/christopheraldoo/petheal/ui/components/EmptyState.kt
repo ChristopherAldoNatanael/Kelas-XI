@@ -26,6 +26,12 @@ import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.InfoStrong
+import com.christopheraldoo.petheal.ui.theme.Neutral
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.SecondaryLight
 
 /**
  * Enhanced empty state component with icon, title, description, and optional action button.
@@ -60,7 +66,7 @@ fun EmptyState(
             colors = CardDefaults.cardColors(containerColor = Surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(PetHealRadius.xxl),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+            border = androidx.compose.foundation.BorderStroke(1.dp, Outline)
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 28.dp),
@@ -153,8 +159,8 @@ fun EmptyPetsState(
         modifier = modifier,
         actionText = "Tambah Hewan Pertama",
         onActionClick = onAddPet,
-        iconColor = Color(0xFF0EA5A5),
-        backgroundColor = Color(0xFFE6FFFB)
+        iconColor = Secondary,
+        backgroundColor = SecondaryLight
     )
 }
 
@@ -167,22 +173,8 @@ fun EmptyNotificationsState() {
         icon = Icons.Outlined.NotificationsNone,
         title = "Belum Ada Notifikasi",
         description = "Saat ini belum ada pembaruan baru. Notifikasi booking, pembayaran, dan pengingat perawatan akan muncul di sini.",
-        iconColor = Color(0xFF3B82F6),
-        backgroundColor = Color(0xFFDBEAFE)
-    )
-}
-
-/**
- * Specific empty state for medical records
- */
-@Composable
-fun EmptyMedicalRecordsState() {
-    EmptyState(
-        icon = Icons.Outlined.Description,
-        title = "Belum Ada Rekam Medis",
-        description = "Rekam medis akan tampil di sini setelah hewan Anda menjalani konsultasi, tindakan, atau perawatan.",
-        iconColor = Color(0xFFEA580C),
-        backgroundColor = Color(0xFFFFEDD5)
+        iconColor = InfoStrong,
+        backgroundColor = InfoSoft
     )
 }
 
@@ -199,7 +191,7 @@ fun EmptySearchState(
         title = "Hasil Tidak Ditemukan",
         description = "Belum ada data yang cocok untuk \"$query\". Coba gunakan kata kunci lain atau kurangi filter pencarian.",
         modifier = modifier,
-        iconColor = Color(0xFF6B7280),
-        backgroundColor = Color(0xFF6B7280).copy(alpha = 0.1f)
+        iconColor = Neutral,
+        backgroundColor = Neutral.copy(alpha = 0.1f)
     )
 }

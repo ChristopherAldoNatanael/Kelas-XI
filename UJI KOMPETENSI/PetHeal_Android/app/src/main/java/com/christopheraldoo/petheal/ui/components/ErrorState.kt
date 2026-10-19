@@ -19,10 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.WifiOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,6 +44,7 @@ import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 
 @Composable
 fun ErrorState(
@@ -54,8 +52,8 @@ fun ErrorState(
     message: String,
     modifier: Modifier = Modifier,
     icon: ImageVector = Icons.Outlined.ErrorOutline,
-    iconColor: Color = Color(0xFFEF4444),
-    backgroundColor: Color = Color(0xFFEF4444).copy(alpha = 0.10f),
+    iconColor: Color = ErrorStrong,
+    backgroundColor: Color = ErrorStrong.copy(alpha = 0.10f),
     primaryActionText: String? = null,
     onPrimaryActionClick: (() -> Unit)? = null,
     secondaryActionText: String? = null,
@@ -165,57 +163,4 @@ fun ErrorState(
     }
 }
 
-@Composable
-fun NetworkErrorState(
-    onRetry: () -> Unit,
-    onGoBack: () -> Unit
-) {
-    ErrorState(
-        title = "Koneksi Bermasalah",
-        message = "Aplikasi belum bisa terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
-        icon = Icons.Outlined.WifiOff,
-        primaryActionText = "Coba Lagi",
-        onPrimaryActionClick = onRetry,
-        secondaryActionText = "Kembali",
-        onSecondaryActionClick = onGoBack,
-        iconColor = Color(0xFFF59E0B),
-        backgroundColor = Color(0xFFF59E0B).copy(alpha = 0.10f)
-    )
-}
 
-@Composable
-fun ServerErrorState(
-    errorMessage: String = "Terjadi kendala pada server. Silakan coba beberapa saat lagi.",
-    onRetry: (() -> Unit)? = null,
-    onGoBack: (() -> Unit)? = null
-) {
-    ErrorState(
-        title = "Server Bermasalah",
-        message = errorMessage,
-        icon = Icons.Outlined.CloudOff,
-        primaryActionText = if (onRetry != null) "Coba Lagi" else null,
-        onPrimaryActionClick = onRetry,
-        secondaryActionText = if (onGoBack != null) "Kembali" else null,
-        onSecondaryActionClick = onGoBack,
-        iconColor = Color(0xFFEF4444),
-        backgroundColor = Color(0xFFEF4444).copy(alpha = 0.10f)
-    )
-}
-
-@Composable
-fun PermissionErrorState(
-    onGrantPermission: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    ErrorState(
-        title = "Izin Dibutuhkan",
-        message = "Fitur ini memerlukan izin akses perangkat agar dapat berjalan dengan benar. Berikan izin yang diminta untuk melanjutkan.",
-        icon = Icons.Filled.Lock,
-        primaryActionText = "Berikan Izin",
-        onPrimaryActionClick = onGrantPermission,
-        secondaryActionText = "Nanti Saja",
-        onSecondaryActionClick = onDismiss,
-        iconColor = Color(0xFF3B82F6),
-        backgroundColor = Color(0xFF3B82F6).copy(alpha = 0.10f)
-    )
-}

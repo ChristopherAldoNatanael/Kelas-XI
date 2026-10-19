@@ -1,5 +1,10 @@
 package com.christopheraldoo.petheal.ui.screens.pet
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
@@ -70,14 +75,20 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.OutlineStrong
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
-private val PetPrimary       = Color(0xFF18C964)
-private val PetBgDark        = Color(0xFFF6F8F6)
-private val PetBgLight       = Color(0xFFF6F8F6)
-private val PetSurfaceDark   = Color.White
-private val PetSurfaceLight  = Color(0xFFFFFFFF)
-private val PetMuted         = Color(0xFF61896F)
+private val PetPrimary       = Primary
+private val PetBg       = Background
+private val PetSurface  = Surface
+private val PetMuted         = TextSecondary
 
 // ══════════════════════════════════════════════════════════════════════════════
 //  PETS LIST SCREEN
@@ -91,12 +102,11 @@ fun PetsScreen(
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isDark = false
-    val bgColor      = if (isDark) PetBgDark     else PetBgLight
-    val surfaceColor = if (isDark) PetSurfaceDark else PetSurfaceLight
-    val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
-    val textMuted    = if (isDark) Color(0xFF94A3B8) else PetMuted
-    val borderColor  = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9)
+    val bgColor      = PetBg
+    val surfaceColor = PetSurface
+    val textPrimary  = OnBackground
+    val textMuted    = PetMuted
+    val borderColor  = SurfaceMuted
 
     var showSearch by remember { mutableStateOf(false) }
 
@@ -236,7 +246,7 @@ fun PetsScreen(
                 }
                 // Bottom border line
                 Divider(
-                    color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9),
+                    color = SurfaceMuted,
                     thickness = 1.dp
                 )
             }
@@ -259,15 +269,15 @@ fun PetsScreen(
                         item {
                             Card(
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFFF5252).copy(alpha = 0.1f))
+                                colors = CardDefaults.cardColors(containerColor = ErrorStrong.copy(alpha = 0.1f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Filled.Warning, null, tint = Color(0xFFFF5252), modifier = Modifier.size(20.dp))
-                                    Text(errorMessage, color = Color(0xFFFF5252), fontSize = 13.sp)
+                                    Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(20.dp))
+                                    Text(errorMessage, color = ErrorStrong, fontSize = 13.sp)
                                 }
                             }
                         }
@@ -294,7 +304,6 @@ fun PetsScreen(
                     itemsIndexed(filteredPets) { index, pet ->
                         PetListCard(
                             pet = pet,
-                            isDark = isDark,
                             surfaceColor = surfaceColor,
                             textPrimary = textPrimary,
                             textMuted = textMuted,
@@ -306,7 +315,6 @@ fun PetsScreen(
                     // Add New Pet card at the bottom of the list
                     item {
                         AddNewPetCard(
-                            isDark = isDark,
                             surfaceColor = surfaceColor,
                             textPrimary = textPrimary,
                             textMuted = textMuted,
@@ -343,7 +351,6 @@ fun PetsScreen(
 @Composable
 private fun PetListCard(
     pet: Pet,
-    isDark: Boolean,
     surfaceColor: Color,
     textPrimary: Color,
     textMuted: Color,
@@ -351,7 +358,7 @@ private fun PetListCard(
     onClick: () -> Unit
 ) {
     val borderColor = if (isFirst) PetPrimary else PetPrimary.copy(alpha = 0.3f)
-    val arrowBg     = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val arrowBg     = SurfaceVariant
 
     Card(
         modifier = Modifier
@@ -374,7 +381,7 @@ private fun PetListCard(
                     .size(64.dp)
                     .clip(CircleShape)
                     .border(2.dp, borderColor, CircleShape)
-                    .background(if (isDark) Color(0xFF1E2C24) else Color(0xFFE8F5E9))
+                    .background(SuccessSoft)
             ) {
                 val photoUrl = buildPhotoUrl(pet.photo)
                 if (photoUrl != null) {
@@ -444,7 +451,6 @@ private fun PetListCard(
 // ── Add New Pet Card ──────────────────────────────────────────────────────────
 @Composable
 private fun AddNewPetCard(
-    isDark: Boolean,
     surfaceColor: Color,
     textPrimary: Color,
     textMuted: Color,
@@ -470,13 +476,13 @@ private fun AddNewPetCard(
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .border(2.dp, if (isDark) Color(0xFF374151) else Color(0xFFD1D5DB), CircleShape, )
-                    .background(if (isDark) Color(0xFF1F2937) else Color(0xFFF9FAFB)),
+                    .border(2.dp, OutlineStrong, CircleShape, )
+                    .background(Color(0xFFF9FAFB)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.Pets, null,
-                    tint = if (isDark) Color(0xFF6B7280) else Color(0xFF9CA3AF),
+                    tint = TextTertiary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -497,7 +503,7 @@ private fun AddNewPetCard(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
-                    .background(if (isDark) Color(0xFF1F2937) else Color(0xFFF8FAFC)),
+                    .background(SurfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
@@ -522,11 +528,10 @@ fun PetDetailScreen(
     viewModel: PetsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
-    val isDark = false
-    val bgColor      = if (isDark) PetBgDark     else PetBgLight
-    val surfaceColor = if (isDark) PetSurfaceDark else PetSurfaceLight
-    val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
-    val textMuted    = if (isDark) Color(0xFF94A3B8) else PetMuted
+    val bgColor      = PetBg
+    val surfaceColor = PetSurface
+    val textPrimary  = OnBackground
+    val textMuted    = PetMuted
 
     LaunchedEffect(petId) { viewModel.loadPetDetail(petId) }
     LaunchedEffect(state.isDeleted) { if (state.isDeleted) onNavigateBack() }
@@ -564,7 +569,7 @@ fun PetDetailScreen(
             text = { Text("Yakin ingin menghapus ${state.pet?.name}? Tindakan ini tidak dapat dibatalkan.") },
             confirmButton = {
                 TextButton(onClick = { viewModel.deletePet(petId); showDeleteDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
+                    colors = ButtonDefaults.textButtonColors(contentColor = ErrorStrong)
                 ) { Text("Hapus", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -612,7 +617,7 @@ fun PetDetailScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f))
+                                .background(Color.Black.copy(alpha = 0.05f))
                                 .clickable { onNavigateBack() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -636,7 +641,7 @@ fun PetDetailScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(if (isDark) Color.White.copy(alpha = 0.1f) else Color.Black.copy(alpha = 0.05f))
+                                .background(Color.Black.copy(alpha = 0.05f))
                                 .clickable { onNavigateToEdit() },
                             contentAlignment = Alignment.Center
                         ) {
@@ -662,7 +667,7 @@ fun PetDetailScreen(
                             modifier = Modifier
                                 .size(128.dp)
                                 .clip(CircleShape)
-                                .background(if (isDark) Color(0xFF1E2C24) else Color(0xFFE8F5E9))
+                                .background(SuccessSoft)
                                 .border(4.dp, PetPrimary.copy(alpha = 0.2f), CircleShape)
                         ) {
                             val photoUrl = buildPhotoUrl(pet?.photo)
@@ -694,7 +699,7 @@ fun PetDetailScreen(
                             Icon(
                                 Icons.Filled.Check,
                                 contentDescription = "Healthy",
-                                tint = Color(0xFFF6F8F6),
+                                tint = Background,
                                 modifier = Modifier.size(18.dp)
                             )
                         }
@@ -769,7 +774,7 @@ fun PetDetailScreen(
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PetPrimary,
-                            contentColor = Color(0xFF111813)
+                            contentColor = OnBackground
                         )
                     ) {
                         Icon(Icons.Filled.Edit, null, modifier = Modifier.size(20.dp))
@@ -989,8 +994,8 @@ fun PetDetailScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFEF4444).copy(alpha = 0.1f),
-                        contentColor = Color(0xFFEF4444)
+                        containerColor = ErrorStrong.copy(alpha = 0.1f),
+                        contentColor = ErrorStrong
                     )
                 ) {
                     Icon(Icons.Filled.Delete, null, modifier = Modifier.size(20.dp))
@@ -1171,7 +1176,7 @@ private fun HealthMiniRow(
             confirmButton = {
                 TextButton(
                     onClick = { showDeleteConfirm = false; onDelete?.invoke() },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
+                    colors = ButtonDefaults.textButtonColors(contentColor = ErrorStrong)
                 ) { Text("Hapus", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -1204,7 +1209,7 @@ private fun HealthMiniRow(
                 Icon(
                     imageVector = Icons.Filled.DeleteOutline,
                     contentDescription = "Hapus $title",
-                    tint = Color(0xFFEF4444),
+                    tint = ErrorStrong,
                     modifier = Modifier.size(20.dp)
                 )
             }
@@ -1228,7 +1233,7 @@ private fun AddWeightDialog(
         shape = RoundedCornerShape(24.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Catat Berat", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text("Catat Berat", fontWeight = FontWeight.Bold, color = OnBackground)
                 Text(
                     "Simpan berat terbaru agar progres hewan Anda tetap terpantau dengan baik.",
                     fontSize = 13.sp,
@@ -1266,7 +1271,7 @@ private fun AddWeightDialog(
                 enabled = !isLoading && parsedWeight != null && parsedWeight > 0.0,
                 onClick = { parsedWeight?.let { onSubmit(it, notes.trim().ifBlank { null }) } },
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
+                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Background)
             ) { Text(if (isLoading) "Menyimpan..." else "Simpan Berat") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Tutup") } }
@@ -1293,7 +1298,7 @@ private fun AddVaccinationDialog(
         shape = RoundedCornerShape(24.dp),
         title = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Tambah Vaksinasi", fontWeight = FontWeight.Bold, color = Color(0xFF111813))
+                Text("Tambah Vaksinasi", fontWeight = FontWeight.Bold, color = OnBackground)
                 Text(
                     "Catat detail vaksin dan jadwal tindak lanjut (jika ada).",
                     fontSize = 13.sp,
@@ -1367,7 +1372,7 @@ private fun AddVaccinationDialog(
                     )
                 },
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Color(0xFFF6F8F6))
+                colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Background)
             ) { Text(if (isLoading) "Menyimpan..." else "Simpan Vaksinasi") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Tutup") } }
@@ -1400,7 +1405,7 @@ private fun HealthDialogHintCard(
             Icon(icon, contentDescription = null, tint = PetPrimary, modifier = Modifier.size(18.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF111813))
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
             Text(body, fontSize = 12.sp, color = PetMuted, lineHeight = 18.sp)
         }
     }
@@ -1431,7 +1436,7 @@ private fun HealthDialogField(
         ),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = PetPrimary,
-            unfocusedBorderColor = Color(0xFFE2E8F0),
+            unfocusedBorderColor = Outline,
             focusedContainerColor = Color.White,
             unfocusedContainerColor = Color.White
         )
@@ -1455,7 +1460,7 @@ private fun HealthDialogDateField(
                 .clickable(onClick = onClick),
             shape = RoundedCornerShape(16.dp),
             color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+            border = BorderStroke(1.dp, Outline)
         ) {
             Row(
                 modifier = Modifier
@@ -1473,7 +1478,7 @@ private fun HealthDialogDateField(
                     Text(
                         text = value.ifBlank { placeholder },
                         fontSize = 14.sp,
-                        color = if (value.isBlank()) PetMuted else Color(0xFF111813)
+                        color = if (value.isBlank()) PetMuted else OnBackground
                     )
                 }
                 if (onClear != null && value.isNotBlank()) {
@@ -1751,7 +1756,7 @@ fun AddPetScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = PetPrimary,
-                        contentColor = Color(0xFFF6F8F6)
+                        contentColor = Background
                     )
                 ) {
                     Text("Lihat Daftar", fontWeight = FontWeight.SemiBold)
@@ -1864,12 +1869,11 @@ private fun PetFormScreen(
     onSubmit: (name: String, species: String, breed: String?, gender: String?,
                dateOfBirth: String?, age: Int?, weight: Double?, photoFile: File?) -> Unit
 ) {    val context      = LocalContext.current
-    val isDark       = false
-    val bgColor      = if (isDark) PetBgDark     else PetBgLight
-    val surfaceColor = if (isDark) Color.White else Color.White
-    val textPrimary  = if (isDark) Color.White    else Color(0xFF111813)
-    val textMuted    = if (isDark) Color(0xFF94A3B8) else Color(0xFF61896F)
-    val borderColor  = if (isDark) Color(0x33FFFFFF) else Color(0xFFE2E8F0)
+    val bgColor      = PetBg
+    val surfaceColor = Color.White
+    val textPrimary  = OnBackground
+    val textMuted    = Color(0xFF61896F)
+    val borderColor  = Outline
     val focusManager = LocalFocusManager.current
 
     var name          by remember(initialName)        { mutableStateOf(initialName) }
@@ -2068,7 +2072,7 @@ private fun PetFormScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(if (isDark) Color(0xFF1E3526) else Color(0xFFEFF4F0))
+                        .background(SurfaceMuted)
                         .clickable {
                             pendingLaunch = "camera"
                             showPhotoSheet = false   // LaunchedEffect fires launchCamera() after dismiss
@@ -2095,7 +2099,7 @@ private fun PetFormScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(14.dp))
-                        .background(if (isDark) Color(0xFF1E3526) else Color(0xFFEFF4F0))
+                        .background(SurfaceMuted)
                         .clickable {
                             pendingLaunch = "gallery"
                             showPhotoSheet = false   // LaunchedEffect fires launchGallery() after dismiss
@@ -2124,7 +2128,7 @@ private fun PetFormScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color(0xFFEF4444).copy(alpha = 0.08f))
+                            .background(ErrorStrong.copy(alpha = 0.08f))
                             .clickable {
                                 showPhotoSheet = false
                                 selectedPhotoUri = null
@@ -2138,12 +2142,12 @@ private fun PetFormScreen(
                             modifier = Modifier
                                 .size(44.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEF4444).copy(alpha = 0.1f)),
+                                .background(ErrorStrong.copy(alpha = 0.1f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Delete, null, tint = Color(0xFFEF4444), modifier = Modifier.size(22.dp))
+                            Icon(Icons.Filled.Delete, null, tint = ErrorStrong, modifier = Modifier.size(22.dp))
                         }
-                        Text("Hapus Foto", fontWeight = FontWeight.SemiBold, color = Color(0xFFEF4444), fontSize = 15.sp)
+                        Text("Hapus Foto", fontWeight = FontWeight.SemiBold, color = ErrorStrong, fontSize = 15.sp)
                     }
                 }
             }
@@ -2205,7 +2209,7 @@ private fun PetFormScreen(
                         modifier = Modifier
                             .size(220.dp)
                             .clip(RoundedCornerShape(24.dp))
-                            .background(if (isDark) Color(0xFF1E3526) else Color(0xFFEFF4F0))
+                            .background(SurfaceMuted)
                             .border(
                                 width = if (selectedPhotoUri != null) 3.dp else 2.dp,
                                 color = if (selectedPhotoUri != null) PetPrimary else PetPrimary.copy(alpha = 0.4f),
@@ -2247,7 +2251,7 @@ private fun PetFormScreen(
                                     .background(PetPrimary),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Filled.Edit, null, tint = Color(0xFFF6F8F6), modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.Edit, null, tint = Background, modifier = Modifier.size(18.dp))
                             }
                         } else {
                             Column(
@@ -2307,15 +2311,15 @@ private fun PetFormScreen(
                             .fillMaxWidth()
                             .padding(horizontal = 24.dp)
                             .clip(RoundedCornerShape(12.dp))
-                            .background(Color(0xFFEF4444).copy(alpha = 0.1f))
+                            .background(ErrorStrong.copy(alpha = 0.1f))
                             .padding(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Filled.Warning, null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
+                        Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(18.dp))
                         Text(
                             "Ukuran foto terlalu besar (${photoSizeKB / 1024}MB). Pilih foto lain atau ulangi pengambilan gambar.",
-                            color = Color(0xFFEF4444), fontSize = 13.sp
+                            color = ErrorStrong, fontSize = 13.sp
                         )
                     }
                 }
@@ -2331,13 +2335,13 @@ private fun PetFormScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFEF4444).copy(alpha = 0.1f))
+                                .background(ErrorStrong.copy(alpha = 0.1f))
                                 .padding(12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(Icons.Filled.Warning, null, tint = Color(0xFFEF4444), modifier = Modifier.size(18.dp))
-                            Text(error, color = Color(0xFFEF4444), fontSize = 13.sp)
+                            Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(18.dp))
+                            Text(error, color = ErrorStrong, fontSize = 13.sp)
                         }
                     }
 
@@ -2435,7 +2439,7 @@ private fun PetFormScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(g, fontSize = 12.sp, fontWeight = FontWeight.Bold,
-                                            color = if (isSelected) Color(0xFFF6F8F6) else textMuted)
+                                            color = if (isSelected) Background else textMuted)
                                     }
                                 }
                             }
@@ -2554,15 +2558,15 @@ private fun PetFormScreen(
                 enabled = !isLoading && name.isNotBlank() && isSpeciesValid && !isPhotoTooLarge && !isProcessingPhoto,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPrimary,
-                    contentColor = Color(0xFFF6F8F6),
+                    contentColor = Background,
                     disabledContainerColor = PetPrimary.copy(alpha = 0.4f),
-                    disabledContentColor = Color(0xFFF6F8F6).copy(alpha = 0.5f)
+                    disabledContentColor = Background.copy(alpha = 0.5f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp),
-                        color = Color(0xFFF6F8F6), strokeWidth = 2.5.dp)
+                        color = Background, strokeWidth = 2.5.dp)
                 } else {
                     Icon(Icons.Filled.Pets, null, modifier = Modifier.size(20.dp))
                     Spacer(Modifier.width(8.dp))
@@ -2583,7 +2587,7 @@ private fun FormSection(
             label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = if (false) Color(0xFF94A3B8) else Color(0xFF61896F),
+            color = Color(0xFF61896F),
             letterSpacing = 0.8.sp
         )
         content()

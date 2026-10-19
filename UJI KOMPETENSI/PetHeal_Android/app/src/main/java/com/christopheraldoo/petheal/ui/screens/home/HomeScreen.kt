@@ -1,5 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -72,14 +80,29 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.ui.theme.AccentViolet
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.Info
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.SecondaryDark
+import com.christopheraldoo.petheal.ui.theme.StatusCompleted
+import com.christopheraldoo.petheal.ui.theme.StatusRejected
+import com.christopheraldoo.petheal.ui.theme.Success
+import com.christopheraldoo.petheal.ui.theme.Tertiary
+import com.christopheraldoo.petheal.ui.theme.TextMuted
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningDeep
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+import com.christopheraldoo.petheal.util.formatRupiahCompact
 
-private val HomePrimary = Color(0xFF18C964)
-private val HomeBg = Color(0xFFF6F8F6)
-private val HomeSurface = Color.White
-private val HomeBorder = Color(0xFFE2E8F0)
-private val HomeTextPrimary = Color(0xFF0F172A)
-private val HomeTextSecondary = Color(0xFF64748B)
-private val HomeSoftSurface = Color(0xFFF8FAFC)
+// Alias lokal → satu sumber warna di ui/theme/Color.kt.
+private val HomePrimary = Primary
+private val HomeBg = Background
+private val HomeSurface = Surface
+private val HomeBorder = Outline
+private val HomeTextPrimary = OnBackground
+private val HomeTextSecondary = TextSecondary
+private val HomeSoftSurface = SurfaceVariant
 
 @Composable
 fun HomeScreen(
@@ -144,7 +167,7 @@ fun HomeScreen(
                         Text(
                             text = loadError,
                             fontSize = 12.sp,
-                            color = Color(0xFFB91C1C),
+                            color = StatusRejected,
                             modifier = Modifier.weight(1f)
                         )
                         TextButton(onClick = { viewModel.refresh() }) {
@@ -489,7 +512,7 @@ private fun HeaderSection(
                         .offset(x = 2.dp, y = (-2).dp)
                         .size(if (unreadNotificationCount > 9) 18.dp else 15.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFEF4444)),
+                        .background(ErrorStrong),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -574,7 +597,7 @@ private fun DashboardSummaryCard(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 AttentionPill("Total Kunjungan", totalVisits.toString(), HomeTextPrimary)
-                AttentionPill("Biaya Tercatat", "Rp ${formatCurrencyCompact(totalSpent)}", if (totalSpent > 0) Color(0xFF0F766E) else HomeTextPrimary)
+                AttentionPill("Biaya Tercatat", formatRupiahCompact(totalSpent), if (totalSpent > 0) SecondaryDark else HomeTextPrimary)
             }
         }
     }
@@ -594,15 +617,15 @@ private fun OperationalOverviewRow(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        OperationalMetricCard("Booking Pending", pendingBookings.toString(), "Menunggu kepastian jadwal", Icons.Filled.PendingActions, Color(0xFFF59E0B))
-        OperationalMetricCard("Perlu Pembayaran", paymentAttentionCount.toString(), "Masih perlu diselesaikan", Icons.Filled.Payments, Color(0xFF0EA5E9))
-        OperationalMetricCard("Follow-up", followUpDueCount.toString(), "Perlu dijadwalkan", Icons.Filled.EventAvailable, Color(0xFF8B5CF6))
+        OperationalMetricCard("Booking Pending", pendingBookings.toString(), "Menunggu kepastian jadwal", Icons.Filled.PendingActions, Tertiary)
+        OperationalMetricCard("Perlu Pembayaran", paymentAttentionCount.toString(), "Masih perlu diselesaikan", Icons.Filled.Payments, Info)
+        OperationalMetricCard("Follow-up", followUpDueCount.toString(), "Perlu dijadwalkan", Icons.Filled.EventAvailable, AccentViolet)
         OperationalMetricCard(
             "Vaksinasi",
             (dueVaccinationCount + overdueVaccinationCount).toString(),
             if (overdueVaccinationCount > 0) "$overdueVaccinationCount terlambat" else "Perlu dijadwalkan",
             Icons.Filled.Vaccines,
-            Color(0xFF10B981)
+            Success
         )
     }
 }
@@ -704,7 +727,7 @@ private fun UpcomingBookingSection(
                                     } ?: "Belum ada jadwal aktif",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF334155),
+                                    color = TextMuted,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
@@ -736,7 +759,7 @@ private fun UpcomingBookingSection(
                                     } ?: "-",
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = Color(0xFF334155)
+                                    color = TextMuted
                                 )
                             }
                         }
@@ -788,7 +811,7 @@ private fun DoctorPhotoCard(photo: String?) {
         modifier = Modifier
             .size(96.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(Color(0xFFE2E8F0))
+            .background(Outline)
     ) {
         val doctorPhoto = remember(photo) { buildPhotoUrl(photo) }
         if (!doctorPhoto.isNullOrBlank()) {
@@ -797,7 +820,7 @@ private fun DoctorPhotoCard(photo: String?) {
             Icon(
                 imageVector = Icons.Filled.Person,
                 contentDescription = null,
-                tint = Color(0xFF94A3B8),
+                tint = TextTertiary,
                 modifier = Modifier
                     .size(44.dp)
                     .align(Alignment.Center)
@@ -826,9 +849,9 @@ private fun QuickActionsSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", Color(0xFFDBEAFE), Color(0xFF2563EB), onNavigateToBookingStart)
+            QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", InfoSoft, StatusCompleted, onNavigateToBookingStart)
             QuickActionItem(Icons.Filled.Pets, "Hewan\nSaya", Color(0xFFF3E8FF), Color(0xFF9333EA), onNavigateToPets)
-            QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", Color(0xFFFFEDD5), Color(0xFFEA580C), onNavigateToMedicalRecords)
+            QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", WarningSoft, WarningDeep, onNavigateToMedicalRecords)
             QuickActionItem(Icons.Filled.MedicalServices, "Cari\nDokter", Color(0xFFFFE4E6), Color(0xFFDB2777), onNavigateToDoctors)
         }
     }
@@ -991,7 +1014,7 @@ private fun AttentionPill(
 
 @Composable
 private fun BookingCardSkeleton() {
-    val skeletonColor = Color(0xFFE2E8F0)
+    val skeletonColor = Outline
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -1039,10 +1062,3 @@ private fun BookingCardSkeleton() {
     }
 }
 
-private fun formatCurrency(value: Double): String =
-    String.format("%,.0f", value).replace(',', '.')
-
-private fun formatCurrencyCompact(value: Double): String {
-    val formatted = formatCurrency(value)
-    return if (formatted.length > 10) "${formatted.take(10)}+" else formatted
-}

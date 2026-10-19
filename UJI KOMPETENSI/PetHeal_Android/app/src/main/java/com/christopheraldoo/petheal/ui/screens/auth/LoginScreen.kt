@@ -1,5 +1,9 @@
 package com.christopheraldoo.petheal.ui.screens.auth
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,14 +51,17 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.OutlineStrong
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
+import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.Surface
 
-// ── Brand colors (single source: theme Primary 0xFF18C964) ────────────────────
-internal val AuthPrimary        = Color(0xFF18C964)
-internal val AuthBgDark         = Color(0xFFF6F8F6)
-internal val AuthBgLight        = Color(0xFFF6F8F6)
-internal val AuthSurfaceDark    = Color.White
-internal val AuthBorderDark     = Color(0xFF3B5443)
-internal val AuthTextSecondary  = Color(0xFF9DB9A6)
+// ── Brand colors — satu sumber: ui/theme/Color.kt ────────────────────────────
+internal val AuthPrimary       = Primary
+internal val AuthBg            = Background
+internal val AuthTextSecondary = TextSecondary
 
 @Composable
 fun LoginScreen(
@@ -67,8 +74,7 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsState()
     val pickerState by pickerViewModel.uiState.collectAsState()
     val authProvider by viewModel.authProvider.collectAsState(initial = null)
-    val isDark = false
-    val bgColor = if (isDark) AuthBgDark else AuthBgLight
+    val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
 
@@ -155,7 +161,7 @@ fun LoginScreen(
             .fillMaxSize()
             .background(
                 Brush.verticalGradient(
-                    listOf(Color(0xFFFFFFFF), Color(0xFFF2FBF5), bgColor)
+                    listOf(Surface, PrimaryWash, bgColor)
                 )
             )
     ) {
@@ -171,13 +177,15 @@ fun LoginScreen(
                 .size(180.dp)
                 .offset(x = (-70).dp, y = 120.dp)
                 .clip(RoundedCornerShape(64.dp))
-                .background(Color(0xFF0EA5A5).copy(alpha = 0.08f))
+                .background(Secondary.copy(alpha = 0.08f))
         )
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
                 .imePadding()
+                .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
                 .padding(top = 20.dp, bottom = 28.dp)
         ) {
@@ -195,7 +203,7 @@ fun LoginScreen(
                     text = "Akun PetHeal",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 Box(modifier = Modifier.size(48.dp))
             }
@@ -207,7 +215,7 @@ fun LoginScreen(
                     .clip(RoundedCornerShape(28.dp))
                     .background(
                         Brush.linearGradient(
-                            listOf(Color.White, Color(0xFFEFFAF3))
+                            listOf(Color.White, PrimaryWash)
                         )
                     )
                     .padding(horizontal = 24.dp, vertical = 28.dp)
@@ -226,14 +234,14 @@ fun LoginScreen(
                 Text(
                     text = "Selamat Datang Kembali",
                     fontSize = 25.sp, fontWeight = FontWeight.Bold,
-                    color = if (isDark) Color.White else Color(0xFF0F172A)
+                    color = OnBackground
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
                     text = "Kelola booking, pembayaran, dan riwayat kesehatan hewan dalam satu tempat.",
                     fontSize = 14.sp,
                     lineHeight = 20.sp,
-                    color = Color(0xFF64748B),
+                    color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
             }
@@ -241,7 +249,7 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(28.dp))
 
             // ── Email ─────────────────────────────────────────────────
-            AuthFieldLabel("Alamat Email", isDark)
+            AuthFieldLabel("Alamat Email")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = email,
@@ -259,13 +267,12 @@ fun LoginScreen(
                     keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }),
-                isDark = isDark
             )
 
             Spacer(modifier = Modifier.height(20.dp))
 
             // ── Password ──────────────────────────────────────────────
-            AuthFieldLabel("Kata Sandi", isDark)
+            AuthFieldLabel("Kata Sandi")
             Spacer(modifier = Modifier.height(8.dp))
             AuthTextField(
                 value = password,
@@ -294,7 +301,6 @@ fun LoginScreen(
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                isDark = isDark
             )
 
             // ── Forgot password ───────────────────────────────────────
@@ -336,7 +342,7 @@ fun LoginScreen(
                 Text(
                     text = if (pickedName != null) "Klinik (login email): $pickedName" else "Klinik (login email): belum dipilih",
                     fontSize = 13.sp,
-                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                    color = TextSecondary,
                     modifier = Modifier.weight(1f)
                 )
                 TextButton(onClick = { showClinicPicker = true }) {
@@ -382,7 +388,7 @@ fun LoginScreen(
             ) {
                 Divider(
                     modifier = Modifier.weight(1f),
-                    color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                    color = Outline
                 )
                 Text(
                     "  atau lanjutkan dengan  ",
@@ -391,7 +397,7 @@ fun LoginScreen(
                 )
                 Divider(
                     modifier = Modifier.weight(1f),
-                    color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+                    color = Outline
                 )
             }
 
@@ -410,10 +416,10 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth().height(58.dp),
                 shape = RoundedCornerShape(18.dp),
                 border = BorderStroke(1.dp,
-                    if (isDark) AuthBorderDark else Color(0xFFE2E8F0)),
+                    Outline),
                 colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = if (isDark) AuthSurfaceDark else Color.White,
-                    contentColor = if (isDark) Color.White else Color(0xFF0F172A)
+                    containerColor = Color.White,
+                    contentColor = OnBackground
                 ),
                 enabled = !uiState.isLoading
             ) {
@@ -458,7 +464,7 @@ fun LoginScreen(
             ) {
                 Text("Belum punya akun? ",
                     fontSize = 13.sp,
-                    color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B))
+                    color = TextSecondary)
                 TextButton(
                     onClick = onNavigateToRegister,
                     contentPadding = PaddingValues(0.dp)
@@ -631,11 +637,11 @@ fun LoginScreen(
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
 @Composable
-internal fun AuthFieldLabel(text: String, isDark: Boolean) {
+internal fun AuthFieldLabel(text: String) {
     Text(
         text = text,
         fontSize = 13.sp, fontWeight = FontWeight.Medium,
-        color = if (isDark) Color.White else Color(0xFF0F172A)
+        color = OnBackground
     )
 }
 
@@ -650,7 +656,6 @@ internal fun AuthTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
-    isDark: Boolean
 ) {
     OutlinedTextField(
         value = value,
@@ -666,11 +671,11 @@ internal fun AuthTextField(
         shape = RoundedCornerShape(18.dp),
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = AuthPrimary,
-            unfocusedBorderColor = if (isDark) AuthBorderDark else Color(0xFFCBD5E1),
-            focusedContainerColor = if (isDark) AuthSurfaceDark else Color.White,
-            unfocusedContainerColor = if (isDark) AuthSurfaceDark else Color.White,
-            focusedTextColor = if (isDark) Color.White else Color(0xFF0F172A),
-            unfocusedTextColor = if (isDark) Color.White else Color(0xFF0F172A),
+            unfocusedBorderColor = OutlineStrong,
+            focusedContainerColor = Color.White,
+            unfocusedContainerColor = Color.White,
+            focusedTextColor = OnBackground,
+            unfocusedTextColor = OnBackground,
             cursorColor = AuthPrimary
         )
     )

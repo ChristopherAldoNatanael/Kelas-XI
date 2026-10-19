@@ -1,5 +1,13 @@
 package com.christopheraldoo.petheal.ui.screens.doctor
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -58,22 +66,23 @@ import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.Star
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.util.formatAvgRating
+import com.christopheraldoo.petheal.util.reviewCountLabel
 
 private const val TAG = "DoctorPhoto"
 
-/** Label jumlah ulasan konsisten di semua layar: "1 ulasan" / "3 ulasan". */
-private fun reviewCountLabel(total: Int): String =
-    if (total == 1) "1 ulasan" else "$total ulasan"
-
-private fun formatAvgRating(avg: Double): String = "%.1f".format(avg)
-
-private val Primary     = Color(0xFF18C964)
-private val PrimaryFg   = Color(0xFF052E14)
-private val BgDark      = Color(0xFFF6F8F6)
-private val SurfaceDark = Color.White
-private val BorderDark  = Color(0xFFE2E8F0)
-private val TextPrimary = Color(0xFF0F172A)
-private val TextSecDark = Color(0xFF64748B)
+// Alias lokal → satu sumber warna di ui/theme/Color.kt.
+private val PrimaryFg   = OnPrimaryStrong
+private val BgDark      = Background
+private val SurfaceDark = Surface
+private val BorderDark  = Outline
+private val TextPrimary = OnBackground
+private val TextSecDark = TextSecondary
 
 @Composable
 private fun DocPhoto(
@@ -345,7 +354,7 @@ fun DoctorDetailScreen(
                                 // jadi konsisten dengan kartu di Cari Dokter.
                                 if (state.totalReviews > 0) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(14.dp))
+                                        Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(14.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text(formatAvgRating(state.averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                         Text(" · ${reviewCountLabel(state.totalReviews)}", color = TextSecDark, fontSize = 12.sp)
@@ -404,16 +413,16 @@ fun DoctorDetailScreen(
         state.error?.let { err ->
             Snackbar(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
-                containerColor = Color(0xFFFFEBEE), contentColor = Color(0xFFDC2626),
-                dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Color(0xFFDC2626)) } }
+                containerColor = ErrorSoft, contentColor = Error,
+                dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Error) } }
             ) { Text(err) }
         }
         state.reviewMessage?.let { message ->
             Snackbar(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(16.dp),
                 containerColor = Color(0xFFE8FFF1),
-                contentColor = Color(0xFF047857),
-                dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = Color(0xFF047857)) } }
+                contentColor = SuccessDeep,
+                dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = SuccessDeep) } }
             ) { Text(message) }
         }
     }
@@ -499,7 +508,7 @@ private fun DoctorReviewsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (totalReviews > 0) {
-                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(15.dp))
+                    Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(15.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(formatAvgRating(averageRating), color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     Text(" · ${reviewCountLabel(totalReviews)}", color = TextSecDark, fontSize = 12.sp)
@@ -525,7 +534,7 @@ private fun DoctorReviewsSection(
                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(18.dp))
+                    Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Beri nilai dokter ini", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -575,7 +584,7 @@ private fun DoctorReviewsSection(
                             Text(review.user?.name ?: "Pengguna", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 repeat(review.rating ?: 0) {
-                                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(13.dp))
+                                    Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(13.dp))
                                 }
                             }
                         }
@@ -645,7 +654,7 @@ private fun SubmitReviewDialog(
                         Icon(
                             imageVector = Icons.Filled.Star,
                             contentDescription = "$value star",
-                            tint = if (value <= rating) Color(0xFFFFC857) else TextSecDark.copy(alpha = 0.35f),
+                            tint = if (value <= rating) Star else TextSecDark.copy(alpha = 0.35f),
                             modifier = Modifier.size(30.dp).clickable { rating = value }
                         )
                     }
@@ -701,7 +710,7 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
             val reviewTotal = doctor.reviewsCount ?: 0
             if (avg != null && avg > 0) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(13.dp))
+                    Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(13.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(formatAvgRating(avg), color = TextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     // Invariant: rata-rata > 0 berarti minimal ada 1 ulasan.
@@ -769,7 +778,7 @@ private fun TimeSlotsGrid(slots: List<TimeSlot>, isSlotsLoading: Boolean, modifi
             items(slots) { slot ->
                 Box(
                     modifier = Modifier.clip(RoundedCornerShape(10.dp))
-                        .background(if (slot.available) BorderDark else Color(0xFFF1F5F9))
+                        .background(if (slot.available) BorderDark else SurfaceMuted)
                         .border(1.dp, if (slot.available) Primary.copy(alpha = 0.6f) else BorderDark, RoundedCornerShape(10.dp))
                         .padding(horizontal = 14.dp, vertical = 8.dp)
                 ) {

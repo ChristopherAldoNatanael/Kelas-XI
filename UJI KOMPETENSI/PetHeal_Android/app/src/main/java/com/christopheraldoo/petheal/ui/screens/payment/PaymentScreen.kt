@@ -1,5 +1,9 @@
 package com.christopheraldoo.petheal.ui.screens.payment
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Log
@@ -37,15 +41,23 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.User
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.Tertiary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.util.formatRupiah
 
 private const val TAG = "PaymentScreen"
 
 // Brand tokens
-private val PayPrimary = Color(0xFF18C964)
-private val PayBgDark = Color(0xFFF6F8F6)
-private val PayBgLight = Color(0xFFF6F8F6)
-private val PaySurfaceDark = Color.White
-private val PaySurfaceLight = Color(0xFFFFFFFF)
+private val PayPrimary = Primary
+private val PayBg = Background
+private val PaySurface = Surface
 
 /**
  * Enhanced payment screen with complete post-payment UX.
@@ -74,10 +86,9 @@ fun PaymentScreen(
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-    val isDark = false
-    val bgColor = if (isDark) PayBgDark else PayBgLight
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val bgColor = PayBg
+    val textPrimary = OnBackground
+    val textSecondary = TextSecondary
     val paymentContextTitle = when {
         medicalRecordId != null -> "Pembayaran Rekam Medis"
         isRemainingPayment -> "Pembayaran Sisa Booking"
@@ -184,7 +195,7 @@ fun PaymentScreen(
                         shape = RoundedCornerShape(28.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
                         elevation = CardDefaults.cardElevation(0.dp),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        border = BorderStroke(1.dp, Outline)
                     ) {
                     Column(
                         modifier = Modifier.padding(28.dp),
@@ -226,8 +237,8 @@ fun PaymentScreen(
                         }
                         Surface(
                             shape = RoundedCornerShape(18.dp),
-                            color = Color(0xFFF8FAFC),
-                            border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                            color = SurfaceVariant,
+                            border = BorderStroke(1.dp, Outline)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth().padding(14.dp),
@@ -236,7 +247,7 @@ fun PaymentScreen(
                             ) {
                                 Text("Total", color = textSecondary, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                                 Text(
-                                    "Rp ${String.format("%,.0f", totalAmount).replace(",", ".")}",
+                                    formatRupiah(totalAmount),
                                     color = textPrimary,
                                     fontSize = 17.sp,
                                     fontWeight = FontWeight.Bold
@@ -479,7 +490,7 @@ private fun PaymentWebView(
                     Icon(Icons.Filled.Sync, contentDescription = "Cek status pembayaran", tint = textPrimary)
                 }
             }
-            androidx.compose.material3.Divider(color = Color(0xFFE2E8F0))
+            androidx.compose.material3.Divider(color = Outline)
         }
     }
 }
@@ -517,10 +528,9 @@ fun PaymentResultDialog(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isDark = false
-    val bgColor = if (isDark) Color(0xFF1E293B) else Color.White
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val bgColor = Color.White
+    val textPrimary = OnBackground
+    val textSecondary = TextSecondary
 
     val icon: ImageVector
     val iconColor: Color
@@ -528,9 +538,9 @@ fun PaymentResultDialog(
     val message: String
     when (status) {
         "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Pembayaran Selesai"; message = "Pembayaran Anda tercatat. Status booking terbaru akan dimuat ulang otomatis." }
-        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Color(0xFFF59E0B); title = "Pembayaran Tertunda"; message = "Sesi pembayaran masih aktif. Selesaikan transaksi untuk membuka status terbaru." }
-        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = Color(0xFF94A3B8); title = "Pembayaran Dibatalkan"; message = "Tidak ada dana yang terpotong. Anda bisa memulai pembayaran lagi dari detail booking." }
-        else -> { icon = Icons.Filled.Cancel; iconColor = Color(0xFFEF4444); title = "Pembayaran Gagal"; message = "Checkout tidak selesai. Silakan coba lagi." }
+        "pending" -> { icon = Icons.Filled.Schedule; iconColor = Tertiary; title = "Pembayaran Tertunda"; message = "Sesi pembayaran masih aktif. Selesaikan transaksi untuk membuka status terbaru." }
+        "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = TextTertiary; title = "Pembayaran Dibatalkan"; message = "Tidak ada dana yang terpotong. Anda bisa memulai pembayaran lagi dari detail booking." }
+        else -> { icon = Icons.Filled.Cancel; iconColor = ErrorStrong; title = "Pembayaran Gagal"; message = "Checkout tidak selesai. Silakan coba lagi." }
     }
 
     val infiniteTransition = rememberInfiniteTransition()
@@ -566,13 +576,13 @@ fun PaymentResultDialog(
                 Text(text = message, fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center, lineHeight = 20.sp)
                 
                 if (orderId.isNotBlank()) {
-                    Surface(shape = RoundedCornerShape(8.dp), color = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9)) {
+                    Surface(shape = RoundedCornerShape(8.dp), color = SurfaceMuted) {
                         Text(text = "Order: $orderId", fontSize = 11.sp, color = textSecondary, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
                     }
                 }
                 
                 if (paymentType != null) {
-                    Surface(shape = RoundedCornerShape(50), color = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)) {
+                    Surface(shape = RoundedCornerShape(50), color = Outline) {
                         Row(
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
                             verticalAlignment = Alignment.CenterVertically
@@ -608,8 +618,8 @@ fun PaymentErrorScreen(
     textSecondary: Color
 ) {
     Column(modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-        Box(modifier = Modifier.size(92.dp).clip(RoundedCornerShape(28.dp)).background(Color(0xFFEF4444).copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.Error, contentDescription = null, tint = Color(0xFFEF4444), modifier = Modifier.size(40.dp))
+        Box(modifier = Modifier.size(92.dp).clip(RoundedCornerShape(28.dp)).background(ErrorStrong.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Error, contentDescription = null, tint = ErrorStrong, modifier = Modifier.size(40.dp))
         }
         Spacer(Modifier.height(24.dp))
         Text(title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textSecondary)
@@ -621,10 +631,10 @@ fun PaymentErrorScreen(
         Card(
             modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
             shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.05f)),
-            border = BorderStroke(1.dp, Color(0xFFEF4444).copy(alpha = 0.12f))
+            colors = CardDefaults.cardColors(containerColor = ErrorStrong.copy(alpha = 0.05f)),
+            border = BorderStroke(1.dp, ErrorStrong.copy(alpha = 0.12f))
         ) {
-            Text(error, fontSize = 14.sp, color = Color(0xFFDC2626), textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
+            Text(error, fontSize = 14.sp, color = Error, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
@@ -652,11 +662,10 @@ fun PaymentResultScreen(
     onNavigateToBookings: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    val isDark = false
-    val bgColor = if (isDark) PayBgDark else PayBgLight
-    val surfaceColor = if (isDark) PaySurfaceDark else PaySurfaceLight
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val bgColor = PayBg
+    val surfaceColor = PaySurface
+    val textPrimary = OnBackground
+    val textSecondary = TextSecondary
 
     val icon: ImageVector
     val titleColor: Color
@@ -671,13 +680,13 @@ fun PaymentResultScreen(
         }
         "pending" -> {
             icon = Icons.Filled.Schedule
-            titleColor = Color(0xFFF59E0B)
+            titleColor = Tertiary
             subtitle = "Transaksi masih tertunda. Selesaikan sebelum batas waktu agar booking dapat difinalisasi."
             eyebrow = "Menunggu penyelesaian"
         }
         else -> {
             icon = Icons.Filled.Cancel
-            titleColor = Color(0xFFEF4444)
+            titleColor = ErrorStrong
             subtitle = "Pembayaran tidak selesai. Anda bisa mencoba lagi dari detail booking."
             eyebrow = "Checkout perlu perhatian"
         }
@@ -704,7 +713,7 @@ fun PaymentResultScreen(
             Surface(
                 shape = RoundedCornerShape(999.dp),
                 color = surfaceColor,
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, Outline)
             ) {
                 Text(
                     text = eyebrow,
@@ -743,8 +752,8 @@ fun PaymentResultScreen(
                             shape = RoundedCornerShape(16.dp),
                             color = when (status) {
                                 "success" -> PayPrimary.copy(alpha = 0.08f)
-                                "pending" -> Color(0xFFF59E0B).copy(alpha = 0.08f)
-                                else -> Color(0xFFEF4444).copy(alpha = 0.08f)
+                                "pending" -> Tertiary.copy(alpha = 0.08f)
+                                else -> ErrorStrong.copy(alpha = 0.08f)
                             }
                         ) {
                             Text(
@@ -752,8 +761,8 @@ fun PaymentResultScreen(
                                 fontSize = 13.sp,
                                 color = when (status) {
                                     "success" -> PayPrimary
-                                    "pending" -> Color(0xFFF59E0B)
-                                    else -> Color(0xFFEF4444)
+                                    "pending" -> Tertiary
+                                    else -> ErrorStrong
                                 },
                                 modifier = Modifier.padding(14.dp),
                                 lineHeight = 20.sp
@@ -773,7 +782,7 @@ fun PaymentResultScreen(
                 onClick = onNavigateBack,
                 modifier = Modifier.fillMaxWidth().height(52.dp),
                 shape = RoundedCornerShape(16.dp),
-                border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                border = BorderStroke(1.dp, Outline)
             ) {
                 Text("Kembali ke Beranda", color = textPrimary, fontWeight = FontWeight.SemiBold)
             }

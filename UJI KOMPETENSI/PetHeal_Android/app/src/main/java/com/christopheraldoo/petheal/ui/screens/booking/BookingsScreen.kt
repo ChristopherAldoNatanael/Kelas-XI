@@ -1,5 +1,10 @@
 package com.christopheraldoo.petheal.ui.screens.booking
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Surface
+
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
@@ -61,16 +66,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
+import com.christopheraldoo.petheal.ui.theme.AccentViolet
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.InfoStrong
+import com.christopheraldoo.petheal.ui.theme.Neutral
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.OutlineStrong
+import com.christopheraldoo.petheal.ui.theme.Star
+import com.christopheraldoo.petheal.ui.theme.StatusCompleted
+import com.christopheraldoo.petheal.ui.theme.Success
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.Tertiary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningDeep
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.util.formatRupiah
 
 private const val TAG = "BookingPhoto"
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
-private val BkPrimary       = Color(0xFF18C964)
-private val BkPrimaryFg     = Color(0xFF052E14)
-private val BkBgDark        = Color(0xFFF6F8F6)
-private val BkBgLight       = Color(0xFFF6F8F6)
-private val BkSurfaceDark   = Color.White
-private val BkSurfaceLight  = Color(0xFFFFFFFF)
+private val BkPrimary       = Primary
+private val BkPrimaryFg     = OnPrimaryStrong
+private val BkBg       = Background
+private val BkSurface  = Surface
 
 // ── Helper: load doctor photo with ngrok header ─────────────────────────────
 @Composable
@@ -131,12 +156,11 @@ fun BookingsScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
-    val isDark = false
-    val bg      = if (isDark) BkBgDark      else BkBgLight
-    val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
-    val textPrimary   = if (isDark) Color.White         else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8)   else Color(0xFF64748B)
-    val border        = if (isDark) Color(0x1AFFFFFF)   else Color(0xFFF1F5F9)
+    val bg      = BkBg
+    val surface = BkSurface
+    val textPrimary   = OnBackground
+    val textSecondary = TextSecondary
+    val border        = SurfaceMuted
 
     LaunchedEffect(Unit) { viewModel.loadBookings() }
 
@@ -296,7 +320,6 @@ fun BookingsScreen(
                         ) { booking ->
                             BookingCard(
                                 booking = booking,
-                                isDark = isDark,
                                 surface = surface,
                                 textPrimary = textPrimary,
                                 textSecondary = textSecondary,
@@ -357,7 +380,7 @@ private fun BookingOverviewRow(
             modifier = Modifier.weight(1f),
             label = "Aktif",
             value = activeCount.toString(),
-            accent = Color(0xFF2563EB)
+            accent = StatusCompleted
         )
         BookingOverviewCard(
             modifier = Modifier.weight(1f),
@@ -369,7 +392,7 @@ private fun BookingOverviewRow(
             modifier = Modifier.weight(1f),
             label = "Perlu Bayar",
             value = paymentAttentionCount.toString(),
-            accent = Color(0xFFEA580C)
+            accent = WarningDeep
         )
     }
 }
@@ -401,12 +424,12 @@ private fun BookingOverviewCard(
                 text = value,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = OnBackground
             )
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color(0xFF64748B)
+                color = TextSecondary
             )
         }
     }
@@ -440,7 +463,7 @@ private fun FilteredBookingsEmptyState(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        border = BorderStroke(1.dp, Outline)
     ) {
         Column(
             modifier = Modifier
@@ -467,14 +490,14 @@ private fun FilteredBookingsEmptyState(
                 text = "Tidak ada booking ($filterLabel)",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = OnBackground,
                 textAlign = TextAlign.Center
             )
             Text(
                 text = "Coba pilih tanggal lain atau atur ulang filter untuk melihat semua booking.",
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = Color(0xFF64748B),
+                color = TextSecondary,
                 textAlign = TextAlign.Center
             )
             Button(
@@ -482,7 +505,7 @@ private fun FilteredBookingsEmptyState(
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BkPrimary,
-                    contentColor = Color(0xFF052E14)
+                    contentColor = OnPrimaryStrong
                 )
             ) {
                 Text("Tampilkan Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -507,10 +530,9 @@ private fun BookingFilterBottomSheet(
     onResetFilters: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    val isDark = false
-    val bgColor = if (isDark) Color(0xFF1E293B) else Color.White
-    val textPrimary = if (isDark) Color.White else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val bgColor = Color.White
+    val textPrimary = OnBackground
+    val textSecondary = TextSecondary
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -549,8 +571,8 @@ private fun BookingFilterBottomSheet(
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = BkPrimary,
-                            selectedLabelColor = Color(0xFF052E14),
-                            selectedLeadingIconColor = Color(0xFF052E14)
+                            selectedLabelColor = OnPrimaryStrong,
+                            selectedLeadingIconColor = OnPrimaryStrong
                         )
                     )
                     // Terlama button
@@ -563,8 +585,8 @@ private fun BookingFilterBottomSheet(
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = BkPrimary,
-                            selectedLabelColor = Color(0xFF052E14),
-                            selectedLeadingIconColor = Color(0xFF052E14)
+                            selectedLabelColor = OnPrimaryStrong,
+                            selectedLeadingIconColor = OnPrimaryStrong
                         )
                     )
                 }
@@ -595,8 +617,8 @@ private fun BookingFilterBottomSheet(
                             } else null,
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = BkPrimary,
-                                selectedLabelColor = Color(0xFF052E14),
-                                selectedLeadingIconColor = Color(0xFF052E14)
+                                selectedLabelColor = OnPrimaryStrong,
+                                selectedLeadingIconColor = OnPrimaryStrong
                             )
                         )
                     }
@@ -611,8 +633,8 @@ private fun BookingFilterBottomSheet(
                 },
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Color(0xFFEF4444)),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                border = BorderStroke(1.dp, ErrorStrong),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorStrong)
             ) {
                 Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
@@ -625,7 +647,6 @@ private fun BookingFilterBottomSheet(
 @Composable
 private fun BookingCard(
     booking: Booking,
-    isDark: Boolean,
     surface: Color,
     textPrimary: Color,
     textSecondary: Color,
@@ -636,10 +657,10 @@ private fun BookingCard(
 ) {
     val statusColor = when (booking.status?.lowercase()) {
         "confirmed"  -> BkPrimary
-        "pending"    -> Color(0xFFF59E0B)
-        "cancelled"  -> Color(0xFFEF4444)
-        "completed"  -> Color(0xFF3B82F6)
-        else         -> Color(0xFF6B7280)
+        "pending"    -> Tertiary
+        "cancelled"  -> ErrorStrong
+        "completed"  -> InfoStrong
+        else         -> Neutral
     }
     Card(
         modifier = Modifier
@@ -649,7 +670,7 @@ private fun BookingCard(
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = surface),
         elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        border = BorderStroke(1.dp, Outline)
     ) {
         Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -675,14 +696,14 @@ private fun BookingCard(
                     )
                 }
             }
-            Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+            Divider(color = SurfaceMuted)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {                    // Doctor photo
                     Box(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (isDark) Color(0xFF1E293B) else Color(0xFFE8F5E9)),
+                            .background(SuccessSoft),
                         contentAlignment = Alignment.Center
                     ) {
                         BkDocPhoto(
@@ -708,7 +729,7 @@ private fun BookingCard(
             }
             // Payment info
             if (booking.paymentMethodId != null || booking.paymentStatus != null) {
-                Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                Divider(color = SurfaceMuted)
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -721,7 +742,7 @@ private fun BookingCard(
                         Icon(
                             if (booking.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
                             null,
-                            tint = if (booking.paymentType == "dp") Color(0xFFF59E0B) else BkPrimary,
+                            tint = if (booking.paymentType == "dp") Tertiary else BkPrimary,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -737,12 +758,12 @@ private fun BookingCard(
                     ) {
                         // Payment status badge with DP support
                         val (paymentStatusText, paymentStatusColor) = when (booking.paymentStatus) {
-                            "paid" -> "Lunas" to Color(0xFF10B981) // Green
-                            "dp_paid" -> "DP Dibayar (50%)" to Color(0xFFF59E0B) // Amber
-                            "dp_pending" -> "Menunggu DP" to Color(0xFF3B82F6) // Blue
+                            "paid" -> "Lunas" to Success // Green
+                            "dp_paid" -> "DP Dibayar (50%)" to Tertiary // Amber
+                            "dp_pending" -> "Menunggu DP" to InfoStrong // Blue
                             "partial" -> "Sebagian Dibayar" to Color(0xFFF97316) // Orange
-                            "pending" -> "Belum Dibayar" to Color(0xFFEF4444) // Red
-                            "failed" -> "Gagal" to Color(0xFFDC2626) // Dark Red
+                            "pending" -> "Belum Dibayar" to ErrorStrong // Red
+                            "failed" -> "Gagal" to Error // Dark Red
                             else -> (booking.paymentStatus?.replaceFirstChar { it.uppercase() } ?: "Unknown") to Color.Gray
                         }
                         Surface(
@@ -770,11 +791,11 @@ private fun BookingCard(
                 onPayRemaining != null
 
             if (shouldShowPayRemaining) {
-                Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                Divider(color = SurfaceMuted)
                 Button(
                     onClick = { booking.id?.let { id -> onPayRemaining?.invoke(id) } },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6)),
+                    colors = ButtonDefaults.buttonColors(containerColor = InfoStrong),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -815,12 +836,11 @@ fun BookingDetailScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
-    val isDark = false
-    val bg      = if (isDark) BkBgDark      else BkBgLight
-    val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
-    val textPrimary   = if (isDark) Color.White       else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-    val dividerColor  = if (isDark) Color(0x1AFFFFFF) else Color(0xFFE2E8F0)
+    val bg      = BkBg
+    val surface = BkSurface
+    val textPrimary   = OnBackground
+    val textSecondary = TextSecondary
+    val dividerColor  = Outline
 
     LaunchedEffect(bookingId) { viewModel.loadBookingDetail(bookingId) }
     LaunchedEffect(state.isCancelled) { if (state.isCancelled) onNavigateBack() }
@@ -854,7 +874,7 @@ fun BookingDetailScreen(
                 TextButton(
                     enabled = !state.isLoading,
                     onClick = { viewModel.cancelBooking(bookingId, cancelReason); showCancelDialog = false },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFEF4444))
+                    colors = ButtonDefaults.textButtonColors(contentColor = ErrorStrong)
                 ) { Text("Batalkan Booking", fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
@@ -1024,7 +1044,7 @@ fun BookingDetailScreen(
                         )
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.85f)), startY = 80f)))
                     } else {
-                        Box(Modifier.fillMaxSize().background(if (isDark) Color.White else Color(0xFFE8F5E9))) {
+                        Box(Modifier.fillMaxSize().background(SuccessSoft)) {
                             Icon(Icons.Filled.Person, null, tint = BkPrimary.copy(0.25f), modifier = Modifier.size(80.dp).align(Alignment.Center))
                         }
                     }
@@ -1036,9 +1056,9 @@ fun BookingDetailScreen(
 
                     // Status badge
                     val statusColor = when (booking?.status?.lowercase()) {
-                        "confirmed" -> BkPrimary; "pending" -> Color(0xFFF59E0B)
-                        "cancelled" -> Color(0xFFEF4444); "completed" -> Color(0xFF3B82F6)
-                        else -> Color(0xFF6B7280)
+                        "confirmed" -> BkPrimary; "pending" -> Tertiary
+                        "cancelled" -> ErrorStrong; "completed" -> InfoStrong
+                        else -> Neutral
                     }
                     Surface(
                         modifier = Modifier.align(Alignment.TopEnd).statusBarsPadding().padding(top = 12.dp, end = 16.dp),
@@ -1063,17 +1083,17 @@ fun BookingDetailScreen(
                     Surface(shape = RoundedCornerShape(16.dp), color = surface, tonalElevation = 2.dp) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             DetailRow(Icons.Filled.Pets,         "Pet",  "${booking?.pet?.name} (${booking?.pet?.species})", textPrimary, textSecondary)
-                            Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                            Divider(color = SurfaceMuted)
                             DetailRow(Icons.Filled.CalendarMonth,"Date", booking?.bookingDate ?: "–", textPrimary, textSecondary)
-                            Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                            Divider(color = SurfaceMuted)
                             DetailRow(Icons.Filled.Schedule,     "Time", booking?.bookingTime ?: "–", textPrimary, textSecondary)
                             if (!booking?.notes.isNullOrBlank()) {
-                                Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                                Divider(color = SurfaceMuted)
                                 DetailRow(Icons.Filled.Notes, "Notes", booking?.notes ?: "", textPrimary, textSecondary)
                             }
                             // Payment info
                             if (booking?.paymentMethodId != null || booking?.paymentType != null) {
-                                Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                                Divider(color = SurfaceMuted)
                                 DetailRow(
                                     if (booking?.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
                                     "Payment",
@@ -1083,7 +1103,7 @@ fun BookingDetailScreen(
                                 )
                             }
                             if (booking?.totalAmount != null && booking.totalAmount > 0) {
-                                Divider(color = if (isDark) Color(0x1AFFFFFF) else Color(0xFFF1F5F9))
+                                Divider(color = SurfaceMuted)
                                 Row(
                                     Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1096,7 +1116,7 @@ fun BookingDetailScreen(
                                         Column {
                                             Text("Total Tagihan", fontSize = 11.sp, color = textSecondary)
                                             Text(
-                                                "Rp ${String.format("%,.0f", booking.totalAmount).replace(",", ".")}",
+                                                formatRupiah(booking.totalAmount),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.SemiBold,
                                                 color = textPrimary
@@ -1114,7 +1134,7 @@ fun BookingDetailScreen(
                                             ) {
                                                 Text("Terbayar", fontSize = 10.sp, color = textSecondary)
                                                 Text(
-                                                    "Rp ${String.format("%,.0f", booking.paidAmount).replace(",", ".")}",
+                                                    formatRupiah(booking.paidAmount),
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = BkPrimary
@@ -1161,9 +1181,9 @@ fun BookingDetailScreen(
                                 }
 
                                 val recordStatusColor = when {
-                                    state.medicalRecord == null -> Color(0xFF94A3B8)
-                                    state.medicalRecord?.canViewFullRecord == true -> Color(0xFF10B981)
-                                    else -> Color(0xFFF59E0B)
+                                    state.medicalRecord == null -> TextTertiary
+                                    state.medicalRecord?.canViewFullRecord == true -> Success
+                                    else -> Tertiary
                                 }
                                 Surface(
                                     shape = RoundedCornerShape(999.dp),
@@ -1219,13 +1239,13 @@ fun BookingDetailScreen(
                                         color = when (extraStatus) {
                                             "paid", "not_required" -> Color(0xFFECFDF5)
                                             "partial", "pending", "unpaid" -> Color(0xFFFFFBEB)
-                                            else -> Color(0xFFF8FAFC)
+                                            else -> SurfaceVariant
                                         },
                                         border = BorderStroke(
                                             1.dp,
                                             when (extraStatus) {
                                                 "paid", "not_required" -> Color(0xFFA7F3D0)
-                                                "partial", "pending", "unpaid" -> Color(0xFFFDE68A)
+                                                "partial", "pending", "unpaid" -> WarningSoft
                                                 else -> dividerColor
                                             }
                                         )
@@ -1241,7 +1261,7 @@ fun BookingDetailScreen(
                                     Surface(
                                         shape = RoundedCornerShape(18.dp),
                                         color = Color(0xFFFFFBEB),
-                                        border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                                        border = BorderStroke(1.dp, WarningSoft)
                                     ) {
                                         Column(
                                             modifier = Modifier.padding(16.dp),
@@ -1256,29 +1276,29 @@ fun BookingDetailScreen(
                                                     modifier = Modifier
                                                         .size(38.dp)
                                                         .clip(RoundedCornerShape(14.dp))
-                                                        .background(Color(0xFFF59E0B).copy(alpha = 0.12f)),
+                                                        .background(Tertiary.copy(alpha = 0.12f)),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(Icons.Filled.Payments, null, tint = Color(0xFFF59E0B), modifier = Modifier.size(20.dp))
+                                                    Icon(Icons.Filled.Payments, null, tint = Tertiary, modifier = Modifier.size(20.dp))
                                                 }
                                                 Column {
-                                                    Text("Perlu pembayaran tambahan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
-                                                    Text("Rekam medis lengkap akan terbuka setelah biaya tambahan dilunasi.", fontSize = 12.sp, lineHeight = 18.sp, color = Color(0xFF92400E))
+                                                    Text("Perlu pembayaran tambahan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = WarningText)
+                                                    Text("Rekam medis lengkap akan terbuka setelah biaya tambahan dilunasi.", fontSize = 12.sp, lineHeight = 18.sp, color = WarningText)
                                                 }
                                             }
 
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                 Text("Biaya tindakan", fontSize = 12.sp, color = textSecondary)
-                                                Text("Rp ${String.format("%,.0f", treatmentCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                                Text(formatRupiah(treatmentCost), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                                             }
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                 Text("Biaya obat", fontSize = 12.sp, color = textSecondary)
-                                                Text("Rp ${String.format("%,.0f", medicineCost).replace(",", ".")}", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                                Text(formatRupiah(medicineCost), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                                             }
-                                            Divider(color = Color(0xFFFDE68A))
+                                            Divider(color = WarningSoft)
                                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                                Text("Total tambahan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
-                                                Text("Rp ${String.format("%,.0f", extraAmount).replace(",", ".")}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF92400E))
+                                                Text("Total tambahan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = WarningText)
+                                                Text(formatRupiah(extraAmount), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = WarningText)
                                             }
                                         }
                                     }
@@ -1288,7 +1308,7 @@ fun BookingDetailScreen(
                                             onClick = { onNavigateToMedicalExtraPayment(record.id, bookingId, extraAmount) },
                                             modifier = Modifier.fillMaxWidth().height(52.dp),
                                             shape = RoundedCornerShape(16.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF59E0B))
+                                            colors = ButtonDefaults.buttonColors(containerColor = Tertiary)
                                         ) {
                                             Icon(Icons.Filled.Payment, null, modifier = Modifier.size(20.dp))
                                             Spacer(Modifier.width(8.dp))
@@ -1324,8 +1344,8 @@ fun BookingDetailScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFF10B981).copy(alpha = 0.1f)),
-                                border = BorderStroke(1.dp, Color(0xFF10B981).copy(alpha = 0.3f))
+                                colors = CardDefaults.cardColors(containerColor = Success.copy(alpha = 0.1f)),
+                                border = BorderStroke(1.dp, Success.copy(alpha = 0.3f))
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -1333,7 +1353,7 @@ fun BookingDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(
-                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Color(0xFF10B981)),
+                                        modifier = Modifier.size(40.dp).clip(CircleShape).background(Success),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(
@@ -1348,7 +1368,7 @@ fun BookingDetailScreen(
                                             if (isDPPayment) "DP Lunas" else "Lunas",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF10B981)
+                                            color = Success
                                         )
                                         Text(
                                             if (isDPPayment) "Down Payment telah dilunasi" else "Pembayaran penuh telah selesai",
@@ -1412,8 +1432,8 @@ fun BookingDetailScreen(
                                 onClick = { showCancelDialog = true },
                                 modifier = Modifier.weight(1f).height(52.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFEF4444).copy(0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFEF4444))
+                                border = androidx.compose.foundation.BorderStroke(1.dp, ErrorStrong.copy(0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorStrong)
                             ) {
                                 Icon(Icons.Filled.Cancel, null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -1452,12 +1472,11 @@ fun CreateBookingScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.createState.collectAsState()
-    val isDark = false
-    val bg      = if (isDark) BkBgDark      else BkBgLight
-    val surface = if (isDark) BkSurfaceDark else BkSurfaceLight
-    val textPrimary   = if (isDark) Color.White       else Color(0xFF0F172A)
-    val textSecondary = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-    val dividerColor  = if (isDark) Color(0x1AFFFFFF) else Color(0xFFE2E8F0)
+    val bg      = BkBg
+    val surface = BkSurface
+    val textPrimary   = OnBackground
+    val textSecondary = TextSecondary
+    val dividerColor  = Outline
 
     LaunchedEffect(Unit) { viewModel.loadCreateBookingData(doctorId, petId) }
     LaunchedEffect(state.isCreated) {
@@ -1523,7 +1542,7 @@ fun CreateBookingScreen(
                                     .padding(horizontal = 6.dp)
                                     .size(if (current) 10.dp else 8.dp)
                                     .clip(CircleShape)
-                                    .background(if (active) BkPrimary else if (isDark) Color(0x33FFFFFF) else Color(0xFFCBD5E1))
+                                    .background(if (active) BkPrimary else OutlineStrong)
                             )
                         }
                     }
@@ -1556,7 +1575,7 @@ fun CreateBookingScreen(
                                 modifier = Modifier
                                     .size(56.dp)
                                     .clip(CircleShape)
-                                    .background(if (isDark) Color.White else Color(0xFFE8F5E9)),
+                                    .background(SuccessSoft),
                                 contentAlignment = Alignment.Center
                             ) {
                                 val createBookingPhoto = buildPhotoUrl(doc.photo)
@@ -1604,7 +1623,7 @@ fun CreateBookingScreen(
                                 val createReviewTotal = doc.reviewsCount ?: 0
                                 if (createAvg != null && createAvg > 0) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Filled.Star, null, tint = Color(0xFFFFC857), modifier = Modifier.size(12.dp))
+                                        Icon(Icons.Filled.Star, null, tint = Star, modifier = Modifier.size(12.dp))
                                         Spacer(Modifier.width(4.dp))
                                         Text(
                                             "%.1f".format(createAvg) +
@@ -1654,7 +1673,7 @@ fun CreateBookingScreen(
                             Surface(
                                 shape = CircleShape,
                                 color = Color.Transparent,
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, if (isDark) Color(0xFF4B5563) else Color(0xFFD1D5DB)),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, OutlineStrong),
                                 modifier = Modifier.clip(CircleShape).clickable { onNavigateBack() }
                             ) {
                                 Row(
@@ -1689,8 +1708,8 @@ fun CreateBookingScreen(
                                     val paletteIndex = (rowIdx * 2 + colIdx) % 4
                                     val (bgLight, bgDark) = when (paletteIndex) {
                                         0 -> Pair(Color(0xFFDCFCE7), Color(0x2216A34A))
-                                        1 -> Pair(Color(0xFFDBEAFE), Color(0x222563EB))
-                                        2 -> Pair(Color(0xFFFFEDD5), Color(0x22EA580C))
+                                        1 -> Pair(InfoSoft, Color(0x222563EB))
+                                        2 -> Pair(WarningSoft, Color(0x22EA580C))
                                         else -> Pair(Color(0xFFFEE2E2), Color(0x22DC2626))
                                     }
                                     Card(
@@ -1701,7 +1720,7 @@ fun CreateBookingScreen(
                                             .then(if (selected) Modifier.border(2.dp, BkPrimary, RoundedCornerShape(16.dp)) else Modifier),
                                         shape = RoundedCornerShape(16.dp),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = if (selected) BkPrimary.copy(alpha = 0.1f) else if (isDark) BkSurfaceDark else BkSurfaceLight
+                                            containerColor = if (selected) BkPrimary.copy(alpha = 0.1f) else BkSurface
                                         ),
                                         elevation = CardDefaults.cardElevation(if (selected) 0.dp else 2.dp)
                                     ) {
@@ -1709,7 +1728,7 @@ fun CreateBookingScreen(
                                             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                                 Box(
                                                     Modifier.size(44.dp).clip(RoundedCornerShape(10.dp))
-                                                        .background(if (isDark) bgDark else bgLight),
+                                                        .background(bgLight),
                                                     contentAlignment = Alignment.Center
                                                 ) {
                                                     Icon(Icons.Filled.MedicalServices, null, tint = BkPrimary, modifier = Modifier.size(24.dp))
@@ -1723,7 +1742,7 @@ fun CreateBookingScreen(
                                                     overflow = TextOverflow.Ellipsis
                                                 )
                                                 Text(
-                                                    "Rp ${String.format("%,.0f", service.price ?: 0.0).replace(",", ".")}",
+                                                    formatRupiah(service.price ?: 0.0),
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (selected) BkPrimary else textPrimary
@@ -1778,7 +1797,6 @@ fun CreateBookingScreen(
                                     dayNum  = date.dayOfMonth.toString(),
                                     isSelected = isSelected,
                                     isPast = isPast,
-                                    isDark = isDark,
                                     textPrimary = textPrimary,
                                     textSecondary = textSecondary,
                                     onClick = { if (!isPast) viewModel.selectDate(date, doctorId) }
@@ -1804,12 +1822,12 @@ fun CreateBookingScreen(
                         val afternoonSlots = state.slots.filter { it.time >= "12:00" }
 
                         if (morningSlots.isNotEmpty()) {
-                            TimeSlotGroup("Pagi", morningSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
+                            TimeSlotGroup("Pagi", morningSlots, state.selectedTime, surface, textPrimary, textSecondary, dividerColor) {
                                 viewModel.selectTime(it)
                             }
                         }
                         if (afternoonSlots.isNotEmpty()) {
-                            TimeSlotGroup("Siang", afternoonSlots, state.selectedTime, surface, isDark, textPrimary, textSecondary, dividerColor) {
+                            TimeSlotGroup("Siang", afternoonSlots, state.selectedTime, surface, textPrimary, textSecondary, dividerColor) {
                                 viewModel.selectTime(it)
                             }
                         }
@@ -1835,21 +1853,21 @@ fun CreateBookingScreen(
 
                         // QRIS
                         if (qrisMethods.isNotEmpty()) {
-                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, isDark, textPrimary, textSecondary, dividerColor, BkPrimary) {
+                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, BkPrimary) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
 
                         // Bank
                         if (bankMethods.isNotEmpty()) {
-                            PaymentMethodGroup("Bank Transfer", bankMethods, state.selectedPaymentMethod, surface, isDark, textPrimary, textSecondary, dividerColor, Color(0xFF3B82F6)) {
+                            PaymentMethodGroup("Bank Transfer", bankMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, InfoStrong) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
 
                         // E-Wallet
                         if (ewalletMethods.isNotEmpty()) {
-                            PaymentMethodGroup("E-Wallet", ewalletMethods, state.selectedPaymentMethod, surface, isDark, textPrimary, textSecondary, dividerColor, Color(0xFF8B5CF6)) {
+                            PaymentMethodGroup("E-Wallet", ewalletMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, AccentViolet) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
@@ -1912,7 +1930,7 @@ fun CreateBookingScreen(
                                     color = textPrimary
                                 )
                                 Text(
-                                    "Rp ${String.format("%,.0f", state.totalAmount).replace(",", ".")}",
+                                    formatRupiah(state.totalAmount),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = if (isFullSelected) BkPrimary else textPrimary
@@ -1935,10 +1953,10 @@ fun CreateBookingScreen(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { viewModel.selectPaymentType("dp") }
-                                .then(if (isDpSelected) Modifier.border(2.dp, Color(0xFFF59E0B), RoundedCornerShape(16.dp)) else Modifier),
+                                .then(if (isDpSelected) Modifier.border(2.dp, Tertiary, RoundedCornerShape(16.dp)) else Modifier),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isDpSelected) Color(0xFFF59E0B).copy(alpha = 0.1f) else surface
+                                containerColor = if (isDpSelected) Tertiary.copy(alpha = 0.1f) else surface
                             ),
                             elevation = CardDefaults.cardElevation(if (isDpSelected) 0.dp else 2.dp)
                         ) {
@@ -1950,7 +1968,7 @@ fun CreateBookingScreen(
                                 Icon(
                                     Icons.Filled.Savings,
                                     contentDescription = null,
-                                    tint = if (isDpSelected) Color(0xFFF59E0B) else textSecondary,
+                                    tint = if (isDpSelected) Tertiary else textSecondary,
                                     modifier = Modifier.size(32.dp)
                                 )
                                 Text(
@@ -1960,10 +1978,10 @@ fun CreateBookingScreen(
                                     color = textPrimary
                                 )
                                 Text(
-                                    "Rp ${String.format("%,.0f", state.dpAmount).replace(",", ".")}",
+                                    formatRupiah(state.dpAmount),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isDpSelected) Color(0xFFF59E0B) else textPrimary
+                                    color = if (isDpSelected) Tertiary else textPrimary
                                 )
                                 Text(
                                     "(50% DP)",
@@ -1974,7 +1992,7 @@ fun CreateBookingScreen(
                                     Icon(
                                         Icons.Filled.CheckCircle,
                                         contentDescription = null,
-                                        tint = Color(0xFFF59E0B),
+                                        tint = Tertiary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -2031,19 +2049,19 @@ fun CreateBookingScreen(
                                 Text(
                                     "DP 50%",
                                     fontSize = 11.sp,
-                                    color = Color(0xFFF59E0B),
+                                    color = Tertiary,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
                         }
                         Text(
                             if (state.selectedPaymentType == "dp") 
-                                "Rp ${String.format("%,.0f", state.dpAmount).replace(",", ".")}" 
+                                formatRupiah(state.dpAmount) 
                             else 
-                                "Rp ${String.format("%,.0f", state.totalAmount).replace(",", ".")}",
+                                formatRupiah(state.totalAmount),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (state.selectedPaymentType == "dp") Color(0xFFF59E0B) else textPrimary
+                            color = if (state.selectedPaymentType == "dp") Tertiary else textPrimary
                         )
                     }
                     Button(
@@ -2077,7 +2095,6 @@ fun CreateBookingScreen(
 private fun DateCell(
     dayName: String, dayNum: String,
     isSelected: Boolean, isPast: Boolean,
-    isDark: Boolean,
     textPrimary: Color, textSecondary: Color,
     onClick: () -> Unit
 ) {
@@ -2113,7 +2130,6 @@ private fun TimeSlotGroup(
     slots: List<com.christopheraldoo.petheal.data.model.TimeSlot>,
     selectedTime: String?,
     surface: Color,
-    isDark: Boolean,
     textPrimary: Color,
     textSecondary: Color,
     dividerColor: Color,
@@ -2123,7 +2139,7 @@ private fun TimeSlotGroup(
         Text(
             title.uppercase(), fontSize = 11.sp,
             fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
-            color = if (isDark) Color(0xFF6B7280) else Color(0xFF9CA3AF)
+            color = TextTertiary
         )
         val cols = 4
         slots.chunked(cols).forEach { rowSlots ->
@@ -2138,7 +2154,7 @@ private fun TimeSlotGroup(
                             .background(
                                 when {
                                     selected   -> BkPrimary
-                                    !available -> if (isDark) Color(0xFF1F2937) else Color(0xFFF9FAFB)
+                                    !available -> Color(0xFFF9FAFB)
                                     else       -> surface
                                 }
                             )
@@ -2161,7 +2177,7 @@ private fun TimeSlotGroup(
                             fontWeight = FontWeight.SemiBold,
                             color = when {
                                 selected   -> BkPrimaryFg
-                                !available -> if (isDark) Color(0xFF4B5563) else Color(0xFFD1D5DB)
+                                !available -> OutlineStrong
                                 else       -> textPrimary
                             },
                             textDecoration = if (!available) TextDecoration.LineThrough else null
@@ -2180,11 +2196,11 @@ private fun TimeSlotGroup(
 fun ErrorBanner(message: String) {
     Card(
         shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFFEF4444).copy(alpha = 0.1f))
+        colors = CardDefaults.cardColors(containerColor = ErrorStrong.copy(alpha = 0.1f))
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Filled.Warning, null, tint = Color(0xFFEF4444), modifier = Modifier.size(20.dp))
-            Text(message, color = Color(0xFFEF4444), fontSize = 13.sp)
+            Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(20.dp))
+            Text(message, color = ErrorStrong, fontSize = 13.sp)
         }
     }
 }
@@ -2196,7 +2212,6 @@ private fun PaymentMethodGroup(
     methods: List<PaymentMethod>,
     selectedMethod: PaymentMethod?,
     surface: Color,
-    isDark: Boolean,
     textPrimary: Color,
     textSecondary: Color,
     dividerColor: Color,

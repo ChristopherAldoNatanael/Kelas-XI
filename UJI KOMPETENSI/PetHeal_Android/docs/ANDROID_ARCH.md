@@ -18,12 +18,15 @@
 - splash (SplashViewModel: isLoggedIn+onboarding) → onboarding → login/register (Login/RegisterViewModel→AuthRepository) → home (HomeViewModel: `GET dashboard` + `GET auth/profile`) → pets CRUD → doctors (list/detail/slots/reviews) → bookings (create `{pet_id,doctor_id,service_id,date,time,notes,payment_method_id,payment_type,total,dp}`) → medical-records → payment (Snap WebView) → notifications (+FCM) → profile/edit → privacy/help/about (statis, mailto `PetHeal Support`).
 - Rencana rute baru: `clinic_picker` (pertama jika `clinic_slug==null`; search + list `GET public/clinics`; simpan → lanjut onboarding). Settings tambah `Ganti Klinik` (clear cache dokter/booking + logout opsional + nav ke picker).
 
-## 5. Theme & Branding (sekarang 100% hardcoded)
-- `ui/theme/Color.kt`: Primary `0xFF18C964`, Dark `0xFF087A3A`, Light `0xFFE8F9EF`, Secondary `0xFF0EA5A5`, Tertiary `0xFFF59E0B`, Background `0xFFF6F8F6`. `Theme.kt`: `PetHealTheme(darkTheme=false, dynamicColor=false)`.
-- Duplikat: `SplashScreen.kt:41 PrimaryGreen 0xFF2BEE6C` (beda!) + teks `PetHeal`. Literal tersebar: `Akun PetHeal`, `Tentang PetHeal`, `©2026 PetHeal`, `PetHeal User`, FCM fallback `PetHeal`, channel `PetHeal Notifications`.
+## 5. Theme & Branding (token di `ui/theme`, dinamis per klinik menyusul)
+- `ui/theme/Color.kt`: Primary `0xFF18C964`, Dark `0xFF087A3A`, Light `0xFFE8F9EF`, Secondary `0xFF0EA5A5`, Tertiary `0xFFF59E0B`, Background `0xFFF6F8F6`. `Theme.kt`: `PetHealTheme(darkTheme=false, dynamicColor=false)`. Layar hanya boleh memakai token semantik; peta lengkap di `docs/UI_CONVENTIONS.md`.
+- Duplikat `0xFF2BEE6C` di Splash sudah hilang; satu sumber warna = `Color.kt`. Literal branding yang masih tersisa (target Fase 4 -> `clinic_name`): `Akun PetHeal`, `Tentang PetHeal`, `©2026 PetHeal`, `PetHeal User`, FCM fallback `PetHeal`, channel `PetHeal Notifications`.
 - Rencana refactor (Fase 4): `data class ClinicColors(primary, primaryDark, primaryLight)` + `fun parseHex` + `CompositionLocal LocalClinicColors` + `PetHealTheme(clinicColors)`; ganti literal → `clinic_name`; logo header/splash/about via Coil (`clinic_logo` URL); launcher icon tetap.
 
 ## 6. Aturan Main dengan Backend
 - Base URL HARUS sinkron dengan backend `.env APP_URL` + `/api/` (lihat `NGROK_README.md`, `setup_ngrok.bat`).
 - Kirim `X-Clinic-Slug` + (saat auth) `clinic_slug` nullable di body. Tangani `403/422` beda klinik dengan `ErrorState` jelas + tombol ganti klinik. Jangan hardcode `10.0.2.2`/slug di kode — via DataStore/BuildConfig.
 - Test: `assembleDebug` → fresh install → picker → pilih klinik → dokter/booking terfilter → ganti klinik → cache tidak bocor.
+
+## 7. Konvensi UI/UX
+- Lihat `docs/UI_CONVENTIONS.md`: satu sumber warna (`ui/theme/Color.kt`), light-only (tanpa cabang `isDark`), komponen `SkeletonLoading`/`EmptyState`/`ErrorState`, formatter bersama `util/Formatters.kt`, dan aturan insets edge-to-edge.

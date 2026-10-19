@@ -11,18 +11,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
@@ -57,15 +49,16 @@ import com.christopheraldoo.petheal.ui.screens.settings.HelpSupportScreen
 import com.christopheraldoo.petheal.ui.screens.settings.PrivacySecurityScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentResultScreen
+import com.christopheraldoo.petheal.R
+import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.components.route
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun PetHealNavHost(
     navController: NavHostController = rememberNavController(),
     viewModel: NavigationViewModel = hiltViewModel()
 ) {
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = false)
-
     // PHASE 7 (§21): a 401 on any authenticated call ends the session
     // exactly once — return to login without loops or crashes.
     LaunchedEffect(Unit) {
@@ -85,10 +78,13 @@ fun PetHealNavHost(
     ) {
         // PHASE 9: unified tab switching — singleTop + popUpTo(Home) keeps one
         // tab entry on the stack (no stacking) and clears sub-screens above it.
+        // saveState/restoreState membuat filter, pencarian, dan posisi scroll
+        // tiap tab TETAP ada saat berpindah tab (tidak reset / fetch ulang).
         val navigateTab: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = { tab ->
             navController.navigate(tab.route) {
-                popUpTo(Screen.Home.route)
+                popUpTo(Screen.Home.route) { saveState = true }
                 launchSingleTop = true
+                restoreState = true
             }
         }
         // Splash Screen
@@ -451,16 +447,16 @@ fun PetHealNavHost(
                     }
                 }
                 paymentNavState.error != null -> {
-                    val navError = paymentNavState.error
-                    Column(
-                        Modifier.fillMaxSize().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text("Gagal memuat pembayaran: $navError", color = Color(0xFFEF4444), textAlign = TextAlign.Center)
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = { navController.popBackStack() }) { Text("Kembali") }
-                    }
+                    // Jalur error standar app: bukan teks mentah, tapi komponen
+                    // bersama + copy dari strings.xml.
+                    ErrorState(
+                        title = stringResource(R.string.error_payment_load_title),
+                        message = stringResource(R.string.error_payment_load_message),
+                        primaryActionText = stringResource(R.string.action_retry),
+                        onPrimaryActionClick = { paymentNavViewModel.loadBookingAndUser(bookingId) },
+                        secondaryActionText = stringResource(R.string.action_back),
+                        onSecondaryActionClick = { navController.popBackStack() }
+                    )
                 }
                 paymentNavState.booking != null -> {
                     val readyBooking = paymentNavState.booking
@@ -542,22 +538,15 @@ fun PetHealNavHost(
                     }
                 }
                 paymentNavState.error != null -> {
-                    val navError = paymentNavState.error
-                    Column(
-                        Modifier.fillMaxSize().padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            "Gagal memuat pembayaran: $navError",
-                            color = Color(0xFFEF4444),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        Button(onClick = { navController.popBackStack() }) {
-                            Text("Kembali")
-                        }
-                    }
+                    // Sama seperti MedicalExtraPayment: satu jalur error bersama.
+                    ErrorState(
+                        title = stringResource(R.string.error_payment_load_title),
+                        message = stringResource(R.string.error_payment_load_message),
+                        primaryActionText = stringResource(R.string.action_retry),
+                        onPrimaryActionClick = { paymentNavViewModel.loadBookingAndUser(bookingId) },
+                        secondaryActionText = stringResource(R.string.action_back),
+                        onSecondaryActionClick = { navController.popBackStack() }
+                    )
                 }
                 paymentNavState.booking != null -> {
                     val readyBooking = paymentNavState.booking

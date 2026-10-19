@@ -1,5 +1,8 @@
 package com.christopheraldoo.petheal.ui.screens.auth
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Primary
+
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -33,11 +36,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OutlineStrong
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
-// ── Brand colors ────────────────────────────────────────────────────────────
-private val OnboardingPrimary   = Color(0xFF18C964)
-private val OnboardingBgDark    = Color(0xFFF6F8F6)
-private val OnboardingBgLight   = Color(0xFFF6F8F6)
+// ── Brand colors — satu sumber: ui/theme/Color.kt ───────────────────────────
+private val OnboardingPrimary   = Primary
+private val OnboardingBg   = Background
 
 // ── Page data ────────────────────────────────────────────────────────────────
 private data class OnboardingPage(
@@ -82,8 +87,7 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     var currentPage by rememberSaveable { mutableIntStateOf(0) }
-    val isDark = false
-    val bgColor = if (isDark) OnboardingBgDark else OnboardingBgLight
+    val bgColor = OnboardingBg
 
     Box(
         modifier = Modifier
@@ -115,7 +119,7 @@ fun OnboardingScreen(
                         text = "Lewati",
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isDark) Color(0xFFD1FAE5) else Color(0xFF64748B)
+                        color = TextSecondary
                     )
                 }
             }
@@ -134,7 +138,6 @@ fun OnboardingScreen(
             ) { page ->
                 OnboardingPageContent(
                     pageData = pages[page],
-                    isDark = isDark,
                     bgColor = bgColor
                 )
             }
@@ -162,7 +165,7 @@ fun OnboardingScreen(
                                 .clip(CircleShape)
                                 .background(
                                     if (isActive) OnboardingPrimary
-                                    else if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                    else OutlineStrong
                                 )
                         )
                     }
@@ -211,7 +214,6 @@ fun OnboardingScreen(
 @Composable
 private fun OnboardingPageContent(
     pageData: OnboardingPage,
-    isDark: Boolean,
     bgColor: Color
 ) {
     Column(
@@ -235,7 +237,7 @@ private fun OnboardingPageContent(
                 modifier = Modifier
                     .fillMaxSize(0.9f)
                     .clip(CircleShape)
-                    .background(OnboardingPrimary.copy(alpha = if (isDark) 0.05f else 0.10f))
+                    .background(OnboardingPrimary.copy(alpha = 0.10f))
                     .graphicsLayer { renderEffect = null }
             )
 
@@ -299,7 +301,7 @@ private fun OnboardingPageContent(
                 },
                 fontSize = 32.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A),
+                color = OnBackground,
                 textAlign = TextAlign.Center,
                 lineHeight = 38.sp
             )
@@ -308,7 +310,7 @@ private fun OnboardingPageContent(
                 text = pageData.subtitle,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B),
+                color = TextSecondary,
                 textAlign = TextAlign.Center,
                 lineHeight = 22.sp
             )

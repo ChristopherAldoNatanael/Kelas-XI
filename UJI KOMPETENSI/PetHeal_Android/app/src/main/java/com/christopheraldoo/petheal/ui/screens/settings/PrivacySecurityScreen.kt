@@ -1,5 +1,9 @@
 package com.christopheraldoo.petheal.ui.screens.settings
 
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,6 +49,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.local.PreferencesManager
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,10 +61,9 @@ fun PrivacySecurityScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val isDark = false
-    val bgColor = if (isDark) Color(0xFFF6F8F6) else Color(0xFFF6F8F6)
-    val textColor = if (isDark) Color(0xFFE8F5E9) else Color(0xFF0F172A)
-    val secondaryColor = if (isDark) Color(0xFF9DB9A6) else Color(0xFF64748B)
+    val bgColor = Background
+    val textColor = OnBackground
+    val secondaryColor = TextSecondary
     val context = LocalContext.current
 
     val isGoogleAccount = uiState.authProvider == PreferencesManager.AUTH_PROVIDER_GOOGLE
@@ -88,11 +95,11 @@ fun PrivacySecurityScreen(
                     }
 
                     uiState.resetMessage?.let {
-                        Text(it, color = Color(0xFF047857), fontSize = 13.sp)
+                        Text(it, color = SuccessDeep, fontSize = 13.sp)
                     }
 
                     uiState.error?.let {
-                        Text(it, color = Color(0xFFDC2626), fontSize = 13.sp)
+                        Text(it, color = Error, fontSize = 13.sp)
                     }
                 }
             },
@@ -237,7 +244,7 @@ fun PrivacySecurityScreen(
                             .padding(2.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Security, contentDescription = null, tint = Color(0xFF18C964))
+                        Icon(Icons.Default.Security, contentDescription = null, tint = Primary)
                     }
                     Text("Hanya pengaturan yang benar-benar aktif yang ditampilkan di sini.", color = textColor, fontWeight = FontWeight.SemiBold)
                     Text(
@@ -255,10 +262,10 @@ fun PrivacySecurityScreen(
 
 @Composable
 private fun AccountInfoCard(label: String, value: String) {
-    Card(colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))) {
+    Card(colors = CardDefaults.cardColors(containerColor = SurfaceVariant)) {
         Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text(label, color = Color(0xFF64748B), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-            Text(value, color = Color(0xFF0F172A), fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+            Text(value, color = OnBackground, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }
