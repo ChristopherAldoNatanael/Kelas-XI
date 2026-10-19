@@ -66,6 +66,25 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(3)->by(strtolower((string) $request->input('email')) . '|' . $request->ip());
         });
 
+        // Kirim kode OTP dibatasi ketat (memakai kuota email Gmail), sementara
+        // verifikasi kode dibatasi longgar: percobaan salah sudah dibatasi di
+        // OtpService (maks 5 per kode), jadi throttle ketat di sini hanya akan
+        // mengunci user yang salah ketik.
+        RateLimiter::for('otp-send', function (Request $request) {
+            $key = strtolower((string) $request->input('email')) . '|' . $request->ip();
+
+            return [
+                Limit::perMinute(3)->by($key),
+                Limit::perDay(20)->by($key),
+            ];
+        });
+
+        RateLimiter::for('otp-verify', function (Request $request) {
+            return Limit::perMinute(10)->by(
+                strtolower((string) $request->input('email')) . '|' . $request->ip()
+            );
+        });
+
         RateLimiter::for('uploads', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
         });

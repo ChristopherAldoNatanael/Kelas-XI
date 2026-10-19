@@ -76,6 +76,31 @@ class AuthRepository @Inject constructor(
         preferencesManager.saveAuthProvider(provider)
     }
 
+    /**
+     * Simpan sesi + profil setelah server mengembalikan token. Dipakai SEMUA
+     * jalur masuk (login email, login/daftar Google, verifikasi OTP) supaya
+     * urutan penyimpanannya satu dan tidak berbeda-beda per layar.
+     */
+    private suspend fun completeSession(
+        authData: AuthData,
+        provider: String,
+        nameFallback: String = ""
+    ): Result<AuthData> {
+        if (authData.user.role != null && authData.user.role != "user") {
+            return rejectNonUserRole(authData.user.role)
+        }
+        saveTokenAndCache(authData.token)
+        persistClinicBinding(authData.user)
+        saveAuthProvider(provider)
+        preferencesManager.saveUserInfo(
+            userId = authData.user.id ?: 0,
+            email = authData.user.email ?: "",
+            name = authData.user.name ?: nameFallback,
+            photo = authData.user.photo
+        )
+        return Result.Success(authData)
+    }
+
     private data class ApiErrorDetails(val message: String, val code: String?)
 
     /**
@@ -200,19 +225,7 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
-                    if (authData.user.role != null && authData.user.role != "user") {
-                        return rejectNonUserRole(authData.user.role)
-                    }
-                    saveTokenAndCache(authData.token)
-                    persistClinicBinding(authData.user)
-                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
-                    preferencesManager.saveUserInfo(
-                        userId = authData.user.id ?: 0,
-                        email = authData.user.email ?: "",
-                        name = authData.user.name ?: "",
-                        photo = authData.user.photo
-                    )
-                    Result.Success(authData)
+                    completeSession(authData, PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                 } else {
                     Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
@@ -224,47 +237,77 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    suspend fun registerWithEmailPassword(
+    /**
+     * Pendaftaran email langkah 1: minta kode OTP ke email pendaftar.
+     * Akun BELUM dibuat di sini — backend baru membuatnya di
+     * [verifyRegisterOtp] setelah kode diverifikasi.
+     */
+    suspend fun requestRegisterOtp(
+        name: String,
         email: String,
         password: String,
-        name: String,
-        fcmToken: String?,
         clinicSlug: String? = null
-    ): Result<AuthData> {
+    ): Result<OtpSentData> {
         return try {
-            val response = apiService.register(
-                EmailRegisterRequest(
+            val response = apiService.requestRegisterOtp(
+                RegisterOtpRequest(
                     name = name,
                     email = email,
                     password = password,
-                    phone = null,
-                    fcmToken = fcmToken,
-                    deviceType = "android",
                     clinicSlug = clinicSlug
                 )
             )
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(response.body()?.data ?: OtpSentData(email = email))
+            } else {
+                errorResultFrom(response, "Gagal mengirim kode OTP")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
 
+    /** Kirim ulang kode pendaftaran (payload form masih tersimpan server). */
+    suspend fun resendRegisterOtp(email: String): Result<Unit> {
+        return try {
+            val response = apiService.resendRegisterOtp(ResendOtpRequest(email = email))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                errorResultFrom(response, "Gagal mengirim ulang kode")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
+
+    /**
+     * Pendaftaran email langkah 2: verifikasi kode → akun dibuat server dan
+     * token dikembalikan. Sesi disimpan lewat jalur yang sama dengan login.
+     */
+    suspend fun verifyRegisterOtp(
+        email: String,
+        code: String,
+        fcmToken: String?
+    ): Result<AuthData> {
+        return try {
+            val response = apiService.verifyRegisterOtp(
+                VerifyRegisterOtpRequest(
+                    email = email,
+                    code = code,
+                    fcmToken = fcmToken,
+                    deviceType = "android"
+                )
+            )
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
-                    if (authData.user.role != null && authData.user.role != "user") {
-                        return rejectNonUserRole(authData.user.role)
-                    }
-                    saveTokenAndCache(authData.token)
-                    persistClinicBinding(authData.user)
-                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
-                    preferencesManager.saveUserInfo(
-                        userId = authData.user.id ?: 0,
-                        email = authData.user.email ?: "",
-                        name = authData.user.name ?: name,
-                        photo = authData.user.photo
-                    )
-                    Result.Success(authData)
+                    completeSession(authData, PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD)
                 } else {
                     Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
             } else {
-                errorResultFrom(response, "Pendaftaran gagal")
+                errorResultFrom(response, "Kode OTP tidak valid")
             }
         } catch (e: Exception) {
             networkError(e)
@@ -291,19 +334,7 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
-                    if (authData.user.role != null && authData.user.role != "user") {
-                        return rejectNonUserRole(authData.user.role)
-                    }
-                    saveTokenAndCache(authData.token)
-                    persistClinicBinding(authData.user)
-                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
-                    preferencesManager.saveUserInfo(
-                        userId = authData.user.id ?: 0,
-                        email = authData.user.email ?: "",
-                        name = authData.user.name ?: "",
-                        photo = authData.user.photo
-                    )
-                    Result.Success(authData)
+                    completeSession(authData, PreferencesManager.AUTH_PROVIDER_GOOGLE)
                 } else {
                     Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }
@@ -336,19 +367,7 @@ class AuthRepository @Inject constructor(
             if (response.isSuccessful && response.body()?.success == true) {
                 val authData = response.body()?.data
                 if (authData != null) {
-                    if (authData.user.role != null && authData.user.role != "user") {
-                        return rejectNonUserRole(authData.user.role)
-                    }
-                    saveTokenAndCache(authData.token)
-                    persistClinicBinding(authData.user)
-                    saveAuthProvider(PreferencesManager.AUTH_PROVIDER_GOOGLE)
-                    preferencesManager.saveUserInfo(
-                        userId = authData.user.id ?: 0,
-                        email = authData.user.email ?: "",
-                        name = authData.user.name ?: name,
-                        photo = authData.user.photo
-                    )
-                    Result.Success(authData)
+                    completeSession(authData, PreferencesManager.AUTH_PROVIDER_GOOGLE, name)
                 } else {
                     Result.Error("Respons server tidak lengkap. Coba lagi.", "invalid_response")
                 }

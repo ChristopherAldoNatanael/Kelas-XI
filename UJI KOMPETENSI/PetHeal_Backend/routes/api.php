@@ -33,6 +33,16 @@ Route::middleware('throttle:password-reset')->group(function () {
     Route::post('/auth/reset-password', [AuthController::class, 'resetPassword']);
 });
 
+// Registrasi email dengan kode OTP (kirim kode -> verifikasi -> akun dibuat)
+Route::middleware('throttle:otp-send')->group(function () {
+    Route::post('/auth/register/request-otp', [AuthController::class, 'requestRegisterOtp']);
+    Route::post('/auth/register/resend-otp', [AuthController::class, 'resendRegisterOtp']);
+});
+
+Route::middleware('throttle:otp-verify')->group(function () {
+    Route::post('/auth/register/verify-otp', [AuthController::class, 'verifyRegisterOtp']);
+});
+
 Route::get('/health', [HealthController::class, 'index']);
 
 // Public clinic routes (no auth required)

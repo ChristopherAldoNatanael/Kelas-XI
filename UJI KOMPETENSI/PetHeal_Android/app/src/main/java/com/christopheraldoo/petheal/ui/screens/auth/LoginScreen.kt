@@ -32,6 +32,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -44,11 +45,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.data.local.PreferencesManager
+import com.christopheraldoo.petheal.ui.components.OtpInput
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -91,12 +94,22 @@ fun LoginScreen(
     var forgotNewPassword by rememberSaveable { mutableStateOf("") }
     var forgotPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var forgotBusy by rememberSaveable { mutableStateOf(false) }
+    // Hitung mundur kirim ulang kode reset (anti-spam & anti rate-limit).
+    var forgotResendCountdown by rememberSaveable { mutableStateOf(0) }
     // PHASE 7: tenant hint HANYA untuk login email. Login Google selalu
     // mengirim null (klinik ikut akun, backend yang menentukan).
     var showClinicPicker by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) { pickerViewModel.load() }
+
+    // Hitung mundur kirim ulang kode reset: turun 1 detik sampai 0.
+    LaunchedEffect(forgotResendCountdown) {
+        if (forgotResendCountdown > 0) {
+            delay(1_000)
+            forgotResendCountdown--
+        }
+    }
 
     // Google Sign-In client
     val googleSignInClient = remember {
@@ -508,17 +521,54 @@ fun LoginScreen(
                                 forgotPasswordMessage ?: "Masukkan kode 6 digit dan kata sandi baru.",
                                 fontSize = 13.sp
                             )
-                            OutlinedTextField(
+                            Text(
+                                stringResource(R.string.reset_code_label),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            OtpInput(
                                 value = forgotCode,
                                 onValueChange = { forgotCode = it },
-                                singleLine = true,
-                                label = { Text("Kode reset") },
-                                keyboardOptions = KeyboardOptions(
-                                    keyboardType = KeyboardType.Number,
-                                    imeAction = ImeAction.Next
-                                ),
+                                enabled = !forgotBusy,
                                 modifier = Modifier.fillMaxWidth()
                             )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    enabled = !forgotBusy && forgotResendCountdown == 0,
+                                    contentPadding = PaddingValues(0.dp),
+                                    onClick = {
+                                        if (isForgotPasswordLoading || forgotBusy) return@TextButton
+                                        isForgotPasswordLoading = true
+                                        viewModel.requestForgotPassword(forgotPasswordEmail.trim()) { result ->
+                                            isForgotPasswordLoading = false
+                                            when (result) {
+                                                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                                                    forgotResendCountdown = 60
+                                                    forgotPasswordMessage =
+                                                        "Kode baru sudah dikirim ke ${forgotPasswordEmail.trim()}. Cek juga folder Spam/Promosi."
+                                                }
+                                                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                                                    viewModel.setError(result.message)
+                                                }
+                                                else -> Unit
+                                            }
+                                        }
+                                    }
+                                ) {
+                                    Text(
+                                        text = if (forgotResendCountdown > 0) {
+                                            stringResource(R.string.otp_resend_wait, forgotResendCountdown)
+                                        } else {
+                                            stringResource(R.string.reset_resend_action)
+                                        },
+                                        fontSize = 12.sp
+                                    )
+                                }
+                            }
                             OutlinedTextField(
                                 value = forgotNewPassword,
                                 onValueChange = { forgotNewPassword = it },
@@ -549,7 +599,7 @@ fun LoginScreen(
                         enabled = if (forgotStep == 1) {
                             !isForgotPasswordLoading && forgotPasswordEmail.isNotBlank()
                         } else {
-                            !forgotBusy && forgotCode.isNotBlank() && forgotNewPassword.length >= 8
+                            !forgotBusy && forgotCode.length == 6 && forgotNewPassword.length >= 8
                         },
                         onClick = {
                             if (forgotStep == 1) {
@@ -559,7 +609,8 @@ fun LoginScreen(
                                     when (result) {
                                         is com.christopheraldoo.petheal.data.repository.Result.Success -> {
                                             forgotPasswordMessage =
-                                                "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}."
+                                                "Kode reset telah dikirim ke ${forgotPasswordEmail.trim()}. Cek juga folder Spam/Promosi."
+                                            forgotResendCountdown = 60
                                             forgotStep = 2
                                         }
                                         is com.christopheraldoo.petheal.data.repository.Result.Error -> {

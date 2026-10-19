@@ -4,26 +4,27 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Exceptions\FirebaseTokenException;
-use App\Mail\PasswordResetMail;
 use App\Models\User;
 use App\Models\DeviceToken;
 use App\Models\MedicalRecord;
 use App\Models\Booking;
 use App\Services\ImageService;
 use App\Services\FirebaseService;
+use App\Services\OtpService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
     protected FirebaseService $firebaseService;
 
-    public function __construct(FirebaseService $firebaseService)
+    protected OtpService $otpService;
+
+    public function __construct(FirebaseService $firebaseService, OtpService $otpService)
     {
         $this->firebaseService = $firebaseService;
+        $this->otpService = $otpService;
     }
 
     private function syncDeviceToken(Request $request, User $user): void
@@ -167,59 +168,173 @@ class AuthController extends Controller
     }
 
     /**
-     * Register with email and password (direct)
+     * Register with email and password (direct).
+     *
+     * @deprecated Digantikan alur OTP email: /auth/register/request-otp lalu
+     * /auth/register/verify-otp. Endpoint tetap ada supaya aplikasi versi lama
+     * mendapat pesan jelas (410) alih-alih 404.
      */
     public function registerDirect(Request $request)
     {
-        $request->validate([
+        return response()->json([
+            'success' => false,
+            'code' => 'use_otp_flow',
+            'message' => 'Pendaftaran email sekarang memakai kode OTP. Minta kode lewat /api/auth/register/request-otp.',
+        ], 410);
+    }
+
+    /**
+     * Pendaftaran email langkah 1: kirim kode OTP ke email pendaftar.
+     *
+     * Akun BELUM dibuat di sini. Password hanya disimpan sebagai hash di baris
+     * OTP (payload), dan user baru dibuat setelah kode diverifikasi.
+     */
+    public function requestRegisterOtp(Request $request)
+    {
+        $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email',
             'password' => 'required|string|min:8',
             'phone' => 'nullable|string|max:20',
-            'fcm_token' => 'nullable|string',
             'clinic_slug' => 'nullable|string',
         ]);
 
-        // Check if user already exists
-        $existingUser = User::where('email', $request->input('email'))->first();
+        $email = $this->otpService->normalize($validated['email']);
 
-        if ($existingUser) {
+        if (User::where('email', $email)->exists()) {
             return response()->json([
                 'success' => false,
-                'message' => 'User already exists with this email',
+                'code' => 'email_taken',
+                'message' => 'Email sudah terdaftar. Silakan masuk atau pakai email lain.',
             ], 409);
         }
 
-        // Resolve clinic if provided
-        $clinic = $this->resolveClinic($request->input('clinic_slug'));
-        if ($request->input('clinic_slug') && !$clinic) {
+        $clinic = $this->resolveClinic($validated['clinic_slug'] ?? null);
+        if (!empty($validated['clinic_slug']) && !$clinic) {
             return response()->json([
                 'success' => false,
                 'message' => 'Klinik tidak ditemukan atau tidak aktif.',
             ], 422);
         }
 
-        // Create new user
-        $user = User::create([
-            'name' => $request->input('name'),
-            'email' => $request->input('email'),
-            'password' => Hash::make($request->input('password')),
-            'role' => 'user',
-            'phone' => $request->input('phone'),
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $email,
+            'password_hash' => Hash::make($validated['password']),
+            'phone' => $validated['phone'] ?? null,
             'clinic_id' => $clinic?->id,
+            'role' => 'user',
+        ];
+
+        $code = $this->otpService->issue($email, OtpService::PURPOSE_REGISTER, $payload);
+        $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kode OTP dikirim ke email Anda. Cek juga folder Spam/Promosi.',
+            'data' => [
+                'email' => $email,
+                'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_REGISTER),
+            ],
+        ]);
+    }
+
+    /**
+     * Kirim ulang kode pendaftaran tanpa user mengisi form lagi. Memakai
+     * payload yang tersimpan; kalau tidak ada, sesi dianggap kedaluwarsa.
+     */
+    public function resendRegisterOtp(Request $request)
+    {
+        $request->validate(['email' => 'required|email']);
+
+        $email = $this->otpService->normalize($request->input('email'));
+        $payload = $this->otpService->payload($email, OtpService::PURPOSE_REGISTER);
+
+        if ($payload === []) {
+            return response()->json([
+                'success' => false,
+                'code' => 'otp_session_expired',
+                'message' => 'Sesi pendaftaran sudah berakhir. Silakan isi form pendaftaran lagi.',
+            ], 400);
+        }
+
+        $code = $this->otpService->issue($email, OtpService::PURPOSE_REGISTER, $payload);
+        $this->otpService->send($email, OtpService::PURPOSE_REGISTER, $code);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kode OTP baru sudah dikirim.',
+            'data' => [
+                'email' => $email,
+                'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_REGISTER),
+            ],
+        ]);
+    }
+
+    /**
+     * Pendaftaran email langkah 2: verifikasi kode lalu buat akun.
+     *
+     * Bentuk respons SAMA dengan endpoint register lama (token + user) supaya
+     * aplikasi Android memakai jalur penyimpanan sesi yang sudah ada.
+     */
+    public function verifyRegisterOtp(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'code' => 'required|string|size:6',
+            'fcm_token' => 'nullable|string',
         ]);
 
-        // Create Sanctum token
-        $token = $user->createToken('mobile-app')->plainTextToken;
+        $email = $this->otpService->normalize($request->input('email'));
+        $result = $this->otpService->verify($email, OtpService::PURPOSE_REGISTER, $request->input('code'));
 
-        // Store FCM device token if provided
+        if (!$result['ok']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], $result['status']);
+        }
+
+        $payload = $result['payload'];
+
+        if (empty($payload['email']) || empty($payload['password_hash'])) {
+            $this->otpService->consume($email, OtpService::PURPOSE_REGISTER);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Data pendaftaran tidak ditemukan. Silakan daftar ulang.',
+            ], 400);
+        }
+
+        // Email bisa saja sudah terdaftar setelah OTP dibuat (pendaftaran paralel).
+        if (User::where('email', $email)->exists()) {
+            $this->otpService->consume($email, OtpService::PURPOSE_REGISTER);
+
+            return response()->json([
+                'success' => false,
+                'code' => 'email_taken',
+                'message' => 'Email sudah terdaftar. Silakan masuk atau pakai email lain.',
+            ], 409);
+        }
+
+        $user = User::create([
+            'name' => $payload['name'] ?? '',
+            'email' => $email,
+            'password' => $payload['password_hash'],
+            'role' => $payload['role'] ?? 'user',
+            'phone' => $payload['phone'] ?? null,
+            'clinic_id' => $payload['clinic_id'] ?? null,
+            'email_verified_at' => now(),
+        ]);
+
+        $this->otpService->consume($email, OtpService::PURPOSE_REGISTER);
         $this->syncDeviceToken($request, $user);
 
         return response()->json([
             'success' => true,
             'message' => 'Registration successful',
             'data' => [
-                'token' => $token,
+                'token' => $user->createToken('mobile-app')->plainTextToken,
                 'user' => $this->userResponse($user),
             ],
         ]);
@@ -502,7 +617,10 @@ class AuthController extends Controller
     }
 
     /**
-     * Send password reset code (forgot password)
+     * Kirim kode reset kata sandi.
+     *
+     * Selalu membalas sukses supaya keberadaan email tidak bisa ditebak dari
+     * luar (anti-enumeration), sama seperti perilaku sebelumnya.
      */
     public function forgotPassword(Request $request)
     {
@@ -510,27 +628,11 @@ class AuthController extends Controller
             'email' => 'required|email',
         ]);
 
-        $email = $request->input('email');
-        $user = User::where('email', $email)->first();
+        $email = $this->otpService->normalize($request->input('email'));
 
-        if (!$user) {
-            return response()->json([
-                'success' => true,
-                'message' => 'If your email is registered, you will receive a password reset code.'
-            ]);
-        }
-
-        $code = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-
-        DB::table('password_reset_tokens')->updateOrInsert(
-            ['email' => $email],
-            ['token' => Hash::make($code), 'created_at' => now()]
-        );
-
-        try {
-            Mail::to($email)->send(new PasswordResetMail($code, $email));
-        } catch (\Exception $e) {
-            // Mail failed — do not block the flow
+        if (User::where('email', $email)->exists()) {
+            $code = $this->otpService->issue($email, OtpService::PURPOSE_RESET);
+            $this->otpService->send($email, OtpService::PURPOSE_RESET, $code);
         }
 
         return response()->json([
@@ -540,7 +642,8 @@ class AuthController extends Controller
     }
 
     /**
-     * Verify reset code without changing password yet
+     * Periksa kode reset tanpa mengubah kata sandi dulu (dipakai layar
+     * verifikasi kode di aplikasi).
      */
     public function verifyResetCode(Request $request)
     {
@@ -549,23 +652,16 @@ class AuthController extends Controller
             'code' => 'required|string',
         ]);
 
-        $record = DB::table('password_reset_tokens')
-            ->where('email', $request->input('email'))
-            ->first();
+        $result = $this->otpService->verify(
+            $request->input('email'),
+            OtpService::PURPOSE_RESET,
+            $request->input('code')
+        );
 
-        if (!$record || !Hash::check($request->input('code'), $record->token)) {
+        if (!$result['ok']) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid reset code',
-            ], 400);
-        }
-
-        $createdAt = \Carbon\Carbon::parse($record->created_at);
-        if ($createdAt->diffInMinutes(now()) > 15) {
-            DB::table('password_reset_tokens')->where('email', $request->input('email'))->delete();
-            return response()->json([
-                'success' => false,
-                'message' => 'Reset code has expired. Please request a new one.',
             ], 400);
         }
 
@@ -576,7 +672,7 @@ class AuthController extends Controller
     }
 
     /**
-     * Reset password with code
+     * Reset kata sandi memakai kode OTP email.
      */
     public function resetPassword(Request $request)
     {
@@ -586,32 +682,20 @@ class AuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $email = $request->input('email');
-        $code = $request->input('code');
+        $email = $this->otpService->normalize($request->input('email'));
 
-        $record = DB::table('password_reset_tokens')
-            ->where('email', $email)
-            ->first();
+        $result = $this->otpService->verify($email, OtpService::PURPOSE_RESET, $request->input('code'));
 
-        if (!$record || !Hash::check($code, $record->token)) {
+        if (!$result['ok']) {
             return response()->json([
                 'success' => false,
                 'message' => 'Invalid reset code',
             ], 400);
         }
 
-        $createdAt = \Carbon\Carbon::parse($record->created_at);
-        if ($createdAt->diffInMinutes(now()) > 15) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
-            return response()->json([
-                'success' => false,
-                'message' => 'Reset code has expired. Please request a new one.',
-            ], 400);
-        }
-
-        $user = \App\Models\User::where('email', $email)->first();
+        $user = User::where('email', $email)->first();
         if (!$user) {
-            DB::table('password_reset_tokens')->where('email', $email)->delete();
+            $this->otpService->consume($email, OtpService::PURPOSE_RESET);
 
             return response()->json([
                 'success' => false,
@@ -620,8 +704,7 @@ class AuthController extends Controller
         }
 
         $user->update(['password' => Hash::make($request->input('password'))]);
-
-        DB::table('password_reset_tokens')->where('email', $email)->delete();
+        $this->otpService->consume($email, OtpService::PURPOSE_RESET);
 
         return response()->json([
             'success' => true,

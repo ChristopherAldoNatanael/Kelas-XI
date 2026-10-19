@@ -5,6 +5,11 @@ sealed class Screen(val route: String) {
     object Onboarding     : Screen("onboarding")
     object Login          : Screen("login")
     object Register       : Screen("register")
+    // Verifikasi kode OTP pendaftaran email — akun baru dibuat di layar ini,
+    // jadi alur daftar email selalu lewat sini (endpoint register-direct pensiun).
+    object VerifyOtp      : Screen("verify-otp/{email}") {
+        fun createRoute(email: String) = "verify-otp/$email"
+    }
     // PHASE 7: finish-setup for accounts born without a clinic binding.
     object CompleteSetup  : Screen("complete-setup")
     object Home           : Screen("home")

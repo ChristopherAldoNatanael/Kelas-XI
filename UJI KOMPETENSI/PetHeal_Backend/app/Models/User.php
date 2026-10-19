@@ -29,6 +29,7 @@ class User extends Authenticatable
         'phone',
         'photo',
         'clinic_id',
+        'email_verified_at',
     ];
 
     /**
@@ -49,6 +50,8 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
+            // Diisi saat pendaftaran email lolos verifikasi kode OTP.
+            'email_verified_at' => 'datetime',
         ];
     }
 

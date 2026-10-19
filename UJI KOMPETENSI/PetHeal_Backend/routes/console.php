@@ -14,11 +14,12 @@ Schedule::command('reminders:send')
     ->name('send-pet-reminders')
     ->withoutOverlapping();
 
-// PHASE 3 (J-05): prune expired password-reset tokens (hashed, 15-min TTL).
-// Rows were only deleted on verify/reset attempts, so abandoned requests
-// littered the table forever.
+// PHASE 3 (J-05) + OTP (2026-10-19): prune kode OTP yang sudah kedaluwarsa.
+// Reset sandi tidak lagi memakai `password_reset_tokens` melainkan `otp_codes`,
+// jadi jadwal ini memangkas `otp_codes`. OtpService juga memangkas saat
+// menerbitkan kode baru — jadwal harian ini hanya jaring pengaman.
 Schedule::call(function () {
-    \Illuminate\Support\Facades\DB::table('password_reset_tokens')
-        ->where('created_at', '<', now()->subHour())
+    \Illuminate\Support\Facades\DB::table('otp_codes')
+        ->where('expires_at', '<', now()->subDay())
         ->delete();
-})->daily()->name('prune-password-reset-tokens');
+})->daily()->name('prune-otp-codes');

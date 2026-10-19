@@ -33,9 +33,13 @@ class NetworkInterceptor @Inject constructor(
         // call made WITH a token that answers 401 means the token is invalid
         // and the session must end (previously public catalog paths listed here
         // swallowed real expiries and left the user stuck logged-in).
+        // Path register OTP ikut terdaftar: ketiganya gagal-auth juga (401 di
+        // sana tidak boleh menghapus sesi yang belum ada), dan ketiganya
+        // membawa tenant (clinic_slug) di BODY, bukan header.
         private val AUTH_PATHS = listOf(
-            "auth/login", "auth/register", "auth/register-direct",
-            "auth/firebase-login",
+            "auth/login", "auth/register", "auth/firebase-login",
+            "auth/register/request-otp", "auth/register/verify-otp",
+            "auth/register/resend-otp",
             "auth/forgot-password", "auth/verify-reset-code", "auth/reset-password",
             "public/clinics"
         )
@@ -44,7 +48,9 @@ class NetworkInterceptor @Inject constructor(
         // a stale stored slug must never break them (backend 403 on mismatch).
         // Tenant binding travels in the request BODY (clinic_slug) instead.
         private val NO_SLUG_HEADER_PATHS = listOf(
-            "auth/login", "auth/register", "auth/register-direct", "auth/firebase-login"
+            "auth/login", "auth/register", "auth/firebase-login",
+            "auth/register/request-otp", "auth/register/verify-otp",
+            "auth/register/resend-otp"
         )
     }
 

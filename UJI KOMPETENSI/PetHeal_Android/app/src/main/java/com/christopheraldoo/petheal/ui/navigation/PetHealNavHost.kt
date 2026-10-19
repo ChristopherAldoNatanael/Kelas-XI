@@ -26,6 +26,7 @@ import androidx.navigation.navArgument
 import com.christopheraldoo.petheal.ui.screens.auth.CompleteSetupScreen
 import com.christopheraldoo.petheal.ui.screens.auth.LoginScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OnboardingScreen
+import com.christopheraldoo.petheal.ui.screens.auth.OtpVerificationScreen
 import com.christopheraldoo.petheal.ui.screens.auth.RegisterScreen
 import com.christopheraldoo.petheal.ui.screens.auth.SplashScreen
 import com.christopheraldoo.petheal.ui.screens.booking.BookingDetailScreen
@@ -141,6 +142,32 @@ fun PetHealNavHost(
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToCompleteSetup = {
+                    navController.navigate(Screen.CompleteSetup.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
+                },
+                onNavigateToOtpVerification = { email ->
+                    navController.navigate(Screen.VerifyOtp.createRoute(email))
+                },
+                onNavigateBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        // Verifikasi kode OTP pendaftaran email (akun dibuat di layar ini).
+        composable(
+            route = Screen.VerifyOtp.route,
+            arguments = listOf(navArgument("email") { type = NavType.StringType })
+        ) { entry ->
+            OtpVerificationScreen(
+                email = entry.arguments?.getString("email").orEmpty(),
+                onVerified = {
                     navController.navigate(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }

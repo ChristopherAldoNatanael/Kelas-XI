@@ -16,6 +16,11 @@ import javax.inject.Inject
 data class RegisterUiState(
     val isLoading: Boolean = false,
     val isSuccess: Boolean = false,
+    /**
+     * Email tujuan kode OTP — non-null berarti kode terkirim dan layar harus
+     * pindah ke [OtpVerificationScreen]. Akun belum dibuat sampai kode benar.
+     */
+    val otpSentEmail: String? = null,
     // PHASE 7: same safety net as login (defensive; email register requires
     // a slug upfront so this should rarely trigger).
     val needsClinicSetup: Boolean = false,
@@ -30,17 +35,16 @@ class RegisterViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(RegisterUiState())
     val uiState: StateFlow<RegisterUiState> = _uiState.asStateFlow()
 
-    fun register(name: String, email: String, password: String, clinicSlug: String? = null) {
+    /**
+     * Langkah 1 pendaftaran email: minta kode OTP. Akun baru dibuat backend
+     * setelah kode diverifikasi (lihat `OtpVerificationViewModel`).
+     */
+    fun requestOtp(name: String, email: String, password: String, clinicSlug: String? = null) {
         viewModelScope.launch {
             _uiState.value = RegisterUiState(isLoading = true)
-            val fcmToken = try { FirebaseMessaging.getInstance().token.await() } catch (e: Exception) { null }
-            when (val result = authRepository.registerWithEmailPassword(email, password, name, fcmToken, clinicSlug)) {
+            when (val result = authRepository.requestRegisterOtp(name, email, password, clinicSlug)) {
                 is Result.Success ->
-                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
-                        _uiState.value = RegisterUiState(needsClinicSetup = true)
-                    } else {
-                        _uiState.value = RegisterUiState(isSuccess = true)
-                    }
+                    _uiState.value = RegisterUiState(otpSentEmail = result.data.email ?: email)
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }
@@ -66,6 +70,17 @@ class RegisterViewModel @Inject constructor(
 
     fun clearError() {
         _uiState.value = _uiState.value.copy(error = null)
+    }
+
+    /**
+     * Dipanggil layar SETELAH pindah ke layar OTP. Tanpa ini, kembali dari
+     * layar OTP ke form daftar akan langsung melempar user ke layar OTP lagi
+     * (efek navigasi ikut jalan ulang saat form masuk komposisi kembali).
+     */
+    fun consumeOtpSent() {
+        if (_uiState.value.otpSentEmail != null) {
+            _uiState.value = _uiState.value.copy(otpSentEmail = null)
+        }
     }
 
     fun setError(message: String) {

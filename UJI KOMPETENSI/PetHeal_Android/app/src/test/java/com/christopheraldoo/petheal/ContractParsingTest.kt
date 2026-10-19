@@ -3,11 +3,13 @@ package com.christopheraldoo.petheal
 import com.christopheraldoo.petheal.data.model.AuthResponse
 import com.christopheraldoo.petheal.data.model.BookingsResponse
 import com.christopheraldoo.petheal.data.model.DoctorReviewsResponse
-import com.christopheraldoo.petheal.data.model.EmailRegisterRequest
+import com.christopheraldoo.petheal.data.model.OtpSentResponse
 import com.christopheraldoo.petheal.data.model.PetsResponse
 import com.christopheraldoo.petheal.data.model.PublicClinicsResponse
+import com.christopheraldoo.petheal.data.model.RegisterOtpRequest
 import com.christopheraldoo.petheal.data.model.TransactionStatusResponse
 import com.christopheraldoo.petheal.data.model.VaccinationsResponse
+import com.christopheraldoo.petheal.data.model.VerifyRegisterOtpRequest
 import com.christopheraldoo.petheal.data.model.WeightHistoryResponse
 import com.google.gson.Gson
 import org.junit.Assert.assertEquals
@@ -117,17 +119,39 @@ class ContractParsingTest {
     }
 
     @Test
-    fun `register request serializes clinic_slug`() {
+    fun `register OTP request serializes clinic_slug`() {
         val withSlug = gson.toJson(
-            EmailRegisterRequest("N", "n@x.id", "password123", null, null, "android", "happy-paws")
+            RegisterOtpRequest("N", "n@x.id", "password123", null, "happy-paws")
         )
         assertTrue(withSlug.contains("\"clinic_slug\":\"happy-paws\""))
 
         val withoutSlug = gson.toJson(
-            EmailRegisterRequest("N", "n@x.id", "password123")
+            RegisterOtpRequest("N", "n@x.id", "password123")
         )
         // Gson omits nulls: key absent == backend treats as not provided.
         assertTrue(!withoutSlug.contains("clinic_slug"))
+    }
+
+    @Test
+    fun `verify OTP request carries code and fcm token`() {
+        val json = gson.toJson(
+            VerifyRegisterOtpRequest(email = "n@x.id", code = "123456", fcmToken = "fcm-1")
+        )
+        assertTrue(json.contains("\"code\":\"123456\""))
+        assertTrue(json.contains("\"fcm_token\":\"fcm-1\""))
+        assertTrue(json.contains("\"device_type\":\"android\""))
+    }
+
+    @Test
+    fun `otp sent envelope parses expiry`() {
+        val json = """
+        {"success":true,"message":"Kode OTP dikirim","data":
+          {"email":"n@x.id","expires_in_minutes":10}}
+        """.trimIndent()
+        val res = gson.fromJson(json, OtpSentResponse::class.java)
+        assertTrue(res.success)
+        assertEquals("n@x.id", res.data?.email)
+        assertEquals(10, res.data?.expiresInMinutes)
     }
 
     @Test

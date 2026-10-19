@@ -20,4 +20,24 @@
     <string name="error_payment_load_message">Data pembayaran tidak bisa dibuka saat ini. Periksa koneksi Anda lalu coba lagi.</string>
     <string name="action_retry">Coba Lagi</string>
     <string name="action_back">Kembali</string>
+
+    <!-- Pendaftaran email via kode OTP -->
+    <string name="register_submit_otp">Lanjut Verifikasi Email</string>
+    <string name="register_otp_hint">Kami akan mengirim kode 6 digit ke alamat email Anda.</string>
+
+    <!-- Layar verifikasi kode OTP -->
+    <string name="otp_title">Verifikasi Email</string>
+    <string name="otp_heading">Masukkan Kode OTP</string>
+    <string name="otp_subtitle">Kode 6 digit telah dikirim ke %1$s</string>
+    <string name="otp_spam_hint">Tidak menemukannya? Cek folder Spam atau Promosi, lalu kirim ulang.</string>
+    <string name="otp_resend_prompt">Belum menerima kode?</string>
+    <string name="otp_resend_action">Kirim ulang</string>
+    <string name="otp_resend_wait">Kirim ulang dalam %1$d dtk</string>
+    <string name="otp_resend_sent">Kode baru sudah dikirim. Cek inbox Anda lagi.</string>
+    <string name="otp_verify_action">Verifikasi</string>
+    <string name="otp_change_email">Ganti email</string>
+
+    <!-- Reset kata sandi (dialog di layar masuk) -->
+    <string name="reset_code_label">Kode OTP</string>
+    <string name="reset_resend_action">Kirim ulang kode</string>
 </resources>

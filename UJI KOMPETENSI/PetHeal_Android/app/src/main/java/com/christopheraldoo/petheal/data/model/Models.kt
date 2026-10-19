@@ -83,16 +83,38 @@ data class EmailPasswordRequest(
     @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
-data class EmailRegisterRequest(
+// ── Pendaftaran email via kode OTP ─────────────────────────────────────────
+// Satu-satunya jalur daftar email: minta kode → verifikasi kode → akun dibuat.
+// (Endpoint lama auth/register-direct sudah pensiun dan menjawab 410.)
+data class RegisterOtpRequest(
     val name: String,
     val email: String,
     val password: String,
     val phone: String? = null,
-    @SerializedName("fcm_token") val fcmToken: String? = null,
-    @SerializedName("device_type") val deviceType: String = "android",
-    // PHASE 7: without this the new account has clinic_id=null and every
-    // protected call returns 403. Registration UI must supply it.
     @SerializedName("clinic_slug") val clinicSlug: String? = null
+)
+
+data class VerifyRegisterOtpRequest(
+    val email: String,
+    val code: String,
+    @SerializedName("fcm_token") val fcmToken: String? = null,
+    @SerializedName("device_type") val deviceType: String = "android"
+)
+
+data class ResendOtpRequest(
+    val email: String
+)
+
+/** Balasan request/resend OTP: `expires_in_minutes` untuk hitung mundur UI. */
+data class OtpSentResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: OtpSentData? = null
+)
+
+data class OtpSentData(
+    val email: String? = null,
+    @SerializedName("expires_in_minutes") val expiresInMinutes: Int? = null
 )
 
 data class FirebaseRegisterRequest(

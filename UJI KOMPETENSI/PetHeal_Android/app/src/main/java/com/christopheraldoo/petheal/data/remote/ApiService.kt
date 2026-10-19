@@ -19,8 +19,16 @@ interface ApiService {
     @POST("auth/login")
     suspend fun login(@Body request: EmailPasswordRequest): Response<AuthResponse>
 
-    @POST("auth/register-direct")
-    suspend fun register(@Body request: EmailRegisterRequest): Response<AuthResponse>
+    // Pendaftaran email = minta kode OTP → verifikasi kode (akun dibuat di
+    // langkah verifikasi). Endpoint lama auth/register-direct menjawab 410.
+    @POST("auth/register/request-otp")
+    suspend fun requestRegisterOtp(@Body request: RegisterOtpRequest): Response<OtpSentResponse>
+
+    @POST("auth/register/verify-otp")
+    suspend fun verifyRegisterOtp(@Body request: VerifyRegisterOtpRequest): Response<AuthResponse>
+
+    @POST("auth/register/resend-otp")
+    suspend fun resendRegisterOtp(@Body request: ResendOtpRequest): Response<OtpSentResponse>
 
     @POST("auth/firebase-login")
     suspend fun firebaseLogin(@Body request: LoginRequest): Response<AuthResponse>

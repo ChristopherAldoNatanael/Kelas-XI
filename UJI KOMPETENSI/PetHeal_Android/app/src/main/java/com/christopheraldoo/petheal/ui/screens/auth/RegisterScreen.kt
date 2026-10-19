@@ -28,6 +28,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -56,6 +57,8 @@ fun RegisterScreen(
     onRegisterSuccess: () -> Unit,
     onNavigateBack: () -> Unit,
     onNavigateToCompleteSetup: () -> Unit = {},
+    /** Daftar email = minta kode OTP dulu; akun dibuat di layar verifikasi. */
+    onNavigateToOtpVerification: (String) -> Unit = {},
     viewModel: RegisterViewModel = hiltViewModel(),
     pickerViewModel: ClinicPickerViewModel = hiltViewModel()
 ) {
@@ -126,6 +129,14 @@ fun RegisterScreen(
 
     LaunchedEffect(uiState.isSuccess) {
         if (uiState.isSuccess) onRegisterSuccess()
+    }
+
+    // Daftar email: kode OTP terkirim → lanjut ke layar verifikasi. Event
+    // langsung dikonsumsi supaya kembali ke form tidak terlempar lagi ke OTP.
+    LaunchedEffect(uiState.otpSentEmail) {
+        val target = uiState.otpSentEmail ?: return@LaunchedEffect
+        viewModel.consumeOtpSent()
+        onNavigateToOtpVerification(target)
     }
 
     // PHASE 7: defensive — email register requires a slug, but a null
@@ -396,7 +407,7 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.register(name.trim(), email.trim(), password, pickerState.selectedSlug)
+                    viewModel.requestOtp(name.trim(), email.trim(), password, pickerState.selectedSlug)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -413,9 +424,24 @@ fun RegisterScreen(
                         modifier = Modifier.size(22.dp),
                         color = Color.White, strokeWidth = 2.5.dp)
                 } else {
-                    Text("Buat Akun", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = stringResource(R.string.register_submit_otp),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Text(
+                text = stringResource(R.string.register_otp_hint),
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = AuthTextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
 
             Spacer(modifier = Modifier.height(24.dp))
 

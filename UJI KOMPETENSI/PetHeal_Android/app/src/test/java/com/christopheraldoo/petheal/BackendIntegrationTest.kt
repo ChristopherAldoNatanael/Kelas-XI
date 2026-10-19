@@ -1,10 +1,13 @@
 package com.christopheraldoo.petheal
 
-import com.christopheraldoo.petheal.data.model.EmailRegisterRequest
 import com.christopheraldoo.petheal.data.model.EmailPasswordRequest
+import com.christopheraldoo.petheal.data.model.RegisterOtpRequest
 import com.christopheraldoo.petheal.data.remote.ApiService
 import kotlinx.coroutines.runBlocking
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -31,17 +34,18 @@ class BackendIntegrationTest {
             System.getProperty("backend.url", "http://127.0.0.1:8000/api/")
 
         lateinit var api: ApiService
+        lateinit var httpClient: OkHttpClient
 
         @BeforeClass
         @JvmStatic
         fun setup() {
-            val client = OkHttpClient.Builder()
+            httpClient = OkHttpClient.Builder()
                 .connectTimeout(15, TimeUnit.SECONDS)
                 .readTimeout(30, TimeUnit.SECONDS)
                 .build()
             api = Retrofit.Builder()
                 .baseUrl(BASE_URL)
-                .client(client)
+                .client(httpClient)
                 .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(ApiService::class.java)
@@ -176,33 +180,44 @@ class BackendIntegrationTest {
     }
 
     @Test
-    fun `register with slug binds clinic then account removed`() = runBlocking {
-        val email = "phase7probe+${System.currentTimeMillis()}@int.test"
-        val reg = api.register(
-            EmailRegisterRequest(
+    fun `retired direct register answers 410 use_otp_flow`() = runBlocking {
+        val request = Request.Builder()
+            .url("${BASE_URL}auth/register-direct")
+            .post(
+                """{"name":"X","email":"x@y.id","password":"password123"}"""
+                    .toRequestBody("application/json".toMediaType())
+            )
+            .addHeader("Accept", "application/json")
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            assertEquals(410, response.code)
+            assertTrue(response.body!!.string().contains("use_otp_flow"))
+        }
+    }
+
+    @Test
+    fun `register asks for an OTP instead of creating the account`() = runBlocking {
+        val res = api.requestRegisterOtp(
+            RegisterOtpRequest(
                 name = "Phase7 Probe",
-                email = email,
+                email = "phase7probe+${System.currentTimeMillis()}@int.test",
                 password = "password123",
                 clinicSlug = "meowcare"
             )
         )
-        assertTrue("register HTTP ${reg.code()}", reg.isSuccessful)
-        val data = reg.body()!!.data!!
-        assertEquals("meowcare", data.user.clinic?.slug)
+        // Akun BELUM dibuat di langkah ini — backend hanya mengirim kode OTP.
+        assertTrue("request-otp HTTP ${res.code()}", res.isSuccessful)
+        assertTrue(res.body()!!.success)
 
-        val authed = authedApi(data.token)
-        val me = authed.getProfile()
-        assertTrue(me.isSuccessful)
-        assertEquals("meowcare", me.body()!!.data!!.clinic?.slug)
-
-        val del = authed.deleteAccount()
-        assertTrue(del.isSuccessful)
+        // Token + clinic binding baru muncul setelah kode diverifikasi; langkah
+        // itu perlu membaca inbox, jadi diuji manual (lihat backend docs/PROGRESS.md).
     }
 
     @Test
     fun `validation errors carry frozen envelope`() = runBlocking {
-        val res = api.register(
-            EmailRegisterRequest(name = "", email = "not-an-email", password = "short")
+        val res = api.requestRegisterOtp(
+            RegisterOtpRequest(name = "", email = "not-an-email", password = "short")
         )
         assertEquals(422, res.code())
         val raw = res.errorBody()!!.string()

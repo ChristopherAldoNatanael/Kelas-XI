@@ -30,12 +30,27 @@
 
 - `POST /api/auth/login {email,password,fcm_token?,clinic_slug?}` →
   `{success,message,data:{token,user}}`. `clinic_slug` opsional; mismatch → 403.
-- `POST /api/auth/register-direct {name,email(unique),password min:8,phone?,fcm_token?,clinic_slug?}`.
-  Tanpa slug → `clinic_id=null` → proteksi 403 sampai diikat klinik.
+- `POST /api/auth/register-direct` → **410** `{success:false,code:'use_otp_flow',message}`.
+  Pensiun 2026-10-19 (persetujuan user: satu jalur daftar). Endpoint tetap terdaftar
+  supaya klien lama mendapat pesan jelas, bukan 404. Penggantinya:
+  1. `POST /api/auth/register/request-otp {name,email,password min:8,phone?,clinic_slug?}` →
+     `{success,message,data:{email,expires_in_minutes:10}}`. Email sudah terdaftar →
+     **409** `{success:false,code:'email_taken',message}`. **Akun belum dibuat di sini.**
+  2. `POST /api/auth/register/verify-otp {email,code(6 digit),fcm_token?}` →
+     `{success,message,data:{token,user}}` — akun dibuat di langkah ini
+     (`email_verified_at` terisi). Kode salah → 400 `{success:false,message}`
+     (pesan menyebut sisa percobaan).
+  3. `POST /api/auth/register/resend-otp {email}` → `{success,message,data:{...}}`;
+     payload form sudah hilang → **400** `{code:'otp_session_expired'}`.
+  Throttle: `otp-send` (request/resend) 3/menit + 20/hari per email+IP,
+  `otp-verify` 10/menit per email+IP (percobaan salah dibatasi 5 per kode di
+  server). Kode di-hash, satu kali pakai.
 - `POST /api/auth/firebase-login {id_token! (ID token, BUKAN firebase_uid),fcm_token?,clinic_slug?}`
-  (auto-create). `POST /api/auth/register {id_token!,name!,phone?,...}` (409 bila sudah ada).
-- Password reset: `forgot-password {email}` (selalu 200) → `verify-reset-code {email,code}`
-  → `reset-password {email,code,password(confirmed)}`. Expiry kode 15 mnt.
+  (auto-create, **tanpa OTP**). `POST /api/auth/register {id_token!,name!,phone?,...}` (409 bila sudah ada).
+- Password reset memakai mekanisme OTP yang sama dengan pendaftaran
+  (`otp_codes`, kode 15 menit): `forgot-password {email}` (selalu 200,
+  anti-enumeration) → `verify-reset-code {email,code}` →
+  `reset-password {email,code,password(confirmed)}`. Bentuk respons tidak berubah.
 - Proteksi: `POST auth/logout`, `GET|PUT auth/profile`, `POST auth/profile/photo`
   (multipart, throttle uploads), `DELETE auth/account`.
 
@@ -82,3 +97,6 @@ read-all/sync-status/snap-token/preflight/remaining`), param camelCase
 6. `message` sukses JANGAN dihapus (DTO punya field `message`).
 7. Duplikat `POST /pets/with-photo`, `PUT /auth/profile` vs `POST /auth/profile/photo`
    dipertahankan (klien memakai keduanya di path berbeda).
+8. Satu-satunya endpoint lama yang sengaja tidak lagi berfungsi:
+   `POST /auth/register-direct` → 410 `use_otp_flow` (persetujuan user
+   2026-10-19). Penggantinya `auth/register/request-otp` + `auth/register/verify-otp`.
