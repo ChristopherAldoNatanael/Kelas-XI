@@ -64,4 +64,14 @@
     <string name="reset_error_email">Masukkan alamat email yang valid.</string>
     <string name="reset_error_password">Kata sandi minimal 8 karakter.</string>
     <string name="reset_close">Tutup</string>
+
+    <!-- Notifikasi push -->
+    <string name="notification_channel_bookings">Jadwal &amp; booking</string>
+    <string name="notification_channel_bookings_desc">Perubahan status booking dan konfirmasi jadwal.</string>
+    <string name="notification_channel_reminders">Pengingat kunjungan</string>
+    <string name="notification_channel_reminders_desc">Pengingat jadwal, vaksin, dan kontrol ulang.</string>
+    <string name="notification_channel_payments">Pembayaran</string>
+    <string name="notification_channel_payments_desc">Status pembayaran, tagihan, dan pengingat pelunasan.</string>
+    <string name="notification_channel_general">Info klinik</string>
+    <string name="notification_channel_general_desc">Pengumuman dan informasi umum dari klinik.</string>
 </resources>

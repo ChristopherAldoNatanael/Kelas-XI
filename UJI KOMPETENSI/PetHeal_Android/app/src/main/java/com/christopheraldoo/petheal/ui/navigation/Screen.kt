@@ -74,8 +74,15 @@ sealed class Screen(val route: String) {
     }
 
     // ── Payment Result ────────────────────────────────────────────────────────
-    object PaymentResult : Screen("payment-result/{orderId}/{status}/{message}") {
-        fun createRoute(orderId: String, status: String, message: String) =
-            "payment-result/$orderId/$status/${java.net.URLEncoder.encode(message, "UTF-8")}"
+    object PaymentResult : Screen("payment-result/{orderId}/{status}/{message}?bookingId={bookingId}") {
+        fun createRoute(
+            orderId: String,
+            status: String,
+            message: String,
+            bookingId: Int? = null
+        ): String {
+            val base = "payment-result/$orderId/$status/${java.net.URLEncoder.encode(message, "UTF-8")}"
+            return if (bookingId != null && bookingId > 0) "$base?bookingId=$bookingId" else base
+        }
     }
 }

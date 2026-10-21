@@ -2,6 +2,7 @@ package com.christopheraldoo.petheal.ui.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.data.repository.AuthRepository
@@ -20,7 +21,10 @@ data class PaymentNavState(
     val booking: Booking? = null,
     val user: User? = null,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val clinicName: String? = null,
+    val clinicAddress: String? = null,
+    val clinicColor: String? = null
 )
 
 @HiltViewModel
@@ -28,11 +32,30 @@ class PaymentNavViewModel @Inject constructor(
     private val bookingRepository: BookingRepository,
     private val authRepository: AuthRepository,
     private val bookingRefreshManager: BookingRefreshManager,
-    private val medicalRefreshManager: MedicalRefreshManager
+    private val medicalRefreshManager: MedicalRefreshManager,
+    private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PaymentNavState())
     val state: StateFlow<PaymentNavState> = _state.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            preferencesManager.clinicName.collect { name ->
+                _state.value = _state.value.copy(clinicName = name)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicAddress.collect { address ->
+                _state.value = _state.value.copy(clinicAddress = address)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicColor.collect { color ->
+                _state.value = _state.value.copy(clinicColor = color)
+            }
+        }
+    }
 
     fun loadBookingAndUser(bookingId: Int) {
         viewModelScope.launch {

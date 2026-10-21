@@ -49,13 +49,14 @@
 
     <!-- Bookings Table -->
     <div class="overflow-x-auto">
-        <table class="w-full">
+        <table class="w-full min-w-[1040px]">
             <thead class="bg-slate-50/50 dark:bg-slate-800/30">
                 <tr>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">ID</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Pet</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Owner</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Doctor</th>
+                    <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Service</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Date & Time</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Payment</th>
                     <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 dark:text-slate-500 border-b border-slate-100 dark:border-slate-700">Status</th>
@@ -65,16 +66,16 @@
             <tbody class="divide-y divide-slate-100/50 dark:divide-slate-800/50">
                 @forelse($bookings as $booking)
                     <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-800/20 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">#{{ $booking->id }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400 tabular-nums">#{{ $booking->id }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center gap-2">
-                                @if($booking->pet->photo)
+                                @if($booking->pet->photo_url)
                                     <img class="h-8 w-8 rounded-full object-cover"
-                                         src="{{ asset('storage/' . $booking->pet->photo) }}"
+                                         src="{{ $booking->pet->photo_url }}"
                                          alt="{{ $booking->pet->name }}">
                                 @else
                                     <div class="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center">
-                                        <span class="material-symbols-outlined text-emerald-600 text-[16px]">pets</span>
+                                        <span class="material-symbols-outlined text-emerald-600 text-[16px]" aria-hidden="true">pets</span>
                                     </div>
                                 @endif
                                 <span class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->pet->name }}</span>
@@ -83,31 +84,27 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{{ $booking->user->name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <div class="flex items-center gap-2">
-                                @if($booking->doctor->photo)
+                                @if($booking->doctor->photo_url)
                                     <img class="h-8 w-8 rounded-full object-cover"
-                                         src="{{ asset('storage/' . $booking->doctor->photo) }}"
+                                         src="{{ $booking->doctor->photo_url }}"
                                          alt="{{ $booking->doctor->name }}">
                                 @else
                                     <div class="h-8 w-8 rounded-full bg-purple-100 flex items-center justify-center">
-                                        <span class="material-symbols-outlined text-purple-600 text-[16px]">stethoscope</span>
+                                        <span class="material-symbols-outlined text-purple-600 text-[16px]" aria-hidden="true">stethoscope</span>
                                     </div>
                                 @endif
                                 <span class="text-sm text-slate-500 dark:text-slate-400">{{ $booking->doctor->name }}</span>
                             </div>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
-                            {{ $booking->service?->name ?? '-' }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
+                            <span class="block font-medium text-slate-700 dark:text-slate-300">{{ $booking->service?->name ?? '—' }}</span>
                             @if($booking->service?->price)
-                                Rp {{ number_format($booking->service->price, 0, ',', '.') }}
-                            @else
-                                -
+                                <span class="block text-xs text-slate-400 tabular-nums">Rp {{ number_format($booking->service->price, 0, ',', '.') }}</span>
                             @endif
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                            {{ \Carbon\Carbon::parse($booking->booking_date)->format('M d, Y') }}<br>
-                            <span class="text-xs dark:text-slate-500">{{ \Carbon\Carbon::parse($booking->booking_time)->format('H:i') }}</span>
+                            {{ \Carbon\Carbon::parse($booking->booking_date)->format('d M Y') }}<br>
+                            <span class="text-xs dark:text-slate-500 tabular-nums">{{ \Carbon\Carbon::parse($booking->booking_time)->format('H:i') }}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             @if($booking->payment_type)
@@ -186,7 +183,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8">
+                        <td colspan="9">
                             <div class="flex flex-col items-center justify-center py-12 text-center text-slate-400 dark:text-slate-500">
                                 <span class="material-symbols-outlined text-[48px] mb-3">calendar_today</span>
                                 <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">Belum ada booking yang sesuai</p>

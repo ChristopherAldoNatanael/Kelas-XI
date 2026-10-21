@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,6 +42,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.User
+import com.christopheraldoo.petheal.ui.components.PaymentReceiptPreviewCard
+import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -659,6 +662,10 @@ fun PaymentResultScreen(
     orderId: String,
     status: String,
     message: String?,
+    booking: Booking? = null,
+    clinicName: String? = null,
+    clinicAddress: String? = null,
+    clinicColor: String? = null,
     onNavigateToBookings: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -666,6 +673,18 @@ fun PaymentResultScreen(
     val surfaceColor = PaySurface
     val textPrimary = OnBackground
     val textSecondary = TextSecondary
+    var showReceipt by rememberSaveable { mutableStateOf(false) }
+    var receiptAutoOpened by rememberSaveable { mutableStateOf(false) }
+    val hasPaymentProof = status == "success" && booking != null &&
+        ((booking.paidAmount ?: 0.0) > 0.01 ||
+            booking.paymentStatus?.lowercase() in setOf("paid", "dp_paid", "partial"))
+
+    LaunchedEffect(hasPaymentProof) {
+        if (hasPaymentProof && !receiptAutoOpened) {
+            receiptAutoOpened = true
+            showReceipt = true
+        }
+    }
 
     val icon: ImageVector
     val titleColor: Color
@@ -675,7 +694,11 @@ fun PaymentResultScreen(
         "success" -> {
             icon = Icons.Filled.CheckCircle
             titleColor = PayPrimary
-            subtitle = "Pembayaran tercatat dan status booking akan dimuat ulang."
+            subtitle = if (hasPaymentProof) {
+                "Pembayaran tercatat. Bukti pembayaran siap disimpan atau dibagikan."
+            } else {
+                "Pembayaran tercatat dan status booking dimuat ulang."
+            }
             eyebrow = "Pembayaran booking diperbarui"
         }
         "pending" -> {
@@ -772,6 +795,19 @@ fun PaymentResultScreen(
                     }
                 }
             }
+
+            if (hasPaymentProof && booking != null) {
+                Spacer(Modifier.height(20.dp))
+                PaymentReceiptPreviewCard(
+                    booking = booking,
+                    clinicName = clinicName,
+                    clinicAddress = clinicAddress,
+                    clinicColor = clinicColor,
+                    orderId = orderId,
+                    onOpen = { showReceipt = true }
+                )
+            }
+
             Spacer(Modifier.height(32.dp))
             Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
                 Icon(Icons.Filled.List, null, modifier = Modifier.size(20.dp))
@@ -788,5 +824,16 @@ fun PaymentResultScreen(
                 Text("Kembali ke Beranda", color = textPrimary, fontWeight = FontWeight.SemiBold)
             }
         }
+    }
+
+    if (showReceipt && booking != null) {
+        PaymentReceiptSheet(
+            booking = booking,
+            clinicName = clinicName,
+            clinicAddress = clinicAddress,
+            clinicColor = clinicColor,
+            orderId = orderId,
+            onDismiss = { showReceipt = false }
+        )
     }
 }

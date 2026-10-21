@@ -74,16 +74,35 @@
 </div>
 
 <!-- Revenue Cards -->
-<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+@php
+    $growthBadge = function (?float $value) {
+        if ($value === null) {
+            return ['label' => 'No baseline', 'class' => 'text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400'];
+        }
+        $sign = $value > 0 ? '+' : '';
+        return [
+            'label' => $sign . number_format($value, 1, ',', '.') . '%',
+            'class' => $value >= 0
+                ? 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-400'
+                : 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-400',
+        ];
+    };
+    $mtdBadge = $growthBadge($monthlyRevenueGrowth);
+    $dailyBadge = $growthBadge($dailyRevenueGrowth);
+@endphp
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
     <div class="glass-card p-6 rounded-2xl border-l-2 border-l-emerald-500">
-        <div class="flex justify-between items-start">
+        <div class="flex justify-between items-start gap-3">
             <div>
                 <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Revenue (MTD)</p>
-                <h4 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Rp {{ number_format($monthlyRevenue, 0, ',', '.') }}</h4>
+                <h4 class="text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">Rp {{ number_format($monthlyRevenue, 0, ',', '.') }}</h4>
             </div>
-            <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">+12.4%</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap {{ $mtdBadge['class'] }}"
+                  title="Compared with the same number of days last month">
+                {{ $mtdBadge['label'] }}
+            </span>
         </div>
-        <div class="w-full h-8 mt-4 flex items-end gap-1">
+        <div class="w-full h-8 mt-4 flex items-end gap-1" aria-hidden="true">
             @php
                 $revenueData = is_array($monthlyRevenueData['data'] ?? null) ? $monthlyRevenueData['data'] : [0];
                 $maxRevenue = max($revenueData);
@@ -92,19 +111,23 @@
                 }
             @endphp
             @foreach($revenueData as $revenue)
-                <div class="flex-1 bg-emerald-500/20 rounded-t" style="height: {{ ($revenue / $maxRevenue) * 100 }}%"></div>
+                <div class="flex-1 bg-emerald-500/20 rounded-t" style="height: {{ max(4, ($revenue / $maxRevenue) * 100) }}%"></div>
             @endforeach
         </div>
+        <p class="text-[10px] text-slate-400 mt-3">Same-day comparison with last month</p>
     </div>
     <div class="glass-card p-6 rounded-2xl border-l-2 border-l-blue-500">
-        <div class="flex justify-between items-start">
+        <div class="flex justify-between items-start gap-3">
             <div>
-                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Revenue (Daily)</p>
-                <h4 class="text-xl font-bold text-slate-900 dark:text-white mt-1">Rp {{ number_format($todayRevenue, 0, ',', '.') }}</h4>
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Revenue (Today)</p>
+                <h4 class="text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">Rp {{ number_format($todayRevenue, 0, ',', '.') }}</h4>
             </div>
-            <span class="text-[10px] font-bold text-blue-600 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">+5.1%</span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap {{ $dailyBadge['class'] }}"
+                  title="Compared with yesterday">
+                {{ $dailyBadge['label'] }}
+            </span>
         </div>
-        <div class="w-full h-8 mt-4 flex items-end gap-1">
+        <div class="w-full h-8 mt-4 flex items-end gap-1" aria-hidden="true">
             @php
                 $dailyData = is_array($dailyRevenueData['data'] ?? null) ? $dailyRevenueData['data'] : [0];
                 $maxDaily = max($dailyData);
@@ -113,19 +136,38 @@
                 }
             @endphp
             @foreach($dailyData as $revenue)
-                <div class="flex-1 bg-blue-500/20 rounded-t" style="height: {{ ($revenue / $maxDaily) * 100 }}%"></div>
+                <div class="flex-1 bg-blue-500/20 rounded-t" style="height: {{ max(4, ($revenue / $maxDaily) * 100) }}%"></div>
             @endforeach
         </div>
+        <p class="text-[10px] text-slate-400 mt-3">Last 7 days · compared with yesterday</p>
     </div>
     <div class="glass-card p-6 rounded-2xl border-l-2 border-l-slate-300">
-        <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Revenue</p>
-        <div class="flex items-center gap-4 mt-1">
-            <h4 class="text-xl font-bold text-slate-900 dark:text-white">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</h4>
-            <div class="flex-1 bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
-                <div class="bg-primary h-full rounded-full" style="width: 75%"></div>
+        <div class="flex items-start justify-between gap-3">
+            <div>
+                <p class="text-xs font-semibold text-slate-500 dark:text-slate-400">Collection Rate</p>
+                <h4 class="text-xl font-bold text-slate-900 dark:text-white mt-1 tabular-nums">{{ $collectionRate }}%</h4>
+            </div>
+            <span class="text-[10px] font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 dark:text-slate-400 px-2 py-0.5 rounded-full">
+                Rp {{ number_format($totalCollected, 0, ',', '.') }} collected
+            </span>
+        </div>
+        <div class="mt-4">
+            <div class="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden"
+                 role="progressbar" aria-valuenow="{{ $collectionRate }}" aria-valuemin="0" aria-valuemax="100"
+                 aria-label="Collection rate">
+                <div class="bg-primary h-full rounded-full transition-all duration-500" style="width: {{ $collectionRate }}%"></div>
+            </div>
+            <div class="flex justify-between text-[10px] text-slate-400 mt-2">
+                <span>Collected</span>
+                <span class="tabular-nums">of Rp {{ number_format($totalBilled, 0, ',', '.') }} billed</span>
             </div>
         </div>
-        <p class="text-[10px] text-slate-400 mt-3 font-medium">Total earnings from all treatments</p>
+        <p class="text-[10px] text-slate-400 mt-3">
+            Rp {{ number_format($totalOutstanding, 0, ',', '.') }} still outstanding
+        </p>
+        <p class="text-[10px] text-slate-400 mt-1">
+            Rp {{ number_format($totalRevenue, 0, ',', '.') }} all-time revenue
+        </p>
     </div>
 </div>
 
@@ -451,216 +493,273 @@
         </div>
     </div>
 
-    <!-- Quick Stats -->
-    <div class="glass-card p-8 rounded-2xl flex flex-col border border-slate-200/50">
-        <h3 class="text-md font-bold text-slate-900 dark:text-white mb-6 tracking-tight">Infrastructure</h3>
-        <div class="space-y-6 flex-1">
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">Database Engine</span>
-                </div>
-                <span class="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">SYNCED</span>
+    <!-- Action Center -->
+    <div class="glass-card p-6 sm:p-8 rounded-2xl flex flex-col border border-slate-200/50">
+        <div class="flex items-start justify-between gap-3 mb-6">
+            <div>
+                <h3 class="text-md font-bold text-slate-900 dark:text-white tracking-tight">Action Center</h3>
+                <p class="text-xs text-slate-400 mt-0.5">What needs attention right now</p>
             </div>
-            <div class="flex items-center justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                    <span class="text-[11px] font-semibold text-slate-600 dark:text-slate-400">API Response</span>
+            <span class="material-symbols-outlined text-slate-400" aria-hidden="true">bolt</span>
+        </div>
+        <div class="space-y-2 flex-1">
+            <a href="{{ route('admin.bookings.index', ['status' => 'pending']) }}"
+               class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <span class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">pending_actions</span>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">Pending confirmations</span>
+                        <span class="block text-[10px] text-slate-400">Bookings waiting for approval</span>
+                    </span>
+                </span>
+                <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $pendingBookings }}</span>
+            </a>
+            <a href="{{ route('admin.payments.index', ['status' => 'pending']) }}"
+               class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <span class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">schedule</span>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">Payments processing</span>
+                        <span class="block text-[10px] text-slate-400">Waiting for gateway result</span>
+                    </span>
+                </span>
+                <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $pendingPayment }}</span>
+            </a>
+            <a href="{{ route('admin.payments.index', ['status' => 'failed']) }}"
+               class="flex items-center justify-between gap-3 rounded-xl border border-slate-100 dark:border-slate-800 px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                <span class="flex items-center gap-3 min-w-0">
+                    <span class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
+                    </span>
+                    <span class="min-w-0">
+                        <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">Failed payments</span>
+                        <span class="block text-[10px] text-slate-400">Needs a follow-up or retry</span>
+                    </span>
+                </span>
+                <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $failedPayments }}</span>
+            </a>
+        </div>
+        <div class="pt-5 mt-5 border-t border-slate-100 dark:border-slate-800">
+            <div class="flex items-center justify-between gap-3">
+                <div>
+                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Outstanding balance</p>
+                    <p class="text-sm font-bold text-slate-900 dark:text-white tabular-nums mt-1">Rp {{ number_format($totalOutstanding, 0, ',', '.') }}</p>
                 </div>
-                <span class="text-[10px] font-bold text-slate-900 dark:text-white">0.42ms</span>
-            </div>
-            <div class="pt-6 mt-auto border-t border-slate-100 dark:border-slate-800">
-                <div class="flex justify-between items-center mb-3">
-                    <p class="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Storage Consumption</p>
-                    <p class="text-[10px] font-bold text-slate-900 dark:text-white">65.2%</p>
-                </div>
-                <div class="w-full bg-slate-100 dark:bg-slate-800 h-1 rounded-full overflow-hidden">
-                    <div class="bg-primary h-full rounded-full" style="width: 65%"></div>
-                </div>
+                <a href="{{ route('admin.payments.index') }}"
+                   class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-[11px] font-semibold text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700 transition-colors">
+                    Review
+                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">arrow_forward</span>
+                </a>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-    // Monthly Booking Chart (Bar)
-    const monthlyBookingCtx = document.getElementById('monthlyBookingChart').getContext('2d');
-    new Chart(monthlyBookingCtx, {
-        type: 'bar',
-        data: {
-            labels: @json($monthlyBookingData['labels']),
-            datasets: [{
-                label: 'Bookings',
-                data: @json($monthlyBookingData['data']),
-                backgroundColor: 'rgba(59, 130, 246, 0.7)',
-                borderColor: '#3B82F6',
-                borderWidth: 1,
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
-                    },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                },
-                x: {
-                    grid: { display: false }
-                }
-            }
+    window.addEventListener('load', function () {
+        if (!window.Chart) {
+            console.warn('Chart.js bundle is missing; dashboard charts were skipped.');
+            return;
         }
-    });
 
-    // Monthly Revenue Chart (Line)
-    const monthlyRevenueCtx = document.getElementById('monthlyRevenueChart').getContext('2d');
-    new Chart(monthlyRevenueCtx, {
-        type: 'line',
-        data: {
-            labels: @json($monthlyRevenueData['labels']),
-            datasets: [{
-                label: 'Revenue',
-                data: @json($monthlyRevenueData['data']),
-                backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                borderColor: '#10B981',
-                borderWidth: 2.5,
-                fill: true,
-                tension: 0.4,
-                pointBackgroundColor: '#10B981',
-                pointBorderColor: '#fff',
-                pointBorderWidth: 2,
-                pointRadius: 5,
-                pointHoverRadius: 7,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    },
-                    ticks: {
-                        callback: function(value) {
-                            return 'Rp ' + (value / 1000000).toFixed(1) + 'M';
+        const root = document.documentElement;
+        const isDark = root.classList.contains('dark');
+        const primary = (getComputedStyle(root).getPropertyValue('--color-primary') || '#10B981').trim();
+        const gridColor = isDark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(0, 0, 0, 0.05)';
+        const textColor = isDark ? '#94A3B8' : '#64748B';
+
+        function withAlpha(hex, alpha) {
+            const clean = hex.replace('#', '');
+            if (clean.length !== 6) return hex;
+            const value = parseInt(clean, 16);
+            return 'rgba(' + ((value >> 16) & 255) + ', ' + ((value >> 8) & 255) + ', ' + (value & 255) + ', ' + alpha + ')';
+        }
+
+        Chart.defaults.font.family = "'Inter', ui-sans-serif, system-ui, sans-serif";
+        Chart.defaults.color = textColor;
+
+        // Keep chart chrome in sync when the shell toggles dark mode. Chart.js
+        // does not observe CSS variables, so grid/text colors need a nudge.
+        function syncChartTheme(dark) {
+            const grid = dark ? 'rgba(148, 163, 184, 0.16)' : 'rgba(0, 0, 0, 0.05)';
+            const text = dark ? '#94A3B8' : '#64748B';
+            Chart.defaults.color = text;
+
+            document.querySelectorAll('canvas').forEach(function (canvas) {
+                const chart = Chart.getChart(canvas);
+                if (!chart) return;
+
+                Object.values(chart.options.scales || {}).forEach(function (scale) {
+                    if (scale.grid) scale.grid.color = grid;
+                });
+                if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                    chart.options.plugins.legend.labels.color = text;
+                }
+                if (chart.config.type === 'line') {
+                    chart.data.datasets.forEach(function (dataset) {
+                        dataset.pointBorderColor = dark ? '#0F172A' : '#fff';
+                    });
+                }
+                if (chart.config.type === 'doughnut') {
+                    chart.data.datasets.forEach(function (dataset) {
+                        dataset.borderColor = dark ? '#0F172A' : '#fff';
+                    });
+                }
+                chart.update('none');
+            });
+        }
+
+        window.addEventListener('petheal:themechange', function (event) {
+            syncChartTheme(Boolean(event.detail && event.detail.isDark));
+        });
+
+        // Monthly Booking Chart (Bar)
+        const monthlyBookingEl = document.getElementById('monthlyBookingChart');
+        if (monthlyBookingEl) {
+            new Chart(monthlyBookingEl.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: @json($monthlyBookingData['labels']),
+                    datasets: [{
+                        label: 'Bookings',
+                        data: @json($monthlyBookingData['data']),
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderColor: '#3B82F6',
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: gridColor } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // Monthly Revenue Chart (Line)
+        const monthlyRevenueEl = document.getElementById('monthlyRevenueChart');
+        if (monthlyRevenueEl) {
+            new Chart(monthlyRevenueEl.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: @json($monthlyRevenueData['labels']),
+                    datasets: [{
+                        label: 'Revenue',
+                        data: @json($monthlyRevenueData['data']),
+                        backgroundColor: withAlpha(primary, 0.12),
+                        borderColor: primary,
+                        borderWidth: 2.5,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: primary,
+                        pointBorderColor: isDark ? '#0F172A' : '#fff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: gridColor },
+                            ticks: {
+                                callback: function (value) {
+                                    return 'Rp ' + (value / 1000000).toFixed(1) + ' jt';
+                                }
+                            }
+                        },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // Payment Status Chart (Doughnut)
+        const paymentStatusEl = document.getElementById('paymentStatusChart');
+        if (paymentStatusEl) {
+            new Chart(paymentStatusEl.getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Unpaid', 'Pending', 'DP Paid', 'Paid', 'Failed'],
+                    datasets: [{
+                        data: [
+                            {{ $unpaidBookings }},
+                            {{ $pendingPayment }},
+                            {{ $dpPaidBookings }},
+                            {{ $paidInFull }},
+                            {{ $failedPayments }}
+                        ],
+                        backgroundColor: ['#9CA3AF', '#F59E0B', '#3B82F6', '#10B981', '#EF4444'],
+                        borderColor: isDark ? '#0F172A' : '#ffffff',
+                        borderWidth: 2,
+                        hoverOffset: 8,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 16,
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                font: { size: 11 }
+                            }
                         }
-                    }
-                },
-                x: {
-                    grid: { display: false }
-                }
-            }
-        }
-    });
-
-    // Payment Status Chart (Doughnut)
-    const paymentStatusCtx = document.getElementById('paymentStatusChart').getContext('2d');
-    new Chart(paymentStatusCtx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Unpaid', 'Pending', 'DP Paid', 'Paid', 'Failed'],
-            datasets: [{
-                data: [
-                    {{ $unpaidBookings }},
-                    {{ $pendingPayment }},
-                    {{ $dpPaidBookings }},
-                    {{ $paidInFull }},
-                    {{ $failedPayments }}
-                ],
-                backgroundColor: [
-                    '#9CA3AF',
-                    '#F59E0B',
-                    '#3B82F6',
-                    '#10B981',
-                    '#EF4444',
-                ],
-                borderColor: '#ffffff',
-                borderWidth: 2,
-                hoverOffset: 8,
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'bottom',
-                    labels: {
-                        padding: 16,
-                        usePointStyle: true,
-                        pointStyle: 'circle',
-                        font: {
-                            size: 11
-                        }
-                    }
-                }
-            },
-            cutout: '65%',
-        }
-    });
-
-    // Top Doctors Chart (Horizontal Bar)
-    const topDoctorsCtx = document.getElementById('topDoctorsChart').getContext('2d');
-    new Chart(topDoctorsCtx, {
-        type: 'bar',
-        data: {
-            labels: @json($popularDoctors['labels']),
-            datasets: [{
-                label: 'Bookings',
-                data: @json($popularDoctors['data']),
-                backgroundColor: [
-                    'rgba(59, 130, 246, 0.8)',
-                    'rgba(16, 185, 129, 0.8)',
-                    'rgba(245, 158, 11, 0.8)',
-                    'rgba(139, 92, 246, 0.8)',
-                    'rgba(236, 72, 153, 0.8)',
-                ],
-                borderColor: [
-                    '#3B82F6',
-                    '#10B981',
-                    '#F59E0B',
-                    '#8B5CF6',
-                    '#EC4899',
-                ],
-                borderWidth: 1,
-                borderRadius: 4,
-            }]
-        },
-        options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: { display: false }
-            },
-            scales: {
-                x: {
-                    beginAtZero: true,
-                    ticks: {
-                        stepSize: 1
                     },
-                    grid: {
-                        color: 'rgba(0, 0, 0, 0.05)'
-                    }
-                },
-                y: {
-                    grid: { display: false }
+                    cutout: '65%',
                 }
-            }
+            });
+        }
+
+        // Top Doctors Chart (Horizontal Bar)
+        const topDoctorsEl = document.getElementById('topDoctorsChart');
+        if (topDoctorsEl) {
+            new Chart(topDoctorsEl.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: @json($popularDoctors['labels']),
+                    datasets: [{
+                        label: 'Bookings',
+                        data: @json($popularDoctors['data']),
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(236, 72, 153, 0.8)',
+                        ],
+                        borderColor: ['#3B82F6', '#10B981', '#F59E0B', '#8B5CF6', '#EC4899'],
+                        borderWidth: 1,
+                        borderRadius: 4,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: gridColor } },
+                        y: { grid: { display: false } }
+                    }
+                }
+            });
         }
     });
 </script>

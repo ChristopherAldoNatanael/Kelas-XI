@@ -79,6 +79,14 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNavigationIntent(intent: Intent?) {
         val nav = navController ?: return
+
+        // petheal://open/booking/123, petheal://open/record/45, ...
+        if (intent?.data != null) {
+            handleDeepLink(nav, intent.data!!)
+            clearNotificationIntent(intent)
+            return
+        }
+
         val navigateTo = intent?.getStringExtra("navigate_to") ?: return
 
         when (navigateTo) {
@@ -106,7 +114,47 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    private fun handleDeepLink(nav: NavHostController, uri: android.net.Uri) {
+        if (uri.scheme != "petheal") return
+
+        val segments = uri.pathSegments
+        val target = segments.firstOrNull()
+        val id = segments.getOrNull(1)?.toIntOrNull()
+
+        when (target) {
+            "booking" -> if (id != null) {
+                nav.navigate(Screen.BookingDetail.createRoute(id)) { launchSingleTop = true }
+            } else {
+                nav.navigate(Screen.Bookings.route) { launchSingleTop = true }
+            }
+
+            "record", "medical-record" -> if (id != null) {
+                nav.navigate(Screen.MedicalRecordDetail.createRoute(id)) { launchSingleTop = true }
+            } else {
+                nav.navigate(Screen.MedicalRecords.route) { launchSingleTop = true }
+            }
+
+            "pet" -> if (id != null) {
+                nav.navigate(Screen.PetDetail.createRoute(id)) { launchSingleTop = true }
+            } else {
+                nav.navigate(Screen.Pets.route) { launchSingleTop = true }
+            }
+
+            "doctor" -> if (id != null) {
+                nav.navigate(Screen.DoctorDetail.createRoute(id)) { launchSingleTop = true }
+            } else {
+                nav.navigate(Screen.Doctors.route) { launchSingleTop = true }
+            }
+
+            "notifications" -> nav.navigate(Screen.Notifications.route) { launchSingleTop = true }
+            "bookings", "appointments" -> nav.navigate(Screen.Bookings.route) { launchSingleTop = true }
+            "profile" -> nav.navigate(Screen.Profile.route) { launchSingleTop = true }
+            else -> nav.navigate(Screen.Home.route) { launchSingleTop = true }
+        }
+    }
+
     private fun clearNotificationIntent(intent: Intent) {
+        intent.data = null
         intent.removeExtra("navigate_to")
         intent.removeExtra("notification_type")
         intent.removeExtra("booking_id")

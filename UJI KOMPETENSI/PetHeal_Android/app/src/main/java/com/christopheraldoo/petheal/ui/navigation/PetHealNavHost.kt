@@ -587,21 +587,21 @@ fun PetHealNavHost(
                         enabledPayments = enabledPayments,
                         onPaymentSuccess = { orderId ->
                             navController.navigate(
-                                Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!")
+                                Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!", bookingId)
                             ) {
                                 popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
                             navController.navigate(
-                                Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.")
+                                Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.", bookingId)
                             ) {
                                 popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
                         },
                         onPaymentFailed = { errorMsg ->
                             navController.navigate(
-                                Screen.PaymentResult.createRoute("booking-$bookingId", "failed", errorMsg)
+                                Screen.PaymentResult.createRoute("booking-$bookingId", "failed", errorMsg, bookingId)
                             ) {
                                 popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
                             }
@@ -623,17 +623,33 @@ fun PetHealNavHost(
             arguments = listOf(
                 navArgument("orderId") { type = NavType.StringType },
                 navArgument("status") { type = NavType.StringType },
-                navArgument("message") { type = NavType.StringType }
+                navArgument("message") { type = NavType.StringType },
+                navArgument("bookingId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
             )
         ) { backStackEntry ->
             val orderId = backStackEntry.arguments?.getString("orderId") ?: ""
             val status = backStackEntry.arguments?.getString("status") ?: "failed"
             val message = backStackEntry.arguments?.getString("message") ?: ""
+            val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: 0
+
+            val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
+            val paymentNavState by paymentNavViewModel.state.collectAsState()
+
+            LaunchedEffect(bookingId) {
+                if (bookingId > 0) paymentNavViewModel.loadBookingAndUser(bookingId)
+            }
 
             PaymentResultScreen(
                 orderId = orderId,
                 status = status,
                 message = message,
+                booking = paymentNavState.booking,
+                clinicName = paymentNavState.clinicName,
+                clinicAddress = paymentNavState.clinicAddress,
+                clinicColor = paymentNavState.clinicColor,
                 onNavigateToBookings = {
                     navController.navigate(Screen.Bookings.route) {
                         popUpTo(Screen.PaymentResult.route) { inclusive = true }

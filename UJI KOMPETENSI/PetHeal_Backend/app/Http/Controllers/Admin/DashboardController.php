@@ -47,10 +47,12 @@ class DashboardController extends Controller
         $totalPatients = Pet::when($clinicId, fn($q) => $q->whereHas('user', fn($uq) => $uq->where('clinic_id', $clinicId)))->count();
         $totalDoctors = Doctor::where('is_active', true)->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->count();
 
-        // Cache key includes date range and clinic
+        // Cache key includes date range, clinic, and a schema version. Bump the
+        // version whenever the shared payload changes so old cached arrays
+        // cannot reach the view missing keys.
         $cacheKey = $hasDateFilter
-            ? 'dashboard_stats_c' . ($clinicId ?: 'all') . '_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd')
-            : 'dashboard_stats_c' . ($clinicId ?: 'all') . '_all';
+            ? 'dashboard_stats_v2_c' . ($clinicId ?: 'all') . '_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd')
+            : 'dashboard_stats_v2_c' . ($clinicId ?: 'all') . '_all';
         $dashboardStats = Cache::remember($cacheKey, 300, function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
             // Revenue statistics — clinic scoped
             $totalRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
@@ -67,6 +69,29 @@ class DashboardController extends Controller
                 ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
                 ->where('created_at', '>=', Carbon::now()->startOfMonth())
                 ->value('total') ?? 0;
+
+            // Honest comparisons. "MTD" is compared with the same number of
+            // days in the previous month, not the full previous month, so the
+            // badge does not lie early in the month.
+            $previousMonthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
+            $previousMonthDay = min(Carbon::now()->day, $previousMonthStart->daysInMonth);
+            $previousMonthEnd = $previousMonthStart->copy()->addDays($previousMonthDay - 1)->endOfDay();
+            $previousMonthRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+                ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
+                ->value('total') ?? 0;
+
+            $yesterdayRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+                ->whereDate('created_at', Carbon::yesterday())
+                ->value('total') ?? 0;
+
+            $monthlyRevenueGrowth = $previousMonthRevenue > 0
+                ? round((($monthlyRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
+                : null;
+            $dailyRevenueGrowth = $yesterdayRevenue > 0
+                ? round((($todayRevenue - $yesterdayRevenue) / $yesterdayRevenue) * 100, 1)
+                : null;
 
             // Monthly chart data
             $monthlyBookingData = $this->getMonthlyBookingData($clinicId);
@@ -94,11 +119,17 @@ class DashboardController extends Controller
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
                 ->value('total') ?? 0;
 
+            $totalBilled = $totalCollected + $totalOutstanding;
+            $collectionRate = $totalBilled > 0
+                ? (int) round(($totalCollected / $totalBilled) * 100)
+                : 0;
+
             return compact(
                 'totalRevenue', 'todayRevenue', 'monthlyRevenue',
+                'monthlyRevenueGrowth', 'dailyRevenueGrowth',
                 'monthlyBookingData', 'monthlyRevenueData', 'dailyRevenueData', 'bookingStatusDistribution',
                 'unpaidBookings', 'pendingPayment', 'dpPaidBookings', 'paidInFull', 'failedPayments',
-                'totalCollected', 'totalOutstanding'
+                'totalCollected', 'totalOutstanding', 'totalBilled', 'collectionRate'
             );
         });
 
@@ -118,6 +149,10 @@ class DashboardController extends Controller
         $failedPayments = $dashboardStats['failedPayments'];
         $totalCollected = $dashboardStats['totalCollected'];
         $totalOutstanding = $dashboardStats['totalOutstanding'];
+        $totalBilled = $dashboardStats['totalBilled'];
+        $collectionRate = $dashboardStats['collectionRate'];
+        $monthlyRevenueGrowth = $dashboardStats['monthlyRevenueGrowth'];
+        $dailyRevenueGrowth = $dashboardStats['dailyRevenueGrowth'];
 
         // Recent bookings — clinic scoped
         $recentBookings = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time', 'created_at')
@@ -192,6 +227,10 @@ class DashboardController extends Controller
             'failedPayments',
             'totalCollected',
             'totalOutstanding',
+            'totalBilled',
+            'collectionRate',
+            'monthlyRevenueGrowth',
+            'dailyRevenueGrowth',
             'recentPayments',
             'outstandingBookings',
             'midtransTransactions'
@@ -358,5 +397,119 @@ class DashboardController extends Controller
             'pendingJoinRequests',
             'totalRevenue'
         ));
+    }
+
+    /**
+     * Global command palette search: bookings, pets, and owners.
+     *
+     * Every query is clinic-scoped with currentClinicId(). A super admin
+     * without a selected clinic keeps the existing system-overview scope.
+     */
+    public function search(Request $request)
+    {
+        $term = trim((string) $request->query('q', ''));
+        $clinicId = currentClinicId();
+
+        if (mb_strlen($term) < 2) {
+            return response()->json([
+                'success' => true,
+                'query' => $term,
+                'data' => ['bookings' => [], 'pets' => [], 'owners' => []],
+            ]);
+        }
+
+        // Command palette must never mix clinics. Super admin can search after
+        // explicitly selecting a clinic from the switcher.
+        if (!$clinicId) {
+            return response()->json([
+                'success' => true,
+                'query' => $term,
+                'message' => 'Pilih klinik terlebih dahulu untuk mencari data operasional.',
+                'data' => ['bookings' => [], 'pets' => [], 'owners' => []],
+            ]);
+        }
+
+        $like = '%' . $term . '%';
+
+        $bookings = Booking::with(['pet:id,name', 'user:id,name', 'doctor:id,name'])
+            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->where(function ($q) use ($term, $like) {
+                if (ctype_digit($term)) {
+                    $q->orWhere('id', (int) $term);
+                }
+                $q->orWhereHas('pet', fn ($pq) => $pq->where('name', 'like', $like))
+                    ->orWhereHas('user', fn ($uq) => $uq->where('name', 'like', $like));
+            })
+            ->orderByDesc('booking_date')
+            ->orderByDesc('booking_time')
+            ->limit(5)
+            ->get()
+            ->map(fn (Booking $booking) => [
+                'id' => $booking->id,
+                'type' => 'booking',
+                'title' => '#' . $booking->id . ' · ' . ($booking->pet->name ?? 'Booking'),
+                'subtitle' => collect([
+                    $booking->user->name ?? null,
+                    $booking->booking_date ? \Carbon\Carbon::parse($booking->booking_date)->format('d M Y') : null,
+                    $booking->booking_time,
+                    $booking->status,
+                ])->filter()->join(' · '),
+                'url' => route('admin.bookings.show', $booking->id),
+            ])
+            ->values();
+
+        $pets = Pet::with('user:id,name,clinic_id')
+            ->when($clinicId, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('clinic_id', $clinicId)))
+            ->where(function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('species', 'like', $like)
+                    ->orWhere('breed', 'like', $like)
+                    ->orWhereHas('user', fn ($uq) => $uq->where('name', 'like', $like));
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get()
+            ->map(fn (Pet $pet) => [
+                'id' => $pet->id,
+                'type' => 'pet',
+                'title' => $pet->name ?? 'Hewan',
+                'subtitle' => collect([
+                    $pet->species,
+                    $pet->breed,
+                    $pet->user->name ?? null,
+                ])->filter()->join(' · '),
+                'url' => $pet->user_id ? route('admin.users.show', $pet->user_id) : route('admin.users.index'),
+            ])
+            ->values();
+
+        $owners = User::query()
+            ->where('role', 'user')
+            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->where(function ($q) use ($like) {
+                $q->where('name', 'like', $like)
+                    ->orWhere('email', 'like', $like)
+                    ->orWhere('phone', 'like', $like);
+            })
+            ->orderBy('name')
+            ->limit(5)
+            ->get()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'type' => 'owner',
+                'title' => $user->name ?? 'Pemilik',
+                'subtitle' => collect([$user->email, $user->phone])->filter()->join(' · '),
+                'url' => route('admin.users.show', $user->id),
+            ])
+            ->values();
+
+        return response()->json([
+            'success' => true,
+            'query' => $term,
+            'data' => [
+                'bookings' => $bookings,
+                'pets' => $pets,
+                'owners' => $owners,
+            ],
+        ]);
     }
 }

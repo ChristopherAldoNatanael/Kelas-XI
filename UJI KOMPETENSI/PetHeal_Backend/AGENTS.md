@@ -47,3 +47,8 @@ curl.exe -s --max-time 10 http://127.0.0.1:8000/admin/login -o NUL -w "%{http_co
 - Setelah edit backend: `php artisan config:clear` + curl lokal + curl ngrok + `route:list` relevan.
 - Setelah edit route `/`: pastikan `/` = 200 (pernah bug `config('app.maintenance')` array-truthy → sekarang `app()->isDownForMaintenance()`, lihat `routes/web.php:32`).
 - Update `docs/PROGRESS.md` (apa diubah, kenapa, apa tersisa) setiap selesai fase. Lihat `docs/PLAN.md` untuk posisi fase.
+
+## 8. Roadmap UI/UX (WAJIB)
+- Sebelum menyentuh UI/UX, baca `docs/UIUX_ROADMAP.md`. Dokumen itu sumber kebenaran urutan fase, non-goal, dan aturan "jangan bikin data palsu / dead code".
+- Setiap fase selesai: update `docs/PROGRESS.md` + tulis laporan di `docs/phases/`.
+- Jangan mulai Fase 3/4 tanpa menyelesaikan fase sebelumnya. Jangan membuat mock membership/SaaS/chat.

@@ -11,6 +11,7 @@ return [
     // Sidebar menu items
     'patients' => 'Pasien',
     'appointments' => 'Janji Temu',
+    'schedule' => 'Jadwal Klinik',
     'veterinarians' => 'Dokter Hewan',
     'services' => 'Layanan',
     'medical_records' => 'Rekam Medis',

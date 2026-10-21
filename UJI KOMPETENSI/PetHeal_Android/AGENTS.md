@@ -29,3 +29,8 @@
 
 ## 7. Verifikasi
 - Setelah edit: `assembleDebug` + cek base URL + login + daftar dokter + booking via ngrok. Lihat backend `docs/ACCEPTANCE.md` + `docs/TESTING.md`.
+
+## 8. Roadmap UI/UX (WAJIB)
+- Sebelum mengerjakan UI/UX, baca `../PetHeal_Backend/docs/UIUX_ROADMAP.md`. Urutan fase dan non-goal di sana adalah keputusan final.
+- Notifikasi: channel per kategori + deep link `petheal://open/...` sudah ada; jangan mengganti scheme tanpa memperbarui manifest dan handler.
+- Grafik berat badan memakai Compose Canvas di `ui/components/WeightTrendChart.kt`; jangan tambah library chart baru tanpa alasan kuat.

@@ -101,7 +101,10 @@ class BookingRepository @Inject constructor(
             } else {
                 val error = getErrorMessage(response.code(), response.body()?.message)
                 Log.e(TAG, "createBooking failed: $error (HTTP ${response.code()})")
-                Result.Error(error)
+                Result.Error(
+                    message = error,
+                    code = if (response.code() == 409) "slot_conflict" else "http_${response.code()}"
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "createBooking exception", e)
@@ -145,7 +148,10 @@ class BookingRepository @Inject constructor(
             } else {
                 val error = getErrorMessage(response.code(), response.body()?.message)
                 Log.e(TAG, "rescheduleBooking($id) failed: $error (HTTP ${response.code()})")
-                Result.Error(error)
+                Result.Error(
+                    message = error,
+                    code = if (response.code() == 409) "slot_conflict" else "http_${response.code()}"
+                )
             }
         } catch (e: Exception) {
             Log.e(TAG, "rescheduleBooking($id) exception", e)

@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\Clinic;
+use App\Models\Doctor;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
@@ -44,6 +46,71 @@ class BookingController extends Controller
             ->paginate(20);
 
         return view('admin.bookings.index', compact('bookings'));
+    }
+
+    /**
+     * Daily schedule board — clinic scoped, grouped per doctor and time.
+     *
+     * The board intentionally reuses the existing booking status actions
+     * (confirm/complete/cancel) instead of inventing a second workflow.
+     */
+    public function schedule(Request $request)
+    {
+        $validated = $request->validate([
+            'date' => 'nullable|date',
+            'doctor_id' => 'nullable|integer|exists:doctors,id',
+        ]);
+
+        $selectedDate = $validated['date'] ?? now()->toDateString();
+        $clinicId = currentClinicId();
+
+        // The schedule board is an operational, clinic-scoped screen. A super
+        // admin in system-overview mode must choose a clinic first.
+        if (!$clinicId) {
+            $clinics = Clinic::where('is_active', true)->orderBy('name')->get();
+            return view('admin.schedule.select_clinic', compact('clinics'));
+        }
+
+        $doctors = Doctor::query()
+            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->when(!empty($validated['doctor_id']), fn ($q) => $q->whereKey($validated['doctor_id']))
+            ->orderByDesc('is_active')
+            ->orderBy('name')
+            ->get();
+
+        $bookings = Booking::with(['user', 'pet', 'doctor', 'service'])
+            ->whereDate('booking_date', $selectedDate)
+            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->when(!empty($validated['doctor_id']), fn ($q) => $q->where('doctor_id', $validated['doctor_id']))
+            ->orderBy('booking_time')
+            ->get();
+
+        $bookingsByDoctor = $bookings->groupBy('doctor_id');
+        $statusCounts = $bookings->countBy('status');
+
+        $stats = [
+            'total' => $bookings->count(),
+            'pending' => (int) ($statusCounts['pending'] ?? 0),
+            'confirmed' => (int) ($statusCounts['confirmed'] ?? 0),
+            'completed' => (int) ($statusCounts['completed'] ?? 0),
+            'cancelled' => (int) ($statusCounts['cancelled'] ?? 0),
+        ];
+
+        $selectedDoctorId = $validated['doctor_id'] ?? null;
+        $previousDate = \Carbon\Carbon::parse($selectedDate)->subDay()->toDateString();
+        $nextDate = \Carbon\Carbon::parse($selectedDate)->addDay()->toDateString();
+        $isToday = \Carbon\Carbon::parse($selectedDate)->isToday();
+
+        return view('admin.schedule.index', compact(
+            'doctors',
+            'bookingsByDoctor',
+            'stats',
+            'selectedDate',
+            'selectedDoctorId',
+            'previousDate',
+            'nextDate',
+            'isToday'
+        ));
     }
 
     /**

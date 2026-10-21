@@ -6,6 +6,18 @@
 
 ## 🔴 WAJIB DILAKUKAN SEBELUM PRESENTASI (5 menit sebelum)
 
+### 0. Build Asset Admin (sekali setelah ubah CSS/JS)
+
+```powershell
+cd "c:\Kelas XI RPL\UJI KOMPETENSI\PetHeal_Backend"
+npm install
+npm run build
+```
+
+> `public/build` di-ignore Git. Tanpa langkah ini halaman admin akan error
+> "Vite manifest not found". Jalankan ulang `npm run build` setiap CSS/JS
+> berubah.
+
 ### 1. Jalankan Laravel Server
 
 ```powershell

@@ -104,18 +104,20 @@ class PetHealFirebaseService : FirebaseMessagingService() {
         petId: Int?,
         doctorId: Int?
     ) {
-        val channelId = "petheal_notifications"
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channel = channelFor(type)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId,
-                "PetHeal Notifications",
-                NotificationManager.IMPORTANCE_HIGH
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            notificationManager.getNotificationChannel(channel.id) == null
+        ) {
+            val notificationChannel = NotificationChannel(
+                channel.id,
+                getString(channel.nameRes),
+                channel.importance
             ).apply {
-                description = "Notifications for booking updates, reminders, and medical follow-up"
+                description = getString(channel.descriptionRes)
             }
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(notificationChannel)
         }
 
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -127,8 +129,16 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             petId?.let { putExtra("pet_id", it) }
             doctorId?.let { putExtra("doctor_id", it) }
         }
-        // Unique request code per notification so each PendingIntent is independent
-        val notificationId = System.currentTimeMillis().toInt()
+
+        // Stable id per entity: a status update replaces the previous card
+        // instead of stacking duplicates in the tray.
+        val notificationId = when {
+            bookingId != null -> 10_000 + bookingId
+            medicalRecordId != null -> 20_000 + medicalRecordId
+            petId != null -> 30_000 + petId
+            else -> System.currentTimeMillis().toInt()
+        }
+
         val pendingIntent = PendingIntent.getActivity(
             this,
             notificationId,
@@ -136,7 +146,7 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val notification = NotificationCompat.Builder(this, channelId)
+        val builder = NotificationCompat.Builder(this, channel.id)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
@@ -144,8 +154,61 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .build()
 
-        notificationManager.notify(System.currentTimeMillis().toInt(), notification)
+        if (channel.id == CHANNEL_REMINDERS) {
+            builder.setCategory(NotificationCompat.CATEGORY_REMINDER)
+        }
+
+        notificationManager.notify(notificationId, builder.build())
+    }
+
+    private data class NotificationChannelSpec(
+        val id: String,
+        val nameRes: Int,
+        val descriptionRes: Int,
+        val importance: Int
+    )
+
+    private fun channelFor(type: String): NotificationChannelSpec {
+        return when (type) {
+            "payment", "payment_status", "payment_reminder", "payment_due" ->
+                NotificationChannelSpec(
+                    CHANNEL_PAYMENTS,
+                    R.string.notification_channel_payments,
+                    R.string.notification_channel_payments_desc,
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+
+            "booking_reminder", "vaccination_reminder", "follow_up_reminder", "reminder" ->
+                NotificationChannelSpec(
+                    CHANNEL_REMINDERS,
+                    R.string.notification_channel_reminders,
+                    R.string.notification_channel_reminders_desc,
+                    NotificationManager.IMPORTANCE_HIGH
+                )
+
+            "booking", "booking_status" ->
+                NotificationChannelSpec(
+                    CHANNEL_BOOKINGS,
+                    R.string.notification_channel_bookings,
+                    R.string.notification_channel_bookings_desc,
+                    NotificationManager.IMPORTANCE_DEFAULT
+                )
+
+            else ->
+                NotificationChannelSpec(
+                    CHANNEL_GENERAL,
+                    R.string.notification_channel_general,
+                    R.string.notification_channel_general_desc,
+                    NotificationManager.IMPORTANCE_DEFAULT
+                )
+        }
+    }
+
+    private companion object {
+        const val CHANNEL_BOOKINGS = "petheal_bookings"
+        const val CHANNEL_REMINDERS = "petheal_reminders"
+        const val CHANNEL_PAYMENTS = "petheal_payments"
+        const val CHANNEL_GENERAL = "petheal_notifications"
     }
 }

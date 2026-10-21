@@ -1,6 +1,7 @@
 # PLAN.md — Rencana 6 Fase Multi-Klinik
 
 > Centang `[x]` saat fase selesai + tulis tanggal di PROGRESS.md. Jangan lompat fase.
+> Untuk pekerjaan UI/UX, gunakan `docs/UIUX_ROADMAP.md` (fase terpisah, jangan dicampur dengan fase backend ini).
 
 ## Fase 0 — Persiapan & Baseline [x]
 - [x] Audit backend (36 migration, 14 model, route web/api) + audit Android (1 APK, branding hardcoded)

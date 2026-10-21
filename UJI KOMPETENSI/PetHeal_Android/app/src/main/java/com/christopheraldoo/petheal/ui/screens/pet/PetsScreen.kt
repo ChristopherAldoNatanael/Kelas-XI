@@ -62,13 +62,18 @@ import com.christopheraldoo.petheal.data.model.Vaccination
 import com.christopheraldoo.petheal.data.model.WeightRecord
 import com.christopheraldoo.petheal.ui.components.EmptyPetsState
 import com.christopheraldoo.petheal.ui.components.EmptySearchState
+import com.christopheraldoo.petheal.ui.components.WeightPoint
+import com.christopheraldoo.petheal.ui.components.WeightTrendChart
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.compressImageFile
+import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.MediumImage
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
@@ -76,12 +81,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.OutlineStrong
 import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.Tertiary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
@@ -1085,6 +1092,32 @@ private fun HealthTrackingSection(
                     )
                 }
 
+                // A trend line only earns its space when there are at least two
+                // dated measurements; a single point stays a plain row.
+                val chartPoints = remember(weightRecords) {
+                    weightRecords
+                        .filter { it.weight != null && !it.recordedAt.isNullOrBlank() }
+                        .sortedBy { it.recordedAt }
+                        .takeLast(8)
+                        .map {
+                            WeightPoint(
+                                label = formatDateSafe(it.recordedAt, "d MMM"),
+                                value = it.weight ?: 0.0
+                            )
+                        }
+                }
+                if (chartPoints.size >= 2) {
+                    WeightTrendChart(
+                        points = chartPoints,
+                        lineColor = PetPrimary,
+                        fillColor = PetPrimary.copy(alpha = 0.10f),
+                        gridColor = textMuted.copy(alpha = 0.18f),
+                        labelColor = textMuted,
+                        surfaceColor = surfaceColor,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
+
                 if (weightRecords.isEmpty()) {
                     Text("Start recording weight so growth, recovery, and health changes are easier to monitor over time.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
                 } else {
@@ -1139,6 +1172,7 @@ private fun HealthTrackingSection(
                     Text("Save vaccination history here so reminders and medical timelines stay complete.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
                 } else {
                     preview.forEach { vaccine ->
+                        val dueStatus = vaccinationDueStatus(vaccine.nextDueDate)
                         HealthMiniRow(
                             title = vaccine.vaccineName ?: "Vaksinasi",
                             subtitle = buildString {
@@ -1150,6 +1184,8 @@ private fun HealthTrackingSection(
                             }.ifBlank { vaccine.veterinarian ?: "Catatan vaksinasi" },
                             textPrimary = textPrimary,
                             textMuted = textMuted,
+                            badgeText = dueStatus?.label,
+                            badgeColor = dueStatus?.color,
                             onDelete = vaccine.id?.let { id -> { onDeleteVaccination(id) } }
                         )
                     }
@@ -1159,12 +1195,27 @@ private fun HealthTrackingSection(
     }
 }
 
+private data class VaccinationDueStatus(val label: String, val color: Color)
+
+private fun vaccinationDueStatus(nextDueDate: String?): VaccinationDueStatus? {
+    if (nextDueDate.isNullOrBlank()) return null
+    val dueDate = runCatching { LocalDate.parse(nextDueDate.take(10)) }.getOrNull() ?: return null
+    val daysUntilDue = ChronoUnit.DAYS.between(LocalDate.now(), dueDate)
+    return when {
+        daysUntilDue < 0 -> VaccinationDueStatus("Terlambat", ErrorStrong)
+        daysUntilDue <= 30 -> VaccinationDueStatus("Jatuh tempo", Tertiary)
+        else -> VaccinationDueStatus("Terjadwal", Info)
+    }
+}
+
 @Composable
 private fun HealthMiniRow(
     title: String,
     subtitle: String,
     textPrimary: Color,
     textMuted: Color,
+    badgeText: String? = null,
+    badgeColor: Color? = null,
     // PHASE 7: optional delete (wires the declared DELETE endpoints).
     onDelete: (() -> Unit)? = null
 ) {
@@ -1204,6 +1255,19 @@ private fun HealthMiniRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
             Text(subtitle, fontSize = 12.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        if (badgeText != null && badgeColor != null) {
+            Text(
+                text = badgeText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = badgeColor,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(badgeColor.copy(alpha = 0.12f))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+            Spacer(Modifier.width(6.dp))
         }
         if (onDelete != null) {
             IconButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.size(40.dp)) {

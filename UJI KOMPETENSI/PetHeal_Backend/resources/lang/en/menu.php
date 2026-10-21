@@ -11,6 +11,7 @@ return [
     // Sidebar menu items
     'patients' => 'Patients',
     'appointments' => 'Appointments',
+    'schedule' => 'Clinic Schedule',
     'veterinarians' => 'Veterinarians',
     'services' => 'Services',
     'medical_records' => 'Medical Records',

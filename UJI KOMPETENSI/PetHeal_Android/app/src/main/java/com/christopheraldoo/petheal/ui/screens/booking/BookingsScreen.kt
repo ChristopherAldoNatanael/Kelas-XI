@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,7 +37,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,15 +49,19 @@ import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.PaymentMethod
+import com.christopheraldoo.petheal.ui.components.BookingDateRail
+import com.christopheraldoo.petheal.ui.components.BookingTimeSlots
 import com.christopheraldoo.petheal.ui.components.EmptyBookingsState
+import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingCard
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingList
 import com.christopheraldoo.petheal.util.HapticFeedback
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
+import com.christopheraldoo.petheal.util.isDoctorWorkingDay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.format.TextStyle
 import java.util.Locale
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
@@ -68,6 +72,7 @@ import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.InfoStrong
@@ -90,6 +95,8 @@ import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.formatRupiah
 
 private const val TAG = "BookingPhoto"
+
+private enum class BookingTab { SCHEDULE, INVOICES }
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 private val BkPrimary       = Primary
@@ -129,7 +136,7 @@ private fun BkDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize().clip(CircleShape),
             onError = { state ->
-                Log.e(TAG, "Failed to load doctor photo from: $fullUrl, error: ${state.result.throwable?.message}")
+                Log.e(TAG, "Failed to load doctor photo from: $fullUrl, error: ${state.result.throwable.message}")
                 hasError = true
             },
             onSuccess = {
@@ -166,6 +173,8 @@ fun BookingsScreen(
 
     // State for filter/sort bottom sheet
     var showFilterSheet by remember { mutableStateOf(false) }
+    var receiptBooking by remember { mutableStateOf<Booking?>(null) }
+    var selectedTab by rememberSaveable { mutableStateOf(BookingTab.SCHEDULE) }
     val view = LocalView.current
     // Ringkasan dihitung dari SEMUA booking (bukan hasil filter) agar angka
     // tidak melompat dan section tidak hilang saat filter menghasilkan kosong.
@@ -179,6 +188,14 @@ fun BookingsScreen(
         state.allBookings.count {
             val paymentStatus = it.paymentStatus?.lowercase()
             paymentStatus != null && paymentStatus !in setOf("paid", "not_required")
+        }
+    }
+    val outstandingInvoiceCount = remember(state.allBookings) {
+        state.allBookings.count { booking ->
+            val remaining = booking.remainingAmount
+                ?: ((booking.totalAmount ?: 0.0) - (booking.paidAmount ?: 0.0))
+            val status = booking.paymentStatus?.lowercase()
+            remaining > 0.01 && status !in setOf("paid", "not_required")
         }
     }
     // Filter aktif (dipakai empty-state agar pesan + reset kontekstual).
@@ -205,12 +222,15 @@ fun BookingsScreen(
                             Icon(Icons.Filled.ArrowBack, "Kembali", tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                         Text("Booking Saya", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                        // Filter button
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape).clickable { showFilterSheet = true },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.FilterList, "Filter dan urutan", tint = textPrimary, modifier = Modifier.size(24.dp))
+                        if (selectedTab == BookingTab.SCHEDULE) {
+                            Box(
+                                Modifier.size(40.dp).clip(CircleShape).clickable { showFilterSheet = true },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Filled.FilterList, "Filter dan urutan", tint = textPrimary, modifier = Modifier.size(24.dp))
+                            }
+                        } else {
+                            Spacer(Modifier.size(40.dp))
                         }
                     }
                     Divider(color = border, thickness = 1.dp)
@@ -221,12 +241,22 @@ fun BookingsScreen(
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     ) {
                         Text(
-                            text = "Pantau kunjungan, progres pembayaran, dan tindak lanjut dalam satu tempat.",
+                            text = if (selectedTab == BookingTab.SCHEDULE) {
+                                "Pantau kunjungan, progres pembayaran, dan tindak lanjut dalam satu tempat."
+                            } else {
+                                "Satu tempat untuk melihat tagihan booking, DP, dan riwayat pembayaran."
+                            },
                             fontSize = 13.sp,
                             lineHeight = 19.sp,
                             color = textSecondary
                         )
-                        if (state.allBookings.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(14.dp))
+                        BookingTabRow(
+                            selectedTab = selectedTab,
+                            outstandingCount = outstandingInvoiceCount,
+                            onSelect = { selectedTab = it }
+                        )
+                        if (selectedTab == BookingTab.SCHEDULE && state.allBookings.isNotEmpty()) {
                             Spacer(modifier = Modifier.height(14.dp))
                             BookingOverviewRow(
                                 activeCount = activeBookingsCount,
@@ -237,7 +267,9 @@ fun BookingsScreen(
                     }
                     
                     // Active filters indicator
-                    if (state.sortOrder != BookingSortOrder.NEWEST_FIRST || state.dateFilter != BookingDateFilter.ALL) {
+                    if (selectedTab == BookingTab.SCHEDULE &&
+                        (state.sortOrder != BookingSortOrder.NEWEST_FIRST || state.dateFilter != BookingDateFilter.ALL)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -284,10 +316,10 @@ fun BookingsScreen(
                 }
             }
 
-            if (state.isLoading && state.bookings.isEmpty()) {
+            if (state.isLoading && state.allBookings.isEmpty()) {
                 // Show skeleton loading on initial load
                 SkeletonBookingList(count = 3)
-            } else {
+            } else if (selectedTab == BookingTab.SCHEDULE) {
                 LazyColumn(
                     Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 108.dp),
@@ -323,21 +355,55 @@ fun BookingsScreen(
                                 surface = surface,
                                 textPrimary = textPrimary,
                                 textSecondary = textSecondary,
-                                border = border,
                                 onClick = { 
                                     HapticFeedback.performClick(view)
                                     booking.id?.let { onNavigateToBookingDetail(it) } 
                                 },
                                 onPayRemaining = { bookingId ->
-                                    // Calculate remaining amount from booking data
-                                    val remainingAmount = (booking.totalAmount ?: 0.0) - (booking.paidAmount ?: 0.0)
-                                    onNavigateToPayment(bookingId, booking.paymentType == "dp", remainingAmount, true)
-                                },
-                                onBookingUpdated = { viewModel.refreshBookings() }
+                                    val remainingAmount = booking.remainingAmount
+                                        ?: ((booking.totalAmount ?: 0.0) - (booking.paidAmount ?: 0.0))
+                                    val totalAmount = booking.totalAmount ?: 0.0
+                                    val paidAmount = booking.paidAmount ?: 0.0
+                                    val isRemaining = booking.paymentStatus in setOf("dp_paid", "partial") ||
+                                        (paidAmount > 0.0 && remainingAmount < totalAmount - 0.01)
+                                    onNavigateToPayment(
+                                        bookingId,
+                                        booking.paymentType == "dp",
+                                        remainingAmount,
+                                        isRemaining
+                                    )
+                                }
                             )
                         }
                     }
                 }
+            } else {
+                InvoiceCenter(
+                    bookings = state.allBookings,
+                    isLoading = state.isLoading,
+                    error = state.error,
+                    onOpenBooking = { bookingId ->
+                        HapticFeedback.performClick(view)
+                        onNavigateToBookingDetail(bookingId)
+                    },
+                    onPay = { booking ->
+                        booking.id?.let { bookingId ->
+                            val remainingAmount = booking.remainingAmount
+                                ?: ((booking.totalAmount ?: 0.0) - (booking.paidAmount ?: 0.0))
+                            val isRemaining = booking.paymentStatus in setOf("dp_paid", "partial")
+                            onNavigateToPayment(
+                                bookingId,
+                                booking.paymentType == "dp",
+                                remainingAmount,
+                                isRemaining
+                            )
+                        }
+                    },
+                    onOpenReceipt = { booking ->
+                        HapticFeedback.performClick(view)
+                        receiptBooking = booking
+                    }
+                )
             }
         }
 
@@ -357,12 +423,108 @@ fun BookingsScreen(
             )
         }
 
+        receiptBooking?.let { booking ->
+            PaymentReceiptSheet(
+                booking = booking,
+                clinicName = state.clinicName,
+                clinicAddress = state.clinicAddress,
+                clinicColor = state.clinicColor,
+                onDismiss = { receiptBooking = null }
+            )
+        }
+
         // ── Unified floating bottom nav (PHASE 9) ──────────────────────
         com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
             selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings,
             onSelect = onTabSelected,
             modifier = Modifier.align(Alignment.BottomCenter)
         )
+    }
+}
+
+@Composable
+private fun BookingTabRow(
+    selectedTab: BookingTab,
+    outstandingCount: Int,
+    onSelect: (BookingTab) -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceMuted
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            BookingTabItem(
+                label = "Jadwal",
+                selected = selectedTab == BookingTab.SCHEDULE,
+                badgeCount = null,
+                onClick = { onSelect(BookingTab.SCHEDULE) },
+                modifier = Modifier.weight(1f)
+            )
+            BookingTabItem(
+                label = "Tagihan",
+                selected = selectedTab == BookingTab.INVOICES,
+                badgeCount = outstandingCount.takeIf { it > 0 },
+                onClick = { onSelect(BookingTab.INVOICES) },
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun BookingTabItem(
+    label: String,
+    selected: Boolean,
+    badgeCount: Int?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val background by animateColorAsState(
+        targetValue = if (selected) BkSurface else Color.Transparent,
+        animationSpec = tween(180)
+    )
+    val contentColor = if (selected) BkPrimary else TextSecondary
+
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(11.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(11.dp),
+        color = background
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 10.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                fontSize = 13.sp,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = contentColor
+            )
+            badgeCount?.let { count ->
+                Spacer(Modifier.width(6.dp))
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(WarningSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = if (count > 9) "9+" else count.toString(),
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = WarningDeep
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -650,10 +812,8 @@ private fun BookingCard(
     surface: Color,
     textPrimary: Color,
     textSecondary: Color,
-    border: Color,
     onClick: () -> Unit,
-    onPayRemaining: ((Int) -> Unit)? = null, // Callback for paying remaining amount
-    onBookingUpdated: () -> Unit = {} // Callback to refresh bookings after payment
+    onPayRemaining: ((Int) -> Unit)? = null // Callback for paying remaining amount
 ) {
     val statusColor = when (booking.status?.lowercase()) {
         "confirmed"  -> BkPrimary
@@ -851,6 +1011,12 @@ fun BookingDetailScreen(
     var cancelReason by remember { mutableStateOf("") }
     val focusManager = LocalFocusManager.current
 
+    // Jangan tutup dialog sebelum request benar-benar sukses. Kalau API
+    // menolak (mis. 422/409), pilihan tanggal/jam pengguna tetap terlihat.
+    LaunchedEffect(state.isRescheduled) {
+        if (state.isRescheduled) showRescheduleDialog = false
+    }
+
     if (showCancelDialog) {
         AlertDialog(
             onDismissRequest = { showCancelDialog = false },
@@ -886,75 +1052,97 @@ fun BookingDetailScreen(
 
     // Reschedule dialog
     if (showRescheduleDialog) {
-        var selectedDate by remember { mutableStateOf(LocalDate.now().plusDays(1)) }
-        var selectedTime by remember { mutableStateOf("10:00") }
-        // PHASE 7: live availability for this booking's doctor (fallback to
-        // the static grid only when the slots call yields nothing).
         val rescheduleDoctorId = state.booking?.doctorId
-        androidx.compose.runtime.LaunchedEffect(selectedDate, rescheduleDoctorId) {
+        val initialDate = remember(rescheduleDoctorId) {
+            firstDoctorWorkingDate(
+                availableDays = state.booking?.doctor?.availableDays,
+                from = LocalDate.now()
+            ) ?: LocalDate.now()
+        }
+        var selectedDate by remember { mutableStateOf(initialDate) }
+        var selectedTime by remember { mutableStateOf<String?>(null) }
+
+        LaunchedEffect(selectedDate, rescheduleDoctorId) {
+            selectedTime = null
             if (rescheduleDoctorId != null) {
                 viewModel.loadRescheduleSlots(rescheduleDoctorId, selectedDate)
             }
         }
-        val liveTimes = state.rescheduleSlots.filter { it.available }.map { it.time }
-        val fallbackTimes = listOf("09:00", "10:00", "11:00", "13:00", "14:00", "15:00", "16:00")
-        val rescheduleTimes = liveTimes.ifEmpty { fallbackTimes }
-        
+
+        // 409 artinya slot baru saja diambil orang lain. Muat ulang
+        // ketersediaan tanpa menutup dialog agar pengguna bisa langsung
+        // memilih jam pengganti.
+        LaunchedEffect(state.rescheduleConflict) {
+            if (state.rescheduleConflict && rescheduleDoctorId != null) {
+                viewModel.loadRescheduleSlots(rescheduleDoctorId, selectedDate)
+            }
+        }
+
+        val selectedTimeAvailable = selectedTime == null || state.rescheduleSlots.any {
+            it.time == selectedTime && it.available
+        }
+
         AlertDialog(
             onDismissRequest = { showRescheduleDialog = false },
             title = { Text("Jadwalkan Ulang Booking", fontWeight = FontWeight.Bold) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Pilih tanggal dan jam baru untuk janji temu Anda.")
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 440.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Text(
+                        "Pilih tanggal dan jam baru. Slot yang tampil adalah ketersediaan terbaru dokter.",
+                        fontSize = 12.sp,
+                        color = textSecondary
+                    )
 
-                    // Simple date selector
-                    val dates = (0..6).map { LocalDate.now().plusDays(it.toLong()) }
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(dates) { date ->
-                            val isSelected = date == selectedDate
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) BkPrimary else surface,
-                                border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, dividerColor) else null,
-                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { selectedDate = date }
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(
-                                        date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("id", "ID")),
-                                        fontSize = 10.sp,
-                                        color = if (isSelected) BkPrimaryFg else textSecondary
-                                    )
-                                    Text(
-                                        date.dayOfMonth.toString(),
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (isSelected) BkPrimaryFg else textPrimary
-                                    )
-                                }
+                    BookingDateRail(
+                        selectedDate = selectedDate,
+                        availableDays = state.booking?.doctor?.availableDays,
+                        onDateSelected = { selectedDate = it },
+                        dayCount = 14
+                    )
+
+                    BookingTimeSlots(
+                        slots = state.rescheduleSlots,
+                        selectedTime = selectedTime,
+                        isLoading = state.isSlotsLoading,
+                        error = state.rescheduleSlotsError,
+                        isWorkingDay = isDoctorWorkingDay(
+                            availableDays = state.booking?.doctor?.availableDays,
+                            date = selectedDate
+                        ),
+                        onRetry = {
+                            rescheduleDoctorId?.let {
+                                viewModel.loadRescheduleSlots(it, selectedDate)
                             }
+                        },
+                        onSelect = {
+                            selectedTime = it
+                            viewModel.clearDetailError()
                         }
-                    }
-                    
-                    // Time selector: live slots when available, static fallback.
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(rescheduleTimes) { time ->
-                            val isSelected = time == selectedTime
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) BkPrimary else surface,
-                                border = if (!isSelected) androidx.compose.foundation.BorderStroke(1.dp, dividerColor) else null,
-                                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { selectedTime = time }
+                    )
+
+                    state.error?.let { rescheduleError ->
+                        Surface(
+                            color = ErrorSoft,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Text(
-                                    time,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = if (isSelected) BkPrimaryFg else textPrimary,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                Icon(
+                                    Icons.Filled.Warning,
+                                    contentDescription = null,
+                                    tint = ErrorStrong,
+                                    modifier = Modifier.size(18.dp)
                                 )
+                                Text(rescheduleError, color = ErrorStrong, fontSize = 12.sp)
                             }
                         }
                     }
@@ -962,14 +1150,14 @@ fun BookingDetailScreen(
             },
             confirmButton = {
                 TextButton(
-                    enabled = !state.isLoading,
+                    enabled = !state.isLoading && !state.isSlotsLoading &&
+                        selectedTime != null && selectedTimeAvailable,
                     onClick = {
                         viewModel.rescheduleBooking(
                             bookingId,
                             selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE),
-                            selectedTime
+                            selectedTime ?: return@TextButton
                         )
-                        showRescheduleDialog = false
                     }
                 ) { Text("Jadwalkan Ulang", fontWeight = FontWeight.Bold, color = BkPrimary) }
             },
@@ -1035,7 +1223,7 @@ fun BookingDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop,
                             onError = { state ->
-                                Log.e(TAG, "Failed to load booking detail hero photo from: $photo, error: ${state.result.throwable?.message}")
+                                Log.e(TAG, "Failed to load booking detail hero photo from: $photo, error: ${state.result.throwable.message}")
                                 hasError = true
                             },
                             onSuccess = {
@@ -1095,9 +1283,9 @@ fun BookingDetailScreen(
                             if (booking?.paymentMethodId != null || booking?.paymentType != null) {
                                 Divider(color = SurfaceMuted)
                                 DetailRow(
-                                    if (booking?.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
+                                    if (booking.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
                                     "Payment",
-                                    if (booking?.paymentType == "dp") "Down Payment (50%)" else "Full Payment",
+                                    if (booking.paymentType == "dp") "Down Payment (50%)" else "Full Payment",
                                     textPrimary,
                                     textSecondary
                                 )
@@ -1416,7 +1604,10 @@ fun BookingDetailScreen(
                         ) {
                             // Reschedule button
                             OutlinedButton(
-                                onClick = { showRescheduleDialog = true },
+                                onClick = {
+                                    viewModel.clearDetailError()
+                                    showRescheduleDialog = true
+                                },
                                 modifier = Modifier.weight(1f).height(52.dp),
                                 shape = RoundedCornerShape(12.dp),
                                 border = androidx.compose.foundation.BorderStroke(1.dp, BkPrimary.copy(0.5f)),
@@ -1443,6 +1634,22 @@ fun BookingDetailScreen(
                     }
                 }
             }
+        }
+
+        state.error?.let { detailError ->
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(16.dp),
+                containerColor = ErrorSoft,
+                contentColor = ErrorStrong,
+                dismissAction = {
+                    IconButton(onClick = viewModel::clearDetailError) {
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup pesan", tint = ErrorStrong)
+                    }
+                }
+            ) { Text(detailError) }
         }
     }
 }
@@ -1600,7 +1807,7 @@ fun CreateBookingScreen(
                                             contentScale = ContentScale.Crop,
                                             modifier = Modifier.fillMaxSize().clip(CircleShape),
                                             onError = { state ->
-                                                Log.e(TAG, "Failed to load create booking doctor photo from: $createBookingPhoto, error: ${state.result.throwable?.message}")
+                                                Log.e(TAG, "Failed to load create booking doctor photo from: $createBookingPhoto, error: ${state.result.throwable.message}")
                                                 hasError = true
                                             },
                                             onSuccess = {
@@ -1706,7 +1913,7 @@ fun CreateBookingScreen(
                                 rowServices.forEachIndexed { colIdx, service ->
                                     val selected = state.selectedServiceId == service.id
                                     val paletteIndex = (rowIdx * 2 + colIdx) % 4
-                                    val (bgLight, bgDark) = when (paletteIndex) {
+                                    val (bgLight, _) = when (paletteIndex) {
                                         0 -> Pair(Color(0xFFDCFCE7), Color(0x2216A34A))
                                         1 -> Pair(InfoSoft, Color(0x222563EB))
                                         2 -> Pair(WarningSoft, Color(0x22EA580C))
@@ -1769,69 +1976,36 @@ fun CreateBookingScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Text("Pilih Tanggal", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                state.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy")),
-                                fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BkPrimary
-                            )
-                            Icon(Icons.Filled.ExpandMore, null, tint = BkPrimary, modifier = Modifier.size(16.dp))
-                        }
+                        Text(
+                            state.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale("id", "ID"))),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = BkPrimary
+                        )
                     }
-                    // 7-day strip
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = surface,
-                        shadowElevation = 2.dp
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            val today = LocalDate.now()
-                            (0..6).forEach { offset ->
-                                val date = today.plusDays(offset.toLong())
-                                val isSelected = date == state.selectedDate
-                                val isPast = date.isBefore(today)
-                                DateCell(
-                                    dayName = date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale("id", "ID")),
-                                    dayNum  = date.dayOfMonth.toString(),
-                                    isSelected = isSelected,
-                                    isPast = isPast,
-                                    textPrimary = textPrimary,
-                                    textSecondary = textSecondary,
-                                    onClick = { if (!isPast) viewModel.selectDate(date, doctorId) }
-                                )
-                            }
-                        }
-                    }
+                    BookingDateRail(
+                        selectedDate = state.selectedDate,
+                        availableDays = state.doctor?.availableDays,
+                        onDateSelected = { viewModel.selectDate(it, doctorId) }
+                    )
                 }
 
                 // ── Section 4: Time slots ──────────────────────────────
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("Waktu Tersedia", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
 
-                    if (state.slots.isEmpty()) {
-                        Box(
-                            Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Tidak ada slot tersedia untuk tanggal ini", fontSize = 14.sp, color = textSecondary)
-                        }
-                    } else {
-                        val morningSlots   = state.slots.filter { it.time < "12:00" }
-                        val afternoonSlots = state.slots.filter { it.time >= "12:00" }
-
-                        if (morningSlots.isNotEmpty()) {
-                            TimeSlotGroup("Pagi", morningSlots, state.selectedTime, surface, textPrimary, textSecondary, dividerColor) {
-                                viewModel.selectTime(it)
-                            }
-                        }
-                        if (afternoonSlots.isNotEmpty()) {
-                            TimeSlotGroup("Siang", afternoonSlots, state.selectedTime, surface, textPrimary, textSecondary, dividerColor) {
-                                viewModel.selectTime(it)
-                            }
-                        }
-                    }
+                    BookingTimeSlots(
+                        slots = state.slots,
+                        selectedTime = state.selectedTime,
+                        isLoading = state.isSlotsLoading,
+                        error = state.slotsError,
+                        isWorkingDay = isDoctorWorkingDay(
+                            availableDays = state.doctor?.availableDays,
+                            date = state.selectedDate
+                        ),
+                        onRetry = { viewModel.retrySlots(doctorId) },
+                        onSelect = { viewModel.selectTime(it) }
+                    )
                 }
 
                 // ── Section 5: Payment Method ──────────────────────────────
@@ -1853,21 +2027,21 @@ fun CreateBookingScreen(
 
                         // QRIS
                         if (qrisMethods.isNotEmpty()) {
-                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, BkPrimary) {
+                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, BkPrimary) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
 
                         // Bank
                         if (bankMethods.isNotEmpty()) {
-                            PaymentMethodGroup("Bank Transfer", bankMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, InfoStrong) {
+                            PaymentMethodGroup("Bank Transfer", bankMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, InfoStrong) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
 
                         // E-Wallet
                         if (ewalletMethods.isNotEmpty()) {
-                            PaymentMethodGroup("E-Wallet", ewalletMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, dividerColor, AccentViolet) {
+                            PaymentMethodGroup("E-Wallet", ewalletMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, AccentViolet) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
@@ -2090,107 +2264,6 @@ fun CreateBookingScreen(
     }
 }
 
-// ── Date cell ──────────────────────────────────────────────────────────────────
-@Composable
-private fun DateCell(
-    dayName: String, dayNum: String,
-    isSelected: Boolean, isPast: Boolean,
-    textPrimary: Color, textSecondary: Color,
-    onClick: () -> Unit
-) {
-    val bg by animateColorAsState(
-        if (isSelected) BkPrimary else Color.Transparent, tween(200)
-    )
-    Column(
-        modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
-            .background(bg)
-            .clickable(enabled = !isPast, onClick = onClick)
-            .padding(horizontal = 8.dp, vertical = 8.dp)
-            .then(if (isSelected) Modifier.shadow(8.dp, RoundedCornerShape(10.dp), spotColor = BkPrimary.copy(0.3f)) else Modifier),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Text(
-            dayName, fontSize = 11.sp, fontWeight = FontWeight.Medium,
-            color = if (isSelected) BkPrimaryFg else if (isPast) textSecondary.copy(0.5f) else textSecondary
-        )
-        Text(
-            dayNum, fontSize = if (isSelected) 17.sp else 14.sp,
-            fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Bold,
-            color = if (isSelected) BkPrimaryFg else if (isPast) textSecondary.copy(0.5f) else textPrimary
-        )
-    }
-}
-
-// ── Time slot group ────────────────────────────────────────────────────────────
-@Composable
-private fun TimeSlotGroup(
-    title: String,
-    slots: List<com.christopheraldoo.petheal.data.model.TimeSlot>,
-    selectedTime: String?,
-    surface: Color,
-    textPrimary: Color,
-    textSecondary: Color,
-    dividerColor: Color,
-    onSelect: (String) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(
-            title.uppercase(), fontSize = 11.sp,
-            fontWeight = FontWeight.Bold, letterSpacing = 1.sp,
-            color = TextTertiary
-        )
-        val cols = 4
-        slots.chunked(cols).forEach { rowSlots ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowSlots.forEach { slot ->
-                    val selected  = slot.time == selectedTime
-                    val available = slot.available
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(10.dp))
-                            .background(
-                                when {
-                                    selected   -> BkPrimary
-                                    !available -> Color(0xFFF9FAFB)
-                                    else       -> surface
-                                }
-                            )
-                            .border(
-                                1.dp,
-                                when {
-                                    selected   -> BkPrimary
-                                    !available -> Color.Transparent
-                                    else       -> dividerColor
-                                },
-                                RoundedCornerShape(10.dp)
-                            )
-                            .clickable(enabled = available && !selected) { onSelect(slot.time) }
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            slot.time,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = when {
-                                selected   -> BkPrimaryFg
-                                !available -> OutlineStrong
-                                else       -> textPrimary
-                            },
-                            textDecoration = if (!available) TextDecoration.LineThrough else null
-                        )
-                    }
-                }
-                // Fill remaining columns in last row
-                repeat(cols - rowSlots.size) { Box(modifier = Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
 // ── Error banner ───────────────────────────────────────────────────────────────
 @Composable
 fun ErrorBanner(message: String) {
@@ -2214,7 +2287,6 @@ private fun PaymentMethodGroup(
     surface: Color,
     textPrimary: Color,
     textSecondary: Color,
-    dividerColor: Color,
     accentColor: Color,
     onSelect: (PaymentMethod) -> Unit
 ) {

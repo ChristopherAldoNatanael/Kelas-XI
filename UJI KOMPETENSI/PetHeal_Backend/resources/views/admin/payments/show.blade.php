@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Payment Detail #' . $booking->id)
+@section('title', 'Invoice INV-' . str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT))
 
-@section('header', 'Payment Detail #' . $booking->id)
+@section('header', 'Invoice INV-' . str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT))
 
 @section('content')
 <div class="flex items-center justify-between mb-6">
@@ -11,10 +11,14 @@
             <span class="material-symbols-outlined text-slate-600 dark:text-slate-400">arrow_back</span>
         </a>
         <div>
-            <p class="text-sm text-slate-500">Midtrans transaction & booking payment info</p>
+            <p class="text-sm text-slate-500">INV-{{ str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT) }} · Detail pembayaran booking #{{ $booking->id }}</p>
         </div>
     </div>
     <div class="flex items-center gap-3">
+        <a href="{{ route('admin.payments.receipt', $booking->id) }}" class="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
+            <span class="material-symbols-outlined text-md">download</span>
+            Unduh Invoice
+        </a>
         @if($booking->payment_status !== 'paid' && $booking->remaining_amount > 0)
         <form method="POST" action="{{ route('admin.payments.send-reminder', $booking->id) }}">
             @csrf

@@ -233,6 +233,12 @@ class AdminAuthController extends Controller
 
         $request->session()->put('current_clinic_id', (int) $clinicId);
 
+        // Preserve the schedule board flow after choosing a clinic from the
+        // system-overview picker. Only a fixed internal destination is allowed.
+        if ($request->input('return_to') === 'schedule') {
+            return redirect()->route('admin.bookings.schedule')->with('success', __('clinics.switch_success'));
+        }
+
         return redirect()->route('admin.dashboard')->with('success', __('clinics.switch_success'));
     }
 

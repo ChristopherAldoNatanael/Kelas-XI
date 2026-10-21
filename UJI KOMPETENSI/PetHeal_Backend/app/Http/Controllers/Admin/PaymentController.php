@@ -129,6 +129,34 @@ class PaymentController extends Controller
     }
 
     /**
+     * Download a single booking invoice/receipt as PDF.
+     *
+     * Reuses the same booking payment fields as the payment detail page so the
+     * document can never disagree with the admin screen or customer app.
+     */
+    public function receipt($id)
+    {
+        $clinicId = currentClinicId();
+        $query = Booking::with(['user', 'pet', 'doctor', 'service', 'clinic'])->whereKey($id);
+        if ($clinicId) {
+            $query->where('clinic_id', $clinicId);
+        }
+        $booking = $query->firstOrFail();
+
+        $html = view('admin.payments.receipt_pdf', compact('booking'))->render();
+        $dompdf = new Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $filename = 'invoice-' . str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT) . '.pdf';
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="' . $filename . '"');
+    }
+
+    /**
      * Manually confirm payment (admin override)
      */
     public function confirm(Request $request, $id)

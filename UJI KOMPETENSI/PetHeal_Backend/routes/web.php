@@ -75,6 +75,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/search', [DashboardController::class, 'search'])->name('search');
 
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\AdminAuthController::class, 'settings'])->name('settings');
@@ -93,6 +94,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::resource('users', UserController::class);
 
     // Bookings
+    Route::get('/schedule', [BookingController::class, 'schedule'])->name('bookings.schedule');
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
     Route::get('/bookings/{id}', [BookingController::class, 'show'])->name('bookings.show');
     Route::post('/bookings/{id}/confirm', [BookingController::class, 'confirm'])->name('bookings.confirm');
@@ -124,6 +126,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
 
     // Payments (Midtrans Integration)
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+    Route::get('/payments/{id}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
     Route::post('/payments/{id}/send-reminder', [PaymentController::class, 'sendReminder'])->name('payments.send-reminder');

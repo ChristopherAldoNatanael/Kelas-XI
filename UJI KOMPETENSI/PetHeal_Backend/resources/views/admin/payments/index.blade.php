@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Payment Management')
+@section('title', 'Invoice & Pembayaran')
 
-@section('header', 'Payment Management')
+@section('header', 'Invoice & Pembayaran')
 
 @section('content')
 {{-- Statistics Cards --}}
@@ -61,7 +61,7 @@
     <form method="GET" action="{{ route('admin.payments.index') }}" class="flex flex-wrap gap-4 items-end">
         <div class="flex-1 min-w-[200px]">
             <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Search</label>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Customer, pet, or booking ID"
+            <input type="text" name="search" value="{{ request('search') }}" placeholder="Customer, hewan, atau nomor invoice"
                    class="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
         </div>
 
@@ -115,8 +115,8 @@
 <div class="glass-card rounded-xl border border-slate-200/50 overflow-hidden">
     <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
         <div>
-            <h3 class="text-md font-bold text-slate-900 dark:text-white">Payment Transactions</h3>
-            <p class="text-xs text-slate-400 mt-1">{{ $payments->total() }} total transactions</p>
+            <h3 class="text-md font-bold text-slate-900 dark:text-white">Invoice & Transaksi</h3>
+            <p class="text-xs text-slate-400 mt-1">{{ $payments->total() }} invoice tercatat</p>
         </div>
         <a href="{{ route('admin.payments.export') }}" target="_blank" class="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold hover:bg-emerald-800 transition-colors flex items-center gap-1">
             <span class="material-symbols-outlined text-[18px]">print</span>Export PDF
@@ -127,7 +127,7 @@
         <table class="w-full text-left">
             <thead>
                 <tr class="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    <th class="px-6 py-4">Booking ID</th>
+                    <th class="px-6 py-4">Invoice</th>
                     <th class="px-6 py-4">Customer</th>
                     <th class="px-6 py-4">Total Amount</th>
                     <th class="px-6 py-4">Paid</th>
@@ -141,7 +141,8 @@
                 @forelse($payments as $payment)
                 <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
                     <td class="px-6 py-4">
-                        <span class="text-sm font-mono font-semibold text-slate-600 dark:text-slate-400">#{{ $payment->id }}</span>
+                        <p class="text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">INV-{{ str_pad((string) $payment->id, 5, '0', STR_PAD_LEFT) }}</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Booking #{{ $payment->id }}</p>
                     </td>
                     <td class="px-6 py-4">
                         <p class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ $payment->user->name }}</p>
@@ -183,8 +184,11 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex items-center justify-center gap-1">
-                            <a href="{{ route('admin.payments.show', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="View Details">
+                            <a href="{{ route('admin.payments.show', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="Lihat detail pembayaran">
                                 <span class="material-symbols-outlined text-md">visibility</span>
+                            </a>
+                            <a href="{{ route('admin.payments.receipt', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-emerald-600 transition-all inline-flex items-center justify-center" title="Unduh invoice PDF">
+                                <span class="material-symbols-outlined text-md">download</span>
                             </a>
                             @if($payment->payment_status !== 'paid' && $payment->remaining_amount > 0)
                             <form method="POST" action="{{ route('admin.payments.send-reminder', $payment->id) }}" class="inline">
