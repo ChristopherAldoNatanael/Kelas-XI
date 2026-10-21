@@ -5,8 +5,6 @@ import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
-import android.content.Intent
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -19,8 +17,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -29,7 +27,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.BugReport
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.SupportAgent
@@ -38,37 +35,56 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.christopheraldoo.petheal.ui.components.ClinicContactActions
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.WarningDeep
+import com.christopheraldoo.petheal.util.normalizeWhatsAppNumber
+import com.christopheraldoo.petheal.util.openClinicEmail
+import com.christopheraldoo.petheal.util.openWhatsApp
 
+/**
+ * Halaman Bantuan & Dukungan.
+ *
+ * Memakai komponen kontak yang sama dengan sheet Bantuan di alur booking:
+ * WhatsApp admin klinik, telepon, dan email — semuanya dari Clinic Profile.
+ * Tidak ada lagi alamat support yang di-hardcode.
+ */
 @Composable
 fun HelpSupportScreen(
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    viewModel: HelpSupportViewModel = hiltViewModel()
 ) {
+    val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     val bg = Background
     val primary = Primary
     val textPrimary = OnBackground
     val textSecondary = TextSecondary
+
+    LaunchedEffect(Unit) { viewModel.loadSupportContact() }
+
+    val clinicName = state.contact?.clinicName?.trim()?.takeIf { it.isNotBlank() }
+    val hasWhatsApp = normalizeWhatsAppNumber(state.contact?.phone) != null
 
     Column(
         modifier = Modifier
@@ -91,9 +107,14 @@ fun HelpSupportScreen(
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back", tint = textPrimary)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = textPrimary)
                     }
-                    Text("Help & Support", color = textPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Bantuan & Dukungan",
+                        color = textPrimary,
+                        fontSize = 19.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
                 Spacer(Modifier.height(18.dp))
                 Card(
@@ -112,13 +133,25 @@ fun HelpSupportScreen(
                                 .background(primary.copy(alpha = 0.14f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.SupportAgent, contentDescription = null, tint = primary, modifier = Modifier.size(32.dp))
+                            Icon(
+                                Icons.Filled.SupportAgent,
+                                contentDescription = null,
+                                tint = primary,
+                                modifier = Modifier.size(32.dp)
+                            )
                         }
                         Spacer(Modifier.width(16.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("Butuh bantuan?", color = textPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                             Text(
-                                "Tim PetHeal siap membantu masalah booking, pembayaran, dan akun.",
+                                "Butuh bantuan?",
+                                color = textPrimary,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                clinicName?.let {
+                                    "Admin $it siap membantu masalah booking, pembayaran, dan akun."
+                                } ?: "Admin klinik siap membantu masalah booking, pembayaran, dan akun.",
                                 color = textSecondary,
                                 fontSize = 13.sp,
                                 lineHeight = 19.sp
@@ -133,26 +166,22 @@ fun HelpSupportScreen(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                SupportShortcut(
-                    modifier = Modifier.weight(1f),
-                    icon = Icons.Filled.Email,
-                    title = "Email",
-                    subtitle = "support@petheal.app",
-                    accent = primary,
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:support@petheal.app")
-                            putExtra(Intent.EXTRA_SUBJECT, "PetHeal Support")
-                        })
-                    }
-                )
-            }
+            ClinicContactActions(
+                contact = state.contact,
+                message = state.helpMessage,
+                isLoading = state.isLoading,
+                error = state.error,
+                onRetry = { viewModel.loadSupportContact(forceRefresh = true) }
+            )
 
             SectionTitle("FAQ Cepat")
             FaqCard(
                 question = "Bagaimana cara membuat booking?",
                 answer = "Pilih dokter, pilih hewan, tentukan tanggal dan jam yang tersedia, lalu selesaikan tipe pembayaran."
+            )
+            FaqCard(
+                question = "Kenapa jam tertentu tidak bisa dipilih?",
+                answer = "Jam yang sudah lewat hari ini tidak dapat dipilih. Pilih jam berikutnya atau tanggal besoknya."
             )
             FaqCard(
                 question = "Kenapa pembayaran saya pending?",
@@ -169,10 +198,16 @@ fun HelpSupportScreen(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(22.dp))
                     .clickable {
-                        context.startActivity(Intent(Intent.ACTION_SENDTO).apply {
-                            data = Uri.parse("mailto:support@petheal.app")
-                            putExtra(Intent.EXTRA_SUBJECT, "PetHeal Bug Report")
-                        })
+                        if (hasWhatsApp) {
+                            openWhatsApp(context, state.contact?.phone, state.reportMessage)
+                        } else {
+                            openClinicEmail(
+                                context = context,
+                                address = state.contact?.email,
+                                subject = "Laporan masalah aplikasi" +
+                                    (clinicName?.let { " - $it" } ?: "")
+                            )
+                        }
                     },
                 color = Color(0xFFFFF7ED),
                 shape = RoundedCornerShape(22.dp)
@@ -192,43 +227,25 @@ fun HelpSupportScreen(
                     }
                     Spacer(Modifier.width(14.dp))
                     Column(Modifier.weight(1f)) {
-                        Text("Laporkan Bug", fontWeight = FontWeight.Bold, color = textPrimary, fontSize = 15.sp)
-                        Text("Sertakan langkah dan screenshot agar lebih cepat ditangani.", color = textSecondary, fontSize = 12.sp)
+                        Text(
+                            "Laporkan Bug",
+                            fontWeight = FontWeight.Bold,
+                            color = textPrimary,
+                            fontSize = 15.sp
+                        )
+                        Text(
+                            if (hasWhatsApp) {
+                                "Chat admin dengan kronologi singkat masalah yang Anda alami."
+                            } else {
+                                "Kirim kronologi dan screenshot melalui email klinik."
+                            },
+                            color = textSecondary,
+                            fontSize = 12.sp
+                        )
                     }
                     Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = textSecondary)
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun SupportShortcut(
-    modifier: Modifier,
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    accent: Color,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(0.dp)
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(accent.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = accent)
-            }
-            Text(title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = OnBackground)
-            Text(subtitle, fontSize = 12.sp, color = TextSecondary)
         }
     }
 }
@@ -251,9 +268,20 @@ private fun FaqCard(question: String, answer: String) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.HelpOutline, contentDescription = null, tint = Primary, modifier = Modifier.size(20.dp))
+                Icon(
+                    Icons.Filled.HelpOutline,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.width(10.dp))
-                Text(question, modifier = Modifier.weight(1f), fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+                Text(
+                    question,
+                    modifier = Modifier.weight(1f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OnBackground
+                )
                 Icon(Icons.Filled.ExpandMore, contentDescription = null, tint = TextSecondary)
             }
             if (expanded) {

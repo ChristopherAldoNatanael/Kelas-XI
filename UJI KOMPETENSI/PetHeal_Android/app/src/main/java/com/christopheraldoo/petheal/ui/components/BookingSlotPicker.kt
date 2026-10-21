@@ -57,7 +57,9 @@ import com.christopheraldoo.petheal.ui.theme.Surface as SurfaceColor
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.util.allSlotsExpired
 import com.christopheraldoo.petheal.util.isDoctorWorkingDay
+import com.christopheraldoo.petheal.util.isSlotExpired
 import java.time.LocalDate
 import java.time.format.TextStyle
 import java.util.Locale
@@ -186,7 +188,11 @@ fun BookingDateRail(
 /**
  * Available-time selector. Slots are grouped by session so the user reads the
  * day the same way a clinic schedule is arranged. All states are explicit:
- * loading, retry, closed day, fully booked, and selectable.
+ * loading, retry, closed day, all hours already passed today, fully booked,
+ * and selectable.
+ *
+ * [date] is the day the slots belong to. It is required to expire hours that
+ * have already passed on the current day; when null no expiry is applied.
  */
 @Composable
 fun BookingTimeSlots(
@@ -197,8 +203,14 @@ fun BookingTimeSlots(
     isWorkingDay: Boolean,
     onRetry: () -> Unit,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    date: LocalDate? = null
 ) {
+    // Seluruh jam hari ini sudah lewat → beri pesan yang berbeda dari "penuh"
+    // supaya pengguna tahu harus memilih hari berikutnya, bukan jam lain.
+    val allExpired = remember(date, slots) {
+        date != null && slots.allSlotsExpired(date)
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -213,6 +225,10 @@ fun BookingTimeSlots(
                 } else {
                     "Pilih tanggal lain yang sesuai hari praktik dokter."
                 }
+            )
+            allExpired -> SlotEmpty(
+                title = "Jam hari ini sudah lewat",
+                message = "Semua jam untuk hari ini sudah terlewati. Pilih besok atau tanggal berikutnya."
             )
             slots.none { it.available } -> SlotEmpty(
                 title = "Semua slot sudah penuh",
@@ -232,6 +248,7 @@ fun BookingTimeSlots(
                         SlotGrid(
                             slots = groupSlots,
                             selectedTime = selectedTime,
+                            date = date,
                             onSelect = onSelect
                         )
                     }
@@ -245,6 +262,7 @@ fun BookingTimeSlots(
 private fun SlotGrid(
     slots: List<TimeSlot>,
     selectedTime: String?,
+    date: LocalDate?,
     onSelect: (String) -> Unit
 ) {
     val columns = 4
@@ -258,6 +276,7 @@ private fun SlotGrid(
                     SlotChip(
                         slot = slot,
                         selected = slot.time == selectedTime,
+                        expired = date != null && isSlotExpired(date, slot.time),
                         onClick = { onSelect(slot.time) },
                         modifier = Modifier.weight(1f)
                     )
@@ -274,6 +293,7 @@ private fun SlotGrid(
 private fun SlotChip(
     slot: TimeSlot,
     selected: Boolean,
+    expired: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -308,10 +328,10 @@ private fun SlotChip(
                 role = Role.RadioButton
             )
             .semantics {
-                contentDescription = if (enabled) {
-                    "Jam ${slot.time}, tersedia"
-                } else {
-                    "Jam ${slot.time}, penuh"
+                contentDescription = when {
+                    enabled -> "Jam ${slot.time}, tersedia"
+                    expired -> "Jam ${slot.time}, sudah lewat"
+                    else -> "Jam ${slot.time}, penuh"
                 }
             },
         shape = RoundedCornerShape(10.dp),

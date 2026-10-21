@@ -9,15 +9,21 @@ import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
+import com.christopheraldoo.petheal.data.repository.ClinicRepository
 import com.christopheraldoo.petheal.data.repository.ServiceRepository
 import com.christopheraldoo.petheal.data.repository.PaymentMethodRepository
 import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
 import com.christopheraldoo.petheal.data.repository.Result
+import com.christopheraldoo.petheal.util.ClinicContact
+import com.christopheraldoo.petheal.util.buildClinicHelpMessage
 import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
+import com.christopheraldoo.petheal.util.isSlotExpired
+import com.christopheraldoo.petheal.util.withExpiredSlotsUnavailable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -86,6 +92,14 @@ data class BookingDetailUiState(
     val rescheduleConflict: Boolean = false
 )
 
+/** Kontak klinik + pesan siap-kirim untuk sheet Bantuan di alur booking. */
+data class SupportContactUiState(
+    val contact: ClinicContact? = null,
+    val message: String = "",
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
+
 data class CreateBookingUiState(
     // Data
     val pets: List<Pet> = emptyList(),
@@ -122,6 +136,7 @@ class BookingViewModel @Inject constructor(
     private val serviceRepository: ServiceRepository,
     private val paymentMethodRepository: PaymentMethodRepository,
     private val medicalRecordRepository: MedicalRecordRepository,
+    private val clinicRepository: ClinicRepository,
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
@@ -141,6 +156,10 @@ class BookingViewModel @Inject constructor(
     // ── BookingStart (alur transaksi mandiri: hewan + dokter ringkas) ──
     private val _startState = MutableStateFlow(BookingStartUiState())
     val startState: StateFlow<BookingStartUiState> = _startState.asStateFlow()
+
+    private val _supportState = MutableStateFlow(SupportContactUiState())
+    val supportState: StateFlow<SupportContactUiState> = _supportState.asStateFlow()
+    private var cachedSupportContact: ClinicContact? = null
 
     private var lastHandledRefreshVersion = 0L
 
@@ -434,8 +453,9 @@ class BookingViewModel @Inject constructor(
             when (val r = doctorRepository.getDoctorSlots(doctorId, dateStr)) {
                 is Result.Success -> {
                     if (rescheduleSlotsRequestDate != date) return@launch
+                    // Jam yang sudah lewat hari ini tidak boleh dipilih ulang.
                     _detailState.value = _detailState.value.copy(
-                        rescheduleSlots = r.data,
+                        rescheduleSlots = r.data.withExpiredSlotsUnavailable(date),
                         isSlotsLoading = false,
                         rescheduleSlotsError = null
                     )
@@ -499,6 +519,66 @@ class BookingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Sumber kontak Bantuan: `clinics.phone` / `clinics.email` via
+     * `GET public/clinics/{slug}`. Data diambil saat sheet dibuka (bukan saat
+     * layar dibuka) supaya perubahan nomor di web admin langsung terpakai
+     * tanpa perlu update APK. Pesan WA selalu dibangun ulang dari pilihan
+     * terakhir pengguna.
+     */
+    fun loadSupportContact(forceRefresh: Boolean = false) {
+        if (_supportState.value.isLoading) return
+        viewModelScope.launch {
+            val create = _createState.value
+            val userName = preferencesManager.userName.first()
+            val storedClinicName = preferencesManager.clinicName.first()
+            val message = buildClinicHelpMessage(
+                clinicName = storedClinicName,
+                userName = userName,
+                doctorName = create.doctor?.name,
+                serviceName = create.selectedServiceName,
+                date = create.selectedDate,
+                time = create.selectedTime
+            )
+
+            val cached = cachedSupportContact
+            if (!forceRefresh && cached != null) {
+                _supportState.value = SupportContactUiState(
+                    contact = cached,
+                    message = message
+                )
+                return@launch
+            }
+
+            _supportState.value = SupportContactUiState(
+                contact = cached,
+                message = message,
+                isLoading = true
+            )
+
+            when (val r = clinicRepository.getSupportContact(forceRefresh)) {
+                is Result.Success -> {
+                    val contact = r.data.copy(
+                        clinicName = r.data.clinicName ?: storedClinicName
+                    )
+                    cachedSupportContact = contact
+                    _supportState.value = SupportContactUiState(
+                        contact = contact,
+                        message = message
+                    )
+                }
+                is Result.Error -> {
+                    _supportState.value = SupportContactUiState(
+                        contact = cached,
+                        message = message,
+                        error = r.message.ifBlank { "Kontak klinik belum bisa dimuat." }
+                    )
+                }
+                else -> Unit
+            }
+        }
+    }
+
     fun loadSlots(doctorId: Int, date: LocalDate = _createState.value.selectedDate) {
         viewModelScope.launch {
             _createState.value = _createState.value.copy(
@@ -511,11 +591,15 @@ class BookingViewModel @Inject constructor(
                     // A slow request from a previous date must never overwrite
                     // the date the user is currently looking at.
                     if (_createState.value.selectedDate != date) return@launch
+                    // Backend tidak mengirim status "sudah lewat", jadi jam
+                    // hari ini yang sudah terlewati ditandai di sini agar tidak
+                    // bisa dipilih (mis. sekarang 18.00 → slot < 18.00 mati).
+                    val slots = r.data.withExpiredSlotsUnavailable(date)
                     val stillAvailable = _createState.value.selectedTime?.let { selected ->
-                        r.data.any { it.time == selected && it.available }
+                        slots.any { it.time == selected && it.available }
                     } == true
                     _createState.value = _createState.value.copy(
-                        slots = r.data,
+                        slots = slots,
                         isSlotsLoading = false,
                         slotsError = null,
                         selectedTime = _createState.value.selectedTime.takeIf { stillAvailable }
@@ -593,6 +677,17 @@ class BookingViewModel @Inject constructor(
         val petId   = s.selectedPetId ?: return setCreateError("Pilih hewan terlebih dahulu.")
         val serviceId = s.selectedServiceId ?: return setCreateError("Pilih layanan terlebih dahulu.")
         val time    = s.selectedTime  ?: return setCreateError("Pilih jam konsultasi terlebih dahulu.")
+        // Slot bisa saja menjadi lewat antara saat dipilih dan saat submit
+        // (layar lama terbuka, jam berjalan). Jangan kirim booking yang pasti
+        // ditolak klinik.
+        if (isSlotExpired(s.selectedDate, time)) {
+            _createState.value = _createState.value.copy(
+                selectedTime = null,
+                error = "Jam $time sudah lewat. Pilih jam lain atau tanggal berikutnya."
+            )
+            loadSlots(doctorId, s.selectedDate)
+            return
+        }
         val dateStr = s.selectedDate.format(DateTimeFormatter.ISO_LOCAL_DATE)
         viewModelScope.launch {
             _createState.value = s.copy(isLoading = true, error = null)

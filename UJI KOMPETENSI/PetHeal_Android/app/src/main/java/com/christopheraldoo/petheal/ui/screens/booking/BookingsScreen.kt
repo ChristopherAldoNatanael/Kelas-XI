@@ -6,7 +6,6 @@ import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 
 import android.util.Log
-import android.widget.Toast
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -51,6 +50,7 @@ import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.PaymentMethod
 import com.christopheraldoo.petheal.ui.components.BookingDateRail
 import com.christopheraldoo.petheal.ui.components.BookingTimeSlots
+import com.christopheraldoo.petheal.ui.components.ClinicHelpSheet
 import com.christopheraldoo.petheal.ui.components.EmptyBookingsState
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
@@ -1122,7 +1122,8 @@ fun BookingDetailScreen(
                         onSelect = {
                             selectedTime = it
                             viewModel.clearDetailError()
-                        }
+                        },
+                        date = selectedDate
                     )
 
                     state.error?.let { rescheduleError ->
@@ -1679,6 +1680,8 @@ fun CreateBookingScreen(
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.createState.collectAsState()
+    val supportState by viewModel.supportState.collectAsState()
+    var showHelpSheet by remember { mutableStateOf(false) }
     val bg      = BkBg
     val surface = BkSurface
     val textPrimary   = OnBackground
@@ -1728,9 +1731,9 @@ fun CreateBookingScreen(
                             Icon(Icons.Filled.ArrowBack, "Kembali", tint = textPrimary, modifier = Modifier.size(24.dp))
                         }
                         Text("Buat Booking", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
-                        val context = LocalContext.current
                         TextButton(onClick = {
-                            Toast.makeText(context, "Lengkapi tiap langkah: hewan, layanan, tanggal, jam, lalu pembayaran.", Toast.LENGTH_LONG).show()
+                            showHelpSheet = true
+                            viewModel.loadSupportContact()
                         }) {
                             Text("Bantuan", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
@@ -2004,7 +2007,8 @@ fun CreateBookingScreen(
                             date = state.selectedDate
                         ),
                         onRetry = { viewModel.retrySlots(doctorId) },
-                        onSelect = { viewModel.selectTime(it) }
+                        onSelect = { viewModel.selectTime(it) },
+                        date = state.selectedDate
                     )
                 }
 
@@ -2260,6 +2264,17 @@ fun CreateBookingScreen(
                     }
                 }
             }
+        }
+
+        if (showHelpSheet) {
+            ClinicHelpSheet(
+                contact = supportState.contact,
+                message = supportState.message,
+                isLoading = supportState.isLoading,
+                error = supportState.error,
+                onRetry = { viewModel.loadSupportContact(forceRefresh = true) },
+                onDismiss = { showHelpSheet = false }
+            )
         }
     }
 }

@@ -41,7 +41,9 @@
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.phone') }}</label>
                     <input type="text" name="phone" value="{{ old('phone', $clinic->phone) }}"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition">
+                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
+                        placeholder="0812-3456-7890">
+                    <p class="mt-1 text-xs text-slate-500">Nomor WhatsApp ini dipakai tombol Bantuan di aplikasi pet owner.</p>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.email') }}</label>

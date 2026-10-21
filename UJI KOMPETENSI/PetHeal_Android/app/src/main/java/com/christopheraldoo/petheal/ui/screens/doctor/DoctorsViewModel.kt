@@ -12,6 +12,7 @@ import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import com.christopheraldoo.petheal.data.model.Pet
+import com.christopheraldoo.petheal.util.withExpiredSlotsUnavailable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -227,9 +228,17 @@ class DoctorsViewModel @Inject constructor(
         viewModelScope.launch {
             _detailState.value = _detailState.value.copy(isSlotsLoading = true)
             when (val result = doctorRepository.getDoctorSlots(doctorId, date)) {
-                is Result.Success -> _detailState.value = _detailState.value.copy(
-                    slots = result.data, isSlotsLoading = false
-                )
+                is Result.Success -> {
+                    // Pratinjau jadwal harus konsisten dengan alur booking:
+                    // jam yang sudah lewat hari ini tidak tampil tersedia.
+                    val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull()
+                    val slots = selectedDate?.let {
+                        result.data.withExpiredSlotsUnavailable(it)
+                    } ?: result.data
+                    _detailState.value = _detailState.value.copy(
+                        slots = slots, isSlotsLoading = false
+                    )
+                }
                 is Result.Error   -> _detailState.value = _detailState.value.copy(
                     isSlotsLoading = false
                 )
