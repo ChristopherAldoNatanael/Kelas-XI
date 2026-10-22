@@ -17,20 +17,35 @@ class UserController extends Controller
     {
         $clinicId = currentClinicId();
 
-        $query = User::query();
+        // Satu query dasar untuk daftar + statistik, supaya angka di kartu
+        // tidak pernah dihitung dari sebagian halaman saja.
+        $base = User::query()->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId));
 
-        // Clinic isolation: show only users belonging to the clinic
-        if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
+        $stats = [
+            'total' => (clone $base)->count(),
+            'patients' => (clone $base)->where('role', 'user')->count(),
+            'admins' => (clone $base)->whereIn('role', ['clinic_admin', 'admin', 'super_admin'])->count(),
+            'new_this_month' => (clone $base)->where('role', 'user')
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count(),
+        ];
+
+        $query = (clone $base)->withCount('pets');
+
+        // Filter peran: halaman ini menampilkan pasien sekaligus akun admin
+        // klinik, jadi peran harus bisa dipersempit tanpa halaman lain.
+        $role = (string) $request->query('role', 'all');
+        if ($role === 'patient') {
+            $query->where('role', 'user');
+        } elseif ($role === 'admin') {
+            $query->whereIn('role', ['clinic_admin', 'admin', 'super_admin']);
         } else {
-            // If no clinic context (super_admin with no clinic selected), show non-admin users only
-            // Actually, super_admin without clinic can see all
+            $role = 'all';
         }
-        
-        // Search functionality
+
         if ($request->filled('search')) {
             $search = trim((string) $request->input('search'));
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 if (ctype_digit($search)) {
                     $q->orWhere('id', (int) $search);
                 }
@@ -40,10 +55,10 @@ class UserController extends Controller
                   ->orWhere('phone', 'like', "{$search}%");
             });
         }
-        
-        $users = $query->orderBy('created_at', 'desc')->paginate(20);
 
-        return view('admin.users.index', compact('users'));
+        $users = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+
+        return view('admin.users.index', compact('users', 'stats', 'role'));
     }
 
     /**

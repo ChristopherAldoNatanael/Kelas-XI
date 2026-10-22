@@ -1,18 +1,18 @@
 @extends('layouts.admin')
 
-@section('title', 'User Details - VCMS Admin')
-@section('header', 'User Details')
+@section('title', 'Detail pengguna — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.patients'))
 
 @section('content')
 <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
     <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-        <h2 class="text-md font-bold text-slate-900 dark:text-white">User #{{ $user->id }}</h2>
+        <h2 class="text-md font-bold text-slate-900 dark:text-white">Pengguna #{{ $user->id }}</h2>
         <div class="flex gap-2">
             <a href="{{ route('admin.users.index') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]">arrow_back</span>Back
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>Kembali
             </a>
             <a href="{{ route('admin.users.edit', $user->id) }}" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]">edit</span>Edit
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>Ubah
             </a>
         </div>
     </div>
@@ -21,7 +21,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
             <!-- User Info -->
             <div class="bg-slate-50/50 rounded-2xl p-4">
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">User Information</h3>
+                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Informasi pengguna</h3>
                 <div class="flex items-center gap-4 mb-4">
                     @if($user->photo)
                         <img src="{{ $user->photo }}" alt="{{ $user->name }}" class="h-16 w-16 rounded-full">
@@ -46,7 +46,7 @@
                         <p class="text-sm text-slate-800 dark:text-slate-200">{{ $user->email }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Phone</p>
+                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Telepon</p>
                         <p class="text-sm text-slate-800 dark:text-slate-200">{{ $user->phone ?? '-' }}</p>
                     </div>
                     <div>
@@ -59,7 +59,7 @@
             <!-- Firebase Data -->
             @if($firebaseData ?? null)
             <div class="bg-slate-50/50 rounded-2xl p-4">
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Firebase Data</h3>
+                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Data Firebase</h3>
                 <div class="space-y-2 text-sm">
                     @foreach($firebaseData as $key => $value)
                         <div>
@@ -75,7 +75,7 @@
         <!-- Pets -->
         @if($user->pets && $user->pets->count() > 0)
         <div class="mt-6">
-            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Pets ({{ $user->pets->count() }})</h3>
+            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Hewan ({{ $user->pets->count() }})</h3>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 @foreach($user->pets as $pet)
                     <div class="bg-slate-50/50 rounded-2xl p-4">
@@ -103,14 +103,14 @@
         <!-- Bookings -->
         @if($user->bookings && $user->bookings->count() > 0)
         <div class="mt-6">
-            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Recent Bookings ({{ $user->bookings->count() }})</h3>
+            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Booking terakhir ({{ $user->bookings->count() }})</h3>
             <div class="overflow-x-auto">
                 <table class="w-full">
                     <thead class="bg-slate-50/50 border-b border-slate-100">
                         <tr>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Pet</th>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Doctor</th>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Date</th>
+                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Hewan</th>
+                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Dokter</th>
+                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Tanggal</th>
                             <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Status</th>
                         </tr>
                     </thead>
@@ -138,9 +138,9 @@
 
         <div class="mt-6 pt-4 border-t border-slate-100">
             <p class="text-xs text-slate-400">
-                Created: {{ $user->created_at->format('M d, Y H:i') }}
+                Terdaftar {{ $user->created_at->locale('id')->translatedFormat('d F Y, H:i') }}
                 @if($user->updated_at->ne($user->created_at))
-                    | Updated: {{ $user->updated_at->format('M d, Y H:i') }}
+                    · Diperbarui {{ $user->updated_at->format('d M Y, H:i') }}
                 @endif
             </p>
         </div>

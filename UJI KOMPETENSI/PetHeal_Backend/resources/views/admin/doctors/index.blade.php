@@ -3,26 +3,10 @@
 @endphp
 @extends('layouts.admin')
 
-@section('title', 'Doctors - VCMS Admin')
-@section('header', 'Veterinarians Management')
+@section('title', __('menu.veterinarians') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.veterinarians'))
 
 @section('content')
-
-{{-- Success / Error Notification --}}
-@if(session('success'))
-<div id="flash-msg" class="mb-4 flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-700 text-emerald-700 dark:text-emerald-400 px-5 py-3 rounded-xl text-sm font-medium">
-    <span class="material-symbols-outlined text-[18px]">check_circle</span>
-    {{ session('success') }}
-</div>
-<script>setTimeout(()=>{ const el=document.getElementById('flash-msg'); if(el) el.style.display='none'; }, 3000);</script>
-@endif
-
-@if(session('error'))
-<div class="mb-4 flex items-center gap-3 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-700 text-red-700 dark:text-red-400 px-5 py-3 rounded-xl text-sm font-medium">
-    <span class="material-symbols-outlined text-[18px]">error</span>
-    {{ session('error') }}
-</div>
-@endif
 
 <div class="glass-card rounded-2xl overflow-hidden">
     <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
@@ -40,12 +24,12 @@
         <table class="w-full">
             <thead class="bg-slate-50 dark:bg-slate-800/50">
                 <tr>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Doctor</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Specialization</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Rating</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Schedule</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Dokter</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Spesialisasi</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Rating & performa</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Jadwal rutin</th>
                     <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Actions</th>
+                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Aksi</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-slate-100 dark:divide-slate-800">

@@ -40,9 +40,15 @@ Route::get('/', function () {
 Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:admin-login')->name('admin.login.post');
 
-// Join Request (replaces old register)
+// Join Request (replaces old register).
+// Pendaftaran admin dua langkah: kirim kode ke email, lalu verifikasi kode.
+// Permintaan baru diteruskan ke super admin setelah email terbukti milik
+// pendaftar — kode untuk dashboard admin terpisah dari kode aplikasi pet owner.
 Route::get('/admin/register', [AdminAuthController::class, 'showJoinRequestForm'])->name('admin.register');
-Route::post('/admin/register', [AdminAuthController::class, 'submitJoinRequest'])->middleware('throttle:admin-login')->name('admin.register.post');
+Route::post('/admin/register', [AdminAuthController::class, 'requestJoinOtp'])->middleware('throttle:otp-send')->name('admin.register.post');
+Route::post('/admin/register/verifikasi', [AdminAuthController::class, 'verifyJoinOtp'])->middleware('throttle:otp-verify')->name('admin.register.verify');
+Route::post('/admin/register/kirim-ulang', [AdminAuthController::class, 'resendJoinOtp'])->middleware('throttle:otp-send')->name('admin.register.resend');
+Route::post('/admin/register/batalkan', [AdminAuthController::class, 'cancelJoinOtp'])->name('admin.register.cancel');
 
 // Protected Admin Routes
 Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(function () {
@@ -80,7 +86,10 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\AdminAuthController::class, 'settings'])->name('settings');
     Route::post('/settings/profile', [App\Http\Controllers\Admin\AdminAuthController::class, 'updateProfile'])->name('settings.profile');
-    Route::post('/settings/password', [App\Http\Controllers\Admin\AdminAuthController::class, 'updatePassword'])->name('settings.password');
+    // Ganti password admin wajib kode verifikasi yang dikirim ke email akun.
+    Route::post('/settings/password/otp', [App\Http\Controllers\Admin\AdminAuthController::class, 'sendPasswordOtp'])->middleware('throttle:admin-otp-send')->name('settings.password.otp');
+    Route::post('/settings/password/otp/cancel', [App\Http\Controllers\Admin\AdminAuthController::class, 'cancelPasswordOtp'])->name('settings.password.otp.cancel');
+    Route::post('/settings/password', [App\Http\Controllers\Admin\AdminAuthController::class, 'updatePassword'])->middleware('throttle:admin-password-verify')->name('settings.password');
     // PHASE 3 (F-02): notification templates are GLOBAL (AppSetting, no
     // clinic column) — any clinic admin could rewrite push copy for ALL
     // clinics. Restricted to super_admin like join-requests/clinics.

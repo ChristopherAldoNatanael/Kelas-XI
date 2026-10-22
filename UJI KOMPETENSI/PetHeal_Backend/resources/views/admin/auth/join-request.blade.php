@@ -262,6 +262,50 @@
             text-decoration: underline; text-underline-offset: 2px; white-space: nowrap;
         }
 
+        /* verification step */
+        .warning-box {
+            background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E;
+            padding: 0.8rem 1rem; border-radius: 12px; font-size: 0.8125rem;
+            line-height: 1.55; margin-bottom: 1.25rem;
+        }
+        .otp-intro {
+            background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 12px;
+            padding: 0.9rem 1rem; margin-bottom: 1.25rem;
+        }
+        .otp-intro p { font-size: 0.8125rem; line-height: 1.65; color: #57534E; }
+        .otp-intro strong { color: #1B2A1E; font-weight: 700; word-break: break-all; }
+        .otp-row { display: flex; gap: 0.5rem; margin: 0.35rem 0 0.4rem; }
+        .otp-row input {
+            flex: 1; min-width: 0; height: 58px; text-align: center;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            font-size: 1.35rem; font-weight: 700; color: #111;
+            background: #FAFAF9; border: 1.5px solid #D6D3D1; border-radius: 12px;
+            outline: none; transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+            -moz-appearance: textfield;
+        }
+        .otp-row input::-webkit-outer-spin-button,
+        .otp-row input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .otp-row input:focus {
+            border-color: #1B2A1E; background: #fff;
+            box-shadow: 0 0 0 3px rgba(27, 42, 30, 0.1);
+        }
+        .otp-row input.filled { border-color: #1B2A1E; background: #fff; }
+        .otp-row input.invalid { border-color: #FCA5A5; background: #FEF2F2; }
+        .otp-meta { font-size: 0.75rem; line-height: 1.6; color: #78716C; margin-top: 0.5rem; }
+        .resend-row {
+            display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+            margin-top: 1.1rem; font-size: 0.8125rem; color: #6B7280;
+        }
+        .resend-row form { display: inline; margin: 0; }
+        .link-btn {
+            background: none; border: none; padding: 0; cursor: pointer;
+            font-family: inherit; font-size: 0.8125rem; font-weight: 700;
+            color: #1B2A1E; text-decoration: underline; text-underline-offset: 2px;
+        }
+        .link-btn:disabled { color: #A8A29E; cursor: default; text-decoration: none; }
+        .link-btn:hover:not(:disabled) { color: #15803D; }
+        .step.done .num svg { display: block; }
+
         /* buttons */
         .btn-row { display: flex; gap: 0.75rem; margin-top: 0.25rem; }
         .btn-submit {
@@ -420,22 +464,33 @@
                 <span>Klinik Hewan</span>
             </div>
 
+            @php $pending = $pending ?? null; @endphp
             <div class="steps" aria-label="Langkah pendaftaran">
-                <div class="step active" id="stepDot1"><span class="num">1</span> Klinik</div>
-                <div class="step-line"><span id="stepBar" style="width: 50%"></span></div>
-                <div class="step" id="stepDot2"><span class="num">2</span> Data diri</div>
+                <div class="step {{ $pending ? 'done' : 'active' }}" id="stepDot1"><span class="num">{{ $pending ? '✓' : '1' }}</span> Klinik</div>
+                <div class="step-line"><span id="stepBar" style="width: {{ $pending ? '100%' : '0%' }}"></span></div>
+                <div class="step {{ $pending ? 'done' : '' }}" id="stepDot2"><span class="num">{{ $pending ? '✓' : '2' }}</span> Data diri</div>
+                <div class="step-line"><span id="stepBar2" style="width: {{ $pending ? '100%' : '0%' }}"></span></div>
+                <div class="step {{ $pending ? 'active' : '' }}" id="stepDot3"><span class="num">3</span> Verifikasi</div>
             </div>
 
             <div class="form-header">
                 <span class="eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.6" cy="10.2" r="2"/><circle cx="9.4" cy="5.6" r="2.3"/><circle cx="14.6" cy="5.6" r="2.3"/><circle cx="18.4" cy="10.2" r="2"/><path d="M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z"/></svg> Pendaftaran Admin Klinik</span>
-                <h1 id="formTitle">Pilih klinik yang ingin Anda kelola</h1>
-                <p id="formSubtitle">Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.</p>
+                <h1 id="formTitle">{{ $pending ? 'Verifikasi email admin' : 'Pilih klinik yang ingin Anda kelola' }}</h1>
+                <p id="formSubtitle">
+                    {{ $pending
+                        ? 'Satu langkah lagi sebelum permintaan Anda diteruskan ke super admin.'
+                        : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.' }}
+                </p>
             </div>
 
             @if(session('success'))
                 <div class="success-box">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/></svg><span>{{ session('success') }}</span>
                 </div>
+            @endif
+
+            @if(session('warning'))
+                <div class="warning-box">{{ session('warning') }}</div>
             @endif
 
             @if($errors->any())
@@ -449,6 +504,79 @@
                 </div>
             @endif
 
+            @if($pending)
+                {{-- Langkah 3: kode akses admin. Permintaan join belum dikirim. --}}
+                <div class="chosen-clinic">
+                    <span class="mini-avatar" style="background: {{ $pending['clinic_color'] }}">
+                        {{ strtoupper(substr($pending['clinic_name'], 0, 1)) }}
+                    </span>
+                    <span>
+                        <strong>{{ $pending['clinic_name'] }}</strong><br>
+                        <span style="font-size:0.72rem; opacity:0.85">Diajukan oleh {{ $pending['name'] ?: $pending['email'] }}</span>
+                    </span>
+                </div>
+
+                <div class="otp-intro">
+                    <p>
+                        Kode akses 6 digit dikirim ke <strong>{{ $pending['email'] }}</strong>.
+                        Masukkan kode tersebut untuk memastikan alamat email ini benar-benar milik Anda.
+                        Permintaan baru diteruskan ke super admin setelah kode diverifikasi.
+                    </p>
+                </div>
+
+                <form method="POST" action="{{ route('admin.register.verify') }}" id="otpForm" novalidate>
+                    @csrf
+                    <label class="field-label" for="otpDigit1">Kode akses admin</label>
+                    <div class="otp-row" data-otp>
+                        @for($i = 0; $i < 6; $i++)
+                            <input
+                                id="otpDigit{{ $i + 1 }}"
+                                type="text"
+                                name="code[]"
+                                value="{{ old('code.' . $i) }}"
+                                inputmode="numeric"
+                                pattern="[0-9]*"
+                                maxlength="1"
+                                autocomplete="{{ $i === 0 ? 'one-time-code' : 'off' }}"
+                                aria-label="Digit {{ $i + 1 }} dari 6"
+                                @if($i === 0) autofocus @endif
+                                @error('code') aria-invalid="true" class="invalid" @enderror
+                            >
+                        @endfor
+                    </div>
+                    @error('code')
+                        <div class="field-error">{{ $message }}</div>
+                    @enderror
+                    <p class="otp-meta">
+                        Kode berlaku {{ $pending['ttl'] }} menit dan hanya bisa dipakai sekali.
+                        Tidak menemukannya? Cek folder Spam atau Promosi.
+                    </p>
+
+                    <div class="btn-row">
+                        <button type="submit" class="btn-submit" id="otpSubmit">
+                            <div class="spinner"></div>
+                            <span class="btn-text">Verifikasi &amp; kirim permintaan</span>
+                        </button>
+                    </div>
+                </form>
+
+                <div class="resend-row">
+                    <span>Belum menerima kode?</span>
+                    <form method="POST" action="{{ route('admin.register.resend') }}">
+                        @csrf
+                        <button type="submit" class="link-btn" id="resendBtn"
+                                data-wait="{{ $pending['resend_wait'] }}"
+                                @if($pending['resend_wait'] > 0) disabled @endif>
+                            {{ $pending['resend_wait'] > 0 ? 'Kirim ulang dalam ' . $pending['resend_wait'] . ' dtk' : 'Kirim ulang kode' }}
+                        </button>
+                    </form>
+                    <span aria-hidden="true">·</span>
+                    <form method="POST" action="{{ route('admin.register.cancel') }}">
+                        @csrf
+                        <button type="submit" class="link-btn">Ganti email</button>
+                    </form>
+                </div>
+            @else
             <form method="POST" action="{{ route('admin.register.post') }}" id="joinForm" novalidate>
                 @csrf
 
@@ -546,11 +674,17 @@
                         <button type="button" class="btn-ghost" id="backToStep1">← Kembali</button>
                         <button type="submit" class="btn-submit" id="submitBtn">
                             <div class="spinner"></div>
-                            <span class="btn-text">Kirim permintaan</span>
+                            <span class="btn-text">Kirim kode verifikasi</span>
                         </button>
                     </div>
+
+                    <p class="otp-meta">
+                        Kami mengirim kode 6 digit ke email di atas untuk memastikan alamatnya aktif.
+                        Permintaan Anda baru masuk ke super admin setelah kode diverifikasi.
+                    </p>
                 </fieldset>
             </form>
+            @endif
 
             <div class="form-footer">
                 <p>Sudah punya akun? <a href="{{ route('admin.login') }}">Login di sini</a></p>
@@ -606,6 +740,7 @@
         </div>
     </div>
 
+    @if(!$pending)
     <script>
         // ---------- wizard ----------
         const step1 = document.getElementById('step1');
@@ -613,6 +748,7 @@
         const dot1 = document.getElementById('stepDot1');
         const dot2 = document.getElementById('stepDot2');
         const bar = document.getElementById('stepBar');
+        const bar2 = document.getElementById('stepBar2');
         const title = document.getElementById('formTitle');
         const subtitle = document.getElementById('formSubtitle');
         const hint = document.getElementById('clinicHint');
@@ -630,10 +766,11 @@
                 ? '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
                 : '1';
             dot2.classList.toggle('active', toTwo);
-            bar.style.width = toTwo ? '100%' : '50%';
+            bar.style.width = toTwo ? '100%' : '0%';
+            if (bar2) bar2.style.width = '0%';
             title.textContent = toTwo ? 'Lengkapi data diri Anda' : 'Pilih klinik yang ingin Anda kelola';
             subtitle.textContent = toTwo
-                ? 'Data ini dipakai super admin untuk memverifikasi permintaan Anda.'
+                ? 'Data ini dipakai super admin untuk memverifikasi permintaan Anda. Setelah dikirim, kami akan mengirim kode ke email Anda.'
                 : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.';
             if (toTwo) { updateChosen(); document.getElementById('name').focus(); }
             window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -754,5 +891,93 @@
             btn.disabled = true;
         });
     </script>
+    @endif
+
+    @if($pending)
+    <script>
+        (function () {
+            // ---------- input kode: auto-maju, backspace, paste ----------
+            const row = document.querySelector('[data-otp]');
+            const form = document.getElementById('otpForm');
+            const submit = document.getElementById('otpSubmit');
+            if (!row) return;
+
+            const digits = Array.from(row.querySelectorAll('input'));
+
+            digits.forEach(function (input, index) {
+                input.addEventListener('input', function () {
+                    const value = input.value.replace(/\D/g, '').slice(-1);
+                    input.value = value;
+                    input.classList.toggle('filled', value !== '');
+                    if (value && index < digits.length - 1) {
+                        digits[index + 1].focus();
+                        digits[index + 1].select();
+                    }
+                });
+
+                input.addEventListener('keydown', function (event) {
+                    if (event.key === 'Backspace' && input.value === '' && index > 0) {
+                        event.preventDefault();
+                        digits[index - 1].focus();
+                        digits[index - 1].value = '';
+                        digits[index - 1].classList.remove('filled');
+                    } else if (event.key === 'ArrowLeft' && index > 0) {
+                        event.preventDefault();
+                        digits[index - 1].focus();
+                    } else if (event.key === 'ArrowRight' && index < digits.length - 1) {
+                        event.preventDefault();
+                        digits[index + 1].focus();
+                    }
+                });
+
+                input.addEventListener('paste', function (event) {
+                    event.preventDefault();
+                    const text = (event.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '');
+                    if (!text) return;
+                    digits.forEach(function (box, i) {
+                        if (i >= index && i < index + text.length) {
+                            box.value = text.charAt(i - index);
+                            box.classList.add('filled');
+                        }
+                    });
+                    const next = Math.min(index + text.length, digits.length - 1);
+                    digits[next].focus();
+                });
+            });
+
+            form.addEventListener('submit', function (event) {
+                const code = digits.map(function (d) { return d.value; }).join('');
+                if (!/^\d{6}$/.test(code)) {
+                    event.preventDefault();
+                    digits.forEach(function (d) {
+                        if (d.value === '') d.classList.add('invalid');
+                    });
+                    digits[0].focus();
+                    return;
+                }
+                submit.classList.add('loading');
+                submit.disabled = true;
+            });
+
+            // ---------- hitung mundur kirim ulang ----------
+            const resend = document.getElementById('resendBtn');
+            if (!resend) return;
+
+            let wait = parseInt(resend.dataset.wait || '0', 10);
+            const tick = function () {
+                if (wait <= 0) {
+                    resend.disabled = false;
+                    resend.textContent = 'Kirim ulang kode';
+                    return;
+                }
+                resend.disabled = true;
+                resend.textContent = 'Kirim ulang dalam ' + wait + ' dtk';
+                wait -= 1;
+                setTimeout(tick, 1000);
+            };
+            tick();
+        })();
+    </script>
+    @endif
 </body>
 </html>

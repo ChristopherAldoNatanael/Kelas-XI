@@ -22,13 +22,29 @@ class OtpService
     public const PURPOSE_REGISTER = 'register';
     public const PURPOSE_RESET = 'reset';
 
+    /**
+     * Tujuan khusus dashboard admin. Sengaja dipisah dari `register`/`reset`
+     * milik aplikasi pet owner: kode admin punya masa berlaku, template email,
+     * dan teks sendiri, serta tidak bisa dipakai di alur aplikasi (dan sebaliknya).
+     */
+    public const PURPOSE_ADMIN_REGISTER = 'admin_register';
+    public const PURPOSE_ADMIN_PASSWORD = 'admin_password';
+
     private const MAX_ATTEMPTS = 5;
 
     /** Masa berlaku kode per tujuan (menit). */
     private const TTL_MINUTES = [
         self::PURPOSE_REGISTER => 10,
         self::PURPOSE_RESET => 15,
+        self::PURPOSE_ADMIN_REGISTER => 10,
+        self::PURPOSE_ADMIN_PASSWORD => 10,
     ];
+
+    /** Apakah tujuan ini milik dashboard admin (bukan aplikasi pet owner). */
+    public static function isAdminPurpose(string $purpose): bool
+    {
+        return in_array($purpose, [self::PURPOSE_ADMIN_REGISTER, self::PURPOSE_ADMIN_PASSWORD], true);
+    }
 
     public function ttlMinutes(string $purpose): int
     {
@@ -73,10 +89,16 @@ class OtpService
      * pemanggil bisa jujur bilang "email gagal dikirim" alih-alih mengklaim
      * kode sudah terkirim padahal tidak ada email yang keluar.
      */
-    public function send(string $email, string $purpose, string $code): bool
+    public function send(string $email, string $purpose, string $code, array $context = []): bool
     {
         try {
-            Mail::to($email)->send(new OtpMail($code, $purpose, $this->ttlMinutes($purpose)));
+            Mail::to($email)->send(new OtpMail(
+                $code,
+                $purpose,
+                $this->ttlMinutes($purpose),
+                $context['clinic_name'] ?? null,
+                $context['recipient_name'] ?? null,
+            ));
 
             return true;
         } catch (\Exception $e) {
@@ -107,7 +129,7 @@ class OtpService
      *
      * @return array{ok: bool, status: int, message: string, payload: array}
      */
-    public function verify(string $email, string $purpose, string $code): array
+    public function verify(string $email, string $purpose, string $code, string $label = 'Kode OTP'): array
     {
         $email = $this->normalize($email);
 
@@ -117,15 +139,15 @@ class OtpService
             ->first();
 
         if (!$record) {
-            return $this->fail('Kode OTP tidak ditemukan. Silakan minta kode baru.');
+            return $this->fail("{$label} tidak ditemukan. Silakan minta kode baru.");
         }
 
         if ($record->consumed_at !== null) {
-            return $this->fail('Kode OTP telah digunakan. Silakan minta kode baru.');
+            return $this->fail("{$label} sudah dipakai. Silakan minta kode baru.");
         }
 
         if (now()->greaterThan(\Carbon\Carbon::parse($record->expires_at))) {
-            return $this->fail('Kode OTP telah kedaluwarsa. Silakan minta kode baru.');
+            return $this->fail("{$label} sudah kedaluwarsa. Silakan minta kode baru.");
         }
 
         if ((int) $record->attempts >= self::MAX_ATTEMPTS) {
@@ -138,8 +160,8 @@ class OtpService
 
             return $this->fail(
                 $remaining > 0
-                    ? "Kode OTP yang Anda masukkan salah. Sisa percobaan: {$remaining}."
-                    : 'Kode OTP yang Anda masukkan salah. Silakan minta kode baru.'
+                    ? "{$label} yang Anda masukkan salah. Sisa percobaan: {$remaining}."
+                    : "{$label} yang Anda masukkan salah. Silakan minta kode baru."
             );
         }
 
@@ -149,6 +171,28 @@ class OtpService
             'message' => 'Kode OTP valid',
             'payload' => $this->decodePayload($record->payload),
         ];
+    }
+
+    /**
+     * Waktu kedaluwarsa kode aktif (null jika tidak ada / sudah dipakai /
+     * kedaluwarsa). Dipakai halaman admin untuk memutuskan menampilkan form
+     * kode atau tombol "kirim kode" tanpa membocorkan isi kode.
+     */
+    public function activeUntil(string $email, string $purpose): ?\Carbon\Carbon
+    {
+        $record = DB::table('otp_codes')
+            ->where('email', $this->normalize($email))
+            ->where('purpose', $purpose)
+            ->whereNull('consumed_at')
+            ->first();
+
+        if (!$record) {
+            return null;
+        }
+
+        $expiresAt = \Carbon\Carbon::parse($record->expires_at);
+
+        return $expiresAt->isFuture() ? $expiresAt : null;
     }
 
     /** Hapus kode setelah dipakai — satu kode hanya berlaku sekali. */

@@ -3,8 +3,8 @@
 @endphp
 @extends('layouts.admin')
 
-@section('title', 'Services - VCMS Admin')
-@section('header', 'Services & Pricelist')
+@section('title', __('menu.services') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.services'))
 
 @section('content')
 
@@ -32,8 +32,8 @@
                 <span class="material-symbols-outlined text-[21px]">task_alt</span>
             </div>
             <div>
-                <p class="text-sm font-semibold text-slate-900 dark:text-white">Service import completed</p>
-                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">Processed {{ $summary['total'] ?? 0 }} rows. Review failed rows before running another import.</p>
+                <p class="text-sm font-semibold text-slate-900 dark:text-white">Import layanan selesai</p>
+                <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{{ $summary['total'] ?? 0 }} baris diproses. Periksa baris yang gagal sebelum import lagi.</p>
             </div>
         </div>
         <div class="flex flex-wrap gap-2">

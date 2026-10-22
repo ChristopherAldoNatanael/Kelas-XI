@@ -3,15 +3,23 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Clinic;
 use App\Models\ClinicJoinRequest;
 use App\Models\User;
+use App\Services\OtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class AdminAuthController extends Controller
 {
+    /** Email yang sedang menunggu kode verifikasi pendaftaran admin. */
+    private const JOIN_EMAIL = 'admin_join_email';
+    private const JOIN_SENT_AT = 'admin_join_otp_sent_at';
+
+    /** Penanda kapan kode ganti sandi terakhir dikirim (untuk jeda kirim ulang). */
+    private const PASSWORD_SENT_AT = 'admin_password_otp_sent_at';
     /**
      * Show login form
      */
@@ -64,24 +72,30 @@ class AdminAuthController extends Controller
     }
 
     /**
-     * Show join request form (replaces old register)
+     * Show join request form (replaces old register).
+     *
+     * Ketika ada email yang menunggu verifikasi, halaman yang sama menampilkan
+     * langkah kode akses — bukan halaman ketiga yang terpisah.
      */
-    public function showJoinRequestForm()
+    public function showJoinRequestForm(Request $request, OtpService $otp)
     {
         if (Auth::check() && in_array(Auth::user()->role, ['super_admin', 'clinic_admin', 'admin'])) {
             return redirect()->route('admin.dashboard');
         }
 
         $clinics = Clinic::where('is_active', true)->orderBy('name')->get();
-        return view('admin.auth.join-request', compact('clinics'));
+        $pending = $this->pendingJoinVerification($request, $otp);
+
+        return view('admin.auth.join-request', compact('clinics', 'pending'));
     }
 
     /**
-     * Submit join request (does NOT create a user)
+     * Langkah 1 pendaftaran admin: validasi data, buat kode, kirim ke email.
+     * Belum ada ClinicJoinRequest yang dibuat di titik ini.
      */
-    public function submitJoinRequest(Request $request)
+    public function requestJoinOtp(Request $request, OtpService $otp)
     {
-        $request->validate([
+        $validated = $request->validate([
             'clinic_id' => 'required|exists:clinics,id',
             'name' => 'required|string|max:255',
             'email' => 'required|email',
@@ -89,38 +103,239 @@ class AdminAuthController extends Controller
             'password' => 'required|string|min:8|confirmed',
         ]);
 
-        $clinic = Clinic::where('is_active', true)->findOrFail($request->input('clinic_id'));
-
-        // Check for duplicate pending request
-        $existingRequest = ClinicJoinRequest::where('email', $request->input('email'))
-            ->where('clinic_id', $clinic->id)
-            ->where('status', 'pending')
-            ->first();
-
-        if ($existingRequest) {
+        $clinic = Clinic::where('is_active', true)->find($validated['clinic_id']);
+        if (!$clinic) {
             return back()->withErrors([
-                'email' => __('auth.duplicate_request'),
+                'clinic_id' => 'Klinik ini sedang tidak aktif. Pilih klinik lain atau hubungi super admin.',
             ])->withInput();
         }
 
-        // Check if email already taken by a user
-        $existingUser = \App\Models\User::where('email', $request->input('email'))->first();
-        if ($existingUser) {
+        $email = $otp->normalize($validated['email']);
+
+        if (User::where('email', $email)->exists()) {
+            return back()->withErrors(['email' => __('auth.email_taken')])->withInput();
+        }
+
+        $alreadyPending = ClinicJoinRequest::where('email', $email)
+            ->where('clinic_id', $clinic->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($alreadyPending) {
             return back()->withErrors([
-                'email' => __('auth.email_taken'),
+                'email' => 'Permintaan untuk email ini sudah menunggu persetujuan super admin. Tidak perlu mendaftar lagi.',
             ])->withInput();
+        }
+
+        $payload = [
+            'name' => $validated['name'],
+            'email' => $email,
+            'phone' => $validated['phone'] ?? null,
+            'clinic_id' => $clinic->id,
+            // Password tidak pernah disimpan plaintext, termasuk di payload kode.
+            'password_hash' => Hash::make($validated['password']),
+        ];
+
+        $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_REGISTER, $payload);
+        $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_REGISTER, $code, [
+            'clinic_name' => $clinic->name,
+            'recipient_name' => $validated['name'],
+        ]);
+
+        $request->session()->put(self::JOIN_EMAIL, $email);
+        $request->session()->put(self::JOIN_SENT_AT, now()->timestamp);
+
+        return redirect()->route('admin.register')->with(
+            $sent ? 'success' : 'warning',
+            $sent
+                ? 'Kode akses admin sudah dikirim ke ' . $email . '. Kode berlaku ' . $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_REGISTER) . ' menit.'
+                : 'Kode sudah dibuat, tetapi email gagal dikirim. Gunakan "Kirim ulang kode" beberapa saat lagi.'
+        );
+    }
+
+    /**
+     * Langkah 2 pendaftaran admin: verifikasi kode lalu buat permintaan join.
+     * Akun admin tetap belum dibuat — super admin yang menyetujui.
+     */
+    public function verifyJoinOtp(Request $request, OtpService $otp)
+    {
+        $request->validate([
+            'code' => ['required', 'array', 'size:6'],
+            'code.*' => ['required', 'digits:1'],
+        ], [
+            'code.required' => 'Masukkan 6 digit kode akses dari email Anda.',
+            'code.size' => 'Kode akses terdiri dari 6 digit.',
+            'code.*.digits' => 'Setiap kotak hanya boleh berisi satu angka.',
+        ]);
+
+        $code = implode('', $request->input('code'));
+        $email = (string) $request->session()->get(self::JOIN_EMAIL, '');
+
+        if ($email === '') {
+            return redirect()->route('admin.register')
+                ->with('warning', 'Sesi verifikasi tidak ditemukan. Silakan isi formulir pendaftaran lagi.');
+        }
+
+        $result = $otp->verify($email, OtpService::PURPOSE_ADMIN_REGISTER, $code, 'Kode akses admin');
+
+        if (!$result['ok']) {
+            return back()->withErrors(['code' => $result['message']]);
+        }
+
+        $payload = $result['payload'];
+        if (empty($payload['email']) || empty($payload['password_hash']) || empty($payload['clinic_id'])) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.register')
+                ->with('warning', 'Data pendaftaran tidak ditemukan. Silakan isi formulir lagi.');
+        }
+
+        $clinic = Clinic::find($payload['clinic_id']);
+        if (!$clinic || !$clinic->is_active) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.register')
+                ->with('warning', 'Klinik tujuan sudah tidak aktif. Silakan pilih klinik lain.');
+        }
+
+        // Email bisa saja terdaftar / request lain dibuat setelah kode dikirim.
+        if (User::where('email', $email)->exists()) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.register')
+                ->withErrors(['email' => __('auth.email_taken')]);
+        }
+
+        $alreadyPending = ClinicJoinRequest::where('email', $email)
+            ->where('clinic_id', $clinic->id)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($alreadyPending) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.login')
+                ->with('success', 'Email sudah terverifikasi dan permintaan Anda masih menunggu persetujuan super admin.');
         }
 
         ClinicJoinRequest::create([
             'clinic_id' => $clinic->id,
-            'name' => $request->input('name'),
-            'email' => $request->input('email'),
-            'phone' => $request->input('phone'),
-            'password_hash' => Hash::make($request->input('password')),
+            'name' => $payload['name'] ?? '',
+            'email' => $email,
+            'phone' => $payload['phone'] ?? null,
+            'password_hash' => $payload['password_hash'],
             'status' => 'pending',
         ]);
 
-        return redirect()->route('admin.login')->with('success', __('auth.request_submitted'));
+        $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+        $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+        $request->session()->regenerate();
+
+        return redirect()->route('admin.login')->with(
+            'success',
+            'Email ' . $email . ' terverifikasi. Permintaan akses admin ' . $clinic->name . ' sudah dikirim ke super admin.'
+        );
+    }
+
+    /**
+     * Kirim ulang kode pendaftaran memakai payload yang tersimpan, dengan jeda
+     * 60 detik supaya kuota email tidak habis karena klik berulang.
+     */
+    public function resendJoinOtp(Request $request, OtpService $otp)
+    {
+        $email = (string) $request->session()->get(self::JOIN_EMAIL, '');
+
+        if ($email === '') {
+            return redirect()->route('admin.register')
+                ->with('warning', 'Sesi verifikasi sudah berakhir. Silakan isi formulir pendaftaran lagi.');
+        }
+
+        $wait = $this->resendWait($request);
+        if ($wait > 0) {
+            return back()->with('warning', 'Tunggu ' . $wait . ' detik sebelum meminta kode baru.');
+        }
+
+        $payload = $otp->payload($email, OtpService::PURPOSE_ADMIN_REGISTER);
+        if ($payload === []) {
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.register')
+                ->with('warning', 'Kode sebelumnya sudah tidak berlaku. Silakan isi formulir pendaftaran lagi.');
+        }
+
+        $clinic = Clinic::find($payload['clinic_id'] ?? null);
+        $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_REGISTER, $payload);
+        $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_REGISTER, $code, [
+            'clinic_name' => $clinic?->name ?? 'PetHeal',
+            'recipient_name' => $payload['name'] ?? null,
+        ]);
+
+        $request->session()->put(self::JOIN_SENT_AT, now()->timestamp);
+
+        return back()->with(
+            $sent ? 'success' : 'warning',
+            $sent
+                ? 'Kode akses baru sudah dikirim ke ' . $email . '.'
+                : 'Kode baru dibuat, tetapi email gagal dikirim. Coba lagi beberapa saat lagi.'
+        );
+    }
+
+    /** Batalkan pendaftaran yang belum terverifikasi. */
+    public function cancelJoinOtp(Request $request, OtpService $otp)
+    {
+        $email = (string) $request->session()->get(self::JOIN_EMAIL, '');
+
+        if ($email !== '') {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+        }
+
+        $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+        return redirect()->route('admin.register')
+            ->with('success', 'Pendaftaran dibatalkan. Data yang Anda isi tidak disimpan.');
+    }
+
+    /** @return array<string, mixed>|null */
+    private function pendingJoinVerification(Request $request, OtpService $otp): ?array
+    {
+        $email = (string) $request->session()->get(self::JOIN_EMAIL, '');
+
+        if ($email === '') {
+            return null;
+        }
+
+        $expiresAt = $otp->activeUntil($email, OtpService::PURPOSE_ADMIN_REGISTER);
+        $payload = $otp->payload($email, OtpService::PURPOSE_ADMIN_REGISTER);
+
+        if (!$expiresAt || $payload === []) {
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+            $request->session()->flash('warning', 'Sesi verifikasi berakhir. Silakan isi formulir pendaftaran lagi.');
+
+            return null;
+        }
+
+        $clinic = Clinic::find($payload['clinic_id'] ?? null);
+
+        return [
+            'email' => $email,
+            'name' => $payload['name'] ?? null,
+            'clinic_name' => $clinic?->name ?? 'PetHeal',
+            'clinic_color' => $clinic?->primary_color ?? '#18C964',
+            'ttl' => $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_REGISTER),
+            'expires_at' => $expiresAt,
+            'resend_wait' => $this->resendWait($request),
+        ];
+    }
+
+    private function resendWait(Request $request): int
+    {
+        $sentAt = (int) $request->session()->get(self::JOIN_SENT_AT, 0);
+
+        return max(0, 60 - (now()->timestamp - $sentAt));
     }
 
     /**
@@ -256,7 +471,7 @@ class AdminAuthController extends Controller
     /**
      * Show settings page
      */
-    public function settings()
+    public function settings(Request $request, OtpService $otp)
     {
         $clinic = currentClinic();
 
@@ -268,7 +483,27 @@ class AdminAuthController extends Controller
                 ->get();
         }
 
-        return view('admin.settings', compact('clinic', 'clinicAdmins'));
+        // One page, four tabs: akun, keamanan, klinik, tim. Tab klinik dan tim
+        // hanya tersedia ketika ada konteks klinik aktif.
+        $activeTab = (string) $request->query('tab', 'akun');
+
+        // Kode ganti sandi yang masih hidup menentukan apakah tab Keamanan
+        // menampilkan tombol "kirim kode" atau form berisi kolom kode.
+        $me = Auth::user();
+        $passwordOtp = null;
+        if ($me) {
+            $expiresAt = $otp->activeUntil($otp->normalize($me->email), OtpService::PURPOSE_ADMIN_PASSWORD);
+            if ($expiresAt) {
+                $sentAt = (int) $request->session()->get(self::PASSWORD_SENT_AT, 0);
+                $passwordOtp = [
+                    'expires_at' => $expiresAt,
+                    'ttl' => $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_PASSWORD),
+                    'resend_wait' => max(0, 60 - (now()->timestamp - $sentAt)),
+                ];
+            }
+        }
+
+        return view('admin.settings', compact('clinic', 'clinicAdmins', 'activeTab', 'passwordOtp'));
     }
 
     /**
@@ -292,13 +527,70 @@ class AdminAuthController extends Controller
     }
 
     /**
-     * Update admin password
+     * Kirim kode verifikasi ganti sandi ke email akun admin yang sedang login.
      */
-    public function updatePassword(Request $request)
+    public function sendPasswordOtp(Request $request, OtpService $otp)
+    {
+        $admin = Auth::user();
+
+        if (!$admin) {
+            return redirect()->route('admin.login');
+        }
+
+        $clinic = currentClinic();
+        $email = $otp->normalize($admin->email);
+
+        $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_PASSWORD, [
+            'admin_id' => $admin->id,
+            'clinic_id' => $clinic?->id,
+        ]);
+
+        $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_PASSWORD, $code, [
+            'clinic_name' => $clinic?->name ?? 'PetHeal',
+            'recipient_name' => $admin->name,
+        ]);
+
+        $request->session()->put(self::PASSWORD_SENT_AT, now()->timestamp);
+
+        return back()->with(
+            $sent ? 'success' : 'error',
+            $sent
+                ? 'Kode akses admin dikirim ke ' . $email . '. Berlaku ' . $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_PASSWORD) . ' menit.'
+                : 'Kode gagal dikirim ke email. Periksa konfigurasi email server lalu coba lagi.'
+        );
+    }
+
+    /** Batalkan kode ganti sandi yang belum dipakai. */
+    public function cancelPasswordOtp(Request $request, OtpService $otp)
+    {
+        $admin = Auth::user();
+
+        if ($admin) {
+            $otp->consume($otp->normalize($admin->email), OtpService::PURPOSE_ADMIN_PASSWORD);
+        }
+
+        $request->session()->forget(self::PASSWORD_SENT_AT);
+
+        return back()->with('success', 'Kode akses dibatalkan. Kata sandi tidak berubah.');
+    }
+
+    /**
+     * Update admin password — wajib kode verifikasi email.
+     *
+     * Urutan sengaja: cek password lama dulu (kesalahan ketik umum tidak
+     * menghabiskan percobaan kode), baru verifikasi kode, baru simpan.
+     */
+    public function updatePassword(Request $request, OtpService $otp)
     {
         $request->validate([
             'current_password' => 'required|string',
             'new_password' => 'required|string|min:8|confirmed',
+            'code' => ['required', 'array', 'size:6'],
+            'code.*' => ['required', 'digits:1'],
+        ], [
+            'code.required' => 'Masukkan 6 digit kode verifikasi dari email Anda.',
+            'code.size' => 'Kode verifikasi terdiri dari 6 digit.',
+            'code.*.digits' => 'Setiap kotak hanya boleh berisi satu angka.',
         ]);
 
         $admin = Auth::user();
@@ -307,8 +599,28 @@ class AdminAuthController extends Controller
             return back()->withErrors(['current_password' => __('auth.password_incorrect')]);
         }
 
-        $admin->update(['password' => Hash::make($request->input('new_password'))]);
+        $email = $otp->normalize($admin->email);
+        $result = $otp->verify(
+            $email,
+            OtpService::PURPOSE_ADMIN_PASSWORD,
+            implode('', $request->input('code')),
+            'Kode akses admin'
+        );
 
-        return back()->with('success', __('auth.password_updated'));
+        if (!$result['ok']) {
+            return back()->withErrors(['code' => $result['message']]);
+        }
+
+        $admin->update(['password' => Hash::make($request->input('new_password'))]);
+        $otp->consume($email, OtpService::PURPOSE_ADMIN_PASSWORD);
+        $request->session()->forget(self::PASSWORD_SENT_AT);
+        $request->session()->regenerate();
+
+        AuditLog::log(
+            'admin.password.change',
+            'Kata sandi akun admin diperbarui setelah verifikasi kode email.'
+        );
+
+        return back()->with('success', 'Kata sandi diperbarui. Gunakan kata sandi baru pada login berikutnya.');
     }
 }

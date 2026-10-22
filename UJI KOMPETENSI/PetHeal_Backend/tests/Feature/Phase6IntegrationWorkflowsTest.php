@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\OtpMail;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\ClinicJoinRequest;
@@ -15,6 +16,7 @@ use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -180,12 +182,23 @@ class Phase6IntegrationWorkflowsTest extends TestCase
     {
         $email = 'joiner' . $this->suffix . '@int.test';
 
-        // Public submit.
+        Mail::fake();
+
+        // Public submit: langkah 1 hanya mengirim kode, belum membuat request.
         $this->post('/admin/register', [
             'clinic_id' => $this->clinicA->id,
             'name' => 'Joiner', 'email' => $email,
             'password' => 'password123', 'password_confirmation' => 'password123',
+        ])->assertRedirect(route('admin.register'));
+
+        $this->assertDatabaseMissing('clinic_join_requests', ['email' => $email]);
+        $code = Mail::sent(OtpMail::class)->firstOrFail()->code;
+
+        // Langkah 2: verifikasi email, baru request dibuat.
+        $this->post('/admin/register/verifikasi', [
+            'code' => str_split($code),
         ])->assertRedirect(route('admin.login'));
+
         $req = ClinicJoinRequest::where('email', $email)->firstOrFail();
         $this->assertEquals('pending', $req->status);
 

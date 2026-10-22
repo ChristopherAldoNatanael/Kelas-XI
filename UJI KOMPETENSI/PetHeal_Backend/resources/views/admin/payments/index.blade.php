@@ -5,6 +5,20 @@
 @section('header', 'Invoice & Pembayaran')
 
 @section('content')
+<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div>
+        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Keuangan</p>
+        <h2 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Invoice & Pembayaran</h2>
+        <p class="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
+            Semua tagihan berasal dari booking. Buka detail booking untuk mencatat pembayaran, mengunduh invoice, dan melihat rekam medis sekaligus.
+        </p>
+    </div>
+    <a href="{{ route('admin.bookings.index') }}" class="inline-flex items-center gap-1.5 self-start rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
+        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>
+        Daftar booking
+    </a>
+</div>
+
 {{-- Statistics Cards --}}
 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
     <div class="glass-card p-5 rounded-xl border border-slate-200/50">
@@ -184,7 +198,7 @@
                     </td>
                     <td class="px-6 py-4 text-center">
                         <div class="flex items-center justify-center gap-1">
-                            <a href="{{ route('admin.payments.show', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="Lihat detail pembayaran">
+                            <a href="{{ route('admin.bookings.show', $payment->id) }}#pembayaran" class="w-8 h-8 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="Buka detail booking & pembayaran">
                                 <span class="material-symbols-outlined text-md">visibility</span>
                             </a>
                             <a href="{{ route('admin.payments.receipt', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-emerald-600 transition-all inline-flex items-center justify-center" title="Unduh invoice PDF">
@@ -224,40 +238,4 @@
     @endif
 </div>
 
-{{-- Success/Error Messages --}}
-@if(session('success'))
-<div id="successMessage" class="fixed top-6 right-6 z-50 bg-emerald-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
-    <span class="material-symbols-outlined">check_circle</span>
-    <p class="font-semibold text-sm">{{ session('success') }}</p>
-</div>
-<script>
-    setTimeout(() => {
-        const msg = document.getElementById('successMessage');
-        if (msg) msg.style.display = 'none';
-    }, 4000);
-</script>
-@endif
-
-@if(session('error'))
-<div id="errorMessage" class="fixed top-6 right-6 z-50 bg-red-500 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-3 animate-slide-in">
-    <span class="material-symbols-outlined">error</span>
-    <p class="font-semibold text-sm">{{ session('error') }}</p>
-</div>
-<script>
-    setTimeout(() => {
-        const msg = document.getElementById('errorMessage');
-        if (msg) msg.style.display = 'none';
-    }, 4000);
-</script>
-@endif
-
-<style>
-    @keyframes slide-in {
-        from { transform: translateX(100%); opacity: 0; }
-        to { transform: translateX(0); opacity: 1; }
-    }
-    .animate-slide-in {
-        animation: slide-in 0.3s ease-out;
-    }
-</style>
 @endsection

@@ -96,21 +96,15 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">group</span>
                     <span class="sidebar-text">{{ __('menu.patients') }}</span>
                 </a>
-                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.bookings.*') && !request()->routeIs('admin.bookings.schedule') ? 'active-nav-item' : '' }} relative"
-                   href="{{ route('admin.bookings.index') }}" @if(request()->routeIs('admin.bookings.*') && !request()->routeIs('admin.bookings.schedule')) aria-current="page" @endif>
+                {{-- Satu entri untuk booking: daftar dan papan harian ada di
+                     dalam halaman yang sama lewat tab, bukan dua menu terpisah. --}}
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.bookings.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.bookings.index') }}" @if(request()->routeIs('admin.bookings.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.bookings.*'))
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
-                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">calendar_today</span>
-                    <span class="sidebar-text">{{ __('menu.appointments') }}</span>
-                </a>
-                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.bookings.schedule') ? 'active-nav-item' : '' }} relative"
-                   href="{{ route('admin.bookings.schedule') }}" @if(request()->routeIs('admin.bookings.schedule')) aria-current="page" @endif>
-                    @if(request()->routeIs('admin.bookings.schedule'))
-                    <div class="active-indicator" aria-hidden="true"></div>
-                    @endif
-                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">calendar_view_day</span>
-                    <span class="sidebar-text">{{ __('menu.schedule') }}</span>
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">calendar_month</span>
+                    <span class="sidebar-text">{{ __('menu.appointments_schedule') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.doctors.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.doctors.index') }}" @if(request()->routeIs('admin.doctors.*')) aria-current="page" @endif>
@@ -165,16 +159,8 @@
                         <span class="sidebar-text">{{ __('menu.join_requests') }}</span>
                     </a>
                     @endif
-                    @if($clinic)
-                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.clinic-profile') ? 'active-nav-item' : '' }} relative"
-                       href="{{ route('admin.clinic-profile') }}" @if(request()->routeIs('admin.clinic-profile')) aria-current="page" @endif>
-                        @if(request()->routeIs('admin.clinic-profile'))
-                        <div class="active-indicator" aria-hidden="true"></div>
-                        @endif
-                        <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">store</span>
-                        <span class="sidebar-text">{{ __('menu.clinic_profile') }}</span>
-                    </a>
-                    @endif
+                    {{-- Profil klinik bukan halaman terpisah lagi: hidup sebagai
+                         tab di Pengaturan supaya tidak ada dua halaman data klinik. --}}
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.audit-logs') ? 'active-nav-item' : '' }} relative"
                        href="{{ route('admin.audit-logs') }}" @if(request()->routeIs('admin.audit-logs')) aria-current="page" @endif>
                         @if(request()->routeIs('admin.audit-logs'))
@@ -183,9 +169,9 @@
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">history</span>
                         <span class="sidebar-text">{{ __('menu.audit_logs') }}</span>
                     </a>
-                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') ? 'active-nav-item' : '' }} relative"
-                       href="{{ route('admin.settings') }}" @if(request()->routeIs('admin.settings')) aria-current="page" @endif>
-                        @if(request()->routeIs('admin.settings'))
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile') ? 'active-nav-item' : '' }} relative"
+                       href="{{ route('admin.settings') }}" @if(request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile')) aria-current="page" @endif>
+                        @if(request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile'))
                         <div class="active-indicator" aria-hidden="true"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">settings</span>
@@ -459,14 +445,14 @@
             const quickActions = [
                 {
                     type: 'action',
-                    title: 'Papan Jadwal',
+                    title: 'Booking — Papan Jadwal',
                     subtitle: 'Lihat kunjungan hari ini per dokter dan jam',
                     url: @json(route('admin.bookings.schedule')),
                     icon: 'calendar_view_day'
                 },
                 {
                     type: 'action',
-                    title: 'Semua Booking',
+                    title: 'Booking — Daftar',
                     subtitle: 'Cari dan kelola seluruh janji temu',
                     url: @json(route('admin.bookings.index')),
                     icon: 'calendar_today'

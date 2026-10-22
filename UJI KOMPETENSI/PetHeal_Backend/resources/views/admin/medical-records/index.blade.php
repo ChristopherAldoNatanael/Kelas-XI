@@ -9,8 +9,8 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
 
 @extends('layouts.admin')
 
-@section('title', 'Medical Records - VCMS Admin')
-@section('header', 'Medical Records Management')
+@section('title', __('menu.medical_records') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.medical_records'))
 
 @section('content')
 <div class="space-y-6">
@@ -22,35 +22,35 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
                     <div class="max-w-2xl">
                         <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-white/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
                             <span class="material-symbols-outlined text-[15px]">clinical_notes</span>
-                            Clinical Documentation
+                            Dokumentasi klinis
                         </div>
-                        <h2 class="mt-4 text-2xl font-semibold tracking-tight text-slate-900 md:text-[2rem]">Medical records with billing context that is easy to scan.</h2>
-                        <p class="mt-3 max-w-xl text-sm leading-6 text-slate-500">Monitor diagnosis, treatment cost, follow-up schedule, and extra payment status from a single workspace without losing operational clarity.</p>
+                        <h2 class="mt-4 text-2xl font-semibold tracking-tight text-slate-900 md:text-[2rem]">Rekam medis dan biaya tindakan dalam satu tampilan.</h2>
+                        <p class="mt-3 max-w-xl text-sm leading-6 text-slate-500">Pantau diagnosis, biaya penanganan, jadwal kontrol, dan status pembayaran tambahan tanpa berpindah halaman.</p>
                     </div>
 
                     <div class="flex flex-wrap gap-3">
                         <a href="{{ route('admin.medical-records.export.pdf', request()->query()) }}" target="_blank" class="inline-flex h-11 items-center gap-2 rounded-2xl border border-red-200 bg-white/80 px-4 text-sm font-semibold text-red-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-red-50">
                             <span class="material-symbols-outlined text-[18px]">picture_as_pdf</span>
-                            Export PDF
+                            Unduh PDF
                         </a>
                         <a href="{{ route('admin.medical-records.export.csv', request()->query()) }}" class="inline-flex h-11 items-center gap-2 rounded-2xl border border-emerald-200 bg-white/80 px-4 text-sm font-semibold text-emerald-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-emerald-50">
                             <span class="material-symbols-outlined text-[18px]">download</span>
-                            Export CSV
+                            Unduh CSV
                         </a>
                         <button type="button" onclick="window.print()" class="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-slate-800">
                             <span class="material-symbols-outlined text-[18px]">print</span>
-                            Print View
+                            Cetak
                         </button>
                     </div>
                 </div>
 
                 <div class="mt-8 grid gap-4 md:grid-cols-3">
                     <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Records in system</p>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Total rekam medis</p>
                         <div class="mt-3 flex items-end justify-between">
                             <div>
                                 <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ number_format($totalRecords) }}</p>
-                                <p class="mt-1 text-sm text-slate-500">{{ number_format($pageItems) }} shown on this page</p>
+                                <p class="mt-1 text-sm text-slate-500">{{ number_format($pageItems) }} tampil di halaman ini</p>
                             </div>
                             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700">
                                 <span class="material-symbols-outlined text-[24px]">folder_shared</span>
@@ -59,11 +59,11 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
                     </div>
 
                     <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Extra payment attention</p>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Perlu tindak lanjut biaya</p>
                         <div class="mt-3 flex items-end justify-between">
                             <div>
                                 <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ number_format($extraPendingCount) }}</p>
-                                <p class="mt-1 text-sm text-slate-500">Pending, unpaid, or partial on this page</p>
+                                <p class="mt-1 text-sm text-slate-500">Menunggu, belum bayar, atau sebagian</p>
                             </div>
                             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
                                 <span class="material-symbols-outlined text-[24px]">payments</span>
@@ -72,11 +72,11 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
                     </div>
 
                     <div class="rounded-3xl border border-white/70 bg-white/75 p-5 shadow-[0_12px_30px_-20px_rgba(15,23,42,0.45)] backdrop-blur">
-                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Visible medical revenue</p>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">Biaya tindakan tampil</p>
                         <div class="mt-3 flex items-end justify-between">
                             <div>
                                 <p class="text-3xl font-semibold tracking-tight text-slate-900">{{ $currency($totalMedicalRevenue) }}</p>
-                                <p class="mt-1 text-sm text-slate-500">Accumulated from current result set</p>
+                                <p class="mt-1 text-sm text-slate-500">Akumulasi dari hasil filter saat ini</p>
                             </div>
                             <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-700">
                                 <span class="material-symbols-outlined text-[24px]">monitoring</span>
@@ -96,24 +96,24 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
         <form method="GET" action="{{ route('admin.medical-records.index') }}" class="border-b border-slate-200/70 px-6 py-6 md:px-8">
             <div class="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                 <div>
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Filter Workspace</p>
-                    <h3 class="mt-2 text-lg font-semibold tracking-tight text-slate-900">Refine records by date and payment state</h3>
-                    <p class="mt-1 text-sm text-slate-500">Keep the queue clean before export or follow-up.</p>
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">Filter</p>
+                    <h3 class="mt-2 text-lg font-semibold tracking-tight text-slate-900">Persempit rekam medis berdasarkan tanggal dan pembayaran</h3>
+                    <p class="mt-1 text-sm text-slate-500">Rapikan daftar sebelum export atau tindak lanjut.</p>
                 </div>
 
                 <div class="grid flex-1 gap-4 md:grid-cols-2 xl:max-w-3xl xl:grid-cols-4">
                     <div>
-                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">From date</label>
+                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Dari tanggal</label>
                         <input type="date" name="from" value="{{ request('from') }}" class="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-emerald-400 focus:ring-emerald-200">
                     </div>
                     <div>
-                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">To date</label>
+                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Sampai tanggal</label>
                         <input type="date" name="to" value="{{ request('to') }}" class="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-emerald-400 focus:ring-emerald-200">
                     </div>
                     <div>
-                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Extra payment</label>
+                        <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">Pembayaran tambahan</label>
                         <select name="payment_status" class="w-full rounded-2xl border border-slate-200 bg-white/80 px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-emerald-400 focus:ring-emerald-200">
-                            <option value="">All statuses</option>
+                            <option value="">Semua status</option>
                             @foreach(['not_required', 'unpaid', 'pending', 'partial', 'paid', 'failed'] as $status)
                                 <option value="{{ $status }}" @selected(request('payment_status') === $status)>{{ ucfirst(str_replace('_', ' ', $status)) }}</option>
                             @endforeach
@@ -122,7 +122,7 @@ $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ','
                     <div class="flex items-end gap-3">
                         <button type="submit" class="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-2xl bg-primary px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600">
                             <span class="material-symbols-outlined text-[18px]">filter_alt</span>
-                            Apply
+                            Terapkan
                         </button>
                         <a href="{{ route('admin.medical-records.index') }}" class="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white/80 px-4 text-sm font-semibold text-slate-600 transition hover:bg-slate-50">
                             Reset

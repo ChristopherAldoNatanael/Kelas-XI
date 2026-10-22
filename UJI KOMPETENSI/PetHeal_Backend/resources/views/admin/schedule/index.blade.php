@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Jadwal Klinik')
-@section('header', 'Jadwal Klinik')
+@section('title', __('menu.schedule') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.appointments_schedule'))
 
 @section('content')
 @php
@@ -21,21 +21,7 @@
     ];
 @endphp
 
-<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-    <div>
-        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">Operasional harian</p>
-        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">Papan Jadwal</h2>
-        <p class="text-sm text-slate-500 mt-1">Pantau urutan kunjungan per dokter dan jam, lalu konfirmasi atau selesaikan langsung dari sini.</p>
-    </div>
-    <div class="flex items-center gap-2">
-        <a href="{{ route('admin.bookings.index') }}" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            Semua Booking
-        </a>
-        <a href="{{ route('admin.payments.index') }}" class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            Invoice
-        </a>
-    </div>
-</div>
+@include('admin.bookings._tabs')
 
 {{-- Date navigator --}}
 <div class="glass-card rounded-2xl border border-slate-200/60 p-4 sm:p-5 mb-6">
@@ -297,16 +283,6 @@
         </form>
     </div>
 </div>
-
-@if(session('success') || session('warning'))
-<div id="scheduleToast" class="fixed top-6 right-6 z-[60] {{ session('success') ? 'bg-emerald-600' : 'bg-amber-600' }} text-white px-5 py-3.5 rounded-xl shadow-2xl flex items-center gap-2.5">
-    <span class="material-symbols-outlined text-[20px]">{{ session('success') ? 'check_circle' : 'warning' }}</span>
-    <p class="text-sm font-semibold">{{ session('success') ?? session('warning') }}</p>
-</div>
-<script>
-    setTimeout(() => document.getElementById('scheduleToast')?.remove(), 4200);
-</script>
-@endif
 
 <script>
     function openCancelModal(bookingId, petName) {

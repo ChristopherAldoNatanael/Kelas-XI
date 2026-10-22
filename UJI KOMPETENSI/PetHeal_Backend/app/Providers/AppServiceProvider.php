@@ -92,6 +92,23 @@ class AppServiceProvider extends ServiceProvider
             );
         });
 
+        // Kode dashboard admin dikirim ke email akun yang sedang login, jadi
+        // batasnya per akun (bukan per input email yang bisa dipalsukan).
+        RateLimiter::for('admin-otp-send', function (Request $request) {
+            $key = 'admin|' . ($request->user()?->id ?: $request->ip());
+
+            return [
+                Limit::perMinute(2)->by($key),
+                Limit::perDay(10)->by($key),
+            ];
+        });
+
+        // Percobaan kode dibatasi 5x per kode di OtpService; throttle ini hanya
+        // mencegah spam submit dari satu akun.
+        RateLimiter::for('admin-password-verify', function (Request $request) {
+            return Limit::perMinute(10)->by('admin-password|' . ($request->user()?->id ?: $request->ip()));
+        });
+
         RateLimiter::for('uploads', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
         });

@@ -11,6 +11,7 @@ return [
     // Sidebar menu items
     'patients' => 'Pasien',
     'appointments' => 'Janji Temu',
+    'appointments_schedule' => 'Janji Temu & Jadwal',
     'schedule' => 'Jadwal Klinik',
     'veterinarians' => 'Dokter Hewan',
     'services' => 'Layanan',

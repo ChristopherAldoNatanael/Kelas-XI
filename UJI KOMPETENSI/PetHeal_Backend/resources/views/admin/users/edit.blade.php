@@ -1,83 +1,65 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit User - VCMS Admin')
-@section('header', 'Edit User')
+@section('title', 'Ubah pengguna — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', 'Ubah pengguna')
 
 @section('content')
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-        <h2 class="text-md font-bold text-slate-900 dark:text-white">Edit User #{{ $user->id }}</h2>
-        <a href="{{ route('admin.users.show', $user->id) }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-            <span class="material-symbols-outlined text-[18px]">arrow_back</span>Back
+<div class="mx-auto max-w-xl">
+    <div class="mb-5 flex items-start justify-between gap-3">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ $user->name }}</h2>
+            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
+                Perbarui data kontak atau reset password pengguna.
+            </p>
+        </div>
+        <a href="{{ route('admin.users.show', $user->id) }}"
+           class="inline-flex flex-shrink-0 items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
+            Kembali
         </a>
     </div>
 
-    <div class="p-6">
-        <form method="POST" action="{{ route('admin.users.update', $user->id) }}">
-            @csrf
-            @method('PUT')
+    <form method="POST" action="{{ route('admin.users.update', $user->id) }}"
+          class="space-y-4 rounded-2xl border border-slate-200/70 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
+        @csrf
+        @method('PUT')
 
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Name *</label>
-                    <input type="text" name="name" required
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all"
-                        placeholder="Enter user name" value="{{ old('name', $user->name) }}">
-                    @error('name')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+        <div>
+            <label for="name" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Nama lengkap <span class="text-rose-500">*</span></label>
+            <input id="name" type="text" name="name" required value="{{ old('name', $user->name) }}"
+                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
 
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Email *</label>
-                    <input type="email" name="email" required
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all"
-                        placeholder="Enter email address" value="{{ old('email', $user->email) }}">
-                    @error('email')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
+        <div>
+            <label for="email" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email <span class="text-rose-500">*</span></label>
+            <input id="email" type="email" name="email" required value="{{ old('email', $user->email) }}"
+                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            @error('email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
 
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Phone</label>
-                    <input type="text" name="phone"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all"
-                        placeholder="Enter phone number" value="{{ old('phone', $user->phone) }}">
-                </div>
+        <div>
+            <label for="phone" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Nomor telepon</label>
+            <input id="phone" type="text" name="phone" value="{{ old('phone', $user->phone) }}"
+                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            @error('phone') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
 
-                <div class="form-group">
-                    <label for="role" class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Role</label>
-                    <select id="role" name="role" class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all">
-                        <option value="user" {{ old('role', $user->role ?? '') == 'user' ? 'selected' : '' }}>User</option>
-                        <option value="admin" {{ old('role', $user->role ?? '') == 'admin' ? 'selected' : '' }}>Admin</option>
-                    </select>
-                </div>
+        <div>
+            <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Password baru</label>
+            <input id="password" type="password" name="password" autocomplete="new-password" placeholder="Kosongkan jika tidak diubah"
+                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
+            <p class="mt-1 text-xs text-slate-400">Isi hanya jika ingin mengganti password pengguna (minimal 6 karakter).</p>
+            @error('password') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+        </div>
 
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">New Password</label>
-                    <input type="password" name="password"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm outline-none transition-all"
-                        placeholder="Leave blank to keep current password">
-                    <p class="text-xs text-slate-400 mt-1">Leave blank to keep the current password</p>
-                </div>
-
-                <div>
-                    <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Firebase UID</label>
-                    <input type="text" disabled
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-500 cursor-not-allowed"
-                        value="{{ $user->firebase_uid ?? 'Local User' }}">
-                </div>
-            </div>
-
-            <div class="mt-6 flex justify-end gap-2">
-                <a href="{{ route('admin.users.show', $user->id) }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold transition-all">
-                    Cancel
-                </a>
-                <button type="submit" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-                    <span class="material-symbols-outlined text-[18px]">save</span>Update User
-                </button>
-            </div>
-        </form>
-    </div>
+        <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
+            <a href="{{ route('admin.users.show', $user->id) }}" class="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">Batal</a>
+            <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                Simpan perubahan
+            </button>
+        </div>
+    </form>
 </div>
 @endsection

@@ -153,7 +153,18 @@ class ClinicController extends Controller
                 ->with('warning', __('clinics.select_clinic_first'));
         }
 
-        return view('admin.clinics.profile', compact('clinic'));
+        $clinicAdmins = User::where('clinic_id', $clinic->id)
+            ->whereIn('role', ['clinic_admin', 'super_admin'])
+            ->orderBy('name')
+            ->get();
+
+        // Profil klinik hidup di dalam halaman Pengaturan yang sama supaya
+        // tidak ada dua halaman yang menampilkan data klinik yang sama.
+        return view('admin.settings', [
+            'clinic' => $clinic,
+            'clinicAdmins' => $clinicAdmins,
+            'activeTab' => 'klinik',
+        ]);
     }
 
     /**

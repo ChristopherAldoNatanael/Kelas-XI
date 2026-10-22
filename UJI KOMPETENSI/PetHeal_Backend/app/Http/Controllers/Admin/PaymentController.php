@@ -109,23 +109,27 @@ class PaymentController extends Controller
     }
 
     /**
-     * Display payment detail — clinic scoped
+     * Payment detail is no longer a separate page.
+     *
+     * Satu booking = satu catatan. Panel pembayaran (rincian, invoice,
+     * pengingat, dan konfirmasi manual) hidup di halaman detail booking,
+     * jadi tautan lama tetap diarahkan ke sana, bukan menampilkan halaman
+     * kedua dengan data booking yang sama.
      */
     public function show($id)
     {
+        // Tetap tegakkan isolasi klinik sebelum mengalihkan: booking milik
+        // klinik lain harus 404, bukan bocor lewat redirect.
         $clinicId = currentClinicId();
-        $query = Booking::with(['user', 'pet', 'doctor', 'medicalRecord'])->where('id', $id);
+        $query = Booking::whereKey($id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
         }
-        $booking = $query->firstOrFail();
+        $query->firstOrFail();
 
-        // Calculate payment progress
-        $paymentProgress = $booking->total_amount > 0
-            ? round(($booking->paid_amount / $booking->total_amount) * 100, 2)
-            : 0;
-
-        return view('admin.payments.show', compact('booking', 'paymentProgress'));
+        return redirect()->to(
+            route('admin.bookings.show', $id) . '#pembayaran'
+        );
     }
 
     /**
