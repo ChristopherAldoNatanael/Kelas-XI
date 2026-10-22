@@ -34,6 +34,9 @@ data class PaymentReceipt(
     fun fileName(): String =
         "Bukti-Pembayaran-${invoiceNumber.replace(Regex("[^A-Za-z0-9-]"), "-")}.png"
 
+    fun pdfFileName(): String =
+        "Bukti-Pembayaran-${invoiceNumber.replace(Regex("[^A-Za-z0-9-]"), "-")}.pdf"
+
     fun asText(): String = buildString {
         appendLine(clinicName.ifBlank { "Klinik" })
         if (clinicAddress.isNotBlank()) appendLine(clinicAddress)

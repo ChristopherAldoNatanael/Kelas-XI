@@ -51,9 +51,16 @@ class SendReminders extends Command
         $tomorrow = Carbon::tomorrow();
         $today = Carbon::today();
         
+        // PHASE 4: jangan kirim dua kali pada hari yang sama. Scheduler bisa
+        // terpanggil ulang manual, dan tanpa filter ini pasien menerima
+        // reminder ganda. `last_reminder_at` diisi saat pengiriman berhasil.
         $bookings = Booking::with(['user', 'pet', 'doctor'])
             ->whereBetween('booking_date', [$today, $tomorrow])
             ->whereIn('status', ['pending', 'confirmed'])
+            ->where(function ($query) use ($today) {
+                $query->whereNull('last_reminder_at')
+                    ->orWhereDate('last_reminder_at', '<', $today->toDateString());
+            })
             ->get();
         
         $sent = 0;
@@ -73,6 +80,7 @@ class SendReminders extends Command
                 );
 
                 if ($delivered) {
+                    $booking->update(['last_reminder_at' => now()]);
                     $sent++;
                 }
             } catch (\Throwable $e) {

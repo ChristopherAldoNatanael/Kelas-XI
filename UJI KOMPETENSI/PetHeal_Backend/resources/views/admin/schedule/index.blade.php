@@ -130,7 +130,14 @@
     <div class="overflow-x-auto pb-3 custom-scrollbar">
         <div class="flex items-start gap-4 min-w-max">
             @foreach($doctors as $doctor)
-                @php $doctorBookings = $bookingsByDoctor[$doctor->id] ?? collect(); @endphp
+                @php
+                    $doctorBookings = $bookingsByDoctor[$doctor->id] ?? collect();
+                    $doctorSchedule = $effectiveSchedules[$doctor->id] ?? null;
+                    $isClosed = (bool) ($doctorSchedule['is_closed'] ?? false);
+                    $isWorking = (bool) ($doctorSchedule['is_working_day'] ?? true);
+                    $isSpecial = (bool) ($doctorSchedule['has_exception'] ?? false);
+                    $reviewCount = $doctorBookings->filter(fn ($b) => isset($bookingsNeedingReview[$b->id]))->count();
+                @endphp
                 <section class="w-[310px] flex-shrink-0 rounded-2xl border border-slate-200/70 bg-white/80 dark:bg-slate-900/60 dark:border-slate-800 overflow-hidden" aria-label="Jadwal {{ $doctor->name }}">
                     <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/30">
                         <div class="flex items-start gap-3">
@@ -138,10 +145,17 @@
                                 <span class="material-symbols-outlined text-primary">medical_services</span>
                             </div>
                             <div class="min-w-0 flex-1">
-                                <div class="flex items-center gap-2">
+                                <div class="flex flex-wrap items-center gap-1.5">
                                     <h3 class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $doctor->name }}</h3>
                                     @if(!$doctor->is_active)
                                         <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Nonaktif</span>
+                                    @endif
+                                    @if($isClosed)
+                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">Cuti</span>
+                                    @elseif($isSpecial)
+                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Jam khusus</span>
+                                    @elseif(!$isWorking)
+                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Tidak praktik</span>
                                     @endif
                                 </div>
                                 <p class="text-[11px] text-slate-500 truncate">{{ $doctor->specialization ?? 'Dokter hewan' }}</p>
@@ -150,10 +164,31 @@
                                 {{ $doctorBookings->count() }} janji
                             </span>
                         </div>
-                        @if($doctor->available_time)
-                            <p class="text-[10px] text-slate-400 mt-3 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[13px]">schedule</span>
-                                {{ $doctor->available_time }}
+                        <div class="mt-3 flex items-start justify-between gap-2">
+                            <p class="text-[10px] mt-0.5 flex items-start gap-1 {{ $isClosed ? 'text-rose-600' : 'text-slate-400' }}">
+                                <span class="material-symbols-outlined text-[13px]">
+                                    {{ $isClosed ? 'event_busy' : 'schedule' }}
+                                </span>
+                                <span class="leading-snug">
+                                    @if($isClosed)
+                                        Sehari penuh{{ $doctorSchedule['reason'] ? ' · ' . $doctorSchedule['reason'] : '' }}
+                                    @elseif($isWorking)
+                                        {{ $doctorSchedule['start_time'] }} - {{ $doctorSchedule['end_time'] }} WIB
+                                    @else
+                                        Tidak ada jam praktik
+                                    @endif
+                                </span>
+                            </p>
+                            <a href="{{ route('admin.doctors.schedule', ['id' => $doctor->id, 'date' => $selectedDate]) }}"
+                               class="shrink-0 w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-primary hover:border-primary/40 transition-colors inline-flex items-center justify-center"
+                               title="Atur cuti / jam khusus" aria-label="Atur jadwal {{ $doctor->name }}">
+                                <span class="material-symbols-outlined text-[15px]">tune</span>
+                            </a>
+                        </div>
+                        @if($reviewCount > 0)
+                            <p class="mt-2 flex items-start gap-1 rounded-lg bg-rose-50 border border-rose-100 px-2 py-1.5 text-[10px] font-medium text-rose-700">
+                                <span class="material-symbols-outlined text-[13px]">notification_important</span>
+                                {{ $reviewCount }} booking di luar jadwal — tinjau manual
                             </p>
                         @endif
                     </div>
@@ -179,10 +214,16 @@
                                             <span class="text-[9px] font-bold px-2 py-1 rounded-md border flex-shrink-0 {{ $status[0] }}">{{ $status[1] }}</span>
                                         </div>
                                         <p class="text-[11px] text-slate-500 mt-2 truncate">{{ $booking->service->name ?? 'Layanan klinik' }}</p>
-                                        <div class="flex items-center gap-1.5 mt-2">
+                                        <div class="flex flex-wrap items-center gap-1.5 mt-2">
                                             <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded border {{ $paymentStyle }}">
                                                 {{ $booking->payment_status === 'paid' ? 'Lunas' : ($booking->remaining_amount > 0 ? 'Sisa Rp ' . number_format($booking->remaining_amount, 0, ',', '.') : 'Belum dibayar') }}
                                             </span>
+                                            @if(isset($bookingsNeedingReview[$booking->id]))
+                                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-rose-50 text-rose-700 border-rose-200 inline-flex items-center gap-0.5">
+                                                    <span class="material-symbols-outlined text-[11px]">warning</span>
+                                                    Di luar jadwal
+                                                </span>
+                                            @endif
                                         </div>
                                     </div>
                                 </div>

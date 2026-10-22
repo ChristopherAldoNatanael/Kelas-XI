@@ -7,6 +7,8 @@ use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\Doctor;
+use App\Models\DoctorScheduleException;
+use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
@@ -16,8 +18,10 @@ class BookingController extends Controller
 {
     protected FCMService $fcmService;
 
-    public function __construct(FCMService $fcmService)
-    {
+    public function __construct(
+        FCMService $fcmService,
+        private readonly DoctorScheduleService $schedule
+    ) {
         $this->fcmService = $fcmService;
     }
 
@@ -96,6 +100,31 @@ class BookingController extends Controller
             'cancelled' => (int) ($statusCounts['cancelled'] ?? 0),
         ];
 
+        // PHASE 4: jadwal efektif per dokter untuk tanggal yang dipilih.
+        // Papan jadwal memakai service yang sama dengan endpoint slot, jadi
+        // badge "cuti" dan slot picker Android tidak mungkin berbeda.
+        $dayExceptions = DoctorScheduleException::query()
+            ->where('clinic_id', $clinicId)
+            ->whereDate('date', $selectedDate)
+            ->get()
+            ->keyBy('doctor_id');
+
+        $effectiveSchedules = [];
+        $bookingsNeedingReview = [];
+        foreach ($doctors as $doctor) {
+            $schedule = $this->schedule->effectiveSchedule($doctor, $selectedDate);
+            $effectiveSchedules[$doctor->id] = $schedule;
+
+            foreach ($bookingsByDoctor[$doctor->id] ?? [] as $booking) {
+                if (!in_array($booking->status, ['pending', 'confirmed'], true)) {
+                    continue;
+                }
+                if (!$this->schedule->isTimeWithinSchedule($schedule, (string) $booking->booking_time)) {
+                    $bookingsNeedingReview[$booking->id] = true;
+                }
+            }
+        }
+
         $selectedDoctorId = $validated['doctor_id'] ?? null;
         $previousDate = \Carbon\Carbon::parse($selectedDate)->subDay()->toDateString();
         $nextDate = \Carbon\Carbon::parse($selectedDate)->addDay()->toDateString();
@@ -109,7 +138,10 @@ class BookingController extends Controller
             'selectedDoctorId',
             'previousDate',
             'nextDate',
-            'isToday'
+            'isToday',
+            'dayExceptions',
+            'effectiveSchedules',
+            'bookingsNeedingReview'
         ));
     }
 
@@ -327,6 +359,13 @@ class BookingController extends Controller
             $booking->pet_id,
             $booking->doctor_id
         );
+
+        // PHASE 4: status reminder hanya dicatat saat benar-benar terkirim.
+        // Pengiriman gagal tidak boleh membuat admin mengira pasien sudah
+        // diingatkan (dan tidak boleh memblokir percobaan berikutnya).
+        if ($sent) {
+            $booking->update(['last_reminder_at' => now()]);
+        }
 
         AuditLog::log('booking.send_reminder', "Sent reminder for booking #{$id} to {$booking->user->name}", $booking);
 

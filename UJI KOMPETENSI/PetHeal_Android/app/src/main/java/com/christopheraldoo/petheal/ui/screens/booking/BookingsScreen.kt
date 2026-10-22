@@ -60,6 +60,8 @@ import com.christopheraldoo.petheal.util.HapticFeedback
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
 import com.christopheraldoo.petheal.util.isDoctorWorkingDay
+import com.christopheraldoo.petheal.util.toCustomHoursDates
+import com.christopheraldoo.petheal.util.toLeaveDates
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -1072,8 +1074,8 @@ fun BookingDetailScreen(
         // 409 artinya slot baru saja diambil orang lain. Muat ulang
         // ketersediaan tanpa menutup dialog agar pengguna bisa langsung
         // memilih jam pengganti.
-        LaunchedEffect(state.rescheduleConflict) {
-            if (state.rescheduleConflict && rescheduleDoctorId != null) {
+        LaunchedEffect(state.rescheduleConflict, state.rescheduleUnavailable) {
+            if ((state.rescheduleConflict || state.rescheduleUnavailable) && rescheduleDoctorId != null) {
                 viewModel.loadRescheduleSlots(rescheduleDoctorId, selectedDate)
             }
         }
@@ -1102,7 +1104,9 @@ fun BookingDetailScreen(
                         selectedDate = selectedDate,
                         availableDays = state.booking?.doctor?.availableDays,
                         onDateSelected = { selectedDate = it },
-                        dayCount = 14
+                        dayCount = 14,
+                        leaveDates = state.booking?.doctor?.scheduleExceptions.toLeaveDates(),
+                        extraWorkingDates = state.booking?.doctor?.scheduleExceptions.toCustomHoursDates()
                     )
 
                     BookingTimeSlots(
@@ -1123,7 +1127,8 @@ fun BookingDetailScreen(
                             selectedTime = it
                             viewModel.clearDetailError()
                         },
-                        date = selectedDate
+                        date = selectedDate,
+                        slotMeta = state.rescheduleSlotMeta
                     )
 
                     state.error?.let { rescheduleError ->
@@ -1989,7 +1994,9 @@ fun CreateBookingScreen(
                     BookingDateRail(
                         selectedDate = state.selectedDate,
                         availableDays = state.doctor?.availableDays,
-                        onDateSelected = { viewModel.selectDate(it, doctorId) }
+                        onDateSelected = { viewModel.selectDate(it, doctorId) },
+                        leaveDates = state.doctor?.scheduleExceptions.toLeaveDates(),
+                        extraWorkingDates = state.doctor?.scheduleExceptions.toCustomHoursDates()
                     )
                 }
 
@@ -2008,7 +2015,8 @@ fun CreateBookingScreen(
                         ),
                         onRetry = { viewModel.retrySlots(doctorId) },
                         onSelect = { viewModel.selectTime(it) },
-                        date = state.selectedDate
+                        date = state.selectedDate,
+                        slotMeta = state.slotMeta
                     )
                 }
 

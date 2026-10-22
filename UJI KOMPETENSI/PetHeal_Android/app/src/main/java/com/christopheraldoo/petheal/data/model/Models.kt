@@ -303,7 +303,18 @@ data class Doctor(
     @SerializedName("available_time") val availableTime: String? = null,
     @SerializedName("average_rating") val averageRating: Double? = null,
     @SerializedName("reviews_count") val reviewsCount: Int? = null,
+    // PHASE 4: tanggal cuti/jam khusus terdekat (detail dokter saja). Dipakai
+    // date rail untuk menandai hari libur tanpa request tambahan.
+    @SerializedName("schedule_exceptions") val scheduleExceptions: List<DoctorScheduleException>? = null,
     @SerializedName("created_at") val createdAt: String? = null
+)
+
+data class DoctorScheduleException(
+    val date: String? = null,
+    @SerializedName("is_closed") val isClosed: Boolean = false,
+    @SerializedName("start_time") val startTime: String? = null,
+    @SerializedName("end_time") val endTime: String? = null,
+    val reason: String? = null
 )
 
 data class DoctorsResponse(
@@ -327,7 +338,33 @@ data class TimeSlot(
 data class SlotsResponse(
     val success: Boolean,
     val message: String? = null,
-    val data: List<TimeSlot>? = null
+    val data: List<TimeSlot>? = null,
+    // PHASE 4: metadata jadwal efektif (cuti / jam khusus). Nullable supaya
+    // klien tetap jalan bila backend lama belum mengirimnya.
+    val meta: SlotMeta? = null
+)
+
+/**
+ * Jadwal efektif satu tanggal dari backend.
+ *
+ * `isClosed` = dokter cuti sehari penuh; `hasException` + `startTime`/
+ * `endTime` = jam praktik khusus tanggal itu. `reason` hanya untuk tampilan.
+ */
+data class SlotMeta(
+    @SerializedName("doctor_id") val doctorId: Int? = null,
+    val date: String? = null,
+    @SerializedName("is_working_day") val isWorkingDay: Boolean = false,
+    @SerializedName("is_closed") val isClosed: Boolean = false,
+    @SerializedName("has_exception") val hasException: Boolean = false,
+    @SerializedName("start_time") val startTime: String? = null,
+    @SerializedName("end_time") val endTime: String? = null,
+    val reason: String? = null
+)
+
+/** Slot + jadwal efektif tanggal tersebut; dikembalikan bersama oleh repository. */
+data class DoctorSlots(
+    val slots: List<TimeSlot>,
+    val meta: SlotMeta? = null
 )
 
 data class DoctorReviewUser(

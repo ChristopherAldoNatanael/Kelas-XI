@@ -116,11 +116,18 @@ class DoctorRepository @Inject constructor(
         }
     }
 
-    suspend fun getDoctorSlots(doctorId: Int, date: String): Result<List<TimeSlot>> {
+    suspend fun getDoctorSlots(doctorId: Int, date: String): Result<DoctorSlots> {
         return try {
             val response = apiService.getDoctorSlots(doctorId, date)
             if (response.isSuccessful && response.body()?.success == true) {
-                Result.Success(response.body()?.data ?: emptyList())
+                // `meta` additif: klien lama tidak mengirimnya, jadi null tetap
+                // sah dan UI memakai aturan hari praktik seperti sebelumnya.
+                Result.Success(
+                    DoctorSlots(
+                        slots = response.body()?.data ?: emptyList(),
+                        meta = response.body()?.meta
+                    )
+                )
             } else {
                 Log.e(TAG, "getDoctorSlots($doctorId, $date) failed: ${response.body()?.message} (HTTP ${response.code()})")
                 Result.Error(response.body()?.message ?: "Failed to get slots")

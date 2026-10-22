@@ -35,7 +35,12 @@
 | 1 | Trust & Polish | **Selesai** — 2026-10-20 | `docs/phases/PHASE_1_TRUST_POLISH.md` |
 | 2 | Core Loop Visibility | **Selesai (scope health)** — 2026-10-20 | `docs/phases/PHASE_2_CORE_LOOP.md` |
 | 3 | Operational Depth | **Selesai** — 2026-10-20 | `docs/phases/PHASE_3_OPERATIONAL_DEPTH.md` |
-| 4 | Scale & Monetization | Belum mulai | Membership, SaaS billing, chat/telemedicine |
+| 4 | Operational Trust & Proof | **Selesai** — 2026-10-21 | `docs/phases/PHASE_4_OPERATIONAL_TRUST.md` |
+
+> Fase 4 lama (**Scale & Monetization**: membership, SaaS billing, chat/telemedicine)
+> dipindah utuh ke **Backlog** (bagian 6) karena belum ada keputusan produk.
+> Fase 4 sekarang berisi pekerjaan operasional + bukti pelanggan yang bisa
+> diselesaikan tanpa pricing, subscription, atau mock UI.
 
 > Fase 2 sengaja dibatasi pada **visibilitas kesehatan hewan** (weight trend +
 > status vaksinasi). Booking slot, invoice center, dan schedule board dipindah
@@ -114,23 +119,48 @@ sinkronisasi offline, dan reminder otomatis baru.
 skema database besar. Jika salah satu dibutuhkan, naikkan ke Fase 4 dan minta
 persetujuan user.
 
-## 5. Fase 4 — Scale & Monetization (belum mulai)
+## 5. Fase 4 — Operational Trust & Proof (2026-10-21)
 
-Fase ini **tidak boleh dimulai sebagian**. Setiap item butuh keputusan produk
-dan migrasi database:
+**Tujuan:** jadwal klinik bisa dipercaya (cuti dan jam khusus benar-benar
+tercermin di slot), pelanggan punya bukti pembayaran resmi berformat PDF, dan
+admin tahu booking mana yang sudah diingatkan.
 
-- Membership/promo engine (harga, kuota, masa berlaku).
-- SaaS plan/billing multi-klinik.
-- Chat/telemedicine (butuh modul pesan, presence, dan moderasi).
-- PWA/public website dan analytics lintas klinik.
+**Urutan wajib di dalam fase ini:**
 
-Jangan membuat mock UI untuk item di atas. Mock tanpa backend akan menjadi
-dead code dan menyesatkan saat presentasi.
+1. **Jadwal dokter, cuti, dan pengecualian per tanggal** — tabel
+   `doctor_schedule_exceptions`, UI admin (papan jadwal + halaman jadwal
+   dokter), validasi slot di API create/reschedule, dan state slot picker
+   Android (`cuti`, `tidak praktik`, `penuh`, `jam lewat`). Booking lama
+   **tidak** dibatalkan otomatis; admin hanya diberi peringatan.
+2. **PDF bukti pembayaran** — renderer bukti yang sama dipakai untuk PNG dan
+   PDF A4 vector, simpan ke `Downloads/PetHeal`, bagikan lewat FileProvider.
+3. **Status reminder** — kolom `bookings.last_reminder_at`, diisi hanya saat
+   pengiriman berhasil, remover otomatis tidak dobel di hari yang sama, dan
+   statusnya terlihat di detail booking admin.
+
+**Non-goal fase ini:** membership/promo, harga paket, subscription, SaaS
+billing, chat/telemedicine, auto-cancel booking saat dokter cuti, PWA/public
+website, dan data mock.
+
+**Definisi selesai:**
+
+- `GET /doctors/{id}/slots` mengembalikan metadata cuti/jam khusus dan slot
+  mengikuti jadwal efektif.
+- Create booking & reschedule menolak cuti/jam di luar jadwal dengan `422
+  slot_unavailable` (bentrok tetap `409 slot_conflict`).
+- Slot picker Android membedakan cuti, tidak praktik, penuh, dan jam lewat.
+- Bukti PDF A4 bisa disimpan dan dibagikan dari sheet bukti.
+- Detail booking admin menampilkan status reminder; command `reminders:send`
+  tidak mengirim dua kali pada hari yang sama.
+- `php artisan test` hijau dan `./gradlew assembleDebug` sukses.
 
 ## 6. Backlog (ide yang ditunda)
 
 Tambahkan ide di sini, jangan langsung implementasi:
 
+- **Scale & Monetization (dulu Fase 4):** membership/promo engine, SaaS
+  plan/billing multi-klinik, chat/telemedicine, PWA/public website, analytics
+  lintas klinik. Belum boleh dibuat sebagian atau sebagai mock UI.
 - Pull-to-refresh di daftar Booking/Pets/Notifications (butuh cek versi
   Material3 atau implementasi nested scroll).
 - Dark mode Android (butuh audit token + kontras seluruh layar).
@@ -151,6 +181,10 @@ Tambahkan ide di sini, jangan langsung implementasi:
 | Error pages | `PetHeal_Backend/resources/views/errors/*` |
 | Android notifikasi | `.../service/PetHealFirebaseService.kt`, `MainActivity.kt`, `AndroidManifest.xml`, `res/values/strings.xml` |
 | Android health | `.../ui/screens/pet/PetsScreen.kt`, `.../ui/components/WeightTrendChart.kt` |
+| Jadwal efektif dokter | `.../app/Services/DoctorScheduleService.php`, `.../app/Models/DoctorScheduleException.php` |
+| Admin cuti dokter | `.../app/Http/Controllers/Admin/DoctorScheduleController.php`, `.../resources/views/admin/doctors/schedule.blade.php`, `.../resources/views/admin/schedule/index.blade.php` |
+| Slot states Android | `PetHeal_Android/.../util/SlotDayState.kt`, `.../ui/components/BookingSlotPicker.kt` |
+| PDF bukti pembayaran | `.../ui/components/PaymentReceiptImage.kt`, `PaymentReceiptSheet.kt` |
 
 ## 8. Cara verifikasi cepat
 
@@ -169,8 +203,8 @@ cd ..\PetHeal_Android
 Smoke test admin (setelah login):
 
 ```powershell
-$routes = @('/admin','/admin/users','/admin/bookings','/admin/doctors',
-  '/admin/services','/admin/medical-records','/admin/payments',
+$routes = @('/admin','/admin/users','/admin/bookings','/admin/schedule',
+  '/admin/doctors','/admin/services','/admin/medical-records','/admin/payments',
   '/admin/clinics','/admin/join-requests','/admin/clinic-profile',
   '/admin/audit-logs','/admin/settings','/admin/notification-settings')
 ```

@@ -6,12 +6,16 @@
 @section('content')
 <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
     <div class="p-6 border-b border-slate-100 dark:border-slate-800">
-        <div class="flex items-center justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h3 class="text-md font-bold text-slate-900 dark:text-white tracking-tight">Doctor Profile</h3>
                 <p class="text-xs text-slate-400 mt-0.5">View doctor details and information</p>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                <a href="{{ route('admin.doctors.schedule', $doctor->id) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
+                    <span class="material-symbols-outlined text-[18px]">event_busy</span>
+                    Jadwal &amp; Cuti
+                </a>
                 <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
                     <span class="material-symbols-outlined text-[18px]">edit</span>
                     Edit

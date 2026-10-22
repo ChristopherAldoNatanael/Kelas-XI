@@ -200,6 +200,19 @@
                             <span class="text-slate-400">Time:</span>
                             <span class="text-slate-800 dark:text-slate-200 font-medium">{{ $booking->booking_time }}</span>
                         </div>
+                        <div class="flex items-start justify-between gap-3">
+                            <span class="text-slate-400 shrink-0">Reminder:</span>
+                            @if($booking->last_reminder_at)
+                                <span class="text-right text-slate-800 dark:text-slate-200 font-medium">
+                                    Terakhir diingatkan
+                                    <span class="block text-xs text-slate-500">
+                                        {{ $booking->last_reminder_at->format('d M Y, H:i') }}
+                                    </span>
+                                </span>
+                            @else
+                                <span class="text-slate-400">Belum diingatkan</span>
+                            @endif
+                        </div>
                         @if($booking->confirmed_at)
                             <div class="flex justify-between">
                                 <span class="text-slate-400">Confirmed At:</span>

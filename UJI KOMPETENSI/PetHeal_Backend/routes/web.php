@@ -104,6 +104,11 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/export/bookings', [BookingController::class, 'exportPdf'])->name('bookings.export');
 
     // Doctors
+    // PHASE 4: jadwal & cuti per tanggal. Didaftarkan sebelum resource agar
+    // tidak bergantung pada urutan pencocokan `/doctors/{id}`.
+    Route::get('/doctors/{id}/schedule', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'show'])->name('doctors.schedule');
+    Route::post('/doctors/{id}/schedule-exceptions', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'store'])->name('doctors.schedule-exceptions.store');
+    Route::delete('/doctors/{id}/schedule-exceptions/{exception}', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'destroy'])->name('doctors.schedule-exceptions.destroy');
     Route::resource('doctors', DoctorController::class);
 
     // Medical Records

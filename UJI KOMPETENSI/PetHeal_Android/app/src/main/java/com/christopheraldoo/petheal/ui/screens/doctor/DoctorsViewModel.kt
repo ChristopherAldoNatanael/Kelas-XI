@@ -233,8 +233,8 @@ class DoctorsViewModel @Inject constructor(
                     // jam yang sudah lewat hari ini tidak tampil tersedia.
                     val selectedDate = runCatching { LocalDate.parse(date) }.getOrNull()
                     val slots = selectedDate?.let {
-                        result.data.withExpiredSlotsUnavailable(it)
-                    } ?: result.data
+                        result.data.slots.withExpiredSlotsUnavailable(it)
+                    } ?: result.data.slots
                     _detailState.value = _detailState.value.copy(
                         slots = slots, isSlotsLoading = false
                     )

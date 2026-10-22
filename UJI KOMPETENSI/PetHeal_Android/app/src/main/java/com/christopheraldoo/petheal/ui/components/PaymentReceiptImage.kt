@@ -11,6 +11,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
+import android.graphics.pdf.PdfDocument
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -31,11 +32,18 @@ import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.util.PaymentReceipt
 import com.christopheraldoo.petheal.util.ReceiptStatus
 import com.christopheraldoo.petheal.util.formatRupiah
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
+import kotlin.math.min
 
 private const val RECEIPT_W = 1080
 private const val RECEIPT_H = 1760
+
+// A4 portrait dalam point (72 dpi). PDF tetap vector: canvas PdfDocument
+// merekam perintah gambar, bukan menyalin screenshot aplikasi.
+private const val PDF_PAGE_W = 595
+private const val PDF_PAGE_H = 842
 private const val RECEIPT_MARGIN = 72f
 private const val CARD_TOP = 300f
 private const val CARD_LEFT = 56f
@@ -50,7 +58,52 @@ private const val CONTENT_RIGHT = RECEIPT_W - 112f
  */
 fun createPaymentReceiptBitmap(receipt: PaymentReceipt, accentColor: Color): Bitmap {
     val bitmap = Bitmap.createBitmap(RECEIPT_W, RECEIPT_H, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
+    drawReceipt(Canvas(bitmap), receipt, accentColor)
+    return bitmap
+}
+
+/**
+ * Bukti pembayaran sebagai PDF A4 portrait.
+ *
+ * Memakai renderer yang sama dengan PNG (`drawReceipt`) lalu diskalakan utuh
+ * ke halaman A4, sehingga layout, tipografi, dan angka tidak mungkin berbeda
+ * antar format. Hasilnya vektor — teks tetap tajam saat dicetak.
+ */
+fun createPaymentReceiptPdf(receipt: PaymentReceipt, accentColor: Color): ByteArray? {
+    val document = PdfDocument()
+    return try {
+        val pageInfo = PdfDocument.PageInfo.Builder(PDF_PAGE_W, PDF_PAGE_H, 1).create()
+        val page = document.startPage(pageInfo)
+        val canvas = page.canvas
+
+        val scale = min(
+            PDF_PAGE_W / RECEIPT_W.toFloat(),
+            PDF_PAGE_H / RECEIPT_H.toFloat()
+        )
+        canvas.save()
+        canvas.translate((PDF_PAGE_W - RECEIPT_W * scale) / 2f, 0f)
+        canvas.scale(scale, scale)
+        drawReceipt(canvas, receipt, accentColor)
+        canvas.restore()
+
+        document.finishPage(page)
+        ByteArrayOutputStream().use { output ->
+            document.writeTo(output)
+            output.toByteArray()
+        }
+    } catch (_: Exception) {
+        null
+    } finally {
+        document.close()
+    }
+}
+
+/**
+ * Menggambar bukti pada canvas berukuran 1080×1760. Satu implementasi untuk
+ * PNG (Bitmap) dan PDF (halaman A4) agar tidak ada layout kedua yang bisa
+ * menyimpang.
+ */
+private fun drawReceipt(canvas: Canvas, receipt: PaymentReceipt, accentColor: Color) {
     val accent = accentColor.toArgb()
     val ink = OnBackground.toArgb()
     val secondary = TextSecondary.toArgb()
@@ -225,8 +278,6 @@ fun createPaymentReceiptBitmap(receipt: PaymentReceipt, accentColor: Color): Bit
         3f,
         footerAccent
     )
-
-    return bitmap
 }
 
 fun saveReceiptToGallery(
@@ -293,6 +344,70 @@ fun shareReceiptImage(context: Context, bitmap: Bitmap, receipt: PaymentReceipt)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Bagikan bukti pembayaran"))
+        true
+    } catch (_: Exception) {
+        false
+    }
+
+/**
+ * Simpan PDF ke Downloads/PetHeal (Android 10+). Android 9 ke bawah memakai
+ * pemilih lokasi dari sheet, karena MediaStore.Downloads belum ada.
+ */
+fun saveReceiptPdfToDownloads(
+    context: Context,
+    bytes: ByteArray,
+    fileName: String
+): Uri? {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+    val resolver = context.contentResolver
+    val values = ContentValues().apply {
+        put(MediaStore.Downloads.DISPLAY_NAME, fileName)
+        put(MediaStore.Downloads.MIME_TYPE, "application/pdf")
+        put(
+            MediaStore.Downloads.RELATIVE_PATH,
+            "${Environment.DIRECTORY_DOWNLOADS}/PetHeal"
+        )
+        put(MediaStore.Downloads.IS_PENDING, 1)
+    }
+    val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values) ?: return null
+    return try {
+        resolver.openOutputStream(uri)?.use { it.write(bytes) }
+            ?: throw IllegalStateException("Gagal membuka file")
+        values.clear()
+        values.put(MediaStore.Downloads.IS_PENDING, 0)
+        resolver.update(uri, values, null, null)
+        uri
+    } catch (_: Exception) {
+        resolver.delete(uri, null, null)
+        null
+    }
+}
+
+fun writeReceiptPdfToUri(context: Context, bytes: ByteArray, uri: Uri): Boolean =
+    try {
+        context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } != null
+    } catch (_: Exception) {
+        false
+    }
+
+fun shareReceiptPdf(context: Context, bytes: ByteArray, receipt: PaymentReceipt): Boolean =
+    try {
+        val dir = File(context.cacheDir, "receipts").apply { mkdirs() }
+        val file = File(dir, receipt.pdfFileName())
+        FileOutputStream(file).use { it.write(bytes) }
+        val uri = FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file
+        )
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_TEXT, receipt.asText())
+            clipData = ClipData.newRawUri("Bukti pembayaran", uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(intent, "Bagikan bukti pembayaran (PDF)"))
         true
     } catch (_: Exception) {
         false

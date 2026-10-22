@@ -18,6 +18,7 @@ import com.christopheraldoo.petheal.util.ClinicContact
 import com.christopheraldoo.petheal.util.buildClinicHelpMessage
 import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
 import com.christopheraldoo.petheal.util.isSlotExpired
+import com.christopheraldoo.petheal.util.toLeaveDates
 import com.christopheraldoo.petheal.util.withExpiredSlotsUnavailable
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,7 +90,10 @@ data class BookingDetailUiState(
     val rescheduleSlots: List<TimeSlot> = emptyList(),
     val isSlotsLoading: Boolean = false,
     val rescheduleSlotsError: String? = null,
-    val rescheduleConflict: Boolean = false
+    // PHASE 4: jadwal efektif tanggal yang sedang dilihat (cuti/jam khusus).
+    val rescheduleSlotMeta: SlotMeta? = null,
+    val rescheduleConflict: Boolean = false,
+    val rescheduleUnavailable: Boolean = false
 )
 
 /** Kontak klinik + pesan siap-kirim untuk sheet Bantuan di alur booking. */
@@ -105,6 +109,8 @@ data class CreateBookingUiState(
     val pets: List<Pet> = emptyList(),
     val services: List<Service> = emptyList(),
     val slots: List<TimeSlot> = emptyList(),
+    // PHASE 4: metadata cuti/jam khusus untuk tanggal terpilih.
+    val slotMeta: SlotMeta? = null,
     val doctor: Doctor? = null,
     val paymentMethods: List<PaymentMethod> = emptyList(),
     // Selections
@@ -433,7 +439,8 @@ class BookingViewModel @Inject constructor(
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isLoading = false,
                     error = r.message,
-                    rescheduleConflict = r.code == "slot_conflict"
+                    rescheduleConflict = r.code == "slot_conflict",
+                    rescheduleUnavailable = r.code == "slot_unavailable"
                 )
                 else -> Unit
             }
@@ -447,7 +454,10 @@ class BookingViewModel @Inject constructor(
             _detailState.value = _detailState.value.copy(
                 isSlotsLoading = true,
                 rescheduleSlots = emptyList(),
-                rescheduleSlotsError = null
+                rescheduleSlotMeta = null,
+                rescheduleSlotsError = null,
+                rescheduleConflict = false,
+                rescheduleUnavailable = false
             )
             val dateStr = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
             when (val r = doctorRepository.getDoctorSlots(doctorId, dateStr)) {
@@ -455,7 +465,8 @@ class BookingViewModel @Inject constructor(
                     if (rescheduleSlotsRequestDate != date) return@launch
                     // Jam yang sudah lewat hari ini tidak boleh dipilih ulang.
                     _detailState.value = _detailState.value.copy(
-                        rescheduleSlots = r.data.withExpiredSlotsUnavailable(date),
+                        rescheduleSlots = r.data.slots.withExpiredSlotsUnavailable(date),
+                        rescheduleSlotMeta = r.data.meta,
                         isSlotsLoading = false,
                         rescheduleSlotsError = null
                     )
@@ -473,7 +484,11 @@ class BookingViewModel @Inject constructor(
     }
 
     fun clearDetailError() {
-        _detailState.value = _detailState.value.copy(error = null, rescheduleConflict = false)
+        _detailState.value = _detailState.value.copy(
+            error = null,
+            rescheduleConflict = false,
+            rescheduleUnavailable = false
+        )
     }
 
     fun loadCreateBookingData(doctorId: Int, petId: Int) {
@@ -499,9 +514,12 @@ class BookingViewModel @Inject constructor(
             // Never open the flow on a day the doctor does not practice. The
             // API returns an empty list for off-days, which would otherwise
             // look like a loading/empty bug to the user.
+            // PHASE 4: lewati juga tanggal cuti yang sudah diketahui, bukan
+            // hanya hari yang tidak ada di available_days.
             val firstWorkingDate = firstDoctorWorkingDate(
                 availableDays = doctor?.availableDays,
-                from = LocalDate.now()
+                from = LocalDate.now(),
+                leaveDates = doctor?.scheduleExceptions.toLeaveDates().orEmpty().keys
             ) ?: LocalDate.now()
 
             _createState.value = _createState.value.copy(
@@ -594,12 +612,13 @@ class BookingViewModel @Inject constructor(
                     // Backend tidak mengirim status "sudah lewat", jadi jam
                     // hari ini yang sudah terlewati ditandai di sini agar tidak
                     // bisa dipilih (mis. sekarang 18.00 → slot < 18.00 mati).
-                    val slots = r.data.withExpiredSlotsUnavailable(date)
+                    val slots = r.data.slots.withExpiredSlotsUnavailable(date)
                     val stillAvailable = _createState.value.selectedTime?.let { selected ->
                         slots.any { it.time == selected && it.available }
                     } == true
                     _createState.value = _createState.value.copy(
                         slots = slots,
+                        slotMeta = r.data.meta,
                         isSlotsLoading = false,
                         slotsError = null,
                         selectedTime = _createState.value.selectedTime.takeIf { stillAvailable }
@@ -609,6 +628,7 @@ class BookingViewModel @Inject constructor(
                     if (_createState.value.selectedDate != date) return@launch
                     _createState.value = _createState.value.copy(
                         slots = emptyList(),
+                        slotMeta = null,
                         isSlotsLoading = false,
                         slotsError = r.message.ifBlank { "Gagal memuat jadwal dokter." }
                     )
@@ -640,6 +660,7 @@ class BookingViewModel @Inject constructor(
             selectedDate = date,
             selectedTime = null,
             slots = emptyList(),
+            slotMeta = null,
             isSlotsLoading = true,
             slotsError = null,
             error = null
@@ -717,9 +738,14 @@ class BookingViewModel @Inject constructor(
                 }
                 is Result.Error -> {
                     val slotConflict = r.code == "slot_conflict"
+                    // PHASE 4: cuti/jam khusus berubah setelah layar dibuka →
+                    // pilihan jam dibuang lalu slot dimuat ulang. Pilihan hewan,
+                    // layanan, dan dokter tidak ikut hilang.
+                    val slotUnavailable = r.code == "slot_unavailable"
+                    val mustRepick = slotConflict || slotUnavailable
                     _createState.value = _createState.value.copy(
                         isLoading = false,
-                        selectedTime = if (slotConflict) null else _createState.value.selectedTime,
+                        selectedTime = if (mustRepick) null else _createState.value.selectedTime,
                         error = if (slotConflict) {
                             "Jadwal yang Anda pilih baru saja diambil. Silakan pilih jam lain."
                         } else {
@@ -727,7 +753,7 @@ class BookingViewModel @Inject constructor(
                         }
                     )
                     // Refresh availability without touching the other choices.
-                    if (slotConflict) loadSlots(doctorId, s.selectedDate)
+                    if (mustRepick) loadSlots(doctorId, s.selectedDate)
                 }
                 else -> Unit
             }

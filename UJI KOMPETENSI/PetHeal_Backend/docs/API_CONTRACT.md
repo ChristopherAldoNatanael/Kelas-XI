@@ -76,7 +76,11 @@
 
 - `PUT /bookings/{id}` → 405 (resource hanya index/store/show/destroy).
 - `POST/PUT/DELETE /medical-records` → 404/405 (hanya index/show + `/{id}/pay`, `/{id}/payment-status`).
-- Respons slots = `{success,data:[{time,available}]}` (BUKAN `{doctor_id,date,available_slots}`).
+- Respons slots = `{success,data:[{time,available}],meta?}` (BUKAN `{doctor_id,date,available_slots}`).
+  `meta` (aditif, 2026-10-21) berisi `date,is_working_day,is_closed,has_exception,start_time,end_time,reason`
+  untuk cuti/jam khusus; klien lama tetap hanya membaca `data`.
+- Create/reschedule booking memakai kode error aditif: `409 {code:"slot_conflict"}` dan
+  `422 {code:"slot_unavailable"}` (cuti / jam di luar jadwal efektif / bukan kelipatan slot).
 
 ## Naming Freeze (tidak ada yang dihapus)
 

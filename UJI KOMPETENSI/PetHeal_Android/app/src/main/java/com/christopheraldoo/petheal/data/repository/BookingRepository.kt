@@ -3,6 +3,8 @@ package com.christopheraldoo.petheal.data.repository
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
+import org.json.JSONObject
+import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -29,6 +31,42 @@ class BookingRepository @Inject constructor(
             500 -> "Server sedang bermasalah. Coba lagi nanti."
             else -> fallbackMessage?.takeIf { it.isNotBlank() } ?: "Gagal memproses permintaan"
         }
+    }
+
+    /**
+     * Ambil `code` + `message` dari errorBody sekali. Server mengirim envelope
+     * kanonik, tetapi `response.body()` selalu null pada HTTP error — tanpa ini
+     * pesan spesifik seperti "Dokter cuti pada tanggal tersebut" hilang dan
+     * pengguna hanya melihat pesan generik 422.
+     */
+    private fun errorPayload(response: Response<*>): Pair<String?, String?> {
+        val raw = runCatching { response.errorBody()?.string() }.getOrNull()
+            ?: return null to null
+        val json = runCatching { JSONObject(raw) }.getOrNull()
+            ?: return null to null
+        val code = json.optString("code").takeIf { it.isNotBlank() }
+        val message = json.optString("message").takeIf { it.isNotBlank() }
+        return code to message
+    }
+
+    /**
+     * Kode + pesan untuk create/reschedule.
+     *
+     * - `slot_unavailable` (422) memakai pesan server karena menjelaskan cuti /
+     *   jam khusus secara spesifik.
+     * - `slot_conflict` (409) tetap memakai pesan Indonesia yang sudah dipakai
+     *   UI agar tidak muncul teks Inggris dari server.
+     */
+    private fun bookingError(response: Response<*>): Pair<String, String> {
+        val (serverCode, serverMessage) = errorPayload(response)
+        val code = serverCode
+            ?: if (response.code() == 409) "slot_conflict" else "http_${response.code()}"
+        val message = if (serverCode == "slot_unavailable" && !serverMessage.isNullOrBlank()) {
+            serverMessage
+        } else {
+            getErrorMessage(response.code(), serverMessage)
+        }
+        return code to message
     }
 
     suspend fun getBookings(): Result<List<Booking>> {
@@ -99,12 +137,9 @@ class BookingRepository @Inject constructor(
                     Result.Error("Failed to create booking")
                 }
             } else {
-                val error = getErrorMessage(response.code(), response.body()?.message)
+                val (code, error) = bookingError(response)
                 Log.e(TAG, "createBooking failed: $error (HTTP ${response.code()})")
-                Result.Error(
-                    message = error,
-                    code = if (response.code() == 409) "slot_conflict" else "http_${response.code()}"
-                )
+                Result.Error(message = error, code = code)
             }
         } catch (e: Exception) {
             Log.e(TAG, "createBooking exception", e)
@@ -146,12 +181,9 @@ class BookingRepository @Inject constructor(
                     Result.Error("Failed to reschedule booking")
                 }
             } else {
-                val error = getErrorMessage(response.code(), response.body()?.message)
+                val (code, error) = bookingError(response)
                 Log.e(TAG, "rescheduleBooking($id) failed: $error (HTTP ${response.code()})")
-                Result.Error(
-                    message = error,
-                    code = if (response.code() == 409) "slot_conflict" else "http_${response.code()}"
-                )
+                Result.Error(message = error, code = code)
             }
         } catch (e: Exception) {
             Log.e(TAG, "rescheduleBooking($id) exception", e)

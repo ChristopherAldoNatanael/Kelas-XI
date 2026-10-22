@@ -2,11 +2,13 @@ package com.christopheraldoo.petheal
 
 import com.christopheraldoo.petheal.data.model.AuthResponse
 import com.christopheraldoo.petheal.data.model.BookingsResponse
+import com.christopheraldoo.petheal.data.model.DoctorResponse
 import com.christopheraldoo.petheal.data.model.DoctorReviewsResponse
 import com.christopheraldoo.petheal.data.model.OtpSentResponse
 import com.christopheraldoo.petheal.data.model.PetsResponse
 import com.christopheraldoo.petheal.data.model.PublicClinicsResponse
 import com.christopheraldoo.petheal.data.model.RegisterOtpRequest
+import com.christopheraldoo.petheal.data.model.SlotsResponse
 import com.christopheraldoo.petheal.data.model.TransactionStatusResponse
 import com.christopheraldoo.petheal.data.model.VaccinationsResponse
 import com.christopheraldoo.petheal.data.model.VerifyRegisterOtpRequest
@@ -88,6 +90,60 @@ class ContractParsingTest {
         val res = gson.fromJson(json, DoctorReviewsResponse::class.java)
         assertTrue(res.data?.reviews?.isEmpty() == true)
         assertEquals(10, res.pagination?.perPage)
+    }
+
+    @Test
+    fun `slots meta parses leave day without breaking data`() {
+        val json = """
+        {"success":true,"data":[],"meta":{"doctor_id":3,"date":"2026-10-22",
+          "is_working_day":false,"is_closed":true,"has_exception":true,
+          "start_time":null,"end_time":null,"reason":"Cuti tahunan"}}
+        """.trimIndent()
+        val res = gson.fromJson(json, SlotsResponse::class.java)
+        assertTrue(res.success)
+        assertTrue(res.data?.isEmpty() == true)
+        assertEquals(true, res.meta?.isClosed)
+        assertEquals(false, res.meta?.isWorkingDay)
+        assertEquals("Cuti tahunan", res.meta?.reason)
+    }
+
+    @Test
+    fun `slots meta parses custom hours`() {
+        val json = """
+        {"success":true,"data":[{"time":"10:00","available":true}],
+          "meta":{"doctor_id":3,"date":"2026-10-22","is_working_day":true,
+          "is_closed":false,"has_exception":true,"start_time":"10:00",
+          "end_time":"12:00","reason":"Praktik pagi"}}
+        """.trimIndent()
+        val res = gson.fromJson(json, SlotsResponse::class.java)
+        assertEquals("10:00", res.meta?.startTime)
+        assertEquals("12:00", res.meta?.endTime)
+        assertEquals(1, res.data?.size)
+    }
+
+    @Test
+    fun `old slots response without meta still parses`() {
+        val json = """{"success":true,"data":[{"time":"09:00","available":false}]}""".trimIndent()
+        val res = gson.fromJson(json, SlotsResponse::class.java)
+        assertNull(res.meta)
+        assertEquals(1, res.data?.size)
+    }
+
+    @Test
+    fun `doctor detail parses upcoming schedule exceptions`() {
+        val json = """
+        {"success":true,"data":{"id":3,"name":"Dr A","available_days":"monday, tuesday",
+          "schedule_exceptions":[
+            {"date":"2026-10-22","is_closed":true,"start_time":null,"end_time":null,"reason":"Cuti"},
+            {"date":"2026-10-23","is_closed":false,"start_time":"09:00","end_time":"12:00","reason":"Seminar"}
+          ]}}
+        """.trimIndent()
+        val res = gson.fromJson(json, DoctorResponse::class.java)
+        val exceptions = res.data?.scheduleExceptions
+        assertEquals(2, exceptions?.size)
+        assertEquals(true, exceptions?.first()?.isClosed)
+        assertEquals("09:00", exceptions?.last()?.startTime)
+        assertEquals("Seminar", exceptions?.last()?.reason)
     }
 
     @Test

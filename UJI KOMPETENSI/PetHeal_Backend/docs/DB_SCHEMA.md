@@ -1,12 +1,13 @@
 # DB_SCHEMA.md — Skema Saat Ini + Rencana Kolom Baru
 
-## Saat Ini (43 migration, multi-klinik)
+## Saat Ini (multi-klinik)
 - `clinics`: id, name, slug UNIQUE, address TEXT, phone NULL, email NULL, logo_path NULL, primary_color DEFAULT '#18C964', description NULL, is_active DEFAULT true, timestamps. INDEX(is_active)
 - `users`: id, firebase_uid UNIQUE NULL, name, email, password NULL, role DEFAULT 'user', phone, photo, **clinic_id NULL FK clinics NULLOnDelete**. INDEX(clinic_id,role). Role: user|admin|doctor|super_admin|clinic_admin. (+ password_reset_tokens, sessions)
 - `device_tokens`: id, user_id FK CASCADE, token, device_type, INDEX(token)
 - `pets`: id, user_id FK CASCADE, name, species, breed, age(months), weight DECIMAL(8,2) NULL, gender, date_of_birth NULL, photo, notes
 - `doctors`: id, name, specialization, phone, email, photo, available_days JSON, start_time, end_time, is_active, **clinic_id NOT NULL FK clinics CASCADE**. INDEX(clinic_id, is_active)
-- `bookings`: id, user_id FK, pet_id FK, doctor_id FK, service_id NULL FK NULLOnDelete, booking_date, booking_time, status, notes, service_type, payment_method NULL, payment_type, dp_amount, total_amount, paid_amount DEFAULT 0, remaining_amount NULL, payment_status DEFAULT unpaid, payment_date NULL, cancellation_reason, confirmed_at, completed_at, **clinic_id NOT NULL FK clinics CASCADE**. INDEX(clinic_id,status,booking_date), INDEX(clinic_id,doctor_id,booking_date,booking_time)
+- `doctor_schedule_exceptions` (2026-10-21): id, doctor_id FK CASCADE, clinic_id FK CASCADE, date, is_closed DEFAULT true, start_time NULL, end_time NULL, reason NULL max 160, created_by NULL FK users NULLOnDelete, timestamps. UNIQUE(doctor_id,date), INDEX(clinic_id,date). Menimpa jadwal mingguan satu tanggal; tidak mengubah kolom lama.
+- `bookings`: id, user_id FK, pet_id FK, doctor_id FK, service_id NULL FK NULLOnDelete, booking_date, booking_time, status, notes, service_type, payment_method NULL, payment_type, dp_amount, total_amount, paid_amount DEFAULT 0, remaining_amount NULL, payment_status DEFAULT unpaid, payment_date NULL, cancellation_reason, confirmed_at, completed_at, **last_reminder_at NULL** (2026-10-21, diisi hanya saat reminder terkirim), **clinic_id NOT NULL FK clinics CASCADE**. INDEX(clinic_id,status,booking_date), INDEX(clinic_id,doctor_id,booking_date,booking_time)
 - `medical_records`: id, booking_id FK, pet_id FK, doctor_id FK, diagnosis, treatment, medicine, notes, next_visit_date/time, reminder_sent, cost, treatment_cost, medicine_cost, total_medical_cost, extra_payment_amount|paid_amount|status|order_id UNIQUE|date, **clinic_id NULL FK clinics NULLOnDelete**
 - `services`: id, name, description, price DECIMAL(12,2), duration INT, category, is_active, **clinic_id NOT NULL FK clinics CASCADE**. INDEX(clinic_id, is_active)
 - `payment_methods`: id, name, type [qris|bank|ewallet], description, icon, is_active (global)

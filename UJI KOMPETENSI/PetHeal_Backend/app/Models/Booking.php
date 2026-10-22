@@ -28,6 +28,7 @@ class Booking extends Model
         'completed_at',
         'service_type',
         'clinic_id',
+        'last_reminder_at',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class Booking extends Model
         'paid_amount' => 'decimal:2',
         'remaining_amount' => 'decimal:2',
         'payment_date' => 'datetime',
+        'last_reminder_at' => 'datetime',
     ];
 
     /**

@@ -9,6 +9,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
@@ -37,7 +39,6 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -102,6 +103,20 @@ fun PaymentReceiptSheet(
         }
     }
 
+    val savePdfLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/pdf")
+    ) { uri ->
+        if (uri != null) {
+            val bytes = createPaymentReceiptPdf(receipt, accent)
+            val saved = bytes != null && writeReceiptPdfToUri(context, bytes, uri)
+            Toast.makeText(
+                context,
+                if (saved) "Bukti pembayaran (PDF) disimpan" else "Gagal menyimpan PDF",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     fun saveImage() {
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
@@ -121,6 +136,44 @@ fun PaymentReceiptSheet(
             }
         } catch (_: Exception) {
             Toast.makeText(context, "Gagal membuat gambar bukti", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    fun savePdf() {
+        val bytes = createPaymentReceiptPdf(receipt, accent)
+        if (bytes == null) {
+            Toast.makeText(context, "Gagal membuat PDF bukti", Toast.LENGTH_SHORT).show()
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val savedUri = saveReceiptPdfToDownloads(context, bytes, receipt.pdfFileName())
+            Toast.makeText(
+                context,
+                if (savedUri != null) {
+                    "PDF disimpan ke Downloads/PetHeal"
+                } else {
+                    "Gagal menyimpan PDF"
+                },
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            savePdfLauncher.launch(receipt.pdfFileName())
+        }
+    }
+
+    fun sharePdf() {
+        val shared = runCatching {
+            val bytes = createPaymentReceiptPdf(receipt, accent)
+            bytes != null && shareReceiptPdf(context, bytes, receipt)
+        }.getOrDefault(false)
+
+        if (!shared) {
+            copyReceiptText(context, receipt)
+            Toast.makeText(
+                context,
+                "PDF tidak dapat dibagikan. Teks bukti sudah disalin.",
+                Toast.LENGTH_SHORT
+            ).show()
         }
     }
 
@@ -194,6 +247,13 @@ fun PaymentReceiptSheet(
                         color = TextSecondary
                     )
                 }
+                IconButton(onClick = ::copyText) {
+                    Icon(
+                        Icons.Filled.ContentCopy,
+                        contentDescription = "Salin teks bukti",
+                        tint = TextSecondary
+                    )
+                }
                 IconButton(onClick = onDismiss) {
                     Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = TextSecondary)
                 }
@@ -220,46 +280,64 @@ fun PaymentReceiptSheet(
                         .padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Button(
-                        onClick = ::saveImage,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Primary,
-                            contentColor = OnPrimaryStrong
-                        )
-                    ) {
-                        Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(19.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Simpan gambar", fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(
+                        Button(
                             onClick = ::shareImage,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(46.dp),
-                            shape = RoundedCornerShape(13.dp)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Primary,
+                                contentColor = OnPrimaryStrong
+                            )
                         ) {
                             Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.size(17.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Bagikan", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Bagikan gambar", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
-                        TextButton(
-                            onClick = ::copyText,
+                        OutlinedButton(
+                            onClick = ::sharePdf,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(46.dp)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
-                            Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.size(17.dp))
+                            Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(17.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Salin teks", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                            Text("Bagikan PDF", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                        }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = ::saveImage,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Simpan PNG", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                        OutlinedButton(
+                            onClick = ::savePdf,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(44.dp),
+                            shape = RoundedCornerShape(13.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp)
+                        ) {
+                            Icon(Icons.Filled.PictureAsPdf, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Simpan PDF", fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                         }
                     }
                     Text(
-                        "PNG resolusi tinggi • siap disimpan atau dibagikan",
+                        "PNG 1080×1760 untuk galeri • PDF A4 untuk dokumen resmi",
                         modifier = Modifier.fillMaxWidth(),
                         fontSize = 10.sp,
                         color = TextTertiary,

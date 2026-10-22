@@ -102,6 +102,14 @@ class Doctor extends Model
     }
 
     /**
+     * Pengecualian jadwal per tanggal (cuti / jam khusus).
+     */
+    public function scheduleExceptions()
+    {
+        return $this->hasMany(DoctorScheduleException::class);
+    }
+
+    /**
      * Get average rating.
      * PHASE 3 (MH-01): prefer the preloaded `withAvg` value when present so
      * serializing a list does not fire one AVG query per row. Falls back to

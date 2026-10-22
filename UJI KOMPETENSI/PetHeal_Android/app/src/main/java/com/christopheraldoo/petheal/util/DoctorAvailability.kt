@@ -25,16 +25,20 @@ fun isDoctorWorkingDay(availableDays: String?, date: LocalDate): Boolean {
 /**
  * Finds the first working date at or after [from]. Returns null when the
  * doctor has no working day inside the visible booking horizon.
+ *
+ * [leaveDates] (PHASE 4) melewati tanggal cuti yang diketahui dari detail
+ * dokter, supaya alur booking tidak terbuka tepat di hari libur.
  */
 fun firstDoctorWorkingDate(
     availableDays: String?,
     from: LocalDate,
-    horizonDays: Int = 14
+    horizonDays: Int = 14,
+    leaveDates: Set<LocalDate> = emptySet()
 ): LocalDate? {
     if (horizonDays <= 0) return null
     for (offset in 0 until horizonDays) {
         val date = from.plusDays(offset.toLong())
-        if (isDoctorWorkingDay(availableDays, date)) return date
+        if (isDoctorWorkingDay(availableDays, date) && date !in leaveDates) return date
     }
     return null
 }

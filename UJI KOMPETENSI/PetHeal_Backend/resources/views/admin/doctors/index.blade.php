@@ -105,6 +105,9 @@
                                 <a href="{{ route('admin.doctors.show', $doctor->id) }}" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors" title="Lihat detail">
                                     <span class="material-symbols-outlined text-[18px]">visibility</span>
                                 </a>
+                                <a href="{{ route('admin.doctors.schedule', $doctor->id) }}" class="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors" title="Jadwal & cuti">
+                                    <span class="material-symbols-outlined text-[18px]">event_busy</span>
+                                </a>
                                 <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors" title="Ubah">
                                     <span class="material-symbols-outlined text-[18px]">edit</span>
                                 </a>

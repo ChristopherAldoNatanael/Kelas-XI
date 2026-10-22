@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Doctor;
 use App\Models\PaymentMethod;
 use App\Models\Service;
+use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,10 @@ class BookingController extends Controller
 {
     protected FCMService $fcmService;
 
-    public function __construct(FCMService $fcmService)
-    {
+    public function __construct(
+        FCMService $fcmService,
+        private readonly DoctorScheduleService $schedule
+    ) {
         $this->fcmService = $fcmService;
     }
 
@@ -175,6 +178,22 @@ class BookingController extends Controller
             ], 422);
         }
 
+        // PHASE 4: tolak jam di luar jadwal efektif (cuti, jam khusus, atau di
+        // luar jam praktik) SEBELUM menyimpan. Sebelumnya request yang
+        // dimanipulasi bisa membuat booking jam berapa pun.
+        $scheduleIssue = $this->schedule->validateSlot(
+            $doctor,
+            (string) $request->input('booking_date'),
+            (string) $request->input('booking_time')
+        );
+        if ($scheduleIssue !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => $scheduleIssue,
+                'code' => 'slot_unavailable',
+            ], 422);
+        }
+
         // Calculate payment
         $paymentType = $request->input('payment_type', 'full');
         $totalAmount = (float) $service->price;
@@ -246,6 +265,7 @@ class BookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'This time slot is already booked',
+                'code' => 'slot_conflict',
             ], 409);
         }
 
@@ -335,6 +355,30 @@ class BookingController extends Controller
             'booking_time' => 'required|date_format:H:i',
         ]);
 
+        // PHASE 4: reschedule memakai aturan jadwal yang sama dengan create.
+        $doctor = Doctor::where('id', $booking->doctor_id)
+            ->where('clinic_id', $booking->clinic_id)
+            ->first();
+        if (!$doctor) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Doctor not found',
+            ], 404);
+        }
+
+        $scheduleIssue = $this->schedule->validateSlot(
+            $doctor,
+            (string) $request->input('booking_date'),
+            (string) $request->input('booking_time')
+        );
+        if ($scheduleIssue !== null) {
+            return response()->json([
+                'success' => false,
+                'message' => $scheduleIssue,
+                'code' => 'slot_unavailable',
+            ], 422);
+        }
+
         $rescheduled = DB::transaction(function () use ($booking, $request, $id) {
             // Double-book check scoped within the same clinic
             $existingBooking = Booking::where('doctor_id', $booking->doctor_id)
@@ -362,6 +406,7 @@ class BookingController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'This time slot is already booked',
+                'code' => 'slot_conflict',
             ], 409);
         }
 

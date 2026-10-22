@@ -5,11 +5,14 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Doctor;
 use App\Models\DoctorReview;
+use App\Services\DoctorScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class DoctorController extends Controller
 {
+    public function __construct(private readonly DoctorScheduleService $schedule) {}
+
     /**
      * Get all active doctors (clinic-scoped)
      */
@@ -82,6 +85,15 @@ class DoctorController extends Controller
             ], 404);
         }
 
+        // PHASE 4: upcoming tanggal cuti/jam khusus ikut di detail dokter agar
+        // date rail Android bisa menandai hari libur tanpa request tambahan.
+        // Additive — klien lama mengabaikan key yang tidak dikenal.
+        $doctor->load(['scheduleExceptions' => function ($query) {
+            $query->whereDate('date', '>=', today())
+                ->orderBy('date')
+                ->limit(30);
+        }]);
+
         return response()->json([
             'success' => true,
             'data' => $doctor,
@@ -115,60 +127,27 @@ class DoctorController extends Controller
         }
 
         $date = $request->input('date');
-        $dayName = strtolower(date('l', strtotime($date)));
 
-        // Check if doctor works on this day
-        $availableDays = is_array($doctor->available_days)
-            ? $doctor->available_days
-            : array_map('trim', explode(',', $doctor->available_days ?? ''));
-
-        if (!in_array($dayName, $availableDays)) {
-            return response()->json([
-                'success' => true,
-                'data'    => [],   // empty flat array — no slots on this day
-            ]);
-        }
-
-        // Generate time slots (flat array of {time, available})
-        $slots = $this->generateTimeSlots($doctor, $date);
+        // PHASE 4: jadwal efektif = pengecualian tanggal (cuti/jam khusus)
+        // lebih dulu, baru jadwal mingguan. Satu sumber dengan validasi booking.
+        $schedule = $this->schedule->effectiveSchedule($doctor, $date);
+        $slots = $this->schedule->slotsFor($doctor, $date, $schedule);
 
         return response()->json([
             'success' => true,
             'data'    => $slots,
+            // Additive metadata: klien lama tetap hanya membaca `data`.
+            'meta'    => [
+                'doctor_id' => $doctor->id,
+                'date' => $date,
+                'is_working_day' => $schedule['is_working_day'],
+                'is_closed' => $schedule['is_closed'],
+                'has_exception' => $schedule['has_exception'],
+                'start_time' => $schedule['start_time'],
+                'end_time' => $schedule['end_time'],
+                'reason' => $schedule['reason'],
+            ],
         ]);
-    }
-
-    /**
-     * Generate available time slots
-     */
-    private function generateTimeSlots(Doctor $doctor, string $date): array
-    {
-        $slots = [];
-        /** @var string $startTime */
-        $startTime = strtotime($doctor->start_time);
-        /** @var string $endTime */
-        $endTime = strtotime($doctor->end_time);
-        $interval = 30 * 60; // 30 minutes
-
-        // Get booked slots
-        $bookedSlots = \App\Models\Booking::where('doctor_id', $doctor->id)
-            ->where('booking_date', $date)
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->pluck('booking_time')
-            ->map(function ($time) {
-                return date('H:i', strtotime($time));
-            })
-            ->toArray();
-
-        for ($time = $startTime; $time < $endTime; $time += $interval) {
-            $slotTime = date('H:i', $time);
-            $slots[] = [
-                'time' => $slotTime,
-                'available' => !in_array($slotTime, $bookedSlots),
-            ];
-        }
-
-        return $slots;
     }
 
     public function storeReview(Request $request, $id)

@@ -145,8 +145,8 @@ memiliki `success: false`.
 | Method & Path | Query/Body | Response |
 |---|---|---|
 | `GET /doctors` | `?limit=` default/max 100, `?search=` prefix-match name/specialization | `200 {success,data:[]}` tanpa paginasi (by-design), cache 900s |
-| `GET /doctors/{id}` | — | `200 {success,data+reviews_count}`; `404` (termasuk lintas klinik) |
-| `GET /doctors/{id}/slots` | `?date! >= today` | `200 {success,data:[{time,available}]}` (slot 30 mnt; `[]` bila libur); `404/422` |
+| `GET /doctors/{id}` | — | `200 {success,data+reviews_count+schedule_exceptions[]}`; `404` (termasuk lintas klinik) |
+| `GET /doctors/{id}/slots` | `?date! >= today` | `200 {success,data:[{time,available}],meta:{date,is_working_day,is_closed,has_exception,start_time,end_time,reason}}` (slot 30 mnt; `[]` bila tidak praktik/cuti); `404/422` |
 | `POST /doctors/{id}/reviews` | `{booking_id! (milik reviewer + completed + seklinik), rating! 1–5, review?}` | `201`; `404` dokter/booking tak valid; `409` duplikat; `422` validasi |
 | `GET /doctors/{id}/reviews` | paginate 10 server-side (klien tidak kirim page) | `200 {success,data:{reviews[],average_rating,total_reviews},pagination{...}}` |
 
@@ -157,9 +157,9 @@ memiliki `success: false`.
 | `GET /bookings` | paginate 20 fixed, order date/time desc | `200 {success,data[],pagination}` |
 | `GET /bookings/upcoming` | — (limit 1 untuk home screen) | `200 {success,data:[]}` tanpa paginasi |
 | `GET /bookings/{id}` | — | `200 {success,data+relasi}`; `404` |
-| `POST /bookings` | `{pet_id! (milik user), doctor_id! (seklinik+aktif), service_id! (seklinik+aktif), booking_date! >= today, booking_time! H:i, notes?, payment_type? dp\|full, payment_method_id?}` — ID lintas klinik → `422` validasi | `201 {success,message,data}`; `404/409` slot bentrok; `422`; `403` akun tanpa klinik |
+| `POST /bookings` | `{pet_id! (milik user), doctor_id! (seklinik+aktif), service_id! (seklinik+aktif), booking_date! >= today, booking_time! H:i, notes?, payment_type? dp\|full, payment_method_id?}` — ID lintas klinik → `422` validasi; jam harus ada di jadwal efektif (cuti/jam khusus/kelipatan 30 mnt) | `201 {success,message,data}`; `404`; `409 {code:slot_conflict}` bentrok; `422 {code:slot_unavailable}` cuti/di luar jadwal; `403` akun tanpa klinik |
 | `POST /bookings/{id}/cancel` | `{reason? max:500}` (hanya pending/confirmed) | `200 {success,message,data}` |
-| `POST /bookings/{id}/reschedule` | `{booking_date!, booking_time!}` (hanya pending; lockForUpdate) | `200`; `409` bentrok |
+| `POST /bookings/{id}/reschedule` | `{booking_date!, booking_time!}` (hanya pending; lockForUpdate; validasi jadwal efektif sama dengan create) | `200`; `409 {code:slot_conflict}` bentrok; `422 {code:slot_unavailable}` cuti/di luar jadwal |
 | `DELETE /bookings/{id}` | — (hanya pending/cancelled) | `200 {success,message}` |
 | `GET /bookings/{id}/medical-record` | — | `200 {success,data}` atau `200 {success:true,message,data:null}` bila belum ada |
 
