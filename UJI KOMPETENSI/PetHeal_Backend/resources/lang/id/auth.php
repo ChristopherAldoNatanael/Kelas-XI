@@ -22,6 +22,7 @@ return [
     'join_info' => 'Setelah disetujui, Anda akan mendapat akses sebagai admin klinik yang dipilih.',
     'select_clinic' => '-- Pilih klinik tujuan --',
     'full_name' => 'Nama Lengkap',
+    'email' => 'Email',
     'submit_request' => 'Kirim Permintaan',
     'already_have_account' => 'Sudah punya akun?',
     'sign_in_here' => 'Login di sini',

@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Invoice {{ str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT) }}</title>
+    <title>{{ __('admin.invoice_title') }} {{ str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT) }}</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -127,22 +127,25 @@
     @php
         $invoiceNumber = 'INV-' . str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT);
         $status = $booking->payment_status;
-        $statusLabel = match ($status) {
-            'paid' => 'LUNAS',
-            'dp_paid' => 'DP TERBAYAR',
-            'partial' => 'PEMBAYARAN SEBAGIAN',
-            'pending' => 'MENUNGGU PEMBAYARAN',
-            'failed' => 'PEMBAYARAN GAGAL',
-            default => 'BELUM DIBAYAR',
-        };
+        $statusLabel = \Illuminate\Support\Str::upper(\App\Support\AdminStatus::paymentLabel($status));
         $badgeClass = match ($status) {
             'paid' => 'badge',
             'dp_paid' => 'badge badge-info',
-            'pending' => 'badge badge-warning',
+            'pending', 'dp_pending', 'partial' => 'badge badge-warning',
             'failed' => 'badge badge-danger',
             default => 'badge badge-warning',
         };
         $clinic = $booking->clinic;
+        $locale = app()->getLocale();
+        $money = static fn ($amount) => 'Rp ' . number_format(
+            (float) $amount,
+            0,
+            $locale === 'id' ? ',' : '.',
+            $locale === 'id' ? '.' : ','
+        );
+        $date = static fn ($value, string $format = 'd M Y') => $value
+            ? \Carbon\Carbon::parse($value)->locale($locale)->translatedFormat($format)
+            : '-';
     @endphp
 
     <table class="top">
@@ -159,7 +162,7 @@
                 @endif
             </td>
             <td style="vertical-align: top;">
-                <p class="invoice-title">INVOICE</p>
+                <p class="invoice-title">{{ __('admin.invoice_title') }}</p>
                 <p class="invoice-number">{{ $invoiceNumber }}</p>
                 <p style="margin: 8px 0 0; text-align: right;">
                     <span class="{{ $badgeClass }}">{{ $statusLabel }}</span>
@@ -171,13 +174,13 @@
     <table class="panel">
         <tr>
             <td>
-                <p class="label">Ditagihkan kepada</p>
+                <p class="label">{{ __('admin.invoice_billed_to') }}</p>
                 <p class="value">{{ $booking->user->name ?? '-' }}</p>
                 <p class="muted tiny" style="margin: 2px 0 0;">{{ $booking->user->email ?? '-' }}</p>
                 <p class="muted tiny" style="margin: 2px 0 0;">{{ $booking->user->phone ?? '-' }}</p>
             </td>
             <td>
-                <p class="label">Detail kunjungan</p>
+                <p class="label">{{ __('admin.invoice_visit_details') }}</p>
                 <p class="value">{{ $booking->pet->name ?? '-' }}</p>
                 <p class="muted tiny" style="margin: 2px 0 0;">
                     {{ $booking->doctor->name ?? '-' }}
@@ -186,70 +189,70 @@
                     @endif
                 </p>
                 <p class="muted tiny" style="margin: 2px 0 0;">
-                    {{ $booking->booking_date ? \Carbon\Carbon::parse($booking->booking_date)->format('d M Y') : '-' }}
+                    {{ $date($booking->booking_date) }}
                     {{ $booking->booking_time ? '· ' . $booking->booking_time : '' }}
                 </p>
             </td>
         </tr>
     </table>
 
-    <p class="label">Rincian tagihan</p>
+    <p class="label">{{ __('admin.invoice_bill_details') }}</p>
     <table class="items">
         <thead>
             <tr>
-                <th>Layanan</th>
-                <th>Jadwal</th>
-                <th class="right">Total</th>
+                <th>{{ __('admin.invoice_service') }}</th>
+                <th>{{ __('admin.invoice_schedule') }}</th>
+                <th class="right">{{ __('admin.export_total') }}</th>
             </tr>
         </thead>
         <tbody>
             <tr>
                 <td>
-                    <strong>{{ $booking->service->name ?? 'Layanan klinik' }}</strong>
+                    <strong>{{ $booking->service->name ?? __('admin.service_not_selected') }}</strong>
                     @if($booking->service?->description)
                         <p class="muted tiny" style="margin: 4px 0 0;">{{ $booking->service->description }}</p>
                     @endif
                 </td>
                 <td class="muted">
-                    {{ $booking->booking_date ? \Carbon\Carbon::parse($booking->booking_date)->format('d M Y') : '-' }}<br>
+                    {{ $date($booking->booking_date) }}<br>
                     {{ $booking->booking_time ?? '-' }}
                 </td>
-                <td class="right">Rp {{ number_format((float) $booking->total_amount, 0, ',', '.') }}</td>
+                <td class="right">{{ $money($booking->total_amount) }}</td>
             </tr>
         </tbody>
     </table>
 
     <table class="totals">
         <tr>
-            <td class="muted">Total tagihan</td>
-            <td class="right">Rp {{ number_format((float) $booking->total_amount, 0, ',', '.') }}</td>
+            <td class="muted">{{ __('admin.invoice_total') }}</td>
+            <td class="right">{{ $money($booking->total_amount) }}</td>
         </tr>
         <tr>
-            <td class="muted">Sudah dibayar</td>
-            <td class="right" style="color: #087a3a;">Rp {{ number_format((float) $booking->paid_amount, 0, ',', '.') }}</td>
+            <td class="muted">{{ __('admin.invoice_paid') }}</td>
+            <td class="right" style="color: #087a3a;">{{ $money($booking->paid_amount) }}</td>
         </tr>
         @if($booking->payment_type === 'dp' && (float) $booking->dp_amount > 0)
             <tr>
-                <td class="muted">DP yang disyaratkan</td>
-                <td class="right">Rp {{ number_format((float) $booking->dp_amount, 0, ',', '.') }}</td>
+                <td class="muted">{{ __('admin.invoice_dp_required') }}</td>
+                <td class="right">{{ $money($booking->dp_amount) }}</td>
             </tr>
         @endif
         <tr class="total-row">
-            <td>Sisa tagihan</td>
-            <td class="right">Rp {{ number_format((float) $booking->remaining_amount, 0, ',', '.') }}</td>
+            <td>{{ __('admin.invoice_remaining') }}</td>
+            <td class="right">{{ $money($booking->remaining_amount) }}</td>
         </tr>
     </table>
 
     <div class="note">
-        <strong>Metode pembayaran:</strong> {{ ucfirst($booking->payment_method ?? 'belum ditentukan') }}<br>
+        <strong>{{ __('admin.invoice_payment_method') }}:</strong> {{ $booking->payment_method ?: __('admin.invoice_not_selected') }}<br>
         @if($booking->payment_date)
-            <strong>Tanggal pembayaran terakhir:</strong> {{ \Carbon\Carbon::parse($booking->payment_date)->format('d M Y H:i') }}<br>
+            <strong>{{ __('admin.invoice_payment_date') }}:</strong> {{ $date($booking->payment_date, 'd M Y H:i') }}<br>
         @endif
-        Invoice ini dibuat otomatis dari data booking dan pembayaran yang tercatat di sistem.
+        {{ __('admin.invoice_note') }}
     </div>
 
     <div class="footer">
-        {{ $clinic->name ?? 'PetHeal Clinic' }} · {{ $invoiceNumber }} · Dicetak {{ now()->format('d M Y H:i') }}
+        {{ $clinic->name ?? 'PetHeal Clinic' }} · {{ $invoiceNumber }} · {{ __('admin.invoice_printed') }} {{ now()->locale($locale)->translatedFormat('d M Y H:i') }}
     </div>
 </body>
 </html>

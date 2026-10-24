@@ -1,149 +1,158 @@
+@php
+    $roleTones = [
+        'super_admin' => 'violet',
+        'clinic_admin' => 'blue',
+        'admin' => 'blue',
+        'doctor' => 'sky',
+        'user' => 'slate',
+    ];
+    $recentBookings = $user->bookings->take(5);
+@endphp
+
 @extends('layouts.admin')
 
-@section('title', 'Detail pengguna — ' . ($clinicName ?? 'PetHeal') . ' Admin')
-@section('header', __('menu.patients'))
+@section('title', __('admin.user_detail_title', ['id' => $user->id]) . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('menu.users'))
 
 @section('content')
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="p-6 border-b border-slate-100 flex items-center justify-between">
-        <h2 class="text-md font-bold text-slate-900 dark:text-white">Pengguna #{{ $user->id }}</h2>
-        <div class="flex gap-2">
-            <a href="{{ route('admin.users.index') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>Kembali
+<div class="space-y-6">
+    <x-admin.page-header
+        :title="__('admin.user_detail_title', ['id' => $user->id])"
+        :eyebrow="__('admin.eyebrow_management')"
+        icon="group"
+        :description="__('admin.user_detail_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.users.edit', $user->id) }}" class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                {{ __('admin.edit_user') }}
             </a>
-            <a href="{{ route('admin.users.edit', $user->id) }}" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-1">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>Ubah
+            <a href="{{ route('admin.users.index') }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                {{ __('admin.back') }}
             </a>
-        </div>
-    </div>
+        </x-slot:actions>
+    </x-admin.page-header>
 
-    <div class="p-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <!-- User Info -->
-            <div class="bg-slate-50/50 rounded-2xl p-4">
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Informasi pengguna</h3>
-                <div class="flex items-center gap-4 mb-4">
-                    @if($user->photo)
-                        <img src="{{ $user->photo }}" alt="{{ $user->name }}" class="h-16 w-16 rounded-full">
-                    @else
-                        <div class="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center">
-                            <span class="text-emerald-600 text-2xl font-semibold">{{ substr($user->name, 0, 1) }}</span>
-                        </div>
-                    @endif
-                    <div>
-                        <p class="text-xl font-semibold text-slate-900 dark:text-white">{{ $user->name }}</p>
-                        <span class="px-2 py-0.5 text-[9px] font-bold rounded border inline-block mt-1
-                            {{ $user->role === 'admin' ? 'bg-purple-100 text-purple-700 border-purple-200' :
-                               ($user->role === 'doctor' ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-700 border-slate-200') }}">
-                            {{ ucfirst($user->role) }}
-                        </span>
-                    </div>
-                </div>
-
-                <div class="space-y-2">
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Email</p>
-                        <p class="text-sm text-slate-800 dark:text-slate-200">{{ $user->email }}</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Telepon</p>
-                        <p class="text-sm text-slate-800 dark:text-slate-200">{{ $user->phone ?? '-' }}</p>
-                    </div>
-                    <div>
-                        <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Firebase UID</p>
-                        <p class="text-sm text-slate-800 dark:text-slate-200 bg-slate-100 px-2 py-1 rounded inline-block">{{ $user->firebase_uid ?? 'Local User' }}</p>
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <x-admin.panel :title="__('admin.user_info')">
+            <div class="flex items-center gap-4">
+                @if($user->photo_url)
+                    <img src="{{ $user->photo_url }}" alt="{{ $user->name }}" class="h-16 w-16 rounded-full object-cover">
+                @else
+                    <span class="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-2xl font-bold text-emerald-600 dark:bg-emerald-900/30">
+                        {{ mb_substr($user->name, 0, 1) }}
+                    </span>
+                @endif
+                <div class="min-w-0">
+                    <p class="truncate text-xl font-bold text-slate-900 dark:text-white">{{ $user->name }}</p>
+                    <div class="mt-1.5">
+                        <x-admin.badge
+                            :label="__('admin.role_label_' . $user->role)"
+                            :tone="$roleTones[$user->role] ?? 'slate'" />
                     </div>
                 </div>
             </div>
 
-            <!-- Firebase Data -->
-            @if($firebaseData ?? null)
-            <div class="bg-slate-50/50 rounded-2xl p-4">
-                <h3 class="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">Data Firebase</h3>
-                <div class="space-y-2 text-sm">
+            <dl class="mt-5 space-y-3">
+                <div>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.email') }}</dt>
+                    <dd class="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{{ $user->email }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.phone') }}</dt>
+                    <dd class="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{{ $user->phone ?? __('admin.no_phone') }}</dd>
+                </div>
+                <div>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Firebase UID</dt>
+                    <dd class="mt-0.5 inline-block rounded-lg bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                        {{ $user->firebase_uid ?? __('admin.local_user') }}
+                    </dd>
+                </div>
+            </dl>
+        </x-admin.panel>
+
+        @if($firebaseData ?? null)
+            <x-admin.panel :title="__('admin.firebase_data')">
+                <div class="space-y-2">
                     @foreach($firebaseData as $key => $value)
                         <div>
-                            <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider">{{ $key }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $key }}</p>
                             <p class="text-sm text-slate-800 dark:text-slate-200">{{ is_array($value) ? json_encode($value) : $value }}</p>
                         </div>
                     @endforeach
                 </div>
-            </div>
-            @endif
-        </div>
+            </x-admin.panel>
+        @endif
+    </div>
 
-        <!-- Pets -->
-        @if($user->pets && $user->pets->count() > 0)
-        <div class="mt-6">
-            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Hewan ({{ $user->pets->count() }})</h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    <x-admin.panel :title="__('admin.pets_owned') . ' (' . $user->pets->count() . ')'">
+        @if($user->pets->isNotEmpty())
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 @foreach($user->pets as $pet)
-                    <div class="bg-slate-50/50 rounded-2xl p-4">
-                        <div class="flex items-center gap-3">
-                            @if($pet->photo)
-                                <img class="h-10 w-10 rounded-full object-cover"
-                                     src="{{ asset('storage/' . $pet->photo) }}"
-                                     alt="{{ $pet->name }}">
-                            @else
-                                <div class="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
-                                    <span class="material-symbols-outlined text-emerald-600 text-[20px]">pets</span>
-                                </div>
-                            @endif
-                            <div>
-                                <p class="font-medium text-slate-900 dark:text-white">{{ $pet->name }}</p>
-                                <p class="text-sm text-slate-500">{{ $pet->species ?? 'Pet' }} - {{ $pet->breed ?? '' }}</p>
-                            </div>
+                    <div class="flex items-center gap-3 rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                        @if($pet->photo_url)
+                            <img class="h-10 w-10 rounded-full object-cover" src="{{ $pet->photo_url }}" alt="{{ $pet->name }}">
+                        @else
+                            <span class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">
+                                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">pets</span>
+                            </span>
+                        @endif
+                        <div class="min-w-0">
+                            <p class="truncate font-medium text-slate-900 dark:text-white">{{ $pet->name }}</p>
+                            <p class="truncate text-sm text-slate-500">
+                                {{ $pet->species ?? __('admin.pet_placeholder') }}{{ $pet->breed ? ' - ' . $pet->breed : '' }}
+                            </p>
                         </div>
                     </div>
                 @endforeach
             </div>
-        </div>
+        @else
+            <x-admin.empty-state :title="__('admin.no_pets')" icon="pets" tone="slate" />
         @endif
+    </x-admin.panel>
 
-        <!-- Bookings -->
-        @if($user->bookings && $user->bookings->count() > 0)
-        <div class="mt-6">
-            <h3 class="text-md font-bold text-slate-900 dark:text-white mb-3">Booking terakhir ({{ $user->bookings->count() }})</h3>
+    <x-admin.panel :title="__('admin.last_bookings') . ' (' . $recentBookings->count() . ')'" flush>
+        @if($recentBookings->isNotEmpty())
             <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-slate-50/50 border-b border-slate-100">
+                <table class="w-full min-w-[560px] text-left">
+                    <thead class="admin-table-head">
                         <tr>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Hewan</th>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Dokter</th>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Tanggal</th>
-                            <th class="px-6 py-4 text-left text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400">Status</th>
+                            <th class="px-5 py-3">{{ __('admin.pet') }}</th>
+                            <th class="px-5 py-3">{{ __('admin.doctor') }}</th>
+                            <th class="px-5 py-3">{{ __('common.date') }}</th>
+                            <th class="px-5 py-3">{{ __('common.status') }}</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-100/50">
-                        @foreach($user->bookings->take(5) as $booking)
-                            <tr class="hover:bg-slate-50/30 transition-colors">
-                                <td class="px-6 py-4 text-sm text-slate-800 dark:text-slate-200">{{ $booking->pet->name ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 text-sm text-slate-500">{{ $booking->doctor->name ?? 'N/A' }}</td>
-                                <td class="px-6 py-4 text-sm text-slate-500">{{ \Carbon\Carbon::parse($booking->booking_date)->format('M d, Y') }}</td>
-                                <td class="px-6 py-4">
-                                    <span class="px-2 py-0.5 text-[9px] font-bold rounded border inline-block
-                                        {{ $booking->status === 'completed' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
-                                           ($booking->status === 'confirmed' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                           ($booking->status === 'cancelled' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-yellow-100 text-yellow-700 border-yellow-200')) }}">
-                                        {{ ucfirst($booking->status) }}
-                                    </span>
+                    <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                        @foreach($recentBookings as $booking)
+                            <tr class="admin-table-row">
+                                <td class="px-5 py-3 text-sm text-slate-800 dark:text-slate-200">
+                                    {{ $booking->pet->name ?? __('admin.pet_placeholder') }}
+                                </td>
+                                <td class="px-5 py-3 text-sm text-slate-500">{{ $booking->doctor->name ?? '—' }}</td>
+                                <td class="px-5 py-3 text-sm text-slate-500">
+                                    {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
+                                </td>
+                                <td class="px-5 py-3">
+                                    <x-admin.badge
+                                        :label="\App\Support\AdminStatus::bookingLabel($booking->status)"
+                                        :tone="\App\Support\AdminStatus::bookingTone($booking->status)" />
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                 </table>
             </div>
-        </div>
+        @else
+            <x-admin.empty-state :title="__('admin.no_visits')" :description="__('admin.no_visits_desc')" icon="event_busy" tone="slate" />
         @endif
+    </x-admin.panel>
 
-        <div class="mt-6 pt-4 border-t border-slate-100">
-            <p class="text-xs text-slate-400">
-                Terdaftar {{ $user->created_at->locale('id')->translatedFormat('d F Y, H:i') }}
-                @if($user->updated_at->ne($user->created_at))
-                    · Diperbarui {{ $user->updated_at->format('d M Y, H:i') }}
-                @endif
-            </p>
-        </div>
-    </div>
+    <p class="text-xs text-slate-400">
+        {{ __('admin.registered_at') }}: {{ optional($user->created_at)->locale(app()->getLocale())->translatedFormat('d F Y, H:i') }}
+        @if($user->updated_at && $user->updated_at->ne($user->created_at))
+            · {{ __('common.updated_at') }}: {{ $user->updated_at->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}
+        @endif
+    </p>
 </div>
 @endsection

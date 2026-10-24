@@ -1,241 +1,230 @@
+@php
+    $paymentMethods = $paymentMethods ?? collect();
+    $exportQuery = request()->only(['status', 'type', 'method', 'search', 'sort', 'direction', 'from', 'to']);
+@endphp
 @extends('layouts.admin')
 
-@section('title', 'Invoice & Pembayaran')
-
-@section('header', 'Invoice & Pembayaran')
+@section('title', __('admin.payments_title') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('admin.payments_title'))
 
 @section('content')
-<div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-    <div>
-        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">Keuangan</p>
-        <h2 class="mt-1 text-2xl font-bold text-slate-900 dark:text-white">Invoice & Pembayaran</h2>
-        <p class="mt-1 max-w-2xl text-sm text-slate-500 dark:text-slate-400">
-            Semua tagihan berasal dari booking. Buka detail booking untuk mencatat pembayaran, mengunduh invoice, dan melihat rekam medis sekaligus.
-        </p>
-    </div>
-    <a href="{{ route('admin.bookings.index') }}" class="inline-flex items-center gap-1.5 self-start rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800">
-        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>
-        Daftar booking
-    </a>
-</div>
+<div class="space-y-6">
 
-{{-- Statistics Cards --}}
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-    <div class="glass-card p-5 rounded-xl border border-slate-200/50">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center">
-                <span class="material-symbols-outlined text-blue-600">receipt_long</span>
-            </div>
-            <div>
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Transactions</p>
-                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $stats['total_transactions'] }}</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="glass-card p-5 rounded-xl border border-emerald-200/50">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center">
-                <span class="material-symbols-outlined text-emerald-600">trending_up</span>
-            </div>
-            <div>
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Total Collected</p>
-                <p class="text-xl font-bold text-emerald-600">Rp {{ number_format($stats['total_collected'], 0, ',', '.') }}</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="glass-card p-5 rounded-xl border border-orange-200/50">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-orange-50 dark:bg-orange-900/30 flex items-center justify-center">
-                <span class="material-symbols-outlined text-orange-600">pending_actions</span>
-            </div>
-            <div>
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Outstanding</p>
-                <p class="text-xl font-bold text-orange-600">Rp {{ number_format($stats['total_outstanding'], 0, ',', '.') }}</p>
-            </div>
-        </div>
-    </div>
-
-    <div class="glass-card p-5 rounded-xl border border-purple-200/50">
-        <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-lg bg-purple-50 dark:bg-purple-900/30 flex items-center justify-center">
-                <span class="material-symbols-outlined text-purple-600">check_circle</span>
-            </div>
-            <div>
-                <p class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Fully Paid</p>
-                <p class="text-xl font-bold text-purple-600">{{ $stats['paid_count'] }}</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Filter Bar --}}
-<div class="glass-card p-6 rounded-xl border border-slate-200/50 mb-8">
-    <form method="GET" action="{{ route('admin.payments.index') }}" class="flex flex-wrap gap-4 items-end">
-        <div class="flex-1 min-w-[200px]">
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Search</label>
-            <input type="text" name="search" value="{{ request('search') }}" placeholder="Customer, hewan, atau nomor invoice"
-                   class="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-        </div>
-
-        <div class="w-40">
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Status</label>
-            <select name="status" class="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-                <option value="">All Status</option>
-                <option value="unpaid" {{ request('status') == 'unpaid' ? 'selected' : '' }}>Unpaid</option>
-                <option value="pending" {{ request('status') == 'pending' ? 'selected' : '' }}>Pending</option>
-                <option value="dp_paid" {{ request('status') == 'dp_paid' ? 'selected' : '' }}>DP Paid</option>
-                <option value="paid" {{ request('status') == 'paid' ? 'selected' : '' }}>Paid</option>
-                <option value="partial" {{ request('status') == 'partial' ? 'selected' : '' }}>Partial</option>
-                <option value="failed" {{ request('status') == 'failed' ? 'selected' : '' }}>Failed</option>
-            </select>
-        </div>
-
-        <div class="w-40">
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Type</label>
-            <select name="type" class="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-                <option value="">All Types</option>
-                <option value="dp" {{ request('type') == 'dp' ? 'selected' : '' }}>Down Payment</option>
-                <option value="full" {{ request('type') == 'full' ? 'selected' : '' }}>Full Payment</option>
-            </select>
-        </div>
-
-        <div class="w-40">
-            <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Method</label>
-            <select name="method" class="w-full px-4 py-2.5 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-                <option value="">All Methods</option>
-                <option value="midtrans" {{ request('method') == 'midtrans' ? 'selected' : '' }}>Midtrans</option>
-                <option value="cash" {{ request('method') == 'cash' ? 'selected' : '' }}>Cash</option>
-                <option value="bank_transfer" {{ request('method') == 'bank_transfer' ? 'selected' : '' }}>Bank Transfer</option>
-            </select>
-        </div>
-
-        <div class="flex gap-2">
-            <button type="submit" class="px-6 py-2.5 bg-primary text-white rounded-lg text-sm font-semibold hover:bg-emerald-600 transition-colors">
-                Filter
-            </button>
-            <a href="{{ route('admin.payments.index') }}" class="px-6 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                Reset
+    {{-- Header halaman --}}
+    <x-admin.page-header
+        :title="__('admin.payments_title')"
+        :eyebrow="__('admin.eyebrow_finance')"
+        icon="payments"
+        :description="__('admin.payments_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.bookings.index') }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>
+                {{ __('menu.appointments') }}
             </a>
+            <a href="{{ route('admin.payments.export', $exportQuery) }}" target="_blank" class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">print</span>
+                {{ __('admin.export_pdf') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
+
+    {{-- Kartu ringkasan --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-admin.stat-card
+            :label="__('admin.stat_total_transactions')"
+            :value="number_format($stats['total_transactions'])"
+            icon="receipt_long"
+            tone="blue" />
+
+        <x-admin.stat-card
+            :label="__('admin.stat_total_collected')"
+            :value="'Rp ' . number_format($stats['total_collected'], 0, ',', '.')"
+            icon="trending_up"
+            tone="primary" />
+
+        <x-admin.stat-card
+            :label="__('admin.stat_outstanding')"
+            :value="'Rp ' . number_format($stats['total_outstanding'], 0, ',', '.')"
+            icon="pending_actions"
+            tone="amber" />
+
+        <x-admin.stat-card
+            :label="__('admin.stat_fully_paid')"
+            :value="number_format($stats['paid_count'])"
+            icon="check_circle"
+            tone="violet" />
+    </div>
+
+    {{-- Filter --}}
+    <x-admin.panel :title="__('admin.filter')" :subtitle="__('admin.export_hint')">
+        <form method="GET" action="{{ route('admin.payments.index') }}" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div class="sm:col-span-2 lg:col-span-1">
+                <label for="payment-search" class="admin-label">{{ __('admin.search') }}</label>
+                <input id="payment-search" type="text" name="search" value="{{ request('search') }}"
+                       placeholder="{{ __('admin.payment_search_placeholder') }}" class="admin-input">
+            </div>
+
+            <div>
+                <label for="payment-status" class="admin-label">{{ __('common.status') }}</label>
+                <select id="payment-status" name="status" class="admin-input">
+                    <option value="">{{ __('admin.all_status') }}</option>
+                    <option value="unpaid" {{ request('status') === 'unpaid' ? 'selected' : '' }}>{{ __('common.unpaid') }}</option>
+                    <option value="pending" {{ request('status') === 'pending' ? 'selected' : '' }}>{{ __('common.pending') }}</option>
+                    <option value="dp_pending" {{ request('status') === 'dp_pending' ? 'selected' : '' }}>{{ __('common.dp_pending') }}</option>
+                    <option value="dp_paid" {{ request('status') === 'dp_paid' ? 'selected' : '' }}>{{ __('common.dp_paid') }}</option>
+                    <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>{{ __('common.paid') }}</option>
+                    <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>{{ __('common.partial') }}</option>
+                    <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>{{ __('common.failed') }}</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="payment-type" class="admin-label">{{ __('common.type') }}</label>
+                <select id="payment-type" name="type" class="admin-input">
+                    <option value="">{{ __('admin.all_types') }}</option>
+                    <option value="dp" {{ request('type') === 'dp' ? 'selected' : '' }}>{{ __('admin.type_down_payment') }}</option>
+                    <option value="full" {{ request('type') === 'full' ? 'selected' : '' }}>{{ __('admin.type_full_payment') }}</option>
+                </select>
+            </div>
+
+            <div>
+                <label for="payment-method" class="admin-label">{{ __('common.method') }}</label>
+                <select id="payment-method" name="method" class="admin-input">
+                    <option value="">{{ __('admin.all_methods') }}</option>
+                    @foreach($paymentMethods as $method)
+                        <option value="{{ $method }}" @selected(request('method') === $method)>{{ $method }}</option>
+                    @endforeach
+                </select>
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 sm:col-span-2 lg:col-span-4">
+                <button type="submit" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">filter_alt</span>
+                    {{ __('admin.apply_filter') }}
+                </button>
+                <a href="{{ route('admin.payments.index') }}" class="admin-btn-ghost">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
+                    {{ __('admin.reset_filter') }}
+                </a>
+            </div>
+        </form>
+    </x-admin.panel>
+
+    {{-- Tabel transaksi --}}
+    <x-admin.panel :title="__('admin.invoice_transactions')" :subtitle="__('admin.invoice_count', ['count' => $payments->total()])" flush>
+        <x-slot:actions>
+            <a href="{{ route('admin.payments.export', $exportQuery) }}" target="_blank" class="text-xs font-semibold text-primary transition hover:opacity-80">
+                {{ __('admin.export_pdf') }}
+            </a>
+        </x-slot:actions>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="admin-table-head">
+                    <tr>
+                        <th class="px-5 py-3">{{ __('admin.col_invoice') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_customer') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_total_amount') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_paid') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_remaining') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_type') }}</th>
+                        <th class="px-5 py-3">{{ __('common.status') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                    @forelse($payments as $payment)
+                        <tr class="admin-table-row">
+                            <td class="px-5 py-3">
+                                <p class="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300">
+                                    INV-{{ str_pad((string) $payment->id, 5, '0', STR_PAD_LEFT) }}
+                                </p>
+                                <p class="mt-0.5 text-[10px] text-slate-400">#{{ $payment->id }}</p>
+                            </td>
+                            <td class="px-5 py-3">
+                                <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $payment->user->name }}</p>
+                                <p class="text-[11px] text-slate-400">{{ $payment->pet->name }}</p>
+                            </td>
+                            <td class="px-5 py-3 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                                Rp {{ number_format($payment->total_amount, 0, ',', '.') }}
+                            </td>
+                            <td class="px-5 py-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                Rp {{ number_format($payment->paid_amount, 0, ',', '.') }}
+                            </td>
+                            <td class="px-5 py-3">
+                                @if($payment->remaining_amount > 0)
+                                    <p class="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">
+                                        Rp {{ number_format($payment->remaining_amount, 0, ',', '.') }}
+                                    </p>
+                                @else
+                                    <span class="text-xs text-slate-400">—</span>
+                                @endif
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge
+                                    :label="\App\Support\AdminStatus::paymentTypeLabel($payment->payment_type)"
+                                    :tone="\App\Support\AdminStatus::paymentTypeTone($payment->payment_type)" />
+                                <p class="mt-1 text-[10px] text-slate-400">
+                                    {{ $payment->payment_method ?: __('admin.not_selected') }}
+                                </p>
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge
+                                    :label="\App\Support\AdminStatus::paymentLabel($payment->payment_status)"
+                                    :tone="\App\Support\AdminStatus::paymentTone($payment->payment_status)"
+                                    dot />
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center justify-center gap-1">
+                                    <a href="{{ route('admin.bookings.show', $payment->id) }}#pembayaran"
+                                       class="admin-icon-btn hover:!text-primary"
+                                       title="{{ __('admin.open_booking_payment') }}"
+                                       aria-label="{{ __('admin.open_booking_payment') }} INV-{{ $payment->id }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
+                                    </a>
+
+                                    <a href="{{ route('admin.payments.receipt', $payment->id) }}"
+                                       class="admin-icon-btn hover:!text-emerald-600"
+                                       title="{{ __('admin.download_invoice') }}"
+                                       aria-label="{{ __('admin.download_invoice') }} INV-{{ $payment->id }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">download</span>
+                                    </a>
+
+                                    @if($payment->payment_status !== 'paid' && $payment->remaining_amount > 0)
+                                        <form method="POST" action="{{ route('admin.payments.send-reminder', $payment->id) }}" class="inline"
+                                              onsubmit="return confirm('{{ __('admin.remind_confirm') }}')">
+                                            @csrf
+                                            <button type="submit"
+                                                    class="admin-icon-btn hover:!text-blue-600"
+                                                    title="{{ __('admin.remind_confirm') }}"
+                                                    aria-label="{{ __('admin.remind_confirm') }} INV-{{ $payment->id }}">
+                                                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">send</span>
+                                            </button>
+                                        </form>
+                                    @endif
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="8">
+                                <x-admin.empty-state
+                                    :title="__('admin.no_payments_title')"
+                                    :description="__('admin.no_payments_desc')"
+                                    icon="receipt_long"
+                                    tone="slate" />
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
-    </form>
-    <div class="mt-4 rounded-2xl border border-sky-100 bg-sky-50/80 px-4 py-3 text-xs leading-6 text-sky-800">
-        Export PDF mengikuti filter aktif. Untuk transaksi yang banyak, sempitkan pencarian berdasarkan status, metode, atau kata kunci sebelum export agar laporan tetap akurat dan cepat dibuka.
-    </div>
+
+        @if($payments->hasPages())
+            <x-slot:footer>
+                {{ $payments->links() }}
+            </x-slot:footer>
+        @endif
+    </x-admin.panel>
 </div>
-
-{{-- Payments Table --}}
-<div class="glass-card rounded-xl border border-slate-200/50 overflow-hidden">
-    <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <div>
-            <h3 class="text-md font-bold text-slate-900 dark:text-white">Invoice & Transaksi</h3>
-            <p class="text-xs text-slate-400 mt-1">{{ $payments->total() }} invoice tercatat</p>
-        </div>
-        <a href="{{ route('admin.payments.export') }}" target="_blank" class="px-4 py-2 bg-emerald-700 text-white rounded-lg text-sm font-semibold hover:bg-emerald-800 transition-colors flex items-center gap-1">
-            <span class="material-symbols-outlined text-[18px]">print</span>Export PDF
-        </a>
-    </div>
-
-    <div class="overflow-x-auto">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    <th class="px-6 py-4">Invoice</th>
-                    <th class="px-6 py-4">Customer</th>
-                    <th class="px-6 py-4">Total Amount</th>
-                    <th class="px-6 py-4">Paid</th>
-                    <th class="px-6 py-4">Remaining</th>
-                    <th class="px-6 py-4">Type</th>
-                    <th class="px-6 py-4">Status</th>
-                    <th class="px-6 py-4 text-center">Actions</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100/50 dark:divide-slate-800/50">
-                @forelse($payments as $payment)
-                <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-mono font-semibold text-slate-700 dark:text-slate-300">INV-{{ str_pad((string) $payment->id, 5, '0', STR_PAD_LEFT) }}</p>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Booking #{{ $payment->id }}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ $payment->user->name }}</p>
-                        <p class="text-[10px] text-slate-400">{{ $payment->pet->name }}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">Rp {{ number_format($payment->total_amount, 0, ',', '.') }}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="text-sm font-semibold text-emerald-600">Rp {{ number_format($payment->paid_amount, 0, ',', '.') }}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        @if($payment->remaining_amount > 0)
-                            <p class="text-sm font-bold text-orange-600">Rp {{ number_format($payment->remaining_amount, 0, ',', '.') }}</p>
-                        @else
-                            <span class="text-xs text-slate-400">-</span>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4">
-                        @if($payment->payment_type === 'dp')
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-blue-50 text-blue-600 border-blue-100">DP</span>
-                        @else
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-emerald-50 text-emerald-600 border-emerald-100">Full</span>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4">
-                        @php
-                            $statusColors = [
-                                'paid' => ['bg-emerald-50 text-emerald-600 border-emerald-100', 'Paid'],
-                                'dp_paid' => ['bg-blue-50 text-blue-600 border-blue-100', 'DP Paid'],
-                                'pending' => ['bg-yellow-50 text-yellow-600 border-yellow-100', 'Pending'],
-                                'partial' => ['bg-orange-50 text-orange-600 border-orange-100', 'Partial'],
-                                'failed' => ['bg-red-50 text-red-600 border-red-100', 'Failed'],
-                                'unpaid' => ['bg-gray-50 text-gray-600 border-gray-100', 'Unpaid'],
-                            ];
-                            $style = $statusColors[$payment->payment_status] ?? ['bg-gray-50 text-gray-600 border-gray-100', ucfirst($payment->payment_status)];
-                        @endphp
-                        <span class="px-2 py-0.5 text-[9px] font-bold rounded border {{ $style[0] }}">{{ $style[1] }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            <a href="{{ route('admin.bookings.show', $payment->id) }}#pembayaran" class="w-8 h-8 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="Buka detail booking & pembayaran">
-                                <span class="material-symbols-outlined text-md">visibility</span>
-                            </a>
-                            <a href="{{ route('admin.payments.receipt', $payment->id) }}" class="w-8 h-8 rounded-lg text-slate-400 hover:text-emerald-600 transition-all inline-flex items-center justify-center" title="Unduh invoice PDF">
-                                <span class="material-symbols-outlined text-md">download</span>
-                            </a>
-                            @if($payment->payment_status !== 'paid' && $payment->remaining_amount > 0)
-                            <form method="POST" action="{{ route('admin.payments.send-reminder', $payment->id) }}" class="inline">
-                                @csrf
-                                <button type="submit" class="w-8 h-8 rounded-lg text-slate-400 hover:text-blue-600 transition-all inline-flex items-center justify-center" title="Send Reminder" onclick="return confirm('Send payment reminder to customer?')">
-                                    <span class="material-symbols-outlined text-md">send</span>
-                                </button>
-                            </form>
-                            @endif
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="8" class="px-6 py-12 text-center">
-                        <div class="flex flex-col items-center">
-                            <span class="material-symbols-outlined text-slate-300 text-5xl mb-4">receipt_long</span>
-                            <p class="text-slate-600 text-sm font-semibold">Belum ada transaksi pembayaran yang sesuai</p>
-                            <p class="text-slate-400 text-xs mt-1 max-w-sm leading-5">Persempit atau ubah filter pencarian untuk melihat transaksi lain yang sudah tercatat di sistem.</p>
-                        </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    {{-- Pagination --}}
-    @if($payments->hasPages())
-    <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800">
-        {{ $payments->links() }}
-    </div>
-    @endif
-</div>
-
 @endsection

@@ -7,11 +7,25 @@ use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
 {
+    private const PAYMENT_STATUSES = [
+        'unpaid',
+        'pending',
+        'dp_pending',
+        'dp_paid',
+        'paid',
+        'partial',
+        'failed',
+    ];
+
+    private const PAYMENT_TYPES = ['dp', 'full'];
+
     protected FCMService $fcmService;
 
     public function __construct(FCMService $fcmService)
@@ -24,31 +38,107 @@ class PaymentController extends Controller
      */
     public function index(Request $request)
     {
+        $this->validateFilters($request);
+
+        $clinicId = currentClinicId();
+        $filteredQuery = $this->filteredPaymentsQuery($request);
+
+        // Statistics follow the active filters so the cards always agree with
+        // the table/export below. The unfiltered card set keeps its 5-minute
+        // cache; filtered combinations are computed live (and never leave a
+        // stale aggregate behind for an arbitrary filter).
+        $statsCacheKey = 'payment_stats_c' . ($clinicId ?: 'all');
+        $stats = $this->hasActiveFilters($request)
+            ? $this->paymentStats($filteredQuery)
+            : Cache::remember($statsCacheKey, 300, fn() => $this->paymentStats($filteredQuery));
+
+        $query = clone $filteredQuery;
+        $this->applySort($query, $request);
+
+        $payments = $query->with(['user', 'pet', 'doctor'])
+            ->paginate(20)
+            ->withQueryString();
+
+        // Stored values are payment-method names (QRIS, GoPay, Bank
+        // Transfer - BCA, ...), not the old midtrans/cash/bank_transfer
+        // pseudo-types. Populate the filter from real rows.
+        $paymentMethods = Booking::query()
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->whereNotNull('payment_method')
+            ->where('payment_method', '!=', '')
+            ->distinct()
+            ->orderBy('payment_method')
+            ->pluck('payment_method');
+
+        return view('admin.payments.index', compact('payments', 'stats', 'paymentMethods'));
+    }
+
+    private function hasActiveFilters(Request $request): bool
+    {
+        return trim((string) $request->input('search', '')) !== ''
+            || $request->filled('method')
+            || in_array((string) $request->input('status'), self::PAYMENT_STATUSES, true)
+            || in_array((string) $request->input('type'), self::PAYMENT_TYPES, true);
+    }
+
+    private function paymentStats(Builder $query): array
+    {
+        // Cancelled bookings stay in the transaction count but never inflate
+        // the outstanding balance.
+        $totals = (clone $query)
+            ->selectRaw('COUNT(*) as total_transactions')
+            ->selectRaw('COALESCE(SUM(paid_amount), 0) as total_collected')
+            ->selectRaw("COALESCE(SUM(CASE WHEN status != 'cancelled' AND remaining_amount > 0 THEN remaining_amount ELSE 0 END), 0) as total_outstanding")
+            ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END), 0) as paid_count")
+            ->first();
+
+        return [
+            'total_transactions' => $totals->total_transactions,
+            'total_collected' => $totals->total_collected,
+            'total_outstanding' => $totals->total_outstanding,
+            'paid_count' => $totals->paid_count,
+        ];
+    }
+
+    private function validateFilters(Request $request): void
+    {
+        $request->validate([
+            'method' => 'nullable|string|max:100',
+            'search' => 'nullable|string|max:100',
+            'from' => 'nullable|date',
+            'to' => 'nullable|date|after_or_equal:from',
+            // status/type/sort/direction are intentionally not validated
+            // here. Stale or tampered filter links must still render the page,
+            // so the query whitelist ignores unknown values and applySort()
+            // falls back to updated_at + desc instead of redirecting.
+        ]);
+    }
+
+    private function filteredPaymentsQuery(Request $request): Builder
+    {
         $clinicId = currentClinicId();
 
-        $query = Booking::with(['user', 'pet', 'doctor'])
+        $query = Booking::query()
             ->whereNotNull('total_amount')
             ->where('total_amount', '>', 0)
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId));
 
-        // Filter by payment status
-        if ($request->filled('status')) {
-            $query->where('payment_status', $request->status);
+        $status = (string) $request->input('status', '');
+        if (in_array($status, self::PAYMENT_STATUSES, true)) {
+            $query->where('payment_status', $status);
         }
 
-        // Filter by payment type
-        if ($request->filled('type')) {
-            $query->where('payment_type', $request->type);
+        $type = (string) $request->input('type', '');
+        if (in_array($type, self::PAYMENT_TYPES, true)) {
+            $query->where('payment_type', $type);
         }
 
-        // Filter by payment method
         if ($request->filled('method')) {
-            $query->where('payment_method', $request->method);
+            $query->where('payment_method', $request->input('method'));
         }
 
-        // Search by customer name, pet name, or booking ID
-        if ($request->filled('search')) {
-            $search = trim((string) $request->search);
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 if (ctype_digit($search)) {
                     $q->orWhere('id', (int) $search);
@@ -63,49 +153,25 @@ class PaymentController extends Controller
             });
         }
 
-        // Sort (PHASE 3 V-03: direction whitelisted — raw direction into
-        // orderBy() turned invalid values into 500s and is an ORDER BY vector).
-        $sort = $request->get('sort', 'updated_at');
-        $direction = strtolower((string) $request->get('direction', 'desc'));
+        return $query;
+    }
+
+    private function applySort(Builder $query, Request $request): void
+    {
+        // Direction is whitelisted; raw input would be an ORDER BY vector.
+        $sort = (string) $request->input('sort', 'updated_at');
+        $direction = strtolower((string) $request->input('direction', 'desc'));
+
         $allowedSorts = ['updated_at', 'total_amount', 'paid_amount', 'remaining_amount', 'payment_status'];
         if (!in_array($direction, ['asc', 'desc'], true)) {
             $direction = 'desc';
         }
-        if (in_array($sort, $allowedSorts)) {
+
+        if (in_array($sort, $allowedSorts, true)) {
             $query->orderBy($sort, $direction);
         } else {
             $query->orderBy('updated_at', 'desc');
         }
-
-        $payments = $query->paginate(20)->withQueryString();
-
-        // Statistics - cached for 5 minutes, scoped by clinic
-        $statsCacheKey = 'payment_stats_c' . ($clinicId ?: 'all');
-        $stats = Cache::remember($statsCacheKey, 300, function () use ($clinicId) {
-            $totals = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COUNT(*) as total_transactions')
-                ->selectRaw('COALESCE(SUM(paid_amount), 0) as total_collected')
-                ->selectRaw('COALESCE(SUM(CASE WHEN remaining_amount > 0 THEN remaining_amount ELSE 0 END), 0) as total_outstanding')
-                ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END), 0) as paid_count")
-                ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'pending' THEN 1 ELSE 0 END), 0) as pending_count")
-                ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'dp_paid' THEN 1 ELSE 0 END), 0) as dp_paid_count")
-                ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'failed' THEN 1 ELSE 0 END), 0) as failed_count")
-                ->whereNotNull('total_amount')
-                ->where('total_amount', '>', 0)
-                ->first();
-
-            return [
-                'total_transactions' => $totals->total_transactions,
-                'total_collected' => $totals->total_collected,
-                'total_outstanding' => $totals->total_outstanding,
-                'paid_count' => $totals->paid_count,
-                'pending_count' => $totals->pending_count,
-                'dp_paid_count' => $totals->dp_paid_count,
-                'failed_count' => $totals->failed_count,
-            ];
-        });
-
-        return view('admin.payments.index', compact('payments', 'stats'));
     }
 
     /**
@@ -166,7 +232,7 @@ class PaymentController extends Controller
     public function confirm(Request $request, $id)
     {
         $request->validate([
-            'amount' => 'required|numeric|min:0',
+            'amount' => 'required|numeric|gt:0',
             'notes' => 'nullable|string|max:500',
         ]);
 
@@ -175,21 +241,36 @@ class PaymentController extends Controller
         // PHASE 3 (D-09): read-modify-write on paid/remaining must be atomic
         // with a row lock — concurrent admin confirm vs Midtrans webhook
         // previously lost updates to paid_amount.
-        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId, $request) {
+        [$booking, $appliedAmount] = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId, $request) {
             $query = Booking::where('id', $id);
             if ($clinicId) {
                 $query->where('clinic_id', $clinicId);
             }
             $booking = $query->lockForUpdate()->firstOrFail();
 
-            // Update payment info
-            $booking->paid_amount += $request->amount;
-            $booking->remaining_amount = max(0, $booking->total_amount - $booking->paid_amount);
-            if ($request->amount > 0) {
-                $booking->payment_date = now();
+            $remaining = max(0, (float) $booking->remaining_amount);
+            $amount = (float) $request->input('amount');
+
+            // Backend guard for the UI's max attribute: never let a manual
+            // confirmation exceed the outstanding balance.
+            if ($amount > $remaining + 0.001) {
+                $locale = app()->getLocale();
+                throw ValidationException::withMessages([
+                    'amount' => __('admin.payment_amount_exceeds_remaining', [
+                        'remaining' => number_format(
+                            $remaining,
+                            0,
+                            $locale === 'id' ? ',' : '.',
+                            $locale === 'id' ? '.' : ','
+                        ),
+                    ]),
+                ]);
             }
 
-            // Update status based on remaining amount
+            $booking->paid_amount = min((float) $booking->total_amount, (float) $booking->paid_amount + $amount);
+            $booking->remaining_amount = max(0, (float) $booking->total_amount - (float) $booking->paid_amount);
+            $booking->payment_date = now();
+
             if ($booking->remaining_amount <= 0) {
                 $booking->payment_status = 'paid';
             } elseif ($booking->payment_type === 'dp' && $booking->paid_amount >= $booking->dp_amount) {
@@ -200,7 +281,7 @@ class PaymentController extends Controller
 
             $booking->save();
 
-            return $booking;
+            return [$booking, $amount];
         });
 
         // PHASE 4: the validated `notes` memo previously went nowhere — keep
@@ -209,7 +290,7 @@ class PaymentController extends Controller
         $memo = trim((string) $request->input('notes', ''));
         AuditLog::log(
             'payment.confirm',
-            "Manually confirmed Rp " . number_format((float) $request->input('amount', 0), 0, ',', '.')
+            "Manually confirmed Rp " . number_format($appliedAmount, 0, ',', '.')
                 . " for booking #{$booking->id} ({$booking->payment_status})"
                 . ($memo !== '' ? " — {$memo}" : ''),
             $booking
@@ -217,9 +298,9 @@ class PaymentController extends Controller
 
         $cacheClinicId = $booking->clinic_id ?: currentClinicId();
         Cache::forget('payment_stats_c' . ($cacheClinicId ?: 'all'));
-        Cache::forget('dashboard_stats_c' . ($cacheClinicId ?: 'all') . '_all');
+        Cache::forget('dashboard_stats_v3_c' . ($cacheClinicId ?: 'all') . '_all');
 
-        return redirect()->back()->with('success', 'Payment confirmed successfully.');
+        return redirect()->back()->with('success', __('admin.payment_confirmed'));
     }
 
     /**
@@ -227,25 +308,22 @@ class PaymentController extends Controller
      */
     public function exportPdf(Request $request)
     {
-        $validated = $request->validate([
-            'from' => 'nullable|date',
-            'to' => 'nullable|date|after_or_equal:from',
-        ]);
+        $this->validateFilters($request);
 
-        $clinicId = currentClinicId();
-        $query = Booking::where('paid_amount', '>', 0)
-            ->with(['pet.user', 'doctor', 'service'])
-            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-            ->latest();
+        $query = $this->filteredPaymentsQuery($request)
+            ->with(['pet.user', 'doctor', 'service']);
 
-        if (!empty($validated['from'])) {
-            $query->whereDate('updated_at', '>=', $validated['from']);
+        if ($request->filled('from')) {
+            $query->whereDate('updated_at', '>=', $request->input('from'));
         }
 
-        if (!empty($validated['to'])) {
-            $query->whereDate('updated_at', '<=', $validated['to']);
+        if ($request->filled('to')) {
+            $query->whereDate('updated_at', '<=', $request->input('to'));
         }
 
+        // Export exactly the rows the list would show: the old unconditional
+        // paid_amount > 0 clause made status=unpaid/dp_pending exports empty.
+        $this->applySort($query, $request);
         $bookings = $query->get();
         $html = view('admin.exports.payments_pdf', compact('bookings'))->render();
         $dompdf = new Dompdf();
@@ -267,7 +345,7 @@ class PaymentController extends Controller
         $booking = $query->firstOrFail();
 
         if (!$booking->user) {
-            return redirect()->back()->with('error', 'Customer not found.');
+            return redirect()->back()->with('error', __('admin.customer_not_found'));
         }
 
         $sent = $this->fcmService->sendPaymentReminder(
@@ -282,8 +360,8 @@ class PaymentController extends Controller
         return redirect()->back()->with(
             $sent ? 'success' : 'warning',
             $sent
-                ? 'Payment reminder sent to customer successfully.'
-                : 'Payment reminder could not be delivered to the device. Check FCM token, notification permission, or Firebase credentials.'
+                ? __('admin.payment_reminder_sent')
+                : __('admin.payment_reminder_failed')
         );
     }
 }

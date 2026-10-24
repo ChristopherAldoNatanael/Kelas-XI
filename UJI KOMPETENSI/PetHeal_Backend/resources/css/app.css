@@ -1,9 +1,11 @@
 @import 'tailwindcss';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+/* storage/framework/views sengaja TIDAK jadi @source: cache blade yang sudah
+   terkompilasi membuat isi build CSS bergantung pada cache lokal (hasil build
+   berbeda antar mesin). Sumber kebenaran ada di resources/views/*.blade.php. */
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -323,4 +325,198 @@
     .toast .toast-close:hover {
         opacity: 1;
     }
+
+    /* ── Konsol admin: primitif form & tombol ───────────────────────────────
+       Dipakai supaya setiap halaman admin punya bentuk input, tombol, dan
+       header tabel yang sama persis — bukan tiap halaman bikin sendiri. */
+    .admin-label {
+        @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
+    }
+
+    .admin-input {
+        @apply w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500;
+    }
+
+    .admin-input-error {
+        @apply border-rose-300 focus:border-rose-400 focus:ring-rose-500/20 dark:border-rose-900;
+    }
+
+    .admin-hint {
+        @apply mt-1.5 text-xs leading-5 text-slate-400;
+    }
+
+    .admin-error {
+        @apply mt-1.5 text-xs font-medium text-rose-600 dark:text-rose-400;
+    }
+
+    .admin-btn-primary {
+        @apply inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600;
+    }
+
+    .admin-btn-secondary {
+        @apply inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:bg-slate-800;
+    }
+
+    .admin-btn-ghost {
+        @apply inline-flex items-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700;
+    }
+
+    .admin-btn-danger {
+        @apply inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-rose-700;
+    }
+
+    .admin-icon-btn {
+        @apply inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-primary dark:hover:bg-slate-800;
+    }
+
+    .admin-table-head {
+        @apply bg-slate-50/70 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:bg-slate-800/40;
+    }
+
+    .admin-table-row {
+        @apply transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/20;
+    }
+
+    /* ── Pemilih hari kerja ────────────────────────────────────────────────
+       Dipakai di form dokter (create/edit). Memakai select[multiple] bawaan
+       browser: tampilannya polos di desktop (daftar teks panjang) dan
+       membingungkan di ponsel (sekali ketuk untuk memilih 1 hari). Di sini
+       tiap hari jadi kartu toggle yang bisa diklik, plus preset cepat. */
+    .admin-daypicker {
+        @apply rounded-xl border border-slate-200 bg-slate-50/60 p-3.5 dark:border-slate-700 dark:bg-slate-900/40;
+    }
+
+    .admin-daypicker__head {
+        @apply flex flex-wrap items-start justify-between gap-x-4 gap-y-2;
+    }
+
+    .admin-daypicker__title {
+        @apply text-sm font-medium text-slate-700 dark:text-slate-300;
+    }
+
+    .admin-daypicker__hint {
+        @apply mt-0.5 max-w-sm text-xs leading-5 text-slate-400;
+    }
+
+    .admin-daypicker__presets {
+        @apply flex flex-wrap items-center gap-1.5;
+    }
+
+    .admin-daypicker__preset {
+        @apply inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[11px] font-semibold leading-none text-slate-500 transition hover:border-emerald-300 hover:bg-emerald-50 hover:text-emerald-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-emerald-600/60 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-300;
+    }
+
+    .admin-daypicker__preset.is-active {
+        @apply border-emerald-500 bg-emerald-50 text-emerald-700 dark:border-emerald-500/70 dark:bg-emerald-500/15 dark:text-emerald-300;
+    }
+
+    .admin-daypicker__grid {
+        @apply mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7;
+    }
+
+    .admin-daypicker__tile {
+        @apply relative flex cursor-pointer select-none flex-col items-center gap-0.5 rounded-xl border border-slate-200 bg-white px-1.5 py-2.5 transition hover:border-emerald-300 hover:bg-emerald-50/70 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-emerald-600/60 dark:hover:bg-emerald-500/10;
+    }
+
+    .admin-daypicker__input {
+        @apply sr-only;
+    }
+
+    .admin-daypicker__code {
+        @apply text-[13px] font-semibold leading-tight tracking-tight text-slate-700 dark:text-slate-200;
+    }
+
+    .admin-daypicker__name {
+        @apply max-w-full truncate text-[10px] font-medium leading-tight text-slate-400 dark:text-slate-500;
+    }
+
+    .admin-daypicker__tick {
+        @apply absolute right-1.5 top-1.5 h-4 w-4 items-center justify-center rounded-full bg-emerald-500 text-white;
+        display: none;
+    }
+
+    .admin-daypicker__foot {
+        @apply mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-slate-200/70 pt-2.5 text-xs dark:border-slate-800;
+    }
+
+    .admin-daypicker__count {
+        @apply font-semibold text-slate-600 dark:text-slate-300;
+    }
+
+    .admin-daypicker__summary {
+        @apply text-slate-400;
+    }
+
+    .admin-daypicker__error {
+        @apply mt-2 text-xs font-medium text-rose-600 dark:text-rose-400;
+    }
+
+    /* Keadaan terpilih & fokus keyboard, ditulis dengan :has() supaya markup
+       tetap ringan (checkbox asli disembunyikan, bukan diganti button). */
+    .admin-daypicker__tile:has(.admin-daypicker__input:checked) {
+        @apply border-emerald-500 bg-emerald-50 dark:border-emerald-500/70 dark:bg-emerald-500/10;
+        box-shadow: 0 1px 2px rgba(16, 185, 129, 0.18);
+    }
+
+    .admin-daypicker__tile:has(.admin-daypicker__input:checked) .admin-daypicker__code {
+        @apply text-emerald-700 dark:text-emerald-300;
+    }
+
+    .admin-daypicker__tile:has(.admin-daypicker__input:checked) .admin-daypicker__name {
+        @apply text-emerald-600/80 dark:text-emerald-400/80;
+    }
+
+    .admin-daypicker__tile:has(.admin-daypicker__input:checked) .admin-daypicker__tick {
+        display: flex;
+    }
+
+    .admin-daypicker__tile:has(.admin-daypicker__input:focus-visible) {
+        @apply ring-2 ring-primary/50 ring-offset-2 ring-offset-white dark:ring-offset-slate-950;
+    }
+
+    /* Wrapper ikon placeholder foto. Sengaja DI DALAM @layer components:
+       utilitas `hidden` berada di layer utilities yang menang, jadi JavaScript
+       tetap bisa menyembunyikan placeholder ini (dan tidak ketimpa
+       `display: inline-block` milik CSS Material Symbols). */
+    .admin-photo-slot__placeholder {
+        @apply flex items-center justify-center;
+    }
+}
+
+/* ── Slot foto (avatar) ──────────────────────────────────────────────────
+   Sengaja ditulis DI LUAR @layer. CSS Material Symbols dimuat lewat <link>
+   tanpa layer dan SESUDAH app.css (lihat resources/views/layouts/admin.blade.php),
+   sehingga deklarasi unlayered-nya — display: inline-block, font-size: 24px,
+   line-height: 1 — mengalahkan utility Tailwind seperti `flex`, `text-3xl`,
+   atau `hidden`. Akibatnya ikon placeholder lama tidak bisa dipusatkan
+   (nangkring di pojok lingkaran), tidak bisa diperbesar, dan tidak bisa
+   disembunyikan setelah foto dipilih.
+
+   Selectors di bawah dibuat lebih spesifik (dua kelas) sehingga tetap
+   menang atas aturan font, dan aturan `display` sengaja TIDAK dipakai pada
+   wrapper ikon supaya utilitas `hidden` milik JavaScript tetap berfungsi. */
+.admin-photo-slot {
+    @apply relative flex h-24 w-24 flex-shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-slate-200 bg-slate-50;
+}
+
+.admin-photo-slot--dashed {
+    @apply border-dashed border-slate-300;
+}
+
+.dark .admin-photo-slot {
+    @apply border-slate-700 bg-slate-800;
+}
+
+.dark .admin-photo-slot--dashed {
+    @apply border-slate-600;
+}
+
+.admin-photo-slot .material-symbols-outlined {
+    font-size: 36px;
+    line-height: 1;
+    @apply text-slate-400;
+}
+
+.dark .admin-photo-slot .material-symbols-outlined {
+    @apply text-slate-500;
 }

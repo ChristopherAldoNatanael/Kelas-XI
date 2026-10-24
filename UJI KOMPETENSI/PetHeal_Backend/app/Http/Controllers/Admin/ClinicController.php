@@ -138,36 +138,6 @@ class ClinicController extends Controller
     }
 
     /**
-     * Show the editable profile of the current user's own clinic.
-     *
-     * Any admin role with a clinic context (clinic_admin, legacy admin,
-     * super_admin with a selected clinic) may open this page.
-     */
-    public function profile()
-    {
-        $clinic = currentClinic();
-
-        if (!$clinic) {
-            // super_admin in system-overview mode has no clinic context.
-            return redirect()->route('admin.clinics.index')
-                ->with('warning', __('clinics.select_clinic_first'));
-        }
-
-        $clinicAdmins = User::where('clinic_id', $clinic->id)
-            ->whereIn('role', ['clinic_admin', 'super_admin'])
-            ->orderBy('name')
-            ->get();
-
-        // Profil klinik hidup di dalam halaman Pengaturan yang sama supaya
-        // tidak ada dua halaman yang menampilkan data klinik yang sama.
-        return view('admin.settings', [
-            'clinic' => $clinic,
-            'clinicAdmins' => $clinicAdmins,
-            'activeTab' => 'klinik',
-        ]);
-    }
-
-    /**
      * Update the current user's own clinic (limited fields).
      *
      * Deliberately excludes `slug` (used by the Android app as the tenant
@@ -220,6 +190,8 @@ class ClinicController extends Controller
 
         $clinic->update($data);
 
-        return redirect()->route('admin.clinic-profile')->with('success', __('clinics.updated_success'));
+        return redirect()
+            ->route('admin.settings', ['tab' => 'klinik'])
+            ->with('success', __('clinics.updated_success'));
     }
 }

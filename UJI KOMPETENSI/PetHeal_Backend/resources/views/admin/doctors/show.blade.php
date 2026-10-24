@@ -1,250 +1,216 @@
 @extends('layouts.admin')
 
-@section('title', 'Doctor Details - VCMS Admin')
-@section('header', 'Doctor Profile')
+@section('title', __('admin.doctor_profile') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('admin.doctor_profile'))
 
 @section('content')
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="p-6 border-b border-slate-100 dark:border-slate-800">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-            <div>
-                <h3 class="text-md font-bold text-slate-900 dark:text-white tracking-tight">Doctor Profile</h3>
-                <p class="text-xs text-slate-400 mt-0.5">View doctor details and information</p>
-            </div>
-            <div class="flex flex-wrap items-center justify-end gap-2">
-                <a href="{{ route('admin.doctors.schedule', $doctor->id) }}" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">event_busy</span>
-                    Jadwal &amp; Cuti
-                </a>
-                <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="bg-primary hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all flex items-center gap-2">
-                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                    Edit
-                </a>
-                <a href="{{ route('admin.doctors.index') }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold transition-all">
-                    Back
-                </a>
-            </div>
-        </div>
-    </div>
+@php
+    $availableDays = is_array($doctor->available_days)
+        ? $doctor->available_days
+        : (json_decode($doctor->available_days, true) ?? []);
+    $availableDayLabels = collect($availableDays)
+        ->map(fn ($day) => __('admin.' . strtolower($day)))
+        ->filter(fn ($label) => $label !== 'admin.' . strtolower($label))
+        ->values();
+@endphp
 
-    <div class="p-8">
-        <div class="flex flex-col lg:flex-row gap-8">
-            <!-- Left - Photo and Basic Info -->
-            <div class="lg:w-1/3">
-                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6 text-center">
+<div class="space-y-6">
+    <x-admin.page-header
+        :title="$doctor->name"
+        :eyebrow="__('admin.eyebrow_management')"
+        icon="medical_services"
+        :description="__('admin.doctor_profile_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.doctors.schedule', $doctor->id) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">event_busy</span>
+                {{ __('admin.schedule_leave') }}
+            </a>
+            <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                {{ __('admin.edit') }}
+            </a>
+            <a href="{{ route('admin.doctors.index') }}" class="admin-btn-ghost">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                {{ __('admin.back') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {{-- Kartu identitas --}}
+        <div class="space-y-6">
+            <x-admin.panel>
+                <div class="text-center">
                     @if($doctor->photo_url)
-                        <img class="w-32 h-32 rounded-full object-cover mx-auto mb-4" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
-                    @elseif($doctor->photo)
-                        <img class="w-32 h-32 rounded-full object-cover mx-auto mb-4" src="{{ asset('storage/' . $doctor->photo) }}?t={{ time() }}" alt="{{ $doctor->name }}">
+                        <img class="mx-auto h-32 w-32 rounded-full object-cover" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
                     @else
-                        <div class="w-32 h-32 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center mx-auto mb-4">
-                            <span class="material-symbols-outlined text-5xl text-slate-400">person</span>
+                        <span class="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+                            <span class="material-symbols-outlined text-5xl" aria-hidden="true">person</span>
+                        </span>
+                    @endif
+
+                    <h3 class="mt-4 text-lg font-bold text-slate-900 dark:text-white">{{ $doctor->name }}</h3>
+                    <p class="mt-0.5 text-sm text-slate-500 dark:text-slate-400">{{ $doctor->specialization }}</p>
+
+                    <div class="mt-3 flex justify-center">
+                        <x-admin.badge
+                            :label="$doctor->is_active ? __('common.active') : __('common.inactive')"
+                            :tone="$doctor->is_active ? 'primary' : 'slate'"
+                            dot />
+                    </div>
+
+                    <div class="mt-5 flex items-center justify-center gap-2 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-900/20">
+                        <span class="material-symbols-outlined text-[18px] text-amber-500" aria-hidden="true">star</span>
+                        <span class="text-sm font-bold text-slate-900 dark:text-white">
+                            {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
+                        </span>
+                        <span class="text-xs text-slate-500 dark:text-slate-400">
+                            {{ __('admin.from_reviews', ['count' => $doctor->reviews_count]) }}
+                        </span>
+                    </div>
+                </div>
+            </x-admin.panel>
+
+            <x-admin.panel :title="__('admin.contact_information')">
+                <div class="space-y-3">
+                    @if($doctor->email)
+                        <div class="flex items-center gap-3">
+                            <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-900/20">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">email</span>
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.email') }}</p>
+                                <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $doctor->email }}</p>
+                            </div>
                         </div>
                     @endif
 
-                    <h2 class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->name }}</h2>
-                    <p class="text-sm text-slate-500 mt-1">{{ $doctor->specialization }}</p>
-
-                    <div class="mt-4">
-                        <span class="px-3 py-1 text-xs font-semibold rounded-full {{ $doctor->is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800' }}">
-                            {{ $doctor->is_active ? 'Active' : 'Inactive' }}
-                        </span>
-                    </div>
-
-                    <div class="mt-5 rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3 text-left">
-                        <div class="flex items-center gap-2">
-                            <span class="material-symbols-outlined text-[18px] text-amber-500">star</span>
-                            <p class="text-sm font-semibold text-slate-900">
-                                {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
-                            </p>
-                            <p class="text-xs text-slate-500">
-                                from {{ $doctor->reviews_count }} review{{ $doctor->reviews_count === 1 ? '' : 's' }}
-                            </p>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Contact Info -->
-                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6 mt-6">
-                    <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Contact Information</h4>
-                    <div class="space-y-3">
-                        @if($doctor->email)
+                    @if($doctor->phone)
                         <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-blue-600 text-sm">email</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Email</p>
-                                <p class="text-sm text-slate-700 dark:text-slate-300">{{ $doctor->email }}</p>
+                            <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/20">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">phone</span>
+                            </span>
+                            <div class="min-w-0">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.phone') }}</p>
+                                <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $doctor->phone }}</p>
                             </div>
                         </div>
-                        @endif
+                    @endif
 
-                        @if($doctor->phone)
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-emerald-600 text-sm">phone</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Phone</p>
-                                <p class="text-sm text-slate-700 dark:text-slate-300">{{ $doctor->phone }}</p>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
+                    @if(!$doctor->email && !$doctor->phone)
+                        <p class="text-sm text-slate-400">{{ __('admin.email_empty') }}</p>
+                    @endif
                 </div>
+            </x-admin.panel>
+
+            <x-admin.panel :title="__('admin.schedule_tab')">
+                <dl class="space-y-4">
+                    <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.available_days') }}</dt>
+                        <dd class="mt-1 text-sm text-slate-700 dark:text-slate-300">
+                            {{ $availableDayLabels->isNotEmpty() ? $availableDayLabels->implode(', ') : '—' }}
+                        </dd>
+                    </div>
+                    <div>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.working_hours') }}</dt>
+                        <dd class="mt-1 text-sm tabular-nums text-slate-700 dark:text-slate-300">
+                            {{ $doctor->start_time }} - {{ $doctor->end_time }}
+                        </dd>
+                    </div>
+                </dl>
+            </x-admin.panel>
+        </div>
+
+        {{-- Statistik, ulasan, booking --}}
+        <div class="space-y-6 lg:col-span-2">
+            <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+                <x-admin.stat-card :label="__('admin.total_bookings')" :value="$doctor->bookings_count" icon="event" tone="blue" />
+                <x-admin.stat-card :label="__('admin.completed')" :value="$doctor->completed_bookings_count" icon="check_circle" tone="primary" />
+                <x-admin.stat-card :label="__('admin.pending')" :value="$doctor->pending_bookings_count" icon="hourglass_top" tone="amber" />
+                <x-admin.stat-card :label="__('admin.review_volume')" :value="$doctor->reviews_count" icon="reviews" tone="violet" />
             </div>
 
-            <!-- Right - Schedule and Stats -->
-            <div class="lg:w-2/3 space-y-6">
-                <!-- Schedule -->
-                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                    <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Schedule</h4>
-                    <div class="grid grid-cols-2 gap-4">
-                        <div>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Available Days</p>
-                            <p class="text-sm text-slate-700 dark:text-slate-300 mt-1">
-                                {{ implode(', ', is_array($doctor->available_days) ? $doctor->available_days : json_decode($doctor->available_days, true) ?? []) }}
-                            </p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-slate-400 uppercase tracking-wider">Working Hours</p>
-                            <p class="text-sm text-slate-700 dark:text-slate-300 mt-1">
-                                {{ $doctor->start_time }} - {{ $doctor->end_time }}
-                            </p>
-                        </div>
+            <x-admin.panel :title="__('admin.recent_reviews')" :subtitle="__('admin.recent_reviews_desc')">
+                <x-slot:actions>
+                    <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">star</span>
+                        {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
                     </div>
-                </div>
+                </x-slot:actions>
 
-                <!-- Statistics -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-blue-600">event</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Total Bookings</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->bookings_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-emerald-600">check_circle</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Completed</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->completed_bookings_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-yellow-50 dark:bg-yellow-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-yellow-600">pending</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Pending</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->pending_bookings_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                        <div class="flex items-center gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-900/20 flex items-center justify-center">
-                                <span class="material-symbols-outlined text-amber-500">reviews</span>
-                            </div>
-                            <div>
-                                <p class="text-[10px] text-slate-400 uppercase">Review Volume</p>
-                                <p class="text-xl font-bold text-slate-900 dark:text-white">{{ $doctor->reviews_count }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                @if($doctor->reviews->count() > 0)
-                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                    <div class="flex items-center justify-between gap-4 mb-4">
-                        <div>
-                            <h4 class="text-sm font-bold text-slate-900 dark:text-white">Recent Reviews</h4>
-                            <p class="text-xs text-slate-400 mt-1">Latest ratings submitted from the Android app</p>
-                        </div>
-                        <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700">
-                            <span class="material-symbols-outlined text-[14px]">star</span>
-                            {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
-                        </div>
-                    </div>
-
+                @if($doctor->reviews->isNotEmpty())
                     <div class="space-y-3">
                         @foreach($doctor->reviews as $review)
-                            <div class="rounded-2xl border border-slate-200/70 bg-white px-4 py-4">
+                            <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                                 <div class="flex items-start justify-between gap-4">
-                                    <div>
-                                        <p class="text-sm font-semibold text-slate-900">{{ $review->user->name ?? 'User' }}</p>
-                                        <p class="text-xs text-slate-400 mt-1">
-                                            {{ optional($review->booking)->booking_date ? \Carbon\Carbon::parse($review->booking->booking_date)->format('M d, Y') : 'Completed booking' }}
-                                            @if(optional($review->booking)->pet?->name)
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
+                                            {{ $review->user->name ?? __('common.none') }}
+                                        </p>
+                                        <p class="mt-1 text-xs text-slate-400">
+                                            {{ optional($review->booking)?->booking_date ? \Carbon\Carbon::parse($review->booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') : __('admin.completed_booking') }}
+                                            @if(optional($review->booking)?->pet?->name)
                                                 • {{ $review->booking->pet->name }}
                                             @endif
                                         </p>
                                     </div>
-                                    <div class="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                                        <span class="material-symbols-outlined text-[14px]">star</span>
+                                    <div class="inline-flex flex-shrink-0 items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
+                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">star</span>
                                         {{ $review->rating }}
                                     </div>
                                 </div>
                                 @if(!empty($review->review))
-                                    <p class="mt-3 text-sm leading-6 text-slate-600">{{ $review->review }}</p>
+                                    <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">{{ $review->review }}</p>
                                 @endif
                             </div>
                         @endforeach
                     </div>
-                </div>
+                @else
+                    <x-admin.empty-state
+                        :title="__('admin.no_reviews')"
+                        icon="reviews"
+                        tone="amber" />
                 @endif
+            </x-admin.panel>
 
-                <!-- Recent Bookings -->
-                @if($doctor->bookings->count() > 0)
-                <div class="bg-slate-50/50 dark:bg-slate-800/50 rounded-2xl p-6">
-                    <h4 class="text-sm font-bold text-slate-900 dark:text-white mb-4">Recent Bookings</h4>
+            <x-admin.panel :title="__('admin.recent_bookings')" flush>
+                @if($doctor->bookings->isNotEmpty())
                     <div class="overflow-x-auto">
-                        <table class="w-full text-left">
-                            <thead>
-                                <tr class="text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                                    <th class="pb-3">Patient</th>
-                                    <th class="pb-3">Date</th>
-                                    <th class="pb-3">Status</th>
+                        <table class="w-full min-w-[520px] text-left">
+                            <thead class="admin-table-head">
+                                <tr>
+                                    <th class="px-5 py-3">{{ __('admin.col_patient') }}</th>
+                                    <th class="px-5 py-3">{{ __('common.date') }}</th>
+                                    <th class="px-5 py-3">{{ __('common.status') }}</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-slate-100/50 dark:divide-slate-800/50">
+                            <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
                                 @foreach($doctor->bookings->take(5) as $booking)
-                                <tr class="hover:bg-slate-50/30 transition-colors">
-                                    <td class="py-3 text-sm text-slate-700 dark:text-slate-300">{{ $booking->pet->name }}</td>
-                                    <td class="py-3 text-sm text-slate-500">{{ \Carbon\Carbon::parse($booking->booking_date)->format('M d, Y') }}</td>
-                                    <td class="py-3">
-                                        @php
-                                            $statusColors = [
-                                                'pending' => ['bg-yellow-100 text-yellow-700 border-yellow-200', 'Pending'],
-                                                'confirmed' => ['bg-blue-100 text-blue-700 border-blue-200', 'Scheduled'],
-                                                'completed' => ['bg-emerald-100 text-emerald-700 border-emerald-200', 'Completed'],
-                                                'cancelled' => ['bg-red-100 text-red-700 border-red-200', 'Cancelled'],
-                                            ];
-                                            $statusStyle = $statusColors[$booking->status] ?? ['bg-slate-100 text-slate-700 border-slate-200', ucfirst($booking->status)];
-                                        @endphp
-                                        <span class="px-2 py-0.5 text-[9px] font-bold rounded border {{ $statusStyle[0] }}">{{ $statusStyle[1] }}</span>
-                                    </td>
-                                </tr>
+                                    <tr class="admin-table-row">
+                                        <td class="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">
+                                            {{ $booking->pet->name ?? __('admin.pet_placeholder') }}
+                                        </td>
+                                        <td class="px-5 py-3 text-sm text-slate-500">
+                                            {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
+                                        </td>
+                                        <td class="px-5 py-3">
+                                            <x-admin.badge
+                                                :label="\App\Support\AdminStatus::bookingLabel($booking->status)"
+                                                :tone="\App\Support\AdminStatus::bookingTone($booking->status)" />
+                                        </td>
+                                    </tr>
                                 @endforeach
                             </tbody>
                         </table>
                     </div>
-                </div>
+                @else
+                    <x-admin.empty-state
+                        :title="__('admin.no_visits')"
+                        :description="__('admin.no_visits_desc')"
+                        icon="event_busy"
+                        tone="slate" />
                 @endif
-            </div>
+            </x-admin.panel>
         </div>
     </div>
 </div>

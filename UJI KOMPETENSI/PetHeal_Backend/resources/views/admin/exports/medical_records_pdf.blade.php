@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Medical Records Export</title>
+    <title>{{ __('admin.export_records_title') }}</title>
     <style>
         body { font-family: DejaVu Sans, sans-serif; font-size: 10px; color: #0f172a; }
         h1 { font-size: 18px; margin-bottom: 4px; }
@@ -13,24 +13,28 @@
     </style>
 </head>
 <body>
-    <h1>VCMS — Medical Records</h1>
-    <p class="subtitle">Generated {{ now()->format('Y-m-d H:i') }}. Limited to 200 records.</p>
+    @php($locale = app()->getLocale())
+    <h1>{{ __('admin.export_records_title') }}</h1>
+    <p class="subtitle">
+        {{ __('admin.export_generated') }} {{ now()->locale($locale)->translatedFormat('d M Y H:i') }}.
+        {{ __('admin.export_records_limited') }}
+    </p>
     <table>
         <thead>
             <tr>
-                <th>Booking</th>
-                <th>Owner</th>
-                <th>Pet</th>
-                <th>Doctor</th>
-                <th>Date</th>
-                <th>Diagnosis</th>
-                <th>Treatment</th>
-                <th>Medicine</th>
-                <th>Consultation</th>
-                <th>Treatment Cost</th>
-                <th>Medicine Cost</th>
-                <th>Total</th>
-                <th>Payment</th>
+                <th>{{ __('admin.export_booking') }}</th>
+                <th>{{ __('admin.export_owner') }}</th>
+                <th>{{ __('admin.export_pet') }}</th>
+                <th>{{ __('admin.export_doctor') }}</th>
+                <th>{{ __('admin.export_date') }}</th>
+                <th>{{ __('admin.export_diagnosis') }}</th>
+                <th>{{ __('admin.export_treatment') }}</th>
+                <th>{{ __('admin.export_medicine') }}</th>
+                <th>{{ __('admin.export_consultation') }}</th>
+                <th>{{ __('admin.export_treatment_cost') }}</th>
+                <th>{{ __('admin.export_medicine_cost') }}</th>
+                <th>{{ __('admin.export_total') }}</th>
+                <th>{{ __('admin.export_payment') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -40,19 +44,19 @@
                     <td>{{ $record->booking?->user?->name ?? '-' }}</td>
                     <td>{{ $record->pet?->name ?? '-' }}</td>
                     <td>{{ $record->doctor?->name ?? '-' }}</td>
-                    <td>{{ optional($record->created_at)->format('Y-m-d') }}</td>
+                    <td>{{ optional($record->created_at)->locale($locale)->translatedFormat('d M Y') }}</td>
                     <td>{{ $record->diagnosis }}</td>
                     <td>{{ $record->treatment }}</td>
                     <td>{{ $record->medicine }}</td>
-                    <td>Rp {{ number_format($record->cost ?? 0, 0, ',', '.') }}</td>
-                    <td>Rp {{ number_format($record->treatment_cost ?? 0, 0, ',', '.') }}</td>
-                    <td>Rp {{ number_format($record->medicine_cost ?? 0, 0, ',', '.') }}</td>
-                    <td>Rp {{ number_format($record->total_medical_cost ?? 0, 0, ',', '.') }}</td>
-                    <td>{{ ucfirst(str_replace('_', ' ', $record->extra_payment_status ?? 'not_required')) }}</td>
+                    <td>Rp {{ number_format((float) ($record->cost ?? 0), 0, $locale === 'id' ? ',' : '.', $locale === 'id' ? '.' : ',') }}</td>
+                    <td>Rp {{ number_format((float) ($record->treatment_cost ?? 0), 0, $locale === 'id' ? ',' : '.', $locale === 'id' ? '.' : ',') }}</td>
+                    <td>Rp {{ number_format((float) ($record->medicine_cost ?? 0), 0, $locale === 'id' ? ',' : '.', $locale === 'id' ? '.' : ',') }}</td>
+                    <td>Rp {{ number_format((float) ($record->total_medical_cost ?? 0), 0, $locale === 'id' ? ',' : '.', $locale === 'id' ? '.' : ',') }}</td>
+                    <td>{{ \App\Support\AdminStatus::extraPaymentLabel($record->extra_payment_status ?? 'not_required') }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="13" style="text-align:center; color:#999;">Tidak ada data rekam medis untuk filter ini.</td>
+                    <td colspan="13" style="text-align:center; color:#999;">{{ __('admin.export_no_records') }}</td>
                 </tr>
             @endforelse
         </tbody>

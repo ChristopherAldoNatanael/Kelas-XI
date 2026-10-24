@@ -32,13 +32,20 @@ class DashboardController extends Controller
 
         $clinicId = currentClinicId();
 
-        // Date range filter — only applies when user explicitly picks dates
-        $hasDateFilter = $request->has('start_date') && $request->has('end_date');
+        // Date range filter — only applies when both inputs contain a valid
+        // date. Empty inputs are treated as "no filter", and malformed values
+        // are rejected before they reach Carbon/DB.
+        $request->validate([
+            'start_date' => 'nullable|date',
+            'end_date' => 'nullable|date|after_or_equal:start_date',
+        ]);
+
+        $hasDateFilter = $request->filled('start_date') && $request->filled('end_date');
         $startDate = $hasDateFilter
-            ? Carbon::parse($request->get('start_date'))->startOfDay()
+            ? Carbon::parse($request->input('start_date'))->startOfDay()
             : null;
         $endDate = $hasDateFilter
-            ? Carbon::parse($request->get('end_date'))->endOfDay()
+            ? Carbon::parse($request->input('end_date'))->endOfDay()
             : null;
 
         // Today's statistics — clinic scoped
@@ -47,19 +54,13 @@ class DashboardController extends Controller
         $totalPatients = Pet::when($clinicId, fn($q) => $q->whereHas('user', fn($uq) => $uq->where('clinic_id', $clinicId)))->count();
         $totalDoctors = Doctor::where('is_active', true)->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->count();
 
-        // Cache key includes date range, clinic, and a schema version. Bump the
-        // version whenever the shared payload changes so old cached arrays
-        // cannot reach the view missing keys.
-        $cacheKey = $hasDateFilter
-            ? 'dashboard_stats_v2_c' . ($clinicId ?: 'all') . '_' . $startDate->format('Ymd') . '_' . $endDate->format('Ymd')
-            : 'dashboard_stats_v2_c' . ($clinicId ?: 'all') . '_all';
-        $dashboardStats = Cache::remember($cacheKey, 300, function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
-            // Revenue statistics — clinic scoped
-            $totalRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->value('total') ?? 0;
+        // Cache key includes the clinic and a schema version. Bump the version
+        // whenever the shared payload changes so old cached arrays cannot
+        // reach the view missing keys.
+        $cacheKey = 'dashboard_stats_v3_c' . ($clinicId ?: 'all') . '_all';
 
+        $buildDashboardStats = function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
+            // Revenue statistics — clinic scoped
             $todayRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
                 ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
                 ->whereDate('created_at', today())
@@ -97,7 +98,6 @@ class DashboardController extends Controller
             $monthlyBookingData = $this->getMonthlyBookingData($clinicId);
             $monthlyRevenueData = $this->getMonthlyRevenueData($clinicId);
             $dailyRevenueData = $this->getDailyRevenueData($clinicId);
-            $bookingStatusDistribution = $this->getBookingStatusDistribution($clinicId);
 
             // Payment statistics — clinic scoped
             $baseBooking = fn() => Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
@@ -105,6 +105,7 @@ class DashboardController extends Controller
 
             $unpaidBookings = (clone $baseBooking())->where('payment_status', 'unpaid')->count();
             $pendingPayment = (clone $baseBooking())->where('payment_status', 'pending')->count();
+            $dpPendingBookings = (clone $baseBooking())->where('payment_status', 'dp_pending')->count();
             $dpPaidBookings = (clone $baseBooking())->where('payment_status', 'dp_paid')->count();
             $paidInFull = (clone $baseBooking())->where('payment_status', 'paid')->count();
             $failedPayments = (clone $baseBooking())->where('payment_status', 'failed')->count();
@@ -116,6 +117,7 @@ class DashboardController extends Controller
             $totalOutstanding = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
                 ->selectRaw('COALESCE(SUM(remaining_amount), 0) as total')
                 ->where('remaining_amount', '>', 0)
+                ->where('status', '!=', 'cancelled')
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
                 ->value('total') ?? 0;
 
@@ -125,25 +127,32 @@ class DashboardController extends Controller
                 : 0;
 
             return compact(
-                'totalRevenue', 'todayRevenue', 'monthlyRevenue',
+                'todayRevenue', 'monthlyRevenue',
                 'monthlyRevenueGrowth', 'dailyRevenueGrowth',
-                'monthlyBookingData', 'monthlyRevenueData', 'dailyRevenueData', 'bookingStatusDistribution',
-                'unpaidBookings', 'pendingPayment', 'dpPaidBookings', 'paidInFull', 'failedPayments',
+                'monthlyBookingData', 'monthlyRevenueData', 'dailyRevenueData',
+                'unpaidBookings', 'pendingPayment', 'dpPendingBookings', 'dpPaidBookings', 'paidInFull', 'failedPayments',
                 'totalCollected', 'totalOutstanding', 'totalBilled', 'collectionRate'
             );
-        });
+        };
+
+        // Date-ranged dashboards are ad-hoc queries; caching them made the
+        // data stale after a payment because the old key could not be
+        // invalidated without enumerating every possible range. Compute those
+        // requests live and keep the 5-minute cache only for the default view.
+        $dashboardStats = $hasDateFilter
+            ? $buildDashboardStats()
+            : Cache::remember($cacheKey, 300, $buildDashboardStats);
 
         $popularDoctors = $this->getPopularDoctors($clinicId);
 
-        $totalRevenue = $dashboardStats['totalRevenue'];
         $todayRevenue = $dashboardStats['todayRevenue'];
         $monthlyRevenue = $dashboardStats['monthlyRevenue'];
         $monthlyBookingData = $dashboardStats['monthlyBookingData'];
         $monthlyRevenueData = $dashboardStats['monthlyRevenueData'];
         $dailyRevenueData = $dashboardStats['dailyRevenueData'];
-        $bookingStatusDistribution = $dashboardStats['bookingStatusDistribution'];
         $unpaidBookings = $dashboardStats['unpaidBookings'];
         $pendingPayment = $dashboardStats['pendingPayment'];
+        $dpPendingBookings = $dashboardStats['dpPendingBookings'];
         $dpPaidBookings = $dashboardStats['dpPaidBookings'];
         $paidInFull = $dashboardStats['paidInFull'];
         $failedPayments = $dashboardStats['failedPayments'];
@@ -158,19 +167,9 @@ class DashboardController extends Controller
         $recentBookings = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time', 'created_at')
             ->with(['user:id,name,email', 'pet:id,name,user_id', 'doctor:id,name,specialization'])
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
             ->orderBy('created_at', 'desc')
             ->limit(5)
-            ->get();
-
-        // Upcoming appointments — clinic scoped
-        $upcomingAppointments = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time')
-            ->with(['user:id,name,phone', 'pet:id,name,user_id', 'doctor:id,name'])
-            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-            ->where('status', 'confirmed')
-            ->where('booking_date', '>=', now()->toDateString())
-            ->orderBy('booking_date')
-            ->orderBy('booking_time')
-            ->limit(3)
             ->get();
 
         // Recent payments — clinic scoped
@@ -178,16 +177,24 @@ class DashboardController extends Controller
             ->where('paid_amount', '>', 0)
             ->with(['user:id,name', 'pet:id,name'])
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
             ->orderBy('updated_at', 'desc')
             ->limit(5)
             ->get();
 
-        // Bookings with outstanding balance — clinic scoped
-        $outstandingBookings = Booking::select('id', 'user_id', 'pet_id', 'remaining_amount', 'payment_type')
+        // Bookings with outstanding balance — clinic scoped. The badge and
+        // the list share the same criteria (non-cancelled, remaining > 0),
+        // so the count is not silently capped at the five visible rows.
+        $outstandingQuery = Booking::query()
             ->where('remaining_amount', '>', 0)
-            ->whereNotIn('payment_status', ['failed', 'unpaid'])
-            ->with(['user:id,name', 'pet:id,name'])
+            ->where('status', '!=', 'cancelled')
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
+
+        $outstandingCount = (clone $outstandingQuery)->count();
+        $outstandingBookings = $outstandingQuery
+            ->select('id', 'user_id', 'pet_id', 'remaining_amount', 'payment_type')
+            ->with(['user:id,name', 'pet:id,name'])
             ->orderBy('remaining_amount', 'desc')
             ->limit(5)
             ->get();
@@ -198,6 +205,7 @@ class DashboardController extends Controller
         // was ~always 0. Count bookings with Midtrans-processed events
         // instead (same Blade variable, corrected value).
         $clinicBookingIds = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
             ->select('id');
         $midtransTransactions = \Illuminate\Support\Facades\DB::table('payment_events')
             ->whereIn('booking_id', $clinicBookingIds)
@@ -209,19 +217,17 @@ class DashboardController extends Controller
             'pendingBookings',
             'totalPatients',
             'totalDoctors',
-            'totalRevenue',
             'todayRevenue',
             'monthlyRevenue',
             'monthlyBookingData',
             'monthlyRevenueData',
             'dailyRevenueData',
-            'bookingStatusDistribution',
             'popularDoctors',
             'recentBookings',
-            'upcomingAppointments',
             // Payment data
             'unpaidBookings',
             'pendingPayment',
+            'dpPendingBookings',
             'dpPaidBookings',
             'paidInFull',
             'failedPayments',
@@ -233,6 +239,7 @@ class DashboardController extends Controller
             'dailyRevenueGrowth',
             'recentPayments',
             'outstandingBookings',
+            'outstandingCount',
             'midtransTransactions'
         ));
     }
@@ -254,9 +261,9 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
+            $date = Carbon::now()->subMonths($i)->locale(app()->getLocale());
             $key = $date->format('Y-m');
-            $labels[] = $date->format('M Y');
+            $labels[] = $date->translatedFormat('M Y');
             $data[] = (int) ($raw[$key] ?? 0);
         }
 
@@ -280,9 +287,9 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
         for ($i = 5; $i >= 0; $i--) {
-            $date = Carbon::now()->subMonths($i);
+            $date = Carbon::now()->subMonths($i)->locale(app()->getLocale());
             $key = $date->format('Y-m');
-            $labels[] = $date->format('M Y');
+            $labels[] = $date->translatedFormat('M Y');
             $data[] = (float) ($raw[$key] ?? 0);
         }
 
@@ -305,31 +312,13 @@ class DashboardController extends Controller
         $labels = [];
         $data = [];
         for ($i = 6; $i >= 0; $i--) {
-            $date = Carbon::now()->subDays($i);
+            $date = Carbon::now()->subDays($i)->locale(app()->getLocale());
             $key = $date->format('Y-m-d');
-            $labels[] = $date->format('D');
+            $labels[] = $date->translatedFormat('D');
             $data[] = (float) ($raw[$key] ?? 0);
         }
 
         return compact('labels', 'data');
-    }
-
-    /**
-     * Get booking status distribution — clinic scoped
-     */
-    private function getBookingStatusDistribution(?int $clinicId): array
-    {
-        $raw = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-            ->selectRaw('status, COUNT(*) as count')
-            ->groupBy('status')
-            ->pluck('count', 'status');
-
-        return [
-            'pending' => (int) ($raw['pending'] ?? 0),
-            'confirmed' => (int) ($raw['confirmed'] ?? 0),
-            'completed' => (int) ($raw['completed'] ?? 0),
-            'cancelled' => (int) ($raw['cancelled'] ?? 0),
-        ];
     }
 
     /**

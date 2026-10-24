@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <title>Payments Export</title>
+    <title>{{ __('admin.export_payments_title') }}</title>
     <style>
         body { font-family: sans-serif; font-size: 10px; }
         table { width: 100%; border-collapse: collapse; }
@@ -14,20 +14,29 @@
     </style>
 </head>
 <body>
-    <h1>VCMS — Payments Report</h1>
-    <p class="subtitle">Generated: {{ now()->format('d M Y H:i') }}</p>
+    @php
+        $locale = app()->getLocale();
+        $money = static fn ($amount) => number_format(
+            (float) $amount,
+            0,
+            $locale === 'id' ? ',' : '.',
+            $locale === 'id' ? '.' : ','
+        );
+    @endphp
+    <h1>{{ __('admin.export_payments_title') }}</h1>
+    <p class="subtitle">{{ __('admin.export_generated') }}: {{ now()->locale($locale)->translatedFormat('d M Y H:i') }}</p>
     <table>
         <thead>
             <tr>
                 <th>#</th>
-                <th>Pet</th>
-                <th>Owner</th>
-                <th>Doctor</th>
-                <th>Date</th>
-                <th>Service</th>
-                <th>Total</th>
-                <th>Paid</th>
-                <th>Status</th>
+                <th>{{ __('admin.export_pet') }}</th>
+                <th>{{ __('admin.export_owner') }}</th>
+                <th>{{ __('admin.export_doctor') }}</th>
+                <th>{{ __('admin.export_date') }}</th>
+                <th>{{ __('admin.export_service') }}</th>
+                <th>{{ __('admin.export_total') }}</th>
+                <th>{{ __('admin.export_paid') }}</th>
+                <th>{{ __('admin.export_status') }}</th>
             </tr>
         </thead>
         <tbody>
@@ -37,19 +46,19 @@
                 <td>{{ $b->pet?->name ?? '-' }}</td>
                 <td>{{ $b->pet?->user?->name ?? '-' }}</td>
                 <td>{{ $b->doctor?->name ?? '-' }}</td>
-                <td>{{ $b->booking_date }}</td>
+                <td>{{ $b->booking_date ? \Carbon\Carbon::parse($b->booking_date)->locale($locale)->translatedFormat('d M Y') : '-' }}</td>
                 <td>{{ $b->service?->name ?? $b->service_type ?? '-' }}</td>
-                <td>{{ number_format($b->total_amount ?? 0, 0, ',', '.') }}</td>
-                <td>{{ number_format($b->paid_amount ?? 0, 0, ',', '.') }}</td>
-                <td>{{ ucfirst(str_replace('_', ' ', $b->payment_status ?? 'pending')) }}</td>
+                <td>{{ $money($b->total_amount ?? 0) }}</td>
+                <td>{{ $money($b->paid_amount ?? 0) }}</td>
+                <td>{{ \App\Support\AdminStatus::paymentLabel($b->payment_status) }}</td>
             </tr>
             @empty
             <tr>
-                <td colspan="9" style="text-align:center; color:#999;">Tidak ada data pembayaran untuk filter ini.</td>
+                <td colspan="9" style="text-align:center; color:#999;">{{ __('admin.export_no_payments') }}</td>
             </tr>
             @endforelse
         </tbody>
     </table>
-    <div class="footer">VCMS — Veterinary Clinic Management System — {{ config('app.url') }}</div>
+    <div class="footer">{{ __('admin.export_footer') }} — {{ config('app.url') }}</div>
 </body>
 </html>

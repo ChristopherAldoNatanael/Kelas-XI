@@ -36,9 +36,25 @@ class MedicalRecordController extends Controller
     public function index(Request $request)
     {
         $query = $this->filteredRecordsQuery($request);
+
+        // Summaries describe the whole filtered result set, not just the
+        // current page (the old implementation summed getCollection()).
+        $totalRecords = (clone $query)->count();
+        $extraPendingCount = (clone $query)
+            ->whereIn('extra_payment_status', ['unpaid', 'pending', 'partial'])
+            ->count();
+        $totalMedicalRevenue = (clone $query)
+            ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
+            ->value('total') ?? 0;
+
         $records = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
 
-        return view('admin.medical-records.index', compact('records'));
+        return view('admin.medical-records.index', compact(
+            'records',
+            'totalRecords',
+            'extraPendingCount',
+            'totalMedicalRevenue'
+        ));
     }
 
     private function filteredRecordsQuery(Request $request)
@@ -125,12 +141,12 @@ class MedicalRecordController extends Controller
         // a cancelled booking as completed.
         if ($booking->status === 'cancelled') {
             return redirect()->back()->withInput()
-                ->with('error', 'Tidak dapat membuat rekam medis untuk booking yang dibatalkan.');
+                ->with('error', __('admin.medical_record_cancelled_booking'));
         }
 
         if (MedicalRecord::where('booking_id', $booking->id)->exists()) {
             return redirect()->back()->withInput()
-                ->with('error', 'Booking ini sudah memiliki rekam medis.');
+                ->with('error', __('admin.medical_record_exists'));
         }
 
         // Auto-fill cost from booking's total_amount if not provided
@@ -182,7 +198,7 @@ class MedicalRecordController extends Controller
             );
         }
 
-        return redirect()->route('admin.bookings.index')->with('success', 'Rekam medis berhasil ditambahkan.');
+        return redirect()->route('admin.bookings.index')->with('success', __('admin.medical_record_created'));
     }
 
     /**
@@ -254,7 +270,7 @@ class MedicalRecordController extends Controller
         $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
         $record->save();
 
-        return redirect()->route('admin.medical-records.index')->with('success', 'Rekam medis berhasil diperbarui.');
+        return redirect()->route('admin.medical-records.index')->with('success', __('admin.medical_record_updated'));
     }
 
     public function exportPdf(Request $request)
@@ -275,7 +291,9 @@ class MedicalRecordController extends Controller
 
     public function exportCsv(Request $request)
     {
-        $records = $this->filteredRecordsQuery($request)->latest()->get();
+        // Keep the export streamable: lazy() fetches rows in chunks instead of
+        // loading the whole filtered table into memory before writing.
+        $query = $this->filteredRecordsQuery($request)->latest();
         $headers = [
             'Booking ID',
             'Owner',
@@ -293,10 +311,10 @@ class MedicalRecordController extends Controller
             'Created At',
         ];
 
-        $callback = function () use ($records, $headers) {
+        $callback = function () use ($query, $headers) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, $headers);
-            foreach ($records as $record) {
+            foreach ($query->lazy(500) as $record) {
                 fputcsv($handle, [
                     $record->booking_id,
                     $record->booking?->user?->name,
@@ -335,6 +353,6 @@ class MedicalRecordController extends Controller
         $record = $query->firstOrFail();
         $record->delete();
 
-        return redirect()->route('admin.medical-records.index')->with('success', 'Rekam medis berhasil dihapus.');
+        return redirect()->route('admin.medical-records.index')->with('success', __('admin.medical_record_deleted'));
     }
 }

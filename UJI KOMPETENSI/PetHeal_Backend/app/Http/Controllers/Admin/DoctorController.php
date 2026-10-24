@@ -71,6 +71,11 @@ class DoctorController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'is_active' => 'sometimes|boolean',
+        ], [
+            // Pesan bahasa sendiri: field ini dirender sebagai pemilih hari
+            // (bukan select multiple), jadi error bawaan "required" kurang
+            // jelas-ui dan tidak menyebut klinik.
+            'available_days.required' => __('admin.day_picker_required'),
         ]);
 
         // PHASE 3 (F-06 orphan guard): super_admin in overview mode has no
@@ -78,7 +83,7 @@ class DoctorController extends Controller
         $contextClinicId = currentClinicId();
         if (!$contextClinicId && isSuperAdmin()) {
             return redirect()->route('admin.doctors.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum menambah dokter.');
+                ->with('error', __('admin.select_clinic_doctor'));
         }
 
         $data = $request->only([
@@ -121,7 +126,7 @@ class DoctorController extends Controller
 
         AuditLog::log('doctor.create', "Created doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil ditambahkan.');
+        return redirect()->route('admin.doctors.index')->with('success', __('admin.doctor_created'));
     }
 
     /**
@@ -204,6 +209,8 @@ class DoctorController extends Controller
             'start_time' => 'required|date_format:H:i',
             'end_time' => 'required|date_format:H:i|after:start_time',
             'is_active' => 'boolean',
+        ], [
+            'available_days.required' => __('admin.day_picker_required'),
         ]);
 
         // PHASE 3 (F-01): whitelist update fields. Previously
@@ -251,7 +258,7 @@ class DoctorController extends Controller
 
         AuditLog::log('doctor.update', "Updated doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil diperbarui.');
+        return redirect()->route('admin.doctors.index')->with('success', __('admin.doctor_updated'));
     }
 
     /**
@@ -276,6 +283,6 @@ class DoctorController extends Controller
         $doctor->delete();
         $this->refreshDoctorApiCache();
 
-        return redirect()->route('admin.doctors.index')->with('success', 'Dokter berhasil dihapus.');
+        return redirect()->route('admin.doctors.index')->with('success', __('admin.doctor_deleted'));
     }
 }

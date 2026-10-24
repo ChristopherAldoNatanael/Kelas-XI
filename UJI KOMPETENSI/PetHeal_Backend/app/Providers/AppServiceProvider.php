@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\Paginator;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -35,6 +36,11 @@ class AppServiceProvider extends ServiceProvider
             URL::forceScheme('https');
         }
         
+        // Pagination bawaan Laravel memakai komponen generik yang terlihat
+        // asing di konsol admin, jadi seluruh admin memakai view "petheal"
+        // (resources/views/vendor/pagination/petheal.blade.php).
+        Paginator::defaultView('pagination::petheal');
+
         // Share $isSuperAdmin and $allClinics with all admin views
         View::composer('admin.*', function ($view) {
             $user = auth()->user();

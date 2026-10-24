@@ -3,82 +3,105 @@
 @section('header', __('clinics.add_new_clinic'))
 
 @section('content')
-<div class="max-w-5xl">
-    <a href="{{ route('admin.clinics.index') }}" class="text-sm text-slate-500 hover:text-primary mb-4 inline-flex items-center gap-1">
-        <span class="material-symbols-outlined text-base">arrow_back</span> {{ __('clinics.back') }}
-    </a>
+<div class="max-w-6xl space-y-6">
+    <x-admin.page-header
+        :title="__('clinics.add_new_clinic')"
+        :eyebrow="__('menu.administration')"
+        icon="local_hospital"
+        :description="__('clinics.manage_all_clinics')">
+        <x-slot:actions>
+            <a href="{{ route('admin.clinics.index') }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                {{ __('clinics.back') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
 
     @if($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6 text-sm">
-            @foreach($errors->all() as $error) <p>{{ $error }}</p> @endforeach
+        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+            <ul class="list-disc list-inside space-y-1">
+                @foreach($errors->all() as $error) <li>{{ $error }}</li> @endforeach
+            </ul>
         </div>
     @endif
 
-    <div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {{-- Form --}}
-        <form method="POST" action="{{ route('admin.clinics.store') }}" enctype="multipart/form-data" class="lg:col-span-3 glass-card rounded-2xl p-8 border border-slate-200/50 space-y-5">
+        <form method="POST" action="{{ route('admin.clinics.store') }}" enctype="multipart/form-data" class="lg:col-span-3">
             @csrf
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.clinic_name') }} *</label>
-                    <input type="text" name="name" id="clinic_name" value="{{ old('name') }}" required
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
-                        placeholder="Happy Paws">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">Slug *</label>
-                    <input type="text" name="slug" id="clinic_slug" value="{{ old('slug') }}" required pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition font-mono text-sm"
-                        placeholder="{{ __('clinics.slug_example') }}">
-                </div>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.address') }} *</label>
-                <textarea name="address" rows="2" required
-                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
-                    placeholder="{{ __('clinics.address_placeholder') }}">{{ old('address') }}</textarea>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.phone') }}</label>
-                    <input type="text" name="phone" value="{{ old('phone') }}"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
-                        placeholder="{{ __('clinics.phone_placeholder') }}">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.email') }}</label>
-                    <input type="email" name="email" value="{{ old('email') }}"
-                        class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
-                        placeholder="{{ __('clinics.email_placeholder') }}">
-                </div>
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.logo_upload') }}</label>
-                    <input type="file" name="logo" id="clinic_logo" accept="image/jpeg,image/png,image/webp"
-                        class="w-full px-4 py-2 border border-slate-200 rounded-xl text-sm">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.primary_color') }} *</label>
-                    <div class="flex items-center gap-2">
-                        <input type="color" name="primary_color" id="clinic_color" value="{{ old('primary_color', '#18C964') }}"
-                            class="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer">
-                        <input type="text" id="color_hex" value="{{ old('primary_color', '#18C964') }}"
-                            class="w-full px-4 py-2.5 border border-slate-200 rounded-xl font-mono text-sm" readonly>
+            <x-admin.panel :title="__('clinics.clinic_name')" :subtitle="__('clinics.profile_title')">
+                <div class="space-y-5">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="clinic_name" class="admin-label">{{ __('clinics.clinic_name') }} <span class="text-rose-500">*</span></label>
+                            <input type="text" name="name" id="clinic_name" value="{{ old('name') }}" required
+                                   class="admin-input" placeholder="Happy Paws">
+                        </div>
+                        <div>
+                            <label for="clinic_slug" class="admin-label">{{ __('common.slug') }} <span class="text-rose-500">*</span></label>
+                            <input type="text" name="slug" id="clinic_slug" value="{{ old('slug') }}" required
+                                   pattern="[a-z0-9]+(?:-[a-z0-9]+)*" class="admin-input font-mono"
+                                   placeholder="{{ __('clinics.slug_example') }}">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="address" class="admin-label">{{ __('clinics.address') }} <span class="text-rose-500">*</span></label>
+                        <textarea name="address" id="address" rows="2" required class="admin-input"
+                                  placeholder="{{ __('clinics.address_placeholder') }}">{{ old('address') }}</textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="phone" class="admin-label">{{ __('clinics.phone') }}</label>
+                            <input type="text" name="phone" id="phone" value="{{ old('phone') }}" class="admin-input"
+                                   placeholder="{{ __('clinics.phone_placeholder') }}">
+                        </div>
+                        <div>
+                            <label for="email" class="admin-label">{{ __('clinics.email') }}</label>
+                            <input type="email" name="email" id="email" value="{{ old('email') }}" class="admin-input"
+                                   placeholder="{{ __('clinics.email_placeholder') }}">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="clinic_logo" class="admin-label">{{ __('clinics.logo_upload') }}</label>
+                            <input type="file" name="logo" id="clinic_logo" accept="image/jpeg,image/png,image/webp"
+                                   class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm dark:border-slate-700 dark:bg-slate-950">
+                        </div>
+                        <div>
+                            <label for="clinic_color" class="admin-label">{{ __('clinics.primary_color') }} <span class="text-rose-500">*</span></label>
+                            <div class="flex items-center gap-2">
+                                <input type="color" name="primary_color" id="clinic_color" value="{{ old('primary_color', '#18C964') }}"
+                                       class="h-10 w-10 cursor-pointer rounded-lg border border-slate-200 dark:border-slate-700">
+                                <input type="text" id="color_hex" value="{{ old('primary_color', '#18C964') }}"
+                                       class="admin-input font-mono" readonly>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="description" class="admin-label">{{ __('clinics.description') }}</label>
+                        <textarea name="description" id="description" rows="2" class="admin-input"
+                                  placeholder="{{ __('clinics.description_placeholder') }}">{{ old('description') }}</textarea>
+                    </div>
+
+                    <label class="flex cursor-pointer items-center gap-3">
+                        <input type="checkbox" name="is_active" value="1" id="is_active" checked
+                               class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary">
+                        <span class="text-sm font-medium text-slate-700 dark:text-slate-300">{{ __('clinics.is_active') }}</span>
+                    </label>
+
+                    <div class="flex flex-wrap items-center gap-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                        <button type="submit" class="admin-btn-primary">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                            {{ __('clinics.create_clinic') }}
+                        </button>
+                        <a href="{{ route('admin.clinics.index') }}" class="admin-btn-ghost">{{ __('clinics.cancel') }}</a>
                     </div>
                 </div>
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-slate-700 mb-1.5">{{ __('clinics.description') }}</label>
-                <textarea name="description" rows="2"
-                    class="w-full px-4 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
-                    placeholder="{{ __('clinics.description_placeholder') }}">{{ old('description') }}</textarea>
-            </div>
-            <div class="flex items-center gap-2">
-                <input type="checkbox" name="is_active" value="1" id="is_active" checked class="rounded">
-                <label for="is_active" class="text-sm text-slate-700">{{ __('clinics.is_active') }}</label>
-            </div>
-            <button type="submit" class="px-6 py-2.5 bg-primary hover:opacity-90 text-white font-semibold rounded-xl transition-all text-sm">{{ __('clinics.create_clinic') }}</button>
+            </x-admin.panel>
         </form>
 
         {{-- Live Preview --}}

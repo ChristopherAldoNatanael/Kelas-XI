@@ -1,138 +1,138 @@
 @extends('layouts.admin')
 
-@section('title', 'Edit Medical Record - VCMS Admin')
-@section('header', 'Edit Medical Record')
+@section('title', __('admin.edit_record') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('admin.edit_record'))
 
 @section('content')
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="p-6 border-b border-slate-100 flex justify-between items-center">
-        <div>
-            <h2 class="text-md font-bold text-slate-900 dark:text-white">Edit Medical Record #{{ $record->id }}</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Update medical record information</p>
-        </div>
-        <a href="{{ route('admin.medical-records.show', $record->id) }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
-            <span class="material-symbols-outlined text-[18px]">arrow_back</span>
-            Back
-        </a>
-    </div>
+<div class="space-y-6">
+    <x-admin.page-header
+        :title="__('admin.edit_record') . ' #' . $record->id"
+        :eyebrow="__('admin.documentation_clinical')"
+        icon="clinical_notes"
+        :description="__('admin.edit_record_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.medical-records.show', $record->id) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">visibility</span>
+                {{ __('admin.view_detail') }}
+            </a>
+            <a href="{{ route('admin.medical-records.index') }}" class="admin-btn-ghost">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                {{ __('admin.back_to_records') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
 
-    <div class="p-6">
-        <!-- Booking Info -->
-        <div class="bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-6 mb-8">
-            <h3 class="text-[9px] font-bold text-slate-400 uppercase tracking-[0.15em] mb-4">Booking Information</h3>
-            <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Pet</p>
-                    <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->pet->name }}</p>
-                </div>
-                <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Owner</p>
-                    <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->booking->user->name ?? 'N/A' }}</p>
-                </div>
-                <div>
-                    <p class="text-[10px] text-slate-400 uppercase tracking-wider">Doctor</p>
-                    <p class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->doctor->name }}</p>
-                </div>
+    <x-admin.panel :title="__('admin.booking_information')">
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.pet') }}</p>
+                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->pet->name ?? __('admin.pet_placeholder') }}</p>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner') }}</p>
+                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
+                    {{ $record->booking?->user?->name ?? __('admin.unknown_owner') }}
+                </p>
+            </div>
+            <div>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
+                <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->doctor->name ?? '—' }}</p>
             </div>
         </div>
+    </x-admin.panel>
 
-        <form method="POST" action="{{ route('admin.medical-records.update', $record->id) }}">
+    <x-admin.panel :title="__('admin.documentation_clinical')">
+        <form method="POST" action="{{ route('admin.medical-records.update', $record->id) }}" class="space-y-6">
             @csrf
             @method('PUT')
 
-            <div class="space-y-6">
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Diagnosis *</label>
-                    <textarea name="diagnosis" required rows="3"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                        placeholder="Enter diagnosis">{{ old('diagnosis', $record->diagnosis) }}</textarea>
-                    @error('diagnosis')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
+            @if($errors->any())
+                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
                 </div>
+            @endif
 
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Treatment *</label>
-                    <textarea name="treatment" required rows="3"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                        placeholder="Enter treatment">{{ old('treatment', $record->treatment) }}</textarea>
-                    @error('treatment')
-                        <p class="text-red-500 text-sm mt-1">{{ $message }}</p>
-                    @enderror
+                    <label for="diagnosis" class="admin-label">{{ __('admin.diagnosis') }} <span class="text-rose-500">*</span></label>
+                    <textarea name="diagnosis" id="diagnosis" required rows="3" class="admin-input"
+                              placeholder="{{ __('admin.diagnosis_placeholder') }}">{{ old('diagnosis', $record->diagnosis) }}</textarea>
+                    @error('diagnosis') <p class="admin-error">{{ $message }}</p> @enderror
                 </div>
 
                 <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Medicine</label>
-                    <textarea name="medicine" rows="2"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                        placeholder="Enter medicines prescribed">{{ old('medicine', $record->medicine) }}</textarea>
-                </div>
-
-                <!-- Cost Fields -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Consultation Cost</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
-                            <input type="number" name="cost" min="0" value="{{ old('cost', $record->cost ?? 0) }}"
-                                class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm pl-12"
-                                placeholder="0">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Treatment Cost</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
-                            <input type="number" name="treatment_cost" min="0" value="{{ old('treatment_cost', $record->treatment_cost ?? 0) }}"
-                                class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm pl-12"
-                                placeholder="0">
-                        </div>
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Medicine Cost</label>
-                        <div class="relative">
-                            <span class="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm">Rp</span>
-                            <input type="number" name="medicine_cost" min="0" value="{{ old('medicine_cost', $record->medicine_cost ?? 0) }}"
-                                class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm pl-12"
-                                placeholder="0">
-                        </div>
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Notes</label>
-                    <textarea name="notes" rows="2"
-                        class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm"
-                        placeholder="Additional notes">{{ old('notes', $record->notes) }}</textarea>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Next Visit Date</label>
-                        <input type="date" name="next_visit_date" value="{{ old('next_visit_date', $record->next_visit_date ? \Carbon\Carbon::parse($record->next_visit_date)->format('Y-m-d') : '') }}"
-                            class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
-                    </div>
-
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Next Visit Time</label>
-                        <input type="time" name="next_visit_time" value="{{ old('next_visit_time', $record->next_visit_time ? \Carbon\Carbon::parse($record->next_visit_time)->format('H:i') : '') }}"
-                            class="w-full px-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-primary focus:border-transparent text-sm">
-                    </div>
+                    <label for="treatment" class="admin-label">{{ __('admin.treatment') }} <span class="text-rose-500">*</span></label>
+                    <textarea name="treatment" id="treatment" required rows="3" class="admin-input"
+                              placeholder="{{ __('admin.treatment_placeholder') }}">{{ old('treatment', $record->treatment) }}</textarea>
+                    @error('treatment') <p class="admin-error">{{ $message }}</p> @enderror
                 </div>
             </div>
 
-            <div class="mt-8 flex justify-end gap-3">
-                <a href="{{ route('admin.medical-records.show', $record->id) }}" class="bg-slate-100 hover:bg-slate-200 text-slate-600 px-6 py-2.5 rounded-xl text-sm font-semibold transition-all">
-                    Cancel
-                </a>
-                <button type="submit" class="bg-primary hover:bg-emerald-600 text-white px-6 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 transition-all">
-                    <span class="material-symbols-outlined text-[18px]">save</span>
-                    Update Record
+            <div>
+                <label for="medicine" class="admin-label">{{ __('admin.medicine') }}</label>
+                <textarea name="medicine" id="medicine" rows="2" class="admin-input"
+                          placeholder="{{ __('admin.medicine_placeholder') }}">{{ old('medicine', $record->medicine) }}</textarea>
+                @error('medicine') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+                <div>
+                    <label for="cost" class="admin-label">{{ __('admin.consultation_cost') }}</label>
+                    <input type="number" name="cost" id="cost" min="0" step="0.01"
+                           value="{{ old('cost', $record->cost ?? 0) }}" class="admin-input">
+                    @error('cost') <p class="admin-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="treatment_cost" class="admin-label">{{ __('admin.treatment_cost') }}</label>
+                    <input type="number" name="treatment_cost" id="treatment_cost" min="0" step="0.01"
+                           value="{{ old('treatment_cost', $record->treatment_cost ?? 0) }}" class="admin-input">
+                    @error('treatment_cost') <p class="admin-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="medicine_cost" class="admin-label">{{ __('admin.medicine_cost') }}</label>
+                    <input type="number" name="medicine_cost" id="medicine_cost" min="0" step="0.01"
+                           value="{{ old('medicine_cost', $record->medicine_cost ?? 0) }}" class="admin-input">
+                    @error('medicine_cost') <p class="admin-error">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <div>
+                <label for="notes" class="admin-label">{{ __('admin.notes') }}</label>
+                <textarea name="notes" id="notes" rows="2" class="admin-input"
+                          placeholder="{{ __('admin.notes_placeholder') }}">{{ old('notes', $record->notes) }}</textarea>
+                @error('notes') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div>
+                    <label for="next_visit_date" class="admin-label">{{ __('admin.next_visit_date') }}</label>
+                    <input type="date" name="next_visit_date" id="next_visit_date" class="admin-input"
+                           value="{{ old('next_visit_date', $record->next_visit_date ? \Carbon\Carbon::parse($record->next_visit_date)->format('Y-m-d') : '') }}">
+                    @error('next_visit_date') <p class="admin-error">{{ $message }}</p> @enderror
+                </div>
+
+                <div>
+                    <label for="next_visit_time" class="admin-label">{{ __('admin.next_visit_time') }}</label>
+                    <input type="time" name="next_visit_time" id="next_visit_time" class="admin-input"
+                           value="{{ old('next_visit_time', $record->next_visit_time ? \Carbon\Carbon::parse($record->next_visit_time)->format('H:i') : '') }}">
+                    @error('next_visit_time') <p class="admin-error">{{ $message }}</p> @enderror
+                </div>
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-6 dark:border-slate-800">
+                <a href="{{ route('admin.medical-records.show', $record->id) }}" class="admin-btn-ghost">{{ __('common.cancel') }}</a>
+                <button type="submit" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                    {{ __('admin.update_record') }}
                 </button>
             </div>
         </form>
-    </div>
+    </x-admin.panel>
 </div>
 @endsection

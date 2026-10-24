@@ -36,6 +36,7 @@
 | 2 | Core Loop Visibility | **Selesai (scope health)** — 2026-10-20 | `docs/phases/PHASE_2_CORE_LOOP.md` |
 | 3 | Operational Depth | **Selesai** — 2026-10-20 | `docs/phases/PHASE_3_OPERATIONAL_DEPTH.md` |
 | 4 | Operational Trust & Proof | **Selesai** — 2026-10-21 | `docs/phases/PHASE_4_OPERATIONAL_TRUST.md` |
+| 5 | Admin Console Overhaul | **Selesai** — 2026-10-22 | `docs/phases/PHASE_5_ADMIN_CONSOLE.md` |
 
 > Fase 4 lama (**Scale & Monetization**: membership, SaaS billing, chat/telemedicine)
 > dipindah utuh ke **Backlog** (bagian 6) karena belum ada keputusan produk.
@@ -154,6 +155,32 @@ website, dan data mock.
   tidak mengirim dua kali pada hari yang sama.
 - `php artisan test` hijau dan `./gradlew assembleDebug` sukses.
 
+## 5.1 Fase 5 — Admin Console Overhaul (selesai 2026-10-22)
+
+**Tujuan:** seluruh halaman konsol admin (admin klinik + super admin) tampil
+konsisten dan benar-benar bilingual, tanpa mengubah alur atau kontrak apa pun.
+
+**Scope yang dikerjakan:**
+
+- Komponen bersama `x-admin.{page-header,panel,stat-card,badge,empty-state}`
+  dipakai seluruh halaman admin; primitif form/tabel (`admin-input`,
+  `admin-btn-*`, `admin-table-head`, ...) dipusatkan di `resources/css/app.css`.
+- File bahasa baru `resources/lang/{id,en}/admin.php`; copy Indonesia yang
+  tadinya tertinggal di dalam Blade dipindah ke file bahasa.
+- Pagination admin memakai view `pagination::petheal` (view Laravel bawaan
+  terlihat asing di konsol admin dan sempat 500 saat data melewati satu
+  halaman).
+
+**Non-goal fase ini:** mengubah alur kerja, kontrak API, skema database, dan
+tampilan aplikasi Android.
+
+**Definisi selesai:**
+
+- Semua route admin GET merespons 200 pada locale ID **dan** EN.
+- Tidak ada kunci terjemah mentah (`admin.xxx`) yang tampil di HTML.
+- `npm run build` deterministik dan mencakup seluruh kelas yang dipakai view.
+- `php artisan test` hijau.
+
 ## 6. Backlog (ide yang ditunda)
 
 Tambahkan ide di sini, jangan langsung implementasi:
@@ -175,6 +202,9 @@ Tambahkan ide di sini, jangan langsung implementasi:
 | --- | --- |
 | Admin shell | `PetHeal_Backend/resources/views/layouts/admin.blade.php` |
 | Admin design system | `PetHeal_Backend/resources/css/app.css` |
+| Komponen admin | `PetHeal_Backend/resources/views/components/admin/*.blade.php` |
+| Copy admin (ID/EN) | `PetHeal_Backend/resources/lang/{id,en}/admin.php` |
+| Pagination admin | `PetHeal_Backend/resources/views/vendor/pagination/petheal.blade.php` |
 | Admin JS/Chart | `PetHeal_Backend/resources/js/app.js` |
 | Dashboard | `.../Admin/DashboardController.php`, `.../admin/dashboard.blade.php` |
 | Booking table | `.../admin/bookings/index.blade.php` |

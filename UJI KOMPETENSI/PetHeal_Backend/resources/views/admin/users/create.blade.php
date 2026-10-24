@@ -1,64 +1,74 @@
 @extends('layouts.admin')
 
-@section('title', 'Tambah pasien — ' . ($clinicName ?? 'PetHeal') . ' Admin')
-@section('header', 'Tambah pasien')
+@section('title', __('admin.add_patient') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('admin.add_patient'))
 
 @section('content')
-<div class="mx-auto max-w-xl">
-    <div class="mb-5 flex items-start justify-between gap-3">
-        <div>
-            <h2 class="text-xl font-bold text-slate-900 dark:text-white">Pasien baru</h2>
-            <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-                Buat akun pemilik hewan. Akun langsung aktif dan bisa dipakai login di aplikasi.
-            </p>
-        </div>
-        <a href="{{ route('admin.users.index') }}"
-           class="inline-flex flex-shrink-0 items-center gap-1 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700">
-            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">arrow_back</span>
-            Kembali
-        </a>
-    </div>
+<div class="mx-auto max-w-2xl space-y-6">
+    <x-admin.page-header
+        :title="__('admin.new_patient')"
+        :eyebrow="__('admin.eyebrow_management')"
+        icon="group"
+        :description="__('admin.new_patient_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.users.index') }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
+                {{ __('admin.back') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
 
-    <form method="POST" action="{{ route('admin.users.store') }}"
-          class="space-y-4 rounded-2xl border border-slate-200/70 bg-white p-6 dark:border-slate-800 dark:bg-slate-900">
-        @csrf
+    <x-admin.panel :title="__('admin.user_info')">
+        <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-5">
+            @csrf
 
-        <div>
-            <label for="name" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Nama lengkap <span class="text-rose-500">*</span></label>
-            <input id="name" type="text" name="name" required value="{{ old('name') }}" placeholder="Nama pemilik hewan"
-                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            @error('name') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
+            @if($errors->any())
+                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+                    <ul class="list-disc list-inside space-y-1">
+                        @foreach($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
 
-        <div>
-            <label for="email" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Email <span class="text-rose-500">*</span></label>
-            <input id="email" type="email" name="email" required value="{{ old('email') }}" placeholder="nama@email.com"
-                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            @error('email') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
+            <div>
+                <label for="name" class="admin-label">{{ __('admin.full_name') }} <span class="text-rose-500">*</span></label>
+                <input id="name" type="text" name="name" required value="{{ old('name') }}"
+                       placeholder="{{ __('admin.name_placeholder') }}" class="admin-input">
+                @error('name') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
 
-        <div>
-            <label for="phone" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Nomor telepon</label>
-            <input id="phone" type="text" name="phone" value="{{ old('phone') }}" placeholder="0812-3456-7890"
-                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            @error('phone') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
+            <div>
+                <label for="email" class="admin-label">{{ __('common.email') }} <span class="text-rose-500">*</span></label>
+                <input id="email" type="email" name="email" required value="{{ old('email') }}"
+                       placeholder="{{ __('admin.email_placeholder') }}" class="admin-input">
+                @error('email') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
 
-        <div>
-            <label for="password" class="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300">Password awal <span class="text-rose-500">*</span></label>
-            <input id="password" type="password" name="password" required autocomplete="new-password" placeholder="Minimal 6 karakter"
-                   class="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-100">
-            <p class="mt-1 text-xs text-slate-400">Akun dibuat dengan peran Pasien. Beri tahu pemilik untuk mengganti password setelah login.</p>
-            @error('password') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
-        </div>
+            <div>
+                <label for="phone" class="admin-label">{{ __('admin.phone_number') }}</label>
+                <input id="phone" type="text" name="phone" value="{{ old('phone') }}"
+                       placeholder="{{ __('admin.phone_placeholder') }}" class="admin-input">
+                @error('phone') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
 
-        <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
-            <a href="{{ route('admin.users.index') }}" class="rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300">Batal</a>
-            <button type="submit" class="inline-flex items-center gap-1.5 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-600">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
-                Simpan pasien
-            </button>
-        </div>
-    </form>
+            <div>
+                <label for="password" class="admin-label">{{ __('admin.initial_password') }} <span class="text-rose-500">*</span></label>
+                <input id="password" type="password" name="password" required autocomplete="new-password"
+                       placeholder="{{ __('admin.password_min_6') }}" class="admin-input">
+                <p class="admin-hint">{{ __('admin.initial_password_hint') }}</p>
+                @error('password') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="flex flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-5 dark:border-slate-800">
+                <a href="{{ route('admin.users.index') }}" class="admin-btn-ghost">{{ __('common.cancel') }}</a>
+                <button type="submit" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                    {{ __('admin.save_patient') }}
+                </button>
+            </div>
+        </form>
+    </x-admin.panel>
 </div>
 @endsection

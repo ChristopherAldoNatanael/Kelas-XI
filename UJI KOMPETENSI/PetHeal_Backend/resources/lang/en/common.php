@@ -72,6 +72,7 @@ return [
     'paid' => 'Paid',
     'unpaid' => 'Unpaid',
     'dp_paid' => 'DP Paid',
+    'dp_pending' => 'Awaiting DP',
     'failed' => 'Failed',
     'partial' => 'Partial',
     'scheduled' => 'Scheduled',

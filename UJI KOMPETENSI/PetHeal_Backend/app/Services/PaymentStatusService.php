@@ -12,11 +12,12 @@ class PaymentStatusService
     private function clearPaymentCaches(?int $clinicId = null): void
     {
         // PHASE 3 (B12): forget the keys readers actually use
-        // (Admin/PaymentController stats + admin dashboard `_all` variant).
-        // Date-ranged dashboard keys cannot be enumerated here — documented.
+        // (Admin/PaymentController stats + the cached all-time dashboard).
+        // Date-ranged dashboards are intentionally not cached, so there is no
+        // per-range key to invalidate.
         $suffix = $clinicId ?: 'all';
         Cache::forget('payment_stats_c' . $suffix);
-        Cache::forget('dashboard_stats_c' . $suffix . '_all');
+        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
     }
 
     /**

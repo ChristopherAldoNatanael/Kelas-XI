@@ -1,116 +1,171 @@
 @extends('layouts.admin')
-@section('title', __('clinics.clinic_management') . ' — ' . ($clinicName ?? 'VCMS') . ' Admin')
+
+@section('title', __('clinics.clinic_management') . ' — PetHeal Admin')
 @section('header', __('clinics.clinic_management'))
 
 @section('content')
-<div class="flex items-center justify-between mb-6">
-    <p class="text-sm text-slate-500">{{ __('clinics.manage_all_clinics') }}</p>
-    <a href="{{ route('admin.clinics.create') }}" class="bg-primary hover:opacity-90 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-all inline-flex items-center gap-2">
-        <span class="material-symbols-outlined text-lg">add</span> {{ __('clinics.add_clinic') }}
-    </a>
-</div>
+<div class="space-y-6">
 
-@if(session('success'))
-    <div class="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-xl mb-6 text-sm">{{ session('success') }}</div>
-@endif
+    {{-- Header halaman --}}
+    <x-admin.page-header
+        :title="__('clinics.clinic_management')"
+        :eyebrow="__('admin.eyebrow_management')"
+        icon="local_hospital"
+        :description="__('clinics.manage_all_clinics')">
+        <x-slot:actions>
+            <a href="{{ route('admin.clinics.create') }}"
+               class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                {{ __('clinics.add_clinic') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
 
-@if(session('new_clinic_credentials'))
-    @php $cred = session('new_clinic_credentials'); @endphp
-    <div class="bg-blue-50 border border-blue-200 text-blue-800 px-5 py-4 rounded-xl mb-6 text-sm relative" id="cred-alert">
-        <button onclick="document.getElementById('cred-alert').remove()" class="absolute top-2 right-3 text-blue-400 hover:text-blue-600 text-lg">&times;</button>
-        <p class="font-bold mb-2">{{ __('clinics.admin_account') }} {{ $cred['clinic'] }}</p>
-        <div class="flex items-center gap-4">
-            <div>
-                <span class="text-blue-600 text-xs">{{ __('clinics.cred_email') }}:</span>
-                <code class="bg-blue-100 px-2 py-0.5 rounded text-xs font-mono">{{ $cred['email'] }}</code>
-            </div>
-            <div>
-                <span class="text-blue-600 text-xs">{{ __('clinics.cred_password') }}:</span>
-                <code class="bg-blue-100 px-2 py-0.5 rounded text-xs font-mono">{{ $cred['password'] }}</code>
-            </div>
+    @if(session('success'))
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
+            {{ session('success') }}
         </div>
-        <p class="text-[10px] text-blue-500 mt-2">{{ __('clinics.save_credentials') }}</p>
-    </div>
-@endif
+    @endif
 
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="overflow-x-auto">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    <th class="px-6 py-3">{{ __('clinics.th_clinic') }}</th>
-                    <th class="px-6 py-3">{{ __('clinics.contact') }}</th>
-                    <th class="px-6 py-3">{{ __('clinics.stats') }}</th>
-                    <th class="px-6 py-3">{{ __('clinics.color') }}</th>
-                    <th class="px-6 py-3">{{ __('clinics.th_status') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('clinics.th_actions') }}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100/50 dark:divide-slate-800/50">
-                @forelse($clinics as $c)
-                <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                            @if($c->logo_url)
-                                <img src="{{ $c->logo_url }}" alt="{{ $c->name }}" class="h-8 w-8 rounded-lg object-cover border border-slate-200">
-                            @else
-                                <div class="h-8 w-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style="background-color: {{ $c->primary_color }}">
-                                    {{ substr($c->name, 0, 2) }}
+    {{-- Kredensial akun admin klinik yang baru dibuat --}}
+    @if(session('new_clinic_credentials'))
+        @php $credentials = session('new_clinic_credentials'); @endphp
+        <div class="relative rounded-2xl border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800 dark:border-blue-900/60 dark:bg-blue-900/20 dark:text-blue-200" id="cred-alert">
+            <button type="button" onclick="document.getElementById('cred-alert').remove()"
+                    class="absolute right-3 top-2 text-lg text-blue-400 transition hover:text-blue-600 dark:hover:text-blue-300"
+                    aria-label="{{ __('common.close') }}">
+                &times;
+            </button>
+
+            <p class="mb-3 font-bold">{{ __('clinics.admin_account') }} {{ $credentials['clinic'] }}</p>
+
+            <div class="flex flex-wrap items-center gap-x-6 gap-y-2">
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-blue-600 dark:text-blue-300">{{ __('clinics.cred_email') }}:</span>
+                    <code class="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs text-blue-900 dark:bg-blue-900/60 dark:text-blue-100">{{ $credentials['email'] }}</code>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-blue-600 dark:text-blue-300">{{ __('clinics.cred_password') }}:</span>
+                    <code class="rounded bg-blue-100 px-2 py-0.5 font-mono text-xs text-blue-900 dark:bg-blue-900/60 dark:text-blue-100">{{ $credentials['password'] }}</code>
+                </div>
+            </div>
+
+            <p class="mt-3 text-[11px] text-blue-500 dark:text-blue-300/80">{{ __('clinics.save_credentials') }}</p>
+        </div>
+    @endif
+
+    {{-- Tabel klinik --}}
+    <x-admin.panel :title="__('clinics.th_clinic')" :subtitle="__('clinics.manage_all_clinics')" flush>
+        <x-slot:actions>
+            <x-admin.badge :label="__('admin.total') . ' · ' . $clinics->total()" tone="slate" />
+        </x-slot:actions>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="admin-table-head">
+                    <tr>
+                        <th class="px-5 py-3">{{ __('clinics.th_clinic') }}</th>
+                        <th class="px-5 py-3">{{ __('clinics.contact') }}</th>
+                        <th class="px-5 py-3">{{ __('clinics.stats') }}</th>
+                        <th class="px-5 py-3">{{ __('clinics.color') }}</th>
+                        <th class="px-5 py-3">{{ __('clinics.th_status') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('clinics.th_actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                    @forelse($clinics as $clinic)
+                        <tr class="admin-table-row">
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-3">
+                                    @if($clinic->logo_url)
+                                        <img src="{{ $clinic->logo_url }}" alt="{{ $clinic->name }}"
+                                             class="h-9 w-9 rounded-lg border border-slate-200 object-cover dark:border-slate-700">
+                                    @else
+                                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white"
+                                              style="background-color: {{ $clinic->primary_color }}">
+                                            {{ \Illuminate\Support\Str::substr($clinic->name, 0, 2) }}
+                                        </span>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
+                                        <p class="truncate text-[11px] text-slate-400">{{ $clinic->slug }}</p>
+                                    </div>
                                 </div>
-                            @endif
-                            <div>
-                                <p class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ $c->name }}</p>
-                                <p class="text-[10px] text-slate-400">{{ $c->slug }}</p>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4">
-                        <p class="text-xs text-slate-600 dark:text-slate-400">{{ $c->phone ?? '—' }}</p>
-                        <p class="text-[10px] text-slate-400">{{ $c->email ?? '—' }}</p>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="flex gap-3 text-[10px] font-bold text-slate-500">
-                            <span>{{ $c->doctors_count }} dr</span>
-                            <span>{{ $c->services_count }} svc</span>
-                            <span>{{ $c->users_count }} usr</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-2">
-                            <div class="w-5 h-5 rounded-full border border-slate-200" style="background-color: {{ $c->primary_color }}"></div>
-                            <span class="text-[10px] font-mono text-slate-500">{{ $c->primary_color }}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4">
-                        @if($c->is_active)
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-emerald-50 text-emerald-600 border-emerald-100">{{ __('clinics.status_active') }}</span>
-                        @else
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-red-50 text-red-600 border-red-100">{{ __('clinics.status_inactive') }}</span>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <div class="flex items-center justify-center gap-1">
-                            <a href="{{ route('admin.clinics.edit', $c) }}" class="w-7 h-7 rounded-lg text-slate-400 hover:text-primary transition-all inline-flex items-center justify-center" title="Edit">
-                                <span class="material-symbols-outlined text-md">edit</span>
-                            </a>
-                            <form method="POST" action="{{ route('admin.clinics.toggle-active', $c) }}" class="inline" onsubmit="return confirm('{{ __('clinics.toggle_confirm', ['name' => $c->name]) }}')">
-                                @csrf
-                                <button type="submit" class="w-7 h-7 rounded-lg text-slate-400 hover:text-orange-500 transition-all inline-flex items-center justify-center" title="{{ $c->is_active ? 'Deactivate' : 'Activate' }}">
-                                    <span class="material-symbols-outlined text-md">{{ $c->is_active ? 'block' : 'check_circle' }}</span>
-                                </button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="px-6 py-8 text-center text-slate-400">{{ __('clinics.no_clinics') }}</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <p class="text-xs text-slate-600 dark:text-slate-400">{{ $clinic->phone ?: '—' }}</p>
+                                <p class="text-[11px] text-slate-400">{{ $clinic->email ?: '—' }}</p>
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex flex-wrap gap-1.5">
+                                    <x-admin.badge :label="$clinic->doctors_count . ' ' . __('dashboard.doctors')" tone="blue" />
+                                    <x-admin.badge :label="$clinic->services_count . ' ' . __('dashboard.services_count')" tone="violet" />
+                                    <x-admin.badge :label="$clinic->users_count . ' ' . __('dashboard.users')" tone="slate" />
+                                </div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="h-5 w-5 rounded-full border border-slate-200 dark:border-slate-700"
+                                          style="background-color: {{ $clinic->primary_color }}"></span>
+                                    <span class="font-mono text-[10px] text-slate-500">{{ $clinic->primary_color }}</span>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge
+                                    :label="$clinic->is_active ? __('clinics.status_active') : __('clinics.status_inactive')"
+                                    :tone="$clinic->is_active ? 'primary' : 'slate'"
+                                    dot />
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center justify-center gap-1">
+                                    <a href="{{ route('admin.clinics.edit', $clinic) }}"
+                                       class="admin-icon-btn"
+                                       title="{{ __('admin.edit') }}"
+                                       aria-label="{{ __('admin.edit') }} {{ $clinic->name }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                                    </a>
 
-<div class="mt-4">{{ $clinics->links() }}</div>
+                                    <form method="POST" action="{{ route('admin.clinics.toggle-active', $clinic) }}"
+                                          class="inline"
+                                          onsubmit="return confirm('{{ __('clinics.toggle_confirm', ['name' => $clinic->name]) }}')">
+                                        @csrf
+                                        <button type="submit"
+                                                class="admin-icon-btn hover:!text-orange-500"
+                                                title="{{ $clinic->is_active ? __('common.inactive') : __('common.active') }}"
+                                                aria-label="{{ $clinic->is_active ? __('common.inactive') : __('common.active') }} {{ $clinic->name }}">
+                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">
+                                                {{ $clinic->is_active ? 'block' : 'check_circle' }}
+                                            </span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6">
+                                <x-admin.empty-state
+                                    :title="__('admin.clinics_empty_title')"
+                                    :description="__('admin.clinics_empty_desc')"
+                                    icon="local_hospital"
+                                    tone="primary">
+                                    <x-slot:actions>
+                                        <a href="{{ route('admin.clinics.create') }}" class="admin-btn-primary">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                                            {{ __('clinics.add_clinic') }}
+                                        </a>
+                                    </x-slot:actions>
+                                </x-admin.empty-state>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        <x-slot:footer>
+            {{ $clinics->links() }}
+        </x-slot:footer>
+    </x-admin.panel>
+</div>
 @endsection

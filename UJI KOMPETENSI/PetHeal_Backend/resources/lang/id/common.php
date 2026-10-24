@@ -72,6 +72,7 @@ return [
     'paid' => 'Lunas',
     'unpaid' => 'Belum Bayar',
     'dp_paid' => 'DP Dibayar',
+    'dp_pending' => 'Menunggu DP',
     'failed' => 'Gagal',
     'partial' => 'Sebagian',
     'scheduled' => 'Terjadwal',

@@ -7,123 +7,158 @@
 @section('header', __('menu.veterinarians'))
 
 @section('content')
+<div class="space-y-6">
 
-<div class="glass-card rounded-2xl overflow-hidden">
-    <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-        <div>
-            <h2 class="text-lg font-semibold text-slate-900 dark:text-white">Daftar Dokter Hewan</h2>
-            <p class="text-xs text-slate-400 mt-0.5">Kelola profil, jadwal, dan performa tim dokter</p>
-        </div>
-        <a href="{{ route('admin.doctors.create') }}" class="bg-primary text-white px-4 py-2 rounded-xl hover:bg-emerald-600 flex items-center gap-2 text-sm font-medium">
-            <span class="material-symbols-outlined text-[18px]">add</span>
-            Tambah Dokter
-        </a>
-    </div>
+    {{-- Header halaman --}}
+    <x-admin.page-header
+        :title="__('admin.doctors_title')"
+        :eyebrow="__('admin.eyebrow_management')"
+        icon="medical_services"
+        :description="__('admin.doctors_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.doctors.create') }}" class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                {{ __('admin.add_doctor') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
 
-    <div class="overflow-x-auto">
-        <table class="w-full">
-            <thead class="bg-slate-50 dark:bg-slate-800/50">
-                <tr>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Dokter</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Spesialisasi</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Rating & performa</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Jadwal rutin</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Status</th>
-                    <th class="px-6 py-4 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Aksi</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
-                @forelse($doctors as $doctor)
-                    <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                @if($doctor->photo_url)
-                                    <img class="h-12 w-12 rounded-full object-cover mr-4 ring-2 ring-slate-100 dark:ring-slate-700" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
-                                @elseif($doctor->photo)
-                                    <img class="h-12 w-12 rounded-full object-cover mr-4 ring-2 ring-slate-100 dark:ring-slate-700" src="{{ asset('storage/' . $doctor->photo) }}?t={{ time() }}" alt="{{ $doctor->name }}">
-                                @else
-                                    <div class="h-12 w-12 rounded-full bg-gradient-to-br from-emerald-100 to-blue-100 dark:from-emerald-900/30 dark:to-blue-900/30 flex items-center justify-center mr-4 ring-2 ring-slate-100 dark:ring-slate-700">
-                                        <span class="material-symbols-outlined text-emerald-600 dark:text-emerald-400">person</span>
-                                    </div>
-                                @endif
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-900 dark:text-white">{{ $doctor->name }}</p>
-                                    <p class="text-xs text-slate-500 dark:text-slate-400">{{ $doctor->email ?? 'Email belum diisi' }}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
-                                {{ $doctor->specialization }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <div class="flex flex-col gap-1">
-                                <div class="inline-flex items-center gap-1.5">
-                                    <span class="material-symbols-outlined text-[16px] text-amber-500">star</span>
-                                    <span class="text-sm font-semibold text-slate-900 dark:text-white">
-                                        {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
-                                    </span>
-                                    <span class="text-xs text-slate-500 dark:text-slate-400">
-                                        ({{ $doctor->reviews_count }} review{{ $doctor->reviews_count === 1 ? '' : 's' }})
-                                    </span>
-                                </div>
-                                <span class="text-xs text-slate-400">
-                                    {{ $doctor->completed_bookings_count }} booking selesai
-                                </span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-600 dark:text-slate-400">
-                            <div class="flex flex-col">
-                                <span>{{ implode(', ', array_slice($doctor->available_days, 0, 3)) }}</span>
-                                <span class="text-xs text-slate-400">{{ $doctor->start_time }} - {{ $doctor->end_time }}</span>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $doctor->is_active ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400' }}">
-                                {{ $doctor->is_active ? 'Aktif' : 'Nonaktif' }}
-                            </span>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <div class="flex items-center gap-2">
-                                <a href="{{ route('admin.doctors.show', $doctor->id) }}" class="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400 dark:hover:bg-blue-900/50 transition-colors" title="Lihat detail">
-                                    <span class="material-symbols-outlined text-[18px]">visibility</span>
-                                </a>
-                                <a href="{{ route('admin.doctors.schedule', $doctor->id) }}" class="p-2 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-400 dark:hover:bg-amber-900/50 transition-colors" title="Jadwal & cuti">
-                                    <span class="material-symbols-outlined text-[18px]">event_busy</span>
-                                </a>
-                                <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="p-2 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:hover:bg-emerald-900/50 transition-colors" title="Ubah">
-                                    <span class="material-symbols-outlined text-[18px]">edit</span>
-                                </a>
-                                <form method="POST" action="{{ route('admin.doctors.destroy', $doctor->id) }}" class="inline" onsubmit="return confirm('Yakin ingin menghapus dokter ini?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 transition-colors" title="Hapus">
-                                        <span class="material-symbols-outlined text-[18px]">delete</span>
-                                    </button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                @empty
+    {{-- Tabel dokter --}}
+    <x-admin.panel :title="__('admin.doctors_title')" :subtitle="__('admin.doctors_desc')" flush>
+        <x-slot:actions>
+            <x-admin.badge :label="__('admin.total') . ' · ' . $doctors->total()" tone="slate" />
+        </x-slot:actions>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="admin-table-head">
                     <tr>
-                        <td colspan="6" class="px-6 py-12 text-center">
-                            <div class="flex flex-col items-center">
-                                <span class="material-symbols-outlined text-5xl text-slate-300 dark:text-slate-600 mb-3">medical_services</span>
-                                <p class="text-slate-600 dark:text-slate-300 font-medium">Belum ada dokter yang tampil</p>
-                                <p class="text-xs text-slate-400 mt-1">Tambahkan dokter pertama agar user bisa mulai membuat booking konsultasi.</p>
-                            </div>
-                        </td>
+                        <th class="px-5 py-3">{{ __('admin.col_doctor') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_specialization') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_rating') }}</th>
+                        <th class="px-5 py-3">{{ __('admin.col_routine') }}</th>
+                        <th class="px-5 py-3">{{ __('common.status') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('common.actions') }}</th>
                     </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
+                </thead>
+                <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                    @forelse($doctors as $doctor)
+                        <tr class="admin-table-row">
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-3">
+                                    @if($doctor->photo_url)
+                                        <img class="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-700"
+                                             src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
+                                    @else
+                                        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-2 ring-slate-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-slate-700"
+                                              aria-hidden="true">
+                                            <span class="material-symbols-outlined text-[20px]">person</span>
+                                        </span>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <a href="{{ route('admin.doctors.show', $doctor->id) }}"
+                                           class="block truncate text-sm font-semibold text-slate-800 transition hover:text-primary dark:text-slate-200">
+                                            {{ $doctor->name }}
+                                        </a>
+                                        <p class="truncate text-[11px] text-slate-400">{{ $doctor->email ?: __('admin.email_empty') }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge :label="$doctor->specialization" tone="blue" />
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex flex-col gap-1">
+                                    <div class="flex items-center gap-1.5">
+                                        <span class="material-symbols-outlined text-[16px] text-amber-500" aria-hidden="true">star</span>
+                                        <span class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
+                                            {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
+                                        </span>
+                                        <span class="text-[11px] text-slate-400">
+                                            ({{ $doctor->reviews_count }} {{ __('admin.col_reviews') }})
+                                        </span>
+                                    </div>
+                                    <span class="text-[11px] text-slate-400">
+                                        {{ $doctor->completed_bookings_count }} {{ __('admin.col_bookings_done') }}
+                                    </span>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <p class="text-xs text-slate-600 dark:text-slate-300">
+                                    {{ implode(', ', array_slice($doctor->available_days, 0, 3)) }}
+                                </p>
+                                <p class="mt-0.5 text-[11px] text-slate-400">{{ $doctor->start_time }} - {{ $doctor->end_time }}</p>
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge
+                                    :label="$doctor->is_active ? __('common.active') : __('common.inactive')"
+                                    :tone="$doctor->is_active ? 'primary' : 'slate'"
+                                    dot />
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center justify-center gap-1">
+                                    <a href="{{ route('admin.doctors.show', $doctor->id) }}"
+                                       class="admin-icon-btn hover:!text-primary"
+                                       title="{{ __('admin.view_detail') }}"
+                                       aria-label="{{ __('admin.view_detail') }} {{ $doctor->name }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
+                                    </a>
 
-    @if($doctors->hasPages())
-    <div class="p-6 border-t border-slate-100 dark:border-slate-800">
-        {{ $doctors->links() }}
-    </div>
-    @endif
+                                    <a href="{{ route('admin.doctors.schedule', $doctor->id) }}"
+                                       class="admin-icon-btn hover:!text-amber-600"
+                                       title="{{ __('admin.schedule_tab') }}"
+                                       aria-label="{{ __('admin.schedule_tab') }} {{ $doctor->name }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">event_busy</span>
+                                    </a>
+
+                                    <a href="{{ route('admin.doctors.edit', $doctor->id) }}"
+                                       class="admin-icon-btn hover:!text-emerald-600"
+                                       title="{{ __('admin.edit') }}"
+                                       aria-label="{{ __('admin.edit') }} {{ $doctor->name }}">
+                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                                    </a>
+
+                                    <form method="POST" action="{{ route('admin.doctors.destroy', $doctor->id) }}" class="inline"
+                                          onsubmit="return confirm('{{ __('admin.delete_doctor_confirm') }}')">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit"
+                                                class="admin-icon-btn hover:!text-rose-600"
+                                                title="{{ __('admin.delete') }}"
+                                                aria-label="{{ __('admin.delete') }} {{ $doctor->name }}">
+                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="6">
+                                <x-admin.empty-state
+                                    :title="__('admin.no_doctors_title')"
+                                    :description="__('admin.no_doctors_desc')"
+                                    icon="medical_services"
+                                    tone="primary">
+                                    <x-slot:actions>
+                                        <a href="{{ route('admin.doctors.create') }}" class="admin-btn-primary">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                                            {{ __('admin.add_doctor') }}
+                                        </a>
+                                    </x-slot:actions>
+                                </x-admin.empty-state>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+
+        @if($doctors->hasPages())
+            <x-slot:footer>
+                {{ $doctors->links() }}
+            </x-slot:footer>
+        @endif
+    </x-admin.panel>
 </div>
 @endsection

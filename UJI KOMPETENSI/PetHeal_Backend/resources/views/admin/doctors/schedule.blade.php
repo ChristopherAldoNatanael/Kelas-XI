@@ -1,321 +1,289 @@
-@extends('layouts.admin')
-
-@section('title', 'Jadwal & Cuti Dokter')
-@section('header', 'Jadwal & Cuti Dokter')
-
-@section('content')
 @php
-    $dayLabels = [
-        'monday' => 'Senin', 'tuesday' => 'Selasa', 'wednesday' => 'Rabu',
-        'thursday' => 'Kamis', 'friday' => 'Jumat', 'saturday' => 'Sabtu',
-        'sunday' => 'Minggu',
-    ];
-    $dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
-    $weeklyLabel = collect($dayOrder)
+    $dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+    $weeklyLabel = collect($dayKeys)
         ->filter(fn ($day) => in_array($day, $weeklyDays, true))
-        ->map(fn ($day) => $dayLabels[$day])
+        ->map(fn ($day) => __('admin.' . $day))
         ->implode(', ');
     $nextException = $exceptions->first();
+    $locale = app()->getLocale();
 @endphp
 
-<div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between mb-6">
-    <div>
-        <p class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 mb-2">Operasional dokter</p>
-        <h2 class="text-2xl font-bold text-slate-900 dark:text-white">{{ $doctor->name }}</h2>
-        <p class="text-sm text-slate-500 mt-1">
-            {{ $doctor->specialization ?: 'Dokter hewan' }} · atur cuti dan jam praktik khusus per tanggal.
-        </p>
-    </div>
-    <div class="flex flex-wrap items-center gap-2">
-        <a href="{{ route('admin.bookings.schedule', ['date' => $prefillDate, 'doctor_id' => $doctor->id]) }}"
-           class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-            Buka Papan Jadwal
-        </a>
-        <a href="{{ route('admin.doctors.show', $doctor->id) }}"
-           class="px-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            Profil Dokter
-        </a>
-    </div>
-</div>
+@extends('layouts.admin')
 
-@foreach(['success' => 'check_circle', 'warning' => 'warning', 'error' => 'error'] as $flashKey => $flashIcon)
-    @if(session($flashKey))
-        <div class="mb-4 flex items-start gap-3 px-5 py-4 rounded-xl border text-sm font-medium
-            {{ $flashKey === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : '' }}
-            {{ $flashKey === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-700' : '' }}
-            {{ $flashKey === 'error' ? 'bg-rose-50 border-rose-200 text-rose-700' : '' }}">
-            <span class="material-symbols-outlined text-[20px] shrink-0">{{ $flashIcon }}</span>
-            <span class="leading-relaxed">{{ session($flashKey) }}</span>
-        </div>
-    @endif
-@endforeach
+@section('title', __('admin.doctor_schedule_title') . ' — ' . ($clinicName ?? 'PetHeal') . ' Admin')
+@section('header', __('admin.doctor_schedule_title'))
 
-{{-- Ringkasan jadwal --}}
-<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <div class="glass-card rounded-2xl border border-slate-200/60 p-5">
-        <div class="flex items-center gap-2 text-slate-400">
-            <span class="material-symbols-outlined text-[18px]">calendar_month</span>
-            <p class="text-[10px] font-bold uppercase tracking-wider">Jadwal mingguan</p>
-        </div>
-        <p class="text-sm font-semibold text-slate-900 dark:text-white mt-2">
-            {{ $weeklyLabel !== '' ? $weeklyLabel : 'Belum ada hari praktik' }}
-        </p>
-        <p class="text-xs text-slate-500 mt-1">{{ $doctor->start_time }} - {{ $doctor->end_time }} WIB</p>
-    </div>
+@section('content')
+<div class="space-y-6">
 
-    <div class="glass-card rounded-2xl border border-slate-200/60 p-5">
-        <div class="flex items-center gap-2 text-slate-400">
-            <span class="material-symbols-outlined text-[18px]">event_busy</span>
-            <p class="text-[10px] font-bold uppercase tracking-wider">Cuti terdekat</p>
-        </div>
-        @if($nextException)
-            <p class="text-sm font-semibold text-slate-900 dark:text-white mt-2">
-                {{ \Carbon\Carbon::parse($nextException->date)->locale('id')->translatedFormat('l, d F Y') }}
-            </p>
-            <p class="text-xs text-slate-500 mt-1">
-                {{ $nextException->is_closed ? 'Sehari penuh' : $nextException->start_time . ' - ' . $nextException->end_time }}
-            </p>
-        @else
-            <p class="text-sm font-semibold text-slate-900 dark:text-white mt-2">Belum ada cuti terjadwal</p>
-            <p class="text-xs text-slate-500 mt-1">Dokter mengikuti jadwal mingguan.</p>
+    <x-admin.page-header
+        :title="$doctor->name"
+        :eyebrow="__('admin.eyebrow_operations')"
+        icon="edit_calendar"
+        :description="($doctor->specialization ?: __('admin.veterinarian')) . ' · ' . __('admin.doctor_schedule_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.bookings.schedule', ['date' => $prefillDate, 'doctor_id' => $doctor->id]) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">calendar_month</span>
+                {{ __('admin.open_schedule_board') }}
+            </a>
+            <a href="{{ route('admin.doctors.show', $doctor->id) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">stethoscope</span>
+                {{ __('admin.doctor_profile_link') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
+
+    @foreach(['success' => 'check_circle', 'warning' => 'warning', 'error' => 'error'] as $flashKey => $flashIcon)
+        @if(session($flashKey))
+            <div class="flex items-start gap-3 rounded-xl border px-5 py-4 text-sm font-medium
+                {{ $flashKey === 'success' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : '' }}
+                {{ $flashKey === 'warning' ? 'border-amber-200 bg-amber-50 text-amber-700' : '' }}
+                {{ $flashKey === 'error' ? 'border-rose-200 bg-rose-50 text-rose-700' : '' }}">
+                <span class="material-symbols-outlined shrink-0 text-[20px]" aria-hidden="true">{{ $flashIcon }}</span>
+                <span class="leading-relaxed">{{ session($flashKey) }}</span>
+            </div>
         @endif
+    @endforeach
+
+    {{-- Ringkasan --}}
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <x-admin.stat-card
+            :label="__('admin.weekly_schedule')"
+            :value="$weeklyLabel !== '' ? $weeklyLabel : __('admin.no_practice_days')"
+            icon="calendar_month"
+            tone="blue"
+            :hint="$doctor->start_time . ' - ' . $doctor->end_time . ' WIB'" />
+
+        <x-admin.stat-card
+            :label="__('admin.next_leave')"
+            :value="$nextException
+                ? \Carbon\Carbon::parse($nextException->date)->locale($locale)->translatedFormat('l, d F Y')
+                : __('admin.no_leave_scheduled')"
+            icon="event_busy"
+            tone="rose"
+            :hint="$nextException
+                ? ($nextException->is_closed ? __('admin.full_day_off') : $nextException->start_time . ' - ' . $nextException->end_time)
+                : __('admin.follows_weekly_schedule')" />
+
+        <x-admin.stat-card
+            :label="__('admin.upcoming_bookings')"
+            :value="$upcomingBookings->count()"
+            icon="pending_actions"
+            tone="amber"
+            :hint="__('admin.upcoming_bookings_hint')" />
     </div>
 
-    <div class="glass-card rounded-2xl border border-slate-200/60 p-5">
-        <div class="flex items-center gap-2 text-slate-400">
-            <span class="material-symbols-outlined text-[18px]">pending_actions</span>
-            <p class="text-[10px] font-bold uppercase tracking-wider">Booking mendatang</p>
-        </div>
-        <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ $upcomingBookings->count() }}</p>
-        <p class="text-xs text-slate-500 mt-1">Menunggu & terkonfirmasi, belum termasuk yang lewat.</p>
-    </div>
-</div>
+    <div class="grid grid-cols-1 gap-6 xl:grid-cols-5">
 
-<div class="grid grid-cols-1 xl:grid-cols-5 gap-6">
-    {{-- Daftar pengecualian --}}
-    <section class="xl:col-span-3 glass-card rounded-2xl border border-slate-200/60 overflow-hidden">
-        <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-start justify-between gap-3">
-            <div>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Cuti &amp; jam khusus</h3>
-                <p class="text-xs text-slate-500 mt-1">30 tanggal terdekat. Satu tanggal hanya punya satu pengecualian.</p>
-            </div>
-            <span class="text-[10px] font-bold px-2 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">
-                {{ $exceptions->count() }} tanggal
-            </span>
-        </div>
+        {{-- Daftar pengecualian --}}
+        <x-admin.panel class="xl:col-span-3" :title="__('admin.exceptions_title')" :subtitle="__('admin.exceptions_desc')" flush>
+            <x-slot:actions>
+                <x-admin.badge :label="__('admin.dates_count', ['count' => $exceptions->count()])" tone="slate" />
+            </x-slot:actions>
 
-        @if($exceptions->isEmpty())
-            <div class="px-6 py-14 text-center">
-                <span class="material-symbols-outlined text-5xl text-slate-300">event_available</span>
-                <p class="text-sm font-semibold text-slate-600 dark:text-slate-300 mt-3">Belum ada pengecualian jadwal</p>
-                <p class="text-xs text-slate-400 mt-1">Dokter mengikuti jadwal mingguan untuk semua tanggal.</p>
-            </div>
-        @else
-            <ul class="divide-y divide-slate-100 dark:divide-slate-800">
-                @foreach($exceptions as $exception)
-                    @php
-                        $conflicts = (int) ($conflictsByDate[$exception->date] ?? 0);
-                    @endphp
-                    <li class="p-4 sm:p-5 flex flex-col gap-3 sm:flex-row sm:items-start">
-                        <div class="w-16 shrink-0 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 text-center py-2">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                {{ \Carbon\Carbon::parse($exception->date)->locale('id')->translatedFormat('M') }}
-                            </p>
-                            <p class="text-xl font-bold text-slate-900 dark:text-white leading-none">
-                                {{ \Carbon\Carbon::parse($exception->date)->format('d') }}
-                            </p>
-                            <p class="text-[10px] text-slate-400 mt-1">
-                                {{ \Carbon\Carbon::parse($exception->date)->locale('id')->translatedFormat('D') }}
-                            </p>
-                        </div>
-
-                        <div class="min-w-0 flex-1">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <p class="text-sm font-bold text-slate-900 dark:text-white">
-                                    {{ \Carbon\Carbon::parse($exception->date)->locale('id')->translatedFormat('l, d F Y') }}
+            @if($exceptions->isEmpty())
+                <x-admin.empty-state
+                    :title="__('admin.no_exceptions_title')"
+                    :description="__('admin.no_exceptions_desc')"
+                    icon="event_available"
+                    tone="slate" />
+            @else
+                <ul class="divide-y divide-slate-100 dark:divide-slate-800">
+                    @foreach($exceptions as $exception)
+                        @php
+                            $conflicts = (int) ($conflictsByDate[$exception->date] ?? 0);
+                            $exceptionDate = \Carbon\Carbon::parse($exception->date);
+                        @endphp
+                        <li class="flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:p-5">
+                            <div class="w-16 shrink-0 rounded-xl border border-slate-200 bg-slate-50 py-2 text-center dark:border-slate-700 dark:bg-slate-800/50">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    {{ $exceptionDate->locale($locale)->translatedFormat('M') }}
                                 </p>
-                                @if($exception->is_closed)
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Cuti</span>
-                                @else
-                                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Jam khusus</span>
+                                <p class="text-xl font-bold leading-none text-slate-900 dark:text-white">{{ $exceptionDate->format('d') }}</p>
+                                <p class="mt-1 text-[10px] text-slate-400">{{ $exceptionDate->locale($locale)->translatedFormat('D') }}</p>
+                            </div>
+
+                            <div class="min-w-0 flex-1">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <p class="text-sm font-bold text-slate-900 dark:text-white">
+                                        {{ $exceptionDate->locale($locale)->translatedFormat('l, d F Y') }}
+                                    </p>
+                                    @if($exception->is_closed)
+                                        <x-admin.badge :label="__('admin.day_off')" tone="rose" />
+                                    @else
+                                        <x-admin.badge :label="__('admin.special_hours')" tone="amber" />
+                                    @endif
+                                </div>
+
+                                <p class="mt-1 flex items-center gap-1 text-xs text-slate-500">
+                                    <span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span>
+                                    {{ $exception->is_closed ? __('admin.full_day_off') : $exception->start_time . ' - ' . $exception->end_time . ' WIB' }}
+                                </p>
+
+                                @if($exception->reason)
+                                    <p class="mt-2 text-xs leading-relaxed text-slate-600 dark:text-slate-300">{{ $exception->reason }}</p>
+                                @endif
+
+                                @if($conflicts > 0)
+                                    <a href="{{ route('admin.bookings.schedule', ['date' => $exception->date]) }}"
+                                       class="mt-3 inline-flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 transition hover:bg-amber-100">
+                                        <span class="material-symbols-outlined text-[16px]" aria-hidden="true">notification_important</span>
+                                        {{ __('admin.review_outside_schedule', ['count' => $conflicts]) }}
+                                    </a>
                                 @endif
                             </div>
 
-                            <p class="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                                <span class="material-symbols-outlined text-[14px]">schedule</span>
-                                {{ $exception->is_closed ? 'Sehari penuh' : $exception->start_time . ' - ' . $exception->end_time . ' WIB' }}
-                            </p>
+                            <form method="POST"
+                                  action="{{ route('admin.doctors.schedule-exceptions.destroy', ['id' => $doctor->id, 'exception' => $exception->id]) }}"
+                                  onsubmit="return confirm(@js(__('admin.delete_exception_confirm', ['date' => $exceptionDate->format('d/m/Y')])))"
+                                  class="shrink-0">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit"
+                                        class="admin-icon-btn h-9 w-9 hover:bg-rose-50 hover:text-rose-600"
+                                        title="{{ __('admin.delete_exception_aria', ['date' => $exceptionDate->format('d/m/Y')]) }}"
+                                        aria-label="{{ __('admin.delete_exception_aria', ['date' => $exceptionDate->format('d/m/Y')]) }}">
+                                    <span class="material-symbols-outlined text-[19px]" aria-hidden="true">delete</span>
+                                </button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @endif
+        </x-admin.panel>
 
-                            @if($exception->reason)
-                                <p class="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">{{ $exception->reason }}</p>
-                            @endif
+        {{-- Form pengecualian --}}
+        <div class="xl:col-span-2">
+            <x-admin.panel :title="__('admin.set_one_date')" :subtitle="__('admin.set_one_date_desc')">
+                @php
+                    // Nilai awal dirender di server supaya label tetap benar sebelum
+                    // JavaScript jalan, dan tetap aman bila `old()` berisi nilai rusak.
+                    $initialDate = old('date', $prefillDate);
+                    $initialDateLabel = __('admin.pick_date');
+                    if (is_string($initialDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $initialDate)) {
+                        $initialDateLabel = \Carbon\Carbon::parse($initialDate)->locale($locale)->translatedFormat('j F Y');
+                    } else {
+                        $initialDate = '';
+                    }
+                @endphp
 
-                            @if($conflicts > 0)
-                                <a href="{{ route('admin.bookings.schedule', ['date' => $exception->date]) }}"
-                                   class="mt-3 inline-flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors">
-                                    <span class="material-symbols-outlined text-[16px]">notification_important</span>
-                                    {{ $conflicts }} booking aktif perlu ditinjau — booking tidak dibatalkan otomatis.
-                                </a>
-                            @endif
+                <form id="exception-form" method="POST" action="{{ route('admin.doctors.schedule-exceptions.store', $doctor->id) }}" class="space-y-4">
+                    @csrf
+
+                    <div>
+                        <label for="exception-date-trigger" class="admin-label">{{ __('admin.date_label') }}</label>
+                        <button type="button" id="exception-date-trigger"
+                                aria-haspopup="dialog" aria-controls="date-modal" aria-expanded="false"
+                                class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800">
+                            <span class="flex min-w-0 items-center gap-2">
+                                <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">calendar_month</span>
+                                <span id="exception-date-label" class="truncate text-sm {{ $initialDate ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400' }}">{{ $initialDateLabel }}</span>
+                            </span>
+                            <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">expand_more</span>
+                        </button>
+                        {{-- Nilai asli form tetap format YYYY-MM-DD agar validasi server tidak berubah. --}}
+                        <input id="exception-date" type="hidden" name="date" value="{{ $initialDate }}" data-min="{{ now()->toDateString() }}">
+                        <p id="exception-date-error" class="admin-error hidden">{{ __('admin.date_required') }}</p>
+                        @error('date')
+                            <p class="admin-error">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <fieldset>
+                        <legend class="admin-label">{{ __('admin.mode_label') }}</legend>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mode" value="closed" class="peer sr-only"
+                                       {{ old('mode', 'closed') === 'closed' ? 'checked' : '' }}>
+                                <span class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors peer-checked:border-rose-300 peer-checked:bg-rose-50 peer-checked:text-rose-700 dark:border-slate-700 dark:text-slate-300">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">event_busy</span>
+                                    {{ __('admin.closed_full_day') }}
+                                </span>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="mode" value="custom" class="peer sr-only"
+                                       {{ old('mode') === 'custom' ? 'checked' : '' }}>
+                                <span class="flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 transition-colors peer-checked:border-amber-300 peer-checked:bg-amber-50 peer-checked:text-amber-700 dark:border-slate-700 dark:text-slate-300">
+                                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>
+                                    {{ __('admin.custom_hours') }}
+                                </span>
+                            </label>
                         </div>
+                        @error('mode')
+                            <p class="admin-error">{{ $message }}</p>
+                        @enderror
+                    </fieldset>
 
-                        <form method="POST"
-                              action="{{ route('admin.doctors.schedule-exceptions.destroy', ['id' => $doctor->id, 'exception' => $exception->id]) }}"
-                              onsubmit="return confirm('Hapus pengecualian {{ \Carbon\Carbon::parse($exception->date)->format('d/m/Y') }}? Dokter kembali memakai jadwal mingguan pada tanggal itu.')"
-                              class="shrink-0">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit"
-                                    class="w-9 h-9 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center justify-center"
-                                    title="Hapus pengecualian" aria-label="Hapus pengecualian {{ $exception->date }}">
-                                <span class="material-symbols-outlined text-[19px]">delete</span>
-                            </button>
-                        </form>
-                    </li>
-                @endforeach
-            </ul>
-        @endif
-    </section>
+                    <div id="custom-hours" class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label for="exception-start" class="admin-label">{{ __('admin.start_time') }}</label>
+                            <input id="exception-start" type="time" name="start_time"
+                                   value="{{ old('start_time', $doctor->start_time ? substr($doctor->start_time, 0, 5) : '08:00') }}"
+                                   class="admin-input">
+                            @error('start_time')
+                                <p class="admin-error">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="exception-end" class="admin-label">{{ __('admin.end_time') }}</label>
+                            <input id="exception-end" type="time" name="end_time"
+                                   value="{{ old('end_time', $doctor->end_time ? substr($doctor->end_time, 0, 5) : '17:00') }}"
+                                   class="admin-input">
+                            @error('end_time')
+                                <p class="admin-error">{{ $message }}</p>
+                            @enderror
+                        </div>
+                    </div>
 
-    {{-- Form --}}
-    <section class="xl:col-span-2">
-        <div class="glass-card rounded-2xl border border-slate-200/60 p-5 sm:p-6 xl:sticky xl:top-24">
-            <div class="flex items-center gap-2">
-                <span class="material-symbols-outlined text-primary">edit_calendar</span>
-                <h3 class="text-base font-bold text-slate-900 dark:text-white">Atur satu tanggal</h3>
-            </div>
-            <p class="text-xs text-slate-500 mt-1">
-                Pilih tanggal, lalu tandai cuti atau ganti jam praktik hanya untuk hari itu.
-            </p>
+                    <div>
+                        <label for="exception-reason" class="admin-label">
+                            {{ __('admin.reason_label') }}
+                            <span class="font-normal normal-case text-slate-400">{{ __('admin.reason_optional') }}</span>
+                        </label>
+                        <textarea id="exception-reason" name="reason" rows="2" maxlength="160"
+                                  placeholder="{{ __('admin.reason_placeholder') }}"
+                                  class="admin-input resize-none">{{ old('reason') }}</textarea>
+                        @error('reason')
+                            <p class="admin-error">{{ $message }}</p>
+                        @enderror
+                    </div>
 
-            @php
-                // Nilai awal dirender di server supaya label tetap benar sebelum
-                // JavaScript jalan, dan tetap aman bila `old()` berisi nilai rusak.
-                $initialDate = old('date', $prefillDate);
-                $initialDateLabel = 'Pilih tanggal';
-                if (is_string($initialDate) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $initialDate)) {
-                    $initialDateLabel = \Carbon\Carbon::parse($initialDate)->locale('id')->translatedFormat('j F Y');
-                } else {
-                    $initialDate = '';
-                }
-            @endphp
+                    <div class="flex items-start gap-2 rounded-xl border border-slate-200/70 bg-slate-50 px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800/60">
+                        <span class="material-symbols-outlined text-[17px] text-slate-400" aria-hidden="true">info</span>
+                        <p class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ __('admin.no_auto_cancel_note') }}</p>
+                    </div>
 
-            <form id="exception-form" method="POST" action="{{ route('admin.doctors.schedule-exceptions.store', $doctor->id) }}" class="mt-5 space-y-4">
-                @csrf
-
-                <div>
-                    <label for="exception-date-trigger" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tanggal</label>
-                    <button type="button" id="exception-date-trigger"
-                            aria-haspopup="dialog" aria-controls="date-modal" aria-expanded="false"
-                            class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border @error('date') border-rose-300 @else border-slate-200 dark:border-slate-700 @enderror flex items-center justify-between gap-2 text-left focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <span class="flex items-center gap-2 min-w-0">
-                            <span class="material-symbols-outlined text-[18px] text-slate-400">calendar_month</span>
-                            <span id="exception-date-label" class="text-sm truncate {{ $initialDate ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400' }}">{{ $initialDateLabel }}</span>
-                        </span>
-                        <span class="material-symbols-outlined text-[18px] text-slate-400">expand_more</span>
+                    <button type="submit" class="admin-btn-primary w-full justify-center">
+                        <span class="material-symbols-outlined text-[19px]" aria-hidden="true">save</span>
+                        {{ __('admin.save_exception') }}
                     </button>
-                    {{-- Nilai asli form tetap format YYYY-MM-DD agar validasi server tidak berubah. --}}
-                    <input id="exception-date" type="hidden" name="date"
-                           value="{{ $initialDate }}"
-                           data-min="{{ now()->toDateString() }}">
-                    <p id="exception-date-error" class="hidden text-xs text-rose-600 mt-1">Pilih tanggal terlebih dahulu.</p>
-                    @error('date')
-                        <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <fieldset>
-                    <legend class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Jenis</legend>
-                    <div class="grid grid-cols-2 gap-2">
-                        <label class="cursor-pointer">
-                            <input type="radio" name="mode" value="closed" class="peer sr-only"
-                                   {{ old('mode', 'closed') === 'closed' ? 'checked' : '' }}>
-                            <span class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 peer-checked:border-rose-300 peer-checked:bg-rose-50 peer-checked:text-rose-700 transition-colors">
-                                <span class="material-symbols-outlined text-[16px]">event_busy</span>
-                                Cuti penuh
-                            </span>
-                        </label>
-                        <label class="cursor-pointer">
-                            <input type="radio" name="mode" value="custom" class="peer sr-only"
-                                   {{ old('mode') === 'custom' ? 'checked' : '' }}>
-                            <span class="flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-600 dark:text-slate-300 peer-checked:border-amber-300 peer-checked:bg-amber-50 peer-checked:text-amber-700 transition-colors">
-                                <span class="material-symbols-outlined text-[16px]">schedule</span>
-                                Jam khusus
-                            </span>
-                        </label>
-                    </div>
-                    @error('mode')
-                        <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </fieldset>
-
-                <div id="custom-hours" class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label for="exception-start" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mulai</label>
-                        <input id="exception-start" type="time" name="start_time" value="{{ old('start_time', $doctor->start_time ? substr($doctor->start_time, 0, 5) : '08:00') }}"
-                               class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-                        @error('start_time')
-                            <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-                    <div>
-                        <label for="exception-end" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Selesai</label>
-                        <input id="exception-end" type="time" name="end_time" value="{{ old('end_time', $doctor->end_time ? substr($doctor->end_time, 0, 5) : '17:00') }}"
-                               class="w-full px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent">
-                        @error('end_time')
-                            <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
-                        @enderror
-                    </div>
-                </div>
-
-                <div>
-                    <label for="exception-reason" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">Alasan <span class="font-normal normal-case text-slate-400">(opsional)</span></label>
-                    <textarea id="exception-reason" name="reason" rows="2" maxlength="160"
-                              placeholder="Contoh: seminar, cuti tahunan, atau praktik pagi saja"
-                              class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm resize-none focus:ring-2 focus:ring-primary focus:border-transparent">{{ old('reason') }}</textarea>
-                    @error('reason')
-                        <p class="text-xs text-rose-600 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div class="rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700 px-3.5 py-3 flex items-start gap-2">
-                    <span class="material-symbols-outlined text-[17px] text-slate-400">info</span>
-                    <p class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">
-                        Booking yang sudah ada tidak dibatalkan otomatis. Sistem menandai booking di luar jadwal baru agar Anda meninjau atau menjadwalkan ulang.
-                    </p>
-                </div>
-
-                <button type="submit"
-                        class="w-full py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-emerald-600 transition-colors flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined text-[19px]">save</span>
-                    Simpan pengecualian
-                </button>
-            </form>
+                </form>
+            </x-admin.panel>
         </div>
-    </section>
+    </div>
 </div>
 
 {{-- Pemilih tanggal bergaya modal: tampilan hari, bulan, lalu tahun. --}}
 <div id="date-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="date-modal-title">
     <div class="absolute inset-0 bg-slate-900/50" data-date-close></div>
-    <div id="date-modal-panel" class="relative w-full max-w-sm max-h-[calc(100vh-2rem)] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xl p-4 sm:p-5">
+    <div id="date-modal-panel" class="relative max-h-[calc(100vh-2rem)] w-full max-w-sm overflow-y-auto rounded-2xl border border-slate-200 bg-white p-4 shadow-xl sm:p-5 dark:border-slate-700 dark:bg-slate-900">
         <div class="flex items-center justify-between gap-2">
-            <button type="button" id="date-prev" title="Sebelumnya" aria-label="Sebelumnya"
-                    class="w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center justify-center transition-colors">
-                <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+            <button type="button" id="date-prev" title="{{ __('admin.prev_day') }}" aria-label="{{ __('admin.prev_day') }}"
+                    class="admin-icon-btn h-9 w-9">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_left</span>
             </button>
             <div class="flex items-center gap-1">
-                <button type="button" id="date-month-btn" class="px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">—</button>
-                <button type="button" id="date-year-btn" class="px-2.5 py-1.5 rounded-lg text-sm font-bold text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">—</button>
+                <button type="button" id="date-month-btn" class="rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">—</button>
+                <button type="button" id="date-year-btn" class="rounded-lg px-2.5 py-1.5 text-sm font-bold text-slate-800 transition hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800">—</button>
             </div>
-            <button type="button" id="date-next" title="Berikutnya" aria-label="Berikutnya"
-                    class="w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 inline-flex items-center justify-center transition-colors">
-                <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+            <button type="button" id="date-next" title="{{ __('admin.next_day') }}" aria-label="{{ __('admin.next_day') }}"
+                    class="admin-icon-btn h-9 w-9">
+                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_right</span>
             </button>
         </div>
 
         <div id="date-days" class="mt-3">
-            <div id="date-weekdays" class="grid grid-cols-7 gap-1 mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400 text-center"></div>
+            <div id="date-weekdays" class="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400"></div>
             <div id="date-grid" class="grid grid-cols-7 gap-1"></div>
         </div>
 
@@ -327,9 +295,9 @@
             <div id="date-years-grid" class="grid grid-cols-3 gap-1.5"></div>
         </div>
 
-        <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
-            <button type="button" id="date-today" class="px-3 py-2 rounded-lg text-xs font-semibold text-primary hover:bg-emerald-50 transition-colors">Hari ini</button>
-            <button type="button" data-date-close class="px-3 py-2 rounded-lg text-xs font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">Tutup</button>
+        <div class="mt-4 flex items-center justify-between gap-2 border-t border-slate-200 pt-3 dark:border-slate-700">
+            <button type="button" id="date-today" class="rounded-lg px-3 py-2 text-xs font-semibold text-primary transition hover:bg-emerald-50">{{ __('admin.schedule_today') }}</button>
+            <button type="button" data-date-close class="rounded-lg px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-100 dark:hover:bg-slate-800">{{ __('common.close') }}</button>
         </div>
     </div>
 </div>
@@ -378,11 +346,13 @@
         const yearsGrid = document.getElementById('date-years-grid');
         const todayBtn = document.getElementById('date-today');
 
-        const MONTHS = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-        const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-            'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-        const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
+        // Nama bulan & hari weekday datang dari file bahasa supaya picker
+        // mengikuti locale admin yang sedang aktif.
+        const MONTHS = @json(__('admin.month_names'));
+        const MONTHS_SHORT = @json(__('admin.month_names_short'));
+        const WEEKDAYS = @json(__('admin.weekday_short'));
+        const LOCALE = @json($locale === 'id' ? 'id-ID' : 'en-US');
+        const PICK_DATE = @json(__('admin.pick_date'));
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -420,11 +390,11 @@
         function updateLabel() {
             const date = parseISO(input.value);
             if (!date) {
-                labelEl.textContent = 'Pilih tanggal';
+                labelEl.textContent = PICK_DATE;
                 labelEl.className = 'text-sm text-slate-400 truncate';
                 return;
             }
-            labelEl.textContent = date.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+            labelEl.textContent = date.toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
             labelEl.className = 'text-sm text-slate-800 dark:text-slate-100 truncate';
         }
 
@@ -472,7 +442,7 @@
 
                 const el = button(String(date.getDate()), className);
                 el.disabled = isDisabled;
-                el.setAttribute('aria-label', date.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+                el.setAttribute('aria-label', date.toLocaleDateString(LOCALE, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
                 if (isSelected) el.setAttribute('aria-current', 'date');
                 el.addEventListener('click', function () {
                     input.value = dateISO;
@@ -491,7 +461,7 @@
                 const endOfMonth = new Date(cursor.getFullYear(), m + 1, 0);
                 const isDisabled = endOfMonth < min;
                 const isSelected = selected && selected.getFullYear() === cursor.getFullYear() && selected.getMonth() === m;
-                let className = 'h-11 rounded-xl text-[13px] font-semibold border transition-colors ';
+                let className = 'h-11 rounded-xl border text-[13px] font-semibold transition-colors ';
                 if (isSelected) {
                     className += 'bg-primary text-white border-primary';
                 } else if (isDisabled) {
@@ -518,7 +488,7 @@
                 const year = start + i;
                 const isDisabled = new Date(year, 11, 31) < min;
                 const isSelected = year === cursor.getFullYear();
-                let className = 'h-11 rounded-xl text-[13px] font-semibold border transition-colors ';
+                let className = 'h-11 rounded-xl border text-[13px] font-semibold transition-colors ';
                 if (isSelected) {
                     className += 'bg-primary text-white border-primary';
                 } else if (isDisabled) {

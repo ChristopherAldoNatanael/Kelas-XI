@@ -14,6 +14,9 @@ use Tests\TestCase;
  * Clinic profile (own clinic) — clinic_admin may update name, address,
  * phone, email, logo, color, description. Slug & is_active stay
  * super_admin-only and must be ignored even when submitted.
+ *
+ * The form now lives in Settings → Clinic. `/admin/clinic-profile` is kept
+ * as a redirect for old bookmarks.
  * Fixtures roll back (DatabaseTransactions) — dev DB stays clean.
  */
 class ClinicProfileTest extends TestCase
@@ -64,13 +67,13 @@ class ClinicProfileTest extends TestCase
     public function test_guest_redirected_to_login(): void
     {
         $this->get('/admin/clinic-profile')->assertRedirect(route('admin.login'));
-        $this->put('/admin/clinic-profile', [])->assertRedirect(route('admin.login'));
+        $this->put('/admin/settings/clinic', [])->assertRedirect(route('admin.login'));
     }
 
     public function test_clinic_admin_can_view_own_profile(): void
     {
         $this->actingAs($this->adminA)
-            ->get(route('admin.clinic-profile'))
+            ->get(route('admin.settings', ['tab' => 'klinik']))
             ->assertOk()
             ->assertSee($this->clinicA->name)
             ->assertSee($this->clinicA->slug)
@@ -81,7 +84,7 @@ class ClinicProfileTest extends TestCase
     public function test_clinic_admin_can_update_own_profile(): void
     {
         $this->actingAs($this->adminA)
-            ->put(route('admin.clinic-profile.update'), [
+            ->put(route('admin.settings.clinic.update'), [
                 'name' => 'CP A Renamed',
                 'address' => 'Jl. Baru No. 9',
                 'phone' => '021-999',
@@ -89,7 +92,7 @@ class ClinicProfileTest extends TestCase
                 'primary_color' => '#0EA5A5',
                 'description' => 'Deskripsi baru',
             ])
-            ->assertRedirect(route('admin.clinic-profile'));
+            ->assertRedirect(route('admin.settings', ['tab' => 'klinik']));
 
         $this->assertDatabaseHas('clinics', [
             'id' => $this->clinicA->id,
@@ -105,7 +108,7 @@ class ClinicProfileTest extends TestCase
     public function test_clinic_admin_cannot_change_slug_or_status(): void
     {
         $this->actingAs($this->adminA)
-            ->put(route('admin.clinic-profile.update'), [
+            ->put(route('admin.settings.clinic.update'), [
                 'name' => 'CP A Renamed',
                 'address' => 'Jl. Baru',
                 'primary_color' => '#0EA5A5',
@@ -113,7 +116,7 @@ class ClinicProfileTest extends TestCase
                 'slug' => 'hacked-slug',
                 'is_active' => false,
             ])
-            ->assertRedirect(route('admin.clinic-profile'));
+            ->assertRedirect(route('admin.settings', ['tab' => 'klinik']));
 
         $fresh = $this->clinicA->fresh();
         $this->assertSame('cp-a-' . $this->suffix, $fresh->slug);
@@ -124,12 +127,12 @@ class ClinicProfileTest extends TestCase
     public function test_clinic_admin_cannot_affect_other_clinic(): void
     {
         $this->actingAs($this->adminA)
-            ->put(route('admin.clinic-profile.update'), [
+            ->put(route('admin.settings.clinic.update'), [
                 'name' => 'Trying To Hit B',
                 'address' => 'Jl. Baru',
                 'primary_color' => '#0EA5A5',
             ])
-            ->assertRedirect(route('admin.clinic-profile'));
+            ->assertRedirect(route('admin.settings', ['tab' => 'klinik']));
 
         $this->assertSame('CP B ' . $this->suffix, $this->clinicB->fresh()->name);
     }
@@ -137,13 +140,13 @@ class ClinicProfileTest extends TestCase
     public function test_clinic_admin_can_upload_logo(): void
     {
         $this->actingAs($this->adminA)
-            ->put(route('admin.clinic-profile.update'), [
+            ->put(route('admin.settings.clinic.update'), [
                 'name' => $this->clinicA->name,
                 'address' => $this->clinicA->address,
                 'primary_color' => '#0EA5A5',
                 'logo' => UploadedFile::fake()->image('logo.png', 800, 400),
             ])
-            ->assertRedirect(route('admin.clinic-profile'));
+            ->assertRedirect(route('admin.settings', ['tab' => 'klinik']));
 
         $logoPath = $this->clinicA->fresh()->logo_path;
         $this->assertNotNull($logoPath);
@@ -155,7 +158,7 @@ class ClinicProfileTest extends TestCase
     public function test_validation_rejects_bad_color(): void
     {
         $this->actingAs($this->adminA)
-            ->put(route('admin.clinic-profile.update'), [
+            ->put(route('admin.settings.clinic.update'), [
                 'name' => 'CP A',
                 'address' => 'Jl. Baru',
                 'primary_color' => 'red',
@@ -165,18 +168,23 @@ class ClinicProfileTest extends TestCase
         $this->assertSame('#18C964', $this->clinicA->fresh()->primary_color);
     }
 
-    public function test_superadmin_without_clinic_redirects(): void
+    public function test_superadmin_without_clinic_can_open_settings_without_clinic_tab(): void
     {
         $this->actingAs($this->superAdmin)
-            ->get(route('admin.clinic-profile'))
-            ->assertRedirect(route('admin.clinics.index'));
+            ->get('/admin/clinic-profile')
+            ->assertRedirect(route('admin.settings', ['tab' => 'klinik']));
+
+        $this->actingAs($this->superAdmin)
+            ->get(route('admin.settings', ['tab' => 'klinik']))
+            ->assertOk()
+            ->assertDontSee(__('clinics.slug_locked'), false);
     }
 
     public function test_superadmin_with_selected_clinic_can_view(): void
     {
         $this->actingAs($this->superAdmin)
             ->withSession(['current_clinic_id' => $this->clinicA->id])
-            ->get(route('admin.clinic-profile'))
+            ->get(route('admin.settings', ['tab' => 'klinik']))
             ->assertOk()
             ->assertSee($this->clinicA->name);
     }

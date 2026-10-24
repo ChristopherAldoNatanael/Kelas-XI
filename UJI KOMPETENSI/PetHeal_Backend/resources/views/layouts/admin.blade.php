@@ -35,7 +35,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 </head>
 <body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 h-full">
-    <a href="#main-content" class="skip-link">Lewati ke konten</a>
+    <a href="#main-content" class="skip-link">{{ __('admin.skip_to_content') }}</a>
     <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
     <div id="sidebar-backdrop" class="fixed inset-0 z-50 hidden bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
 
@@ -43,7 +43,7 @@
         <!-- Sidebar -->
         <aside id="sidebar"
                class="flex-shrink-0 flex flex-col border-r border-white/5 h-full overflow-hidden bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950"
-               aria-label="Navigasi utama">
+               aria-label="{{ __('admin.main_navigation') }}">
             <div class="sidebar-header p-4 pb-4 flex items-center gap-3 flex-shrink-0">
                 <div class="logo-text-wrap flex items-center gap-3 flex-1 min-w-0">
                     <a href="{{ route('admin.dashboard') }}" class="logo-link bg-white p-1.5 rounded-lg block hover:bg-slate-200 transition-colors flex-shrink-0">
@@ -58,11 +58,11 @@
 
                 {{-- Desktop: collapse rail. Mobile: close drawer. --}}
                 <button id="sidebar-toggle" class="sidebar-toggle hidden lg:flex text-slate-400 hover:text-white transition-all p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0"
-                        title="Ciutkan sidebar" aria-label="Ciutkan sidebar" aria-expanded="true">
+                        title="{{ __('admin.collapse_sidebar') }}" aria-label="{{ __('admin.collapse_sidebar') }}" aria-expanded="true">
                     <span class="material-symbols-outlined sidebar-toggle-icon text-xl" aria-hidden="true">chevron_left</span>
                 </button>
                 <button id="sidebar-close" class="lg:hidden text-slate-400 hover:text-white transition-all p-1.5 rounded-lg hover:bg-white/10 flex-shrink-0"
-                        title="Tutup menu" aria-label="Tutup menu">
+                        title="{{ __('admin.close_menu') }}" aria-label="{{ __('admin.close_menu') }}">
                     <span class="material-symbols-outlined text-xl" aria-hidden="true">close</span>
                 </button>
             </div>
@@ -94,7 +94,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">group</span>
-                    <span class="sidebar-text">{{ __('menu.patients') }}</span>
+                    <span class="sidebar-text">{{ __('menu.users') }}</span>
                 </a>
                 {{-- Satu entri untuk booking: daftar dan papan harian ada di
                      dalam halaman yang sama lewat tab, bukan dua menu terpisah. --}}
@@ -169,9 +169,9 @@
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">history</span>
                         <span class="sidebar-text">{{ __('menu.audit_logs') }}</span>
                     </a>
-                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile') ? 'active-nav-item' : '' }} relative"
-                       href="{{ route('admin.settings') }}" @if(request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile')) aria-current="page" @endif>
-                        @if(request()->routeIs('admin.settings') || request()->routeIs('admin.clinic-profile'))
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') ? 'active-nav-item' : '' }} relative"
+                       href="{{ route('admin.settings') }}" @if(request()->routeIs('admin.settings')) aria-current="page" @endif>
+                        @if(request()->routeIs('admin.settings'))
                         <div class="active-indicator" aria-hidden="true"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">settings</span>
@@ -222,17 +222,17 @@
             <header class="h-14 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800 flex items-center justify-between gap-3 px-4 sm:px-6 flex-shrink-0">
                 <div class="flex items-center gap-2 min-w-0">
                     <button id="sidebar-open" class="lg:hidden -ml-1 flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
-                            aria-label="Buka menu" aria-controls="sidebar" aria-expanded="false">
+                            aria-label="{{ __('admin.open_menu') }}" aria-controls="sidebar" aria-expanded="false">
                         <span class="material-symbols-outlined text-xl" aria-hidden="true">menu</span>
                     </button>
-                    <h1 class="text-base font-semibold text-slate-900 dark:text-white tracking-tight truncate">@yield('header', 'Executive Dashboard')</h1>
+                    <h1 class="text-base font-semibold text-slate-900 dark:text-white tracking-tight truncate">@yield('header', __('dashboard.executive_dashboard'))</h1>
                 </div>
                 <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                     <button id="commandPaletteTrigger" type="button"
                             class="flex items-center gap-2 h-9 px-2.5 sm:px-3 rounded-lg text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
-                            aria-label="Buka pencarian global" aria-haspopup="dialog" aria-controls="commandPalette">
+                            aria-label="{{ __('admin.open_global_search') }}" aria-haspopup="dialog" aria-controls="commandPalette">
                         <span class="material-symbols-outlined text-lg" aria-hidden="true">search</span>
-                        <span class="hidden md:inline text-xs font-semibold">Cari booking, hewan, pemilik</span>
+                        <span class="hidden md:inline text-xs font-semibold">{{ __('admin.search_short') }}</span>
                         <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-bold text-slate-400">Ctrl K</kbd>
                     </button>
                     @if($isSuperAdmin)
@@ -240,9 +240,9 @@
                         @csrf
                         <span class="material-symbols-outlined text-sm text-slate-400" aria-hidden="true">swap_horiz</span>
                         <select name="clinic_id" id="clinic-switcher" onchange="document.getElementById('clinic-switcher-form').submit()"
-                                aria-label="Pilih klinik"
+                                aria-label="{{ __('admin.choose_clinic') }}"
                                 class="bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700 cursor-pointer outline-none">
-                            <option value="" {{ session('current_clinic_id') ? '' : 'selected' }}>— System Overview —</option>
+                            <option value="" {{ session('current_clinic_id') ? '' : 'selected' }}>— {{ __('menu.system_overview') }} —</option>
                             @foreach(($allClinics ?? collect()) as $c)
                                 <option value="{{ $c->id }}" {{ ($clinic?->id === $c->id) ? 'selected' : '' }}>{{ $c->name }}</option>
                             @endforeach
@@ -256,10 +256,10 @@
                     @endif
                     <div class="hidden md:flex items-center gap-2 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-400 border border-slate-200/60 dark:border-slate-700">
                         <span class="material-symbols-outlined text-sm" aria-hidden="true">calendar_month</span>
-                        <span>{{ now()->format('d M Y') }}</span>
+                        <span>{{ now()->locale(app()->getLocale())->translatedFormat('d M Y') }}</span>
                     </div>
                     {{-- Language switcher preserves the current query string (filters, dates). --}}
-                    <div class="flex items-center gap-1" aria-label="Pilih bahasa">
+                    <div class="flex items-center gap-1" aria-label="{{ __('admin.choose_language') }}">
                         <a href="{{ request()->fullUrlWithQuery(['lang' => 'id']) }}"
                            class="px-2 py-1 rounded text-[10px] font-bold transition-all {{ app()->getLocale() === 'id' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600' }}"
                            @if(app()->getLocale() === 'id') aria-current="true" @endif>ID</a>
@@ -268,7 +268,7 @@
                            @if(app()->getLocale() === 'en') aria-current="true" @endif>EN</a>
                     </div>
                     <button id="darkModeToggle" class="flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-                            title="Ubah mode gelap" aria-label="Ubah mode gelap">
+                            title="{{ __('admin.toggle_dark_mode') }}" aria-label="{{ __('admin.toggle_dark_mode') }}">
                         <span class="material-symbols-outlined text-lg" id="darkModeIcon" aria-hidden="true">dark_mode</span>
                     </button>
                 </div>
@@ -285,12 +285,12 @@
         <div class="mx-auto mt-[8vh] w-full max-w-2xl overflow-hidden rounded-2xl border border-slate-200/70 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-2xl">
             <div class="flex items-center gap-3 px-4 sm:px-5 py-3.5 border-b border-slate-100 dark:border-slate-800">
                 <span class="material-symbols-outlined text-slate-400" aria-hidden="true">search</span>
-                <label id="commandPaletteLabel" for="commandPaletteInput" class="sr-only">Pencarian global</label>
+                <label id="commandPaletteLabel" for="commandPaletteInput" class="sr-only">{{ __('admin.global_search') }}</label>
                 <input id="commandPaletteInput" type="text" autocomplete="off" spellcheck="false"
-                       placeholder="Cari booking, hewan, atau pemilik..."
+                       placeholder="{{ __('admin.global_search_placeholder') }}"
                        class="flex-1 bg-transparent text-sm text-slate-900 dark:text-white placeholder:text-slate-400 outline-none">
                 <span id="commandPaletteSpinner" class="hidden">
-                    <span class="block h-4 w-4 rounded-full border-2 border-slate-200 border-t-primary animate-spin" aria-label="Mencari"></span>
+                    <span class="block h-4 w-4 rounded-full border-2 border-slate-200 border-t-primary animate-spin" aria-label="{{ __('admin.searching') }}"></span>
                 </span>
                 <kbd class="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-bold text-slate-400">ESC</kbd>
             </div>
@@ -298,9 +298,9 @@
             <div id="commandPaletteBody" class="max-h-[420px] overflow-y-auto custom-scrollbar p-2"></div>
 
             <div class="flex items-center justify-between gap-3 px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
-                <span class="hidden sm:inline">Gunakan <kbd class="font-bold">↑</kbd> <kbd class="font-bold">↓</kbd> untuk memilih, <kbd class="font-bold">Enter</kbd> untuk membuka.</span>
-                <span class="sm:hidden">Ketuk hasil untuk membuka.</span>
-                <span class="font-semibold">Hanya data klinik Anda</span>
+                <span class="hidden sm:inline">{{ __('admin.command_keyboard_hint') }}</span>
+                <span class="sm:hidden">{{ __('admin.command_tap_hint') }}</span>
+                <span class="font-semibold">{{ __('admin.command_scope_hint') }}</span>
             </div>
         </div>
     </div>
@@ -407,7 +407,7 @@
             const close = document.createElement('button');
             close.className = 'toast-close material-symbols-outlined';
             close.type = 'button';
-            close.setAttribute('aria-label', 'Tutup notifikasi');
+            close.setAttribute('aria-label', @json(__('admin.close_notification')));
             close.textContent = 'close';
             close.addEventListener('click', function () { toast.remove(); });
 
@@ -445,22 +445,22 @@
             const quickActions = [
                 {
                     type: 'action',
-                    title: 'Booking — Papan Jadwal',
-                    subtitle: 'Lihat kunjungan hari ini per dokter dan jam',
+                    title: @json(__('admin.command_board_title')),
+                    subtitle: @json(__('admin.command_board_desc')),
                     url: @json(route('admin.bookings.schedule')),
                     icon: 'calendar_view_day'
                 },
                 {
                     type: 'action',
-                    title: 'Booking — Daftar',
-                    subtitle: 'Cari dan kelola seluruh janji temu',
+                    title: @json(__('admin.command_list_title')),
+                    subtitle: @json(__('admin.command_list_desc')),
                     url: @json(route('admin.bookings.index')),
                     icon: 'calendar_today'
                 },
                 {
                     type: 'action',
-                    title: 'Invoice & Pembayaran',
-                    subtitle: 'Tagihan, DP, dan bukti pembayaran',
+                    title: @json(__('admin.command_payments_title')),
+                    subtitle: @json(__('admin.command_payments_desc')),
                     url: @json(route('admin.payments.index')),
                     icon: 'receipt_long'
                 }
@@ -528,7 +528,7 @@
                 copy.className = 'min-w-0 flex-1';
                 const title = document.createElement('span');
                 title.className = 'block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate';
-                title.textContent = item.title || 'Tanpa judul';
+                title.textContent = item.title || @json(__('admin.untitled'));
                 const subtitle = document.createElement('span');
                 subtitle.className = 'block text-[11px] text-slate-500 truncate mt-0.5';
                 subtitle.textContent = item.subtitle || '';
@@ -536,7 +536,13 @@
 
                 const type = document.createElement('span');
                 type.className = 'text-[9px] font-bold uppercase tracking-wider text-slate-400 flex-shrink-0 mt-1';
-                type.textContent = item.type === 'booking' ? 'Booking' : item.type === 'pet' ? 'Hewan' : item.type === 'owner' ? 'Pemilik' : 'Aksi';
+                type.textContent = item.type === 'booking'
+                    ? @json(__('admin.command_type_booking'))
+                    : item.type === 'pet'
+                        ? @json(__('admin.command_type_pet'))
+                        : item.type === 'owner'
+                            ? @json(__('admin.command_type_owner'))
+                            : @json(__('admin.command_type_action'));
 
                 button.append(iconWrap, copy, type);
                 button.addEventListener('mouseenter', function () { setActive(index, false); });
@@ -563,21 +569,21 @@
                 body.replaceChildren();
                 results = quickActions;
                 activeIndex = -1;
-                body.appendChild(createHeading('Aksi cepat'));
+                body.appendChild(createHeading(@json(__('admin.command_quick_actions'))));
                 quickActions.forEach(function (item, index) {
                     body.appendChild(createResultRow(item, index));
                 });
                 const hint = document.createElement('p');
                 hint.className = 'px-3 pt-3 pb-2 text-[11px] text-slate-400';
-                hint.textContent = 'Ketik minimal 2 karakter untuk mencari booking, hewan, atau pemilik.';
+                hint.textContent = @json(__('admin.command_min_chars'));
                 body.appendChild(hint);
             }
 
             function renderGroups(payload) {
                 const groups = [
-                    { label: 'Booking', items: payload.bookings || [] },
-                    { label: 'Hewan', items: payload.pets || [] },
-                    { label: 'Pemilik', items: payload.owners || [] }
+                    { label: @json(__('admin.command_type_booking')), items: payload.bookings || [] },
+                    { label: @json(__('admin.command_type_pet')), items: payload.pets || [] },
+                    { label: @json(__('admin.command_type_owner')), items: payload.owners || [] }
                 ];
                 const allItems = groups.reduce(function (items, group) { return items.concat(group.items); }, []);
                 if (!allItems.length) {
@@ -621,7 +627,7 @@
                     const retry = document.createElement('button');
                     retry.type = 'button';
                     retry.className = 'mt-4 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors';
-                    retry.textContent = 'Coba lagi';
+                    retry.textContent = @json(__('admin.try_again'));
                     retry.addEventListener('click', function () { runSearch(input.value); });
                     wrap.appendChild(retry);
                 }
@@ -629,7 +635,7 @@
             }
 
             function renderEmpty() {
-                renderMessage('Tidak ada hasil', 'Coba nama hewan, nama pemilik, atau nomor booking lain.', false);
+                renderMessage(@json(__('admin.command_no_results_title')), @json(__('admin.command_no_results_desc')), false);
             }
 
             function runSearch(query) {
@@ -659,7 +665,7 @@
                     .then(function (payload) {
                         if (seq !== requestSeq) return;
                         if (payload.message) {
-                            renderMessage('Pilih klinik', payload.message, false);
+                            renderMessage(@json(__('admin.command_select_clinic_title')), payload.message, false);
                             return;
                         }
                         renderGroups(payload.data || {});
@@ -667,7 +673,7 @@
                     .catch(function (error) {
                         if (error.name === 'AbortError') return;
                         if (seq !== requestSeq) return;
-                        renderMessage('Pencarian gagal', 'Periksa koneksi lalu coba lagi.', true);
+                        renderMessage(@json(__('admin.command_search_failed_title')), @json(__('admin.command_search_failed_desc')), true);
                     })
                     .finally(function () {
                         if (seq === requestSeq) spinner.classList.add('hidden');

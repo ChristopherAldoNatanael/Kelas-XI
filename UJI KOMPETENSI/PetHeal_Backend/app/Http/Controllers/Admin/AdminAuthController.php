@@ -475,16 +475,8 @@ class AdminAuthController extends Controller
     {
         $clinic = currentClinic();
 
-        $clinicAdmins = null;
-        if ($clinic) {
-            $clinicAdmins = User::where('clinic_id', $clinic->id)
-                ->whereIn('role', ['clinic_admin', 'super_admin'])
-                ->orderBy('name')
-                ->get();
-        }
-
-        // One page, four tabs: akun, keamanan, klinik, tim. Tab klinik dan tim
-        // hanya tersedia ketika ada konteks klinik aktif.
+        // One page, three tabs: account, security, and clinic. The clinic
+        // tab is only available when a clinic context is active.
         $activeTab = (string) $request->query('tab', 'akun');
 
         // Kode ganti sandi yang masih hidup menentukan apakah tab Keamanan
@@ -503,7 +495,7 @@ class AdminAuthController extends Controller
             }
         }
 
-        return view('admin.settings', compact('clinic', 'clinicAdmins', 'activeTab', 'passwordOtp'));
+        return view('admin.settings', compact('clinic', 'activeTab', 'passwordOtp'));
     }
 
     /**
@@ -555,8 +547,11 @@ class AdminAuthController extends Controller
         return back()->with(
             $sent ? 'success' : 'error',
             $sent
-                ? 'Kode akses admin dikirim ke ' . $email . '. Berlaku ' . $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_PASSWORD) . ' menit.'
-                : 'Kode gagal dikirim ke email. Periksa konfigurasi email server lalu coba lagi.'
+                ? __('admin.password_otp_sent', [
+                    'email' => $email,
+                    'minutes' => $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_PASSWORD),
+                ])
+                : __('admin.password_otp_failed')
         );
     }
 
@@ -571,7 +566,7 @@ class AdminAuthController extends Controller
 
         $request->session()->forget(self::PASSWORD_SENT_AT);
 
-        return back()->with('success', 'Kode akses dibatalkan. Kata sandi tidak berubah.');
+        return back()->with('success', __('admin.password_otp_cancelled'));
     }
 
     /**
@@ -588,9 +583,9 @@ class AdminAuthController extends Controller
             'code' => ['required', 'array', 'size:6'],
             'code.*' => ['required', 'digits:1'],
         ], [
-            'code.required' => 'Masukkan 6 digit kode verifikasi dari email Anda.',
-            'code.size' => 'Kode verifikasi terdiri dari 6 digit.',
-            'code.*.digits' => 'Setiap kotak hanya boleh berisi satu angka.',
+            'code.required' => __('admin.password_code_required'),
+            'code.size' => __('admin.password_code_size'),
+            'code.*.digits' => __('admin.password_code_digit'),
         ]);
 
         $admin = Auth::user();
@@ -604,7 +599,7 @@ class AdminAuthController extends Controller
             $email,
             OtpService::PURPOSE_ADMIN_PASSWORD,
             implode('', $request->input('code')),
-            'Kode akses admin'
+            __('admin.password_code_label')
         );
 
         if (!$result['ok']) {
@@ -621,6 +616,6 @@ class AdminAuthController extends Controller
             'Kata sandi akun admin diperbarui setelah verifikasi kode email.'
         );
 
-        return back()->with('success', 'Kata sandi diperbarui. Gunakan kata sandi baru pada login berikutnya.');
+        return back()->with('success', __('admin.password_updated'));
     }
 }

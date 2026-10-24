@@ -22,6 +22,7 @@ return [
     'join_info' => 'Once approved, you will get access as a clinic admin for the selected clinic.',
     'select_clinic' => '-- Select target clinic --',
     'full_name' => 'Full Name',
+    'email' => 'Email',
     'submit_request' => 'Submit Request',
     'already_have_account' => 'Already have an account?',
     'sign_in_here' => 'Sign in here',

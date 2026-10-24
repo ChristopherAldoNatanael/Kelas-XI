@@ -29,11 +29,6 @@ class ServiceController extends Controller
         return view('admin.services.index', compact('services'));
     }
 
-    public function show($id)
-    {
-        return redirect()->route('admin.services.edit', $id);
-    }
-
     public function create()
     {
         return view('admin.services.create');
@@ -58,7 +53,7 @@ class ServiceController extends Controller
         $contextClinicId = currentClinicId();
         if (!$contextClinicId) {
             return redirect()->route('admin.services.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum menambah layanan.');
+                ->with('error', __('admin.select_clinic_service'));
         }
         $data['clinic_id'] = $contextClinicId;
 
@@ -67,7 +62,7 @@ class ServiceController extends Controller
 
         AuditLog::log('service.create', "Created service {$service->name}", $service);
 
-        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil ditambahkan.');
+        return redirect()->route('admin.services.index')->with('success', __('admin.service_created'));
     }
 
     public function edit($id)
@@ -106,7 +101,7 @@ class ServiceController extends Controller
 
         AuditLog::log('service.update', "Updated service {$service->name}", $service);
 
-        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil diperbarui.');
+        return redirect()->route('admin.services.index')->with('success', __('admin.service_updated'));
     }
 
     public function import(Request $request)
@@ -124,12 +119,12 @@ class ServiceController extends Controller
         if (!$clinicId && !isSuperAdmin()) {
             return redirect()
                 ->route('admin.services.index')
-                ->with('error', 'Akun Anda tidak terikat pada klinik manapun. Hubungi Super Admin.');
+                ->with('error', __('admin.service_no_clinic'));
         }
         if (!$clinicId) {
             return redirect()
                 ->route('admin.services.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum import layanan.');
+                ->with('error', __('admin.select_clinic_import'));
         }
 
         $import = new ServicesImport($request->input('duplicate_strategy', 'update'), $clinicId);
@@ -158,9 +153,9 @@ class ServiceController extends Controller
             ]);
 
             $message = match ($extension) {
-                'xlsx', 'xls' => 'XLSX/XLS import failed. Make sure the file is a valid Excel workbook and try again.',
-                'csv', 'txt' => 'CSV import failed. Make sure the file uses the required headers and try again.',
-                default => 'Import failed. Please check the file format and try again.',
+                'xlsx', 'xls' => __('admin.service_import_failed_xlsx'),
+                'csv', 'txt' => __('admin.service_import_failed_csv'),
+                default => __('admin.service_import_failed_generic'),
             };
 
             return redirect()
@@ -181,7 +176,7 @@ class ServiceController extends Controller
 
         return redirect()
             ->route('admin.services.index')
-            ->with('success', 'Import selesai.')
+            ->with('success', __('admin.service_import_done'))
             ->with('import_summary', $summary)
             ->with('import_has_errors', !empty($errorRows));
     }
@@ -202,7 +197,7 @@ class ServiceController extends Controller
         if (empty($rows)) {
             return redirect()
                 ->route('admin.services.index')
-                ->with('error', 'No import error report is available.');
+                ->with('error', __('admin.service_import_no_report'));
         }
 
         $format = strtolower((string) $request->query('format', 'csv'));
@@ -229,6 +224,6 @@ class ServiceController extends Controller
         $service->delete();
         $this->refreshServiceApiCache();
 
-        return redirect()->route('admin.services.index')->with('success', 'Layanan berhasil dihapus.');
+        return redirect()->route('admin.services.index')->with('success', __('admin.service_deleted'));
     }
 }

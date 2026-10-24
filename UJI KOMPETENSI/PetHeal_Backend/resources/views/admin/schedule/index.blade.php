@@ -4,280 +4,286 @@
 @section('header', __('menu.appointments_schedule'))
 
 @section('content')
-@php
-    $statusStyles = [
-        'pending' => ['bg-amber-50 text-amber-700 border-amber-200', 'Menunggu'],
-        'confirmed' => ['bg-sky-50 text-sky-700 border-sky-200', 'Terkonfirmasi'],
-        'completed' => ['bg-emerald-50 text-emerald-700 border-emerald-200', 'Selesai'],
-        'cancelled' => ['bg-rose-50 text-rose-700 border-rose-200', 'Dibatalkan'],
-    ];
-    $paymentStyles = [
-        'paid' => 'bg-emerald-50 text-emerald-700 border-emerald-200',
-        'dp_paid' => 'bg-blue-50 text-blue-700 border-blue-200',
-        'partial' => 'bg-orange-50 text-orange-700 border-orange-200',
-        'pending' => 'bg-amber-50 text-amber-700 border-amber-200',
-        'failed' => 'bg-rose-50 text-rose-700 border-rose-200',
-        'unpaid' => 'bg-slate-50 text-slate-600 border-slate-200',
-    ];
-@endphp
+<div class="space-y-6">
+    @include('admin.bookings._tabs')
 
-@include('admin.bookings._tabs')
-
-{{-- Date navigator --}}
-<div class="glass-card rounded-2xl border border-slate-200/60 p-4 sm:p-5 mb-6">
-    <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-        <div class="flex items-center gap-2">
-            <a href="{{ route('admin.bookings.schedule', ['date' => $previousDate, 'doctor_id' => $selectedDoctorId]) }}"
-               class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-               aria-label="Hari sebelumnya">
-                <span class="material-symbols-outlined text-[20px]">chevron_left</span>
-            </a>
-
-            <form method="GET" action="{{ route('admin.bookings.schedule') }}" class="flex flex-wrap items-end gap-2">
-                <div>
-                    <label for="schedule-date" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Tanggal</label>
-                    <input id="schedule-date" type="date" name="date" value="{{ $selectedDate }}"
-                           class="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary focus:border-transparent">
-                </div>
-                <div>
-                    <label for="schedule-doctor" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">Dokter</label>
-                    <select id="schedule-doctor" name="doctor_id"
-                            class="px-3 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm text-slate-800 dark:text-slate-100 focus:ring-2 focus:ring-primary focus:border-transparent">
-                        <option value="">Semua dokter</option>
-                        @foreach($doctors as $doctor)
-                            <option value="{{ $doctor->id }}" {{ (string) $selectedDoctorId === (string) $doctor->id ? 'selected' : '' }}>
-                                {{ $doctor->name }}
-                            </option>
-                        @endforeach
-                    </select>
-                </div>
-                <button type="submit" class="px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-emerald-600 transition-colors">
-                    Tampilkan
-                </button>
-                <a href="{{ route('admin.bookings.schedule', ['date' => now()->toDateString(), 'doctor_id' => $selectedDoctorId]) }}"
-                   class="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                    Hari ini
+    {{-- Navigasi tanggal & dokter --}}
+    <x-admin.panel :title="__('admin.schedule_title')" :subtitle="__('admin.schedule_selected_date')">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+            <div class="flex flex-wrap items-end gap-2">
+                <a href="{{ route('admin.bookings.schedule', ['date' => $previousDate, 'doctor_id' => $selectedDoctorId]) }}"
+                   class="admin-icon-btn h-10 w-10"
+                   title="{{ __('admin.prev_day') }}"
+                   aria-label="{{ __('admin.prev_day') }}">
+                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_left</span>
                 </a>
-            </form>
 
-            <a href="{{ route('admin.bookings.schedule', ['date' => $nextDate, 'doctor_id' => $selectedDoctorId]) }}"
-               class="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-               aria-label="Hari berikutnya">
-                <span class="material-symbols-outlined text-[20px]">chevron_right</span>
-            </a>
-        </div>
-
-        <div class="flex items-center gap-3">
-            <div class="text-right">
-                <p class="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400">{{ $isToday ? 'Hari ini' : 'Tanggal dipilih' }}</p>
-                <p class="text-lg font-bold text-slate-900 dark:text-white">
-                    {{ \Carbon\Carbon::parse($selectedDate)->locale('id')->translatedFormat('l, d F Y') }}
-                </p>
-            </div>
-            <div class="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
-                <span class="material-symbols-outlined text-primary">calendar_month</span>
-            </div>
-        </div>
-    </div>
-</div>
-
-{{-- Daily summary --}}
-<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-    <div class="glass-card rounded-xl border border-slate-200/60 p-5">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Total kunjungan</p>
-        <p class="text-2xl font-bold text-slate-900 dark:text-white mt-1">{{ $stats['total'] }}</p>
-    </div>
-    <div class="glass-card rounded-xl border border-amber-200/60 p-5">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-amber-600">Menunggu</p>
-        <p class="text-2xl font-bold text-amber-600 mt-1">{{ $stats['pending'] }}</p>
-    </div>
-    <div class="glass-card rounded-xl border border-sky-200/60 p-5">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-sky-600">Terkonfirmasi</p>
-        <p class="text-2xl font-bold text-sky-600 mt-1">{{ $stats['confirmed'] }}</p>
-    </div>
-    <div class="glass-card rounded-xl border border-emerald-200/60 p-5">
-        <p class="text-[10px] font-bold uppercase tracking-wider text-emerald-600">Selesai</p>
-        <p class="text-2xl font-bold text-emerald-600 mt-1">{{ $stats['completed'] }}</p>
-    </div>
-</div>
-
-{{-- Schedule board --}}
-@if($doctors->isEmpty())
-    <div class="glass-card rounded-2xl border border-slate-200/60 p-12 text-center">
-        <span class="material-symbols-outlined text-slate-300 text-5xl">event_busy</span>
-        <h3 class="text-base font-bold text-slate-800 dark:text-slate-200 mt-4">Belum ada dokter</h3>
-        <p class="text-sm text-slate-500 mt-1">Tambahkan dokter terlebih dahulu agar papan jadwal bisa menampilkan kunjungan.</p>
-        <a href="{{ route('admin.doctors.index') }}" class="inline-flex items-center gap-2 mt-5 px-4 py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-emerald-600 transition-colors">
-            <span class="material-symbols-outlined text-[18px]">add</span>
-            Kelola dokter
-        </a>
-    </div>
-@else
-    <div class="overflow-x-auto pb-3 custom-scrollbar">
-        <div class="flex items-start gap-4 min-w-max">
-            @foreach($doctors as $doctor)
-                @php
-                    $doctorBookings = $bookingsByDoctor[$doctor->id] ?? collect();
-                    $doctorSchedule = $effectiveSchedules[$doctor->id] ?? null;
-                    $isClosed = (bool) ($doctorSchedule['is_closed'] ?? false);
-                    $isWorking = (bool) ($doctorSchedule['is_working_day'] ?? true);
-                    $isSpecial = (bool) ($doctorSchedule['has_exception'] ?? false);
-                    $reviewCount = $doctorBookings->filter(fn ($b) => isset($bookingsNeedingReview[$b->id]))->count();
-                @endphp
-                <section class="w-[310px] flex-shrink-0 rounded-2xl border border-slate-200/70 bg-white/80 dark:bg-slate-900/60 dark:border-slate-800 overflow-hidden" aria-label="Jadwal {{ $doctor->name }}">
-                    <div class="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/30">
-                        <div class="flex items-start gap-3">
-                            <div class="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                <span class="material-symbols-outlined text-primary">medical_services</span>
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <div class="flex flex-wrap items-center gap-1.5">
-                                    <h3 class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $doctor->name }}</h3>
-                                    @if(!$doctor->is_active)
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">Nonaktif</span>
-                                    @endif
-                                    @if($isClosed)
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200">Cuti</span>
-                                    @elseif($isSpecial)
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">Jam khusus</span>
-                                    @elseif(!$isWorking)
-                                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Tidak praktik</span>
-                                    @endif
-                                </div>
-                                <p class="text-[11px] text-slate-500 truncate">{{ $doctor->specialization ?? 'Dokter hewan' }}</p>
-                            </div>
-                            <span class="text-[10px] font-bold px-2 py-1 rounded-lg bg-white dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">
-                                {{ $doctorBookings->count() }} janji
-                            </span>
-                        </div>
-                        <div class="mt-3 flex items-start justify-between gap-2">
-                            <p class="text-[10px] mt-0.5 flex items-start gap-1 {{ $isClosed ? 'text-rose-600' : 'text-slate-400' }}">
-                                <span class="material-symbols-outlined text-[13px]">
-                                    {{ $isClosed ? 'event_busy' : 'schedule' }}
-                                </span>
-                                <span class="leading-snug">
-                                    @if($isClosed)
-                                        Sehari penuh{{ $doctorSchedule['reason'] ? ' · ' . $doctorSchedule['reason'] : '' }}
-                                    @elseif($isWorking)
-                                        {{ $doctorSchedule['start_time'] }} - {{ $doctorSchedule['end_time'] }} WIB
-                                    @else
-                                        Tidak ada jam praktik
-                                    @endif
-                                </span>
-                            </p>
-                            <a href="{{ route('admin.doctors.schedule', ['id' => $doctor->id, 'date' => $selectedDate]) }}"
-                               class="shrink-0 w-7 h-7 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-primary hover:border-primary/40 transition-colors inline-flex items-center justify-center"
-                               title="Atur cuti / jam khusus" aria-label="Atur jadwal {{ $doctor->name }}">
-                                <span class="material-symbols-outlined text-[15px]">tune</span>
-                            </a>
-                        </div>
-                        @if($reviewCount > 0)
-                            <p class="mt-2 flex items-start gap-1 rounded-lg bg-rose-50 border border-rose-100 px-2 py-1.5 text-[10px] font-medium text-rose-700">
-                                <span class="material-symbols-outlined text-[13px]">notification_important</span>
-                                {{ $reviewCount }} booking di luar jadwal — tinjau manual
-                            </p>
-                        @endif
+                <form method="GET" action="{{ route('admin.bookings.schedule') }}" class="flex flex-wrap items-end gap-2">
+                    <div>
+                        <label for="schedule-date" class="admin-label">{{ __('admin.schedule_date') }}</label>
+                        <input id="schedule-date" type="date" name="date" value="{{ $selectedDate }}" class="admin-input">
                     </div>
+                    <div>
+                        <label for="schedule-doctor" class="admin-label">{{ __('admin.schedule_doctor') }}</label>
+                        <select id="schedule-doctor" name="doctor_id" class="admin-input">
+                            <option value="">{{ __('admin.schedule_doctor') }}</option>
+                            @foreach($doctors as $doctor)
+                                <option value="{{ $doctor->id }}" {{ (string) $selectedDoctorId === (string) $doctor->id ? 'selected' : '' }}>
+                                    {{ $doctor->name }}
+                                </option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <button type="submit" class="admin-btn-primary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">search</span>
+                        {{ __('admin.schedule_show') }}
+                    </button>
+                </form>
 
-                    <div class="p-3 space-y-3 max-h-[620px] overflow-y-auto custom-scrollbar">
-                        @forelse($doctorBookings as $booking)
-                            @php
-                                $status = $statusStyles[$booking->status] ?? ['bg-slate-50 text-slate-600 border-slate-200', ucfirst($booking->status)];
-                                $paymentStyle = $paymentStyles[$booking->payment_status] ?? 'bg-slate-50 text-slate-600 border-slate-200';
-                            @endphp
-                            <article class="rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 p-3.5 hover:border-primary/40 transition-colors">
-                                <div class="flex items-start gap-3">
-                                    <div class="w-12 h-12 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 flex flex-col items-center justify-center flex-shrink-0">
-                                        <span class="text-[13px] font-bold leading-none">{{ $booking->booking_time }}</span>
-                                        <span class="text-[8px] uppercase tracking-wider opacity-70 mt-0.5">WIB</span>
+                <a href="{{ route('admin.bookings.schedule', ['date' => now()->toDateString(), 'doctor_id' => $selectedDoctorId]) }}"
+                   class="admin-btn-secondary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">today</span>
+                    {{ __('admin.schedule_today') }}
+                </a>
+
+                <a href="{{ route('admin.bookings.schedule', ['date' => $nextDate, 'doctor_id' => $selectedDoctorId]) }}"
+                   class="admin-icon-btn h-10 w-10"
+                   title="{{ __('admin.next_day') }}"
+                   aria-label="{{ __('admin.next_day') }}">
+                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">chevron_right</span>
+                </a>
+            </div>
+
+            <div class="flex items-center gap-3">
+                <div class="text-right">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                        {{ $isToday ? __('admin.schedule_today') : __('admin.schedule_selected_date') }}
+                    </p>
+                    <p class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
+                        {{ \Carbon\Carbon::parse($selectedDate)->locale(app()->getLocale())->translatedFormat('l, d F Y') }}
+                    </p>
+                </div>
+                <span class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="material-symbols-outlined text-[22px]" aria-hidden="true">calendar_month</span>
+                </span>
+            </div>
+        </div>
+    </x-admin.panel>
+
+    {{-- Ringkasan hari ini --}}
+    <div class="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <x-admin.stat-card :label="__('admin.stat_total_visits')" :value="$stats['total']" icon="event_available" tone="slate" />
+        <x-admin.stat-card :label="__('admin.filter_status_pending')" :value="$stats['pending']" icon="hourglass_top" tone="amber" />
+        <x-admin.stat-card :label="__('admin.filter_status_confirmed')" :value="$stats['confirmed']" icon="event_upcoming" tone="sky" />
+        <x-admin.stat-card :label="__('common.completed')" :value="$stats['completed']" icon="task_alt" tone="primary" />
+    </div>
+
+    {{-- Papan jadwal per dokter --}}
+    @if($doctors->isEmpty())
+        <x-admin.panel>
+            <x-admin.empty-state
+                :title="__('admin.schedule_no_doctors_title')"
+                :description="__('admin.schedule_no_doctors_desc')"
+                icon="event_busy"
+                tone="amber">
+                <x-slot:actions>
+                    <a href="{{ route('admin.doctors.index') }}" class="admin-btn-primary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                        {{ __('admin.manage_doctors') }}
+                    </a>
+                </x-slot:actions>
+            </x-admin.empty-state>
+        </x-admin.panel>
+    @else
+        <div class="overflow-x-auto pb-3">
+            <div class="flex items-start gap-4 min-w-max">
+                @foreach($doctors as $doctor)
+                    @php
+                        $doctorBookings = $bookingsByDoctor[$doctor->id] ?? collect();
+                        $doctorSchedule = $effectiveSchedules[$doctor->id] ?? null;
+                        $isClosed = (bool) ($doctorSchedule['is_closed'] ?? false);
+                        $isWorking = (bool) ($doctorSchedule['is_working_day'] ?? true);
+                        $isSpecial = (bool) ($doctorSchedule['has_exception'] ?? false);
+                        $reviewCount = $doctorBookings->filter(fn ($b) => isset($bookingsNeedingReview[$b->id]))->count();
+                    @endphp
+                    <section class="flex w-[310px] flex-shrink-0 flex-col overflow-hidden rounded-2xl border border-slate-200/70 bg-white dark:border-slate-800 dark:bg-slate-900"
+                             aria-label="{{ __('admin.schedule_doctor_aria', ['name' => $doctor->name]) }}">
+                        <header class="border-b border-slate-100 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+                            <div class="flex items-start gap-3">
+                                <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400">
+                                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">medical_services</span>
+                                </span>
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <h3 class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $doctor->name }}</h3>
+                                        @if(!$doctor->is_active)
+                                            <x-admin.badge :label="__('common.inactive')" tone="slate" />
+                                        @endif
+                                        @if($isClosed)
+                                            <x-admin.badge :label="__('admin.day_off')" tone="rose" />
+                                        @elseif($isSpecial)
+                                            <x-admin.badge :label="__('admin.special_hours')" tone="amber" />
+                                        @elseif(!$isWorking)
+                                            <x-admin.badge :label="__('admin.not_working')" tone="slate" />
+                                        @endif
                                     </div>
-                                    <div class="min-w-0 flex-1">
-                                        <div class="flex items-start justify-between gap-2">
-                                            <div class="min-w-0">
-                                                <p class="text-sm font-bold text-slate-900 dark:text-white truncate">{{ $booking->pet->name ?? 'Hewan' }}</p>
-                                                <p class="text-[11px] text-slate-500 truncate">{{ $booking->user->name ?? 'Pemilik' }}</p>
+                                    <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ $doctor->specialization ?? __('admin.veterinarian') }}
+                                    </p>
+                                </div>
+                                <x-admin.badge :label="__('admin.appointments_count', ['count' => $doctorBookings->count()])" tone="blue" />
+                            </div>
+
+                            <div class="mt-3 flex items-start justify-between gap-2">
+                                <p class="mt-0.5 flex items-start gap-1 text-[10px] {{ $isClosed ? 'text-rose-600' : 'text-slate-400' }}">
+                                    <span class="material-symbols-outlined text-[13px]" aria-hidden="true">
+                                        {{ $isClosed ? 'event_busy' : 'schedule' }}
+                                    </span>
+                                    <span class="leading-snug">
+                                        @if($isClosed)
+                                            {{ __('admin.full_day_off') }}{{ !empty($doctorSchedule['reason']) ? ' · ' . $doctorSchedule['reason'] : '' }}
+                                        @elseif($isWorking)
+                                            {{ $doctorSchedule['start_time'] }} - {{ $doctorSchedule['end_time'] }} WIB
+                                        @else
+                                            {{ __('admin.no_practice_hours') }}
+                                        @endif
+                                    </span>
+                                </p>
+                                <a href="{{ route('admin.doctors.schedule', ['id' => $doctor->id, 'date' => $selectedDate]) }}"
+                                   class="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-emerald-300 hover:text-emerald-600 dark:border-slate-700 dark:bg-slate-800"
+                                   title="{{ __('admin.setup_schedule') }}"
+                                   aria-label="{{ __('admin.set_schedule_aria', ['name' => $doctor->name]) }}">
+                                    <span class="material-symbols-outlined text-[15px]" aria-hidden="true">tune</span>
+                                </a>
+                            </div>
+
+                            @if($reviewCount > 0)
+                                <p class="mt-2 flex items-start gap-1 rounded-lg border border-rose-100 bg-rose-50 px-2 py-1.5 text-[10px] font-medium text-rose-700">
+                                    <span class="material-symbols-outlined text-[13px]" aria-hidden="true">notification_important</span>
+                                    {{ __('admin.review_outside_schedule', ['count' => $reviewCount]) }}
+                                </p>
+                            @endif
+                        </header>
+
+                        <div class="custom-scrollbar max-h-[620px] flex-1 space-y-3 overflow-y-auto p-3">
+                            @forelse($doctorBookings as $booking)
+                                <article class="rounded-xl border border-slate-200/80 bg-white p-3.5 transition hover:border-emerald-300 dark:border-slate-700 dark:bg-slate-900">
+                                    <div class="flex items-start gap-3">
+                                        <span class="flex h-12 w-12 flex-shrink-0 flex-col items-center justify-center rounded-xl bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900">
+                                            <span class="text-[13px] font-bold leading-none">{{ $booking->booking_time }}</span>
+                                            <span class="mt-0.5 text-[8px] uppercase tracking-wider opacity-70">WIB</span>
+                                        </span>
+
+                                        <div class="min-w-0 flex-1">
+                                            <div class="flex items-start justify-between gap-2">
+                                                <div class="min-w-0">
+                                                    <p class="truncate text-sm font-bold text-slate-900 dark:text-white">
+                                                        {{ $booking->pet->name ?? __('admin.pet_placeholder') }}
+                                                    </p>
+                                                    <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                                        {{ $booking->user->name ?? __('admin.owner_placeholder') }}
+                                                    </p>
+                                                </div>
+                                                <x-admin.badge
+                                                    :label="\App\Support\AdminStatus::bookingLabel($booking->status)"
+                                                    :tone="\App\Support\AdminStatus::bookingTone($booking->status)" />
                                             </div>
-                                            <span class="text-[9px] font-bold px-2 py-1 rounded-md border flex-shrink-0 {{ $status[0] }}">{{ $status[1] }}</span>
-                                        </div>
-                                        <p class="text-[11px] text-slate-500 mt-2 truncate">{{ $booking->service->name ?? 'Layanan klinik' }}</p>
-                                        <div class="flex flex-wrap items-center gap-1.5 mt-2">
-                                            <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded border {{ $paymentStyle }}">
-                                                {{ $booking->payment_status === 'paid' ? 'Lunas' : ($booking->remaining_amount > 0 ? 'Sisa Rp ' . number_format($booking->remaining_amount, 0, ',', '.') : 'Belum dibayar') }}
-                                            </span>
-                                            @if(isset($bookingsNeedingReview[$booking->id]))
-                                                <span class="text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-rose-50 text-rose-700 border-rose-200 inline-flex items-center gap-0.5">
-                                                    <span class="material-symbols-outlined text-[11px]">warning</span>
-                                                    Di luar jadwal
-                                                </span>
-                                            @endif
+
+                                            <p class="mt-2 truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                                {{ $booking->service->name ?? __('admin.clinic_service') }}
+                                            </p>
+
+                                            <div class="mt-2 flex flex-wrap items-center gap-1.5">
+                                                <x-admin.badge
+                                                    :label="\App\Support\AdminStatus::paymentLabel($booking->payment_status)"
+                                                    :tone="\App\Support\AdminStatus::paymentTone($booking->payment_status)" />
+                                                @if($booking->payment_status !== 'paid' && $booking->remaining_amount > 0)
+                                                    <span class="text-[10px] tabular-nums text-slate-400">
+                                                        {{ __('admin.remaining_amount_short', ['amount' => number_format($booking->remaining_amount, 0, ',', '.')]) }}
+                                                    </span>
+                                                @endif
+                                                @if(isset($bookingsNeedingReview[$booking->id]))
+                                                    <x-admin.badge :label="__('admin.outside_schedule')" tone="rose" />
+                                                @endif
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="flex items-center gap-1.5 mt-3 pt-3 border-t border-slate-100 dark:border-slate-800">
-                                    <a href="{{ route('admin.bookings.show', $booking->id) }}"
-                                       class="flex-1 text-center px-2 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-[11px] font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                                        Detail
-                                    </a>
-                                    @if($booking->status === 'pending')
-                                        <form method="POST" action="{{ route('admin.bookings.confirm', $booking->id) }}" class="flex-1">
-                                            @csrf
-                                            <button type="submit" class="w-full px-2 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors">
-                                                Konfirmasi
-                                            </button>
-                                        </form>
-                                    @elseif($booking->status === 'confirmed')
-                                        <form method="POST" action="{{ route('admin.bookings.complete', $booking->id) }}" class="flex-1">
-                                            @csrf
-                                            <button type="submit" class="w-full px-2 py-1.5 rounded-lg bg-emerald-600 text-white text-[11px] font-semibold hover:bg-emerald-700 transition-colors">
-                                                Selesai
-                                            </button>
-                                        </form>
-                                    @endif
-                                    @if(in_array($booking->status, ['pending', 'confirmed'], true))
-                                        <button type="button"
-                                                onclick="openCancelModal({{ $booking->id }}, '{{ addslashes($booking->pet->name ?? 'hewan') }}')"
-                                                class="w-8 h-8 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors inline-flex items-center justify-center flex-shrink-0"
-                                                title="Batalkan booking" aria-label="Batalkan booking {{ $booking->pet->name ?? '' }}">
-                                            <span class="material-symbols-outlined text-[17px]">cancel</span>
-                                        </button>
-                                    @endif
-                                </div>
-                            </article>
-                        @empty
-                            <div class="rounded-xl border border-dashed border-slate-200 dark:border-slate-700 px-4 py-8 text-center">
-                                <span class="material-symbols-outlined text-slate-300 text-3xl">event_available</span>
-                                <p class="text-xs font-semibold text-slate-500 mt-2">Tidak ada kunjungan</p>
-                                <p class="text-[10px] text-slate-400 mt-1">Slot dokter ini masih kosong.</p>
-                            </div>
-                        @endforelse
-                    </div>
-                </section>
-            @endforeach
-        </div>
-    </div>
-@endif
+                                    <div class="mt-3 flex items-center gap-1.5 border-t border-slate-100 pt-3 dark:border-slate-800">
+                                        <a href="{{ route('admin.bookings.show', $booking->id) }}"
+                                           class="flex-1 rounded-lg bg-slate-100 px-2 py-1.5 text-center text-[11px] font-semibold text-slate-700 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700">
+                                            {{ __('admin.detail') }}
+                                        </a>
 
-{{-- Cancel modal --}}
-<div id="cancelModal" class="fixed inset-0 z-50 hidden bg-slate-950/40 backdrop-blur-sm px-4 py-10 overflow-y-auto" role="dialog" aria-modal="true" aria-labelledby="cancelModalTitle">
-    <div class="mx-auto w-full max-w-md rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700 shadow-2xl overflow-hidden">
-        <div class="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center gap-2">
-            <span class="material-symbols-outlined text-rose-500">cancel</span>
-            <h3 id="cancelModalTitle" class="text-sm font-bold text-slate-900 dark:text-white">Batalkan Booking</h3>
+                                        @if($booking->status === 'pending')
+                                            <form method="POST" action="{{ route('admin.bookings.confirm', $booking->id) }}" class="flex-1">
+                                                @csrf
+                                                <button type="submit" class="w-full rounded-lg bg-emerald-600 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700">
+                                                    {{ __('admin.confirm_booking_short') }}
+                                                </button>
+                                            </form>
+                                        @elseif($booking->status === 'confirmed')
+                                            <form method="POST" action="{{ route('admin.bookings.complete', $booking->id) }}" class="flex-1">
+                                                @csrf
+                                                <button type="submit" class="w-full rounded-lg bg-emerald-600 px-2 py-1.5 text-[11px] font-semibold text-white transition hover:bg-emerald-700">
+                                                    {{ __('admin.mark_complete') }}
+                                                </button>
+                                            </form>
+                                        @endif
+
+                                        @if(in_array($booking->status, ['pending', 'confirmed'], true))
+                                            <button type="button"
+                                                    data-cancel-booking="{{ $booking->id }}"
+                                                    data-cancel-pet="{{ $booking->pet->name ?? __('admin.pet_placeholder') }}"
+                                                    class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                                                    title="{{ __('admin.cancel_booking_action') }}"
+                                                    aria-label="{{ __('admin.cancel_booking_action') }} {{ $booking->pet->name ?? '' }}">
+                                                <span class="material-symbols-outlined text-[17px]" aria-hidden="true">cancel</span>
+                                            </button>
+                                        @endif
+                                    </div>
+                                </article>
+                            @empty
+                                <div class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center dark:border-slate-700">
+                                    <span class="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600" aria-hidden="true">event_available</span>
+                                    <p class="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ __('admin.no_visits') }}</p>
+                                    <p class="mt-1 text-[10px] text-slate-400">{{ __('admin.no_visits_desc') }}</p>
+                                </div>
+                            @endforelse
+                        </div>
+                    </section>
+                @endforeach
+            </div>
         </div>
+    @endif
+</div>
+
+{{-- Modal pembatalan --}}
+<div id="cancelModal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-slate-950/40 px-4 py-10 backdrop-blur-sm"
+     role="dialog" aria-modal="true" aria-labelledby="cancelModalTitle">
+    <div class="mx-auto w-full max-w-md overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
+        <div class="flex items-center gap-2 border-b border-slate-100 p-5 dark:border-slate-800">
+            <span class="material-symbols-outlined text-rose-500" aria-hidden="true">cancel</span>
+            <h3 id="cancelModalTitle" class="text-sm font-bold text-slate-900 dark:text-white">{{ __('admin.cancel_booking_title') }}</h3>
+        </div>
+
         <form id="cancelForm" method="POST" class="p-5">
             @csrf
-            <p id="cancelTarget" class="text-sm text-slate-500 mb-4">Berikan alasan pembatalan agar riwayat tetap jelas.</p>
-            <label for="cancel-reason" class="block text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Alasan pembatalan <span class="text-rose-500">*</span></label>
+            <p id="cancelTarget" class="mb-4 text-sm text-slate-500 dark:text-slate-400">{{ __('admin.cancel_booking_intro') }}</p>
+
+            <label for="cancel-reason" class="admin-label">
+                {{ __('admin.cancel_reason_label') }} <span class="text-rose-500">*</span>
+            </label>
             <textarea id="cancel-reason" name="reason" required rows="3"
-                      class="w-full px-4 py-2.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:ring-2 focus:ring-primary focus:border-transparent"
-                      placeholder="Contoh: pemilik meminta jadwal ulang"></textarea>
-            <div class="flex justify-end gap-2 mt-4">
-                <button type="button" onclick="closeCancelModal()" class="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
-                    Batal
+                      class="admin-input"
+                      placeholder="{{ __('admin.cancel_reason_placeholder') }}"></textarea>
+
+            <div class="mt-4 flex justify-end gap-2">
+                <button type="button" onclick="hideScheduleCancelModal()" class="admin-btn-secondary">
+                    {{ __('common.cancel') }}
                 </button>
-                <button type="submit" class="px-4 py-2 rounded-xl bg-rose-600 text-white text-sm font-semibold hover:bg-rose-700 transition-colors">
-                    Batalkan Booking
+                <button type="submit" class="admin-btn-danger">
+                    {{ __('admin.cancel_booking_action') }}
                 </button>
             </div>
         </form>
@@ -285,26 +291,37 @@
 </div>
 
 <script>
-    function openCancelModal(bookingId, petName) {
+    (function () {
         const modal = document.getElementById('cancelModal');
         const form = document.getElementById('cancelForm');
         const target = document.getElementById('cancelTarget');
-        form.action = '/admin/bookings/' + bookingId + '/cancel';
-        target.textContent = 'Batalkan kunjungan ' + petName + '? Tindakan ini akan mengirim notifikasi ke pemilik.';
-        modal.classList.remove('hidden');
-        document.getElementById('cancel-reason').focus();
-    }
+        const reason = document.getElementById('cancel-reason');
+        const cancelBase = @json(route('admin.bookings.index'));
+        const cancelTemplate = @json(__('admin.cancel_booking_target', ['pet' => '__PET__']));
 
-    function closeCancelModal() {
-        document.getElementById('cancelModal').classList.add('hidden');
-    }
+        window.hideScheduleCancelModal = function () {
+            modal.classList.add('hidden');
+        };
 
-    document.getElementById('cancelModal')?.addEventListener('click', function (event) {
-        if (event.target === this) closeCancelModal();
-    });
+        document.querySelectorAll('[data-cancel-booking]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                const id = button.getAttribute('data-cancel-booking');
+                const pet = button.getAttribute('data-cancel-pet') || '';
+                form.action = cancelBase + '/' + id + '/cancel';
+                target.textContent = cancelTemplate.replace('__PET__', pet);
+                reason.value = '';
+                modal.classList.remove('hidden');
+                reason.focus();
+            });
+        });
 
-    document.addEventListener('keydown', function (event) {
-        if (event.key === 'Escape') closeCancelModal();
-    });
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) window.hideScheduleCancelModal();
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') window.hideScheduleCancelModal();
+        });
+    })();
 </script>
 @endsection

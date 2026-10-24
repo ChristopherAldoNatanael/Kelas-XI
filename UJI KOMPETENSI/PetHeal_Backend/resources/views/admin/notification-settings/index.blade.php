@@ -1,44 +1,43 @@
 @extends('layouts.admin')
 
-@section('title', 'Notification Settings - VCMS Admin')
-@section('header', 'Notification Settings')
+@section('title', __('admin.notifications_title') . ' — PetHeal Admin')
+@section('header', __('admin.notifications_title'))
 
 @section('content')
 <div class="space-y-6">
-    <section class="glass-card rounded-[28px] border border-slate-200/60 overflow-hidden">
-        <div class="relative overflow-hidden px-6 py-7 md:px-8">
-            <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(16,185,129,0.18),_transparent_30%),radial-gradient(circle_at_right,_rgba(59,130,246,0.14),_transparent_32%)]"></div>
-            <div class="relative flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-                <div class="max-w-3xl">
-                    <div class="inline-flex items-center gap-2 rounded-full border border-emerald-200/70 bg-white/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">
-                        <span class="material-symbols-outlined text-[15px]">notifications_active</span>
-                        Push Template Studio
-                    </div>
-                    <h2 class="mt-4 text-2xl font-semibold tracking-tight text-slate-900 md:text-[2rem]">Atur kata-kata notifikasi yang muncul di HP user tanpa menyentuh kode.</h2>
-                    <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Setiap template di bawah akan dipakai sebagai default saat admin mengirim reminder, konfirmasi booking, pembatalan, atau pengingat vaksinasi. Placeholder seperti <span class="font-semibold text-slate-700">{pet_name}</span> akan diganti otomatis saat notifikasi dikirim.</p>
-                </div>
-                <div class="rounded-3xl border border-white/70 bg-white/85 p-4 shadow-[0_14px_35px_-22px_rgba(15,23,42,0.38)]">
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Placeholder yang didukung</p>
-                    <div class="mt-3 flex flex-wrap gap-2">
-                        @foreach(['{pet_name}','{doctor_name}','{date}','{time}','{next_visit}','{remaining_amount}','{status}'] as $token)
-                            <span class="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">{{ $token }}</span>
-                        @endforeach
-                    </div>
-                </div>
-            </div>
+
+    {{-- Header halaman --}}
+    <x-admin.page-header
+        :title="__('admin.notifications_title')"
+        :eyebrow="__('admin.eyebrow_system')"
+        icon="notifications_active"
+        :description="__('admin.notifications_desc')">
+        <x-slot:actions>
+            <x-admin.badge :label="__('admin.notifications_badge')" tone="primary" />
+        </x-slot:actions>
+    </x-admin.page-header>
+
+    {{-- Placeholder yang didukung --}}
+    <x-admin.panel :title="__('admin.placeholders_title')" :subtitle="__('admin.notification_placeholders_desc')">
+        <div class="flex flex-wrap gap-2">
+            @foreach(['{pet_name}', '{doctor_name}', '{date}', '{time}', '{next_visit}', '{remaining_amount}', '{status}'] as $token)
+                <span class="rounded-full bg-slate-100 px-3 py-1 font-mono text-xs font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
+                    {{ $token }}
+                </span>
+            @endforeach
         </div>
-    </section>
+    </x-admin.panel>
 
     @if(session('success'))
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-medium text-emerald-700 shadow-sm">
+        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
             {{ session('success') }}
         </div>
     @endif
 
     @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-700 shadow-sm">
-            <p class="font-semibold">Notification template update failed.</p>
-            <ul class="mt-2 space-y-1 list-disc list-inside">
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+            <p class="font-semibold">{{ __('admin.templates_failed') }}</p>
+            <ul class="mt-2 list-inside list-disc space-y-1">
                 @foreach($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
@@ -50,76 +49,94 @@
         @csrf
         @method('PUT')
 
-        <section class="grid gap-5 xl:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 xl:grid-cols-2">
             @foreach($templates as $template)
                 @php
                     $accentMap = [
-                        'emerald' => 'from-emerald-500/15 to-emerald-50 text-emerald-700 border-emerald-200',
-                        'amber' => 'from-amber-500/15 to-amber-50 text-amber-700 border-amber-200',
-                        'sky' => 'from-sky-500/15 to-sky-50 text-sky-700 border-sky-200',
-                        'blue' => 'from-blue-500/15 to-blue-50 text-blue-700 border-blue-200',
-                        'rose' => 'from-rose-500/15 to-rose-50 text-rose-700 border-rose-200',
-                        'slate' => 'from-slate-500/15 to-slate-50 text-slate-700 border-slate-200',
-                        'violet' => 'from-violet-500/15 to-violet-50 text-violet-700 border-violet-200',
+                        'emerald' => 'bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+                        'amber' => 'bg-amber-50 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+                        'sky' => 'bg-sky-50 text-sky-600 dark:bg-sky-900/30 dark:text-sky-400',
+                        'blue' => 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+                        'rose' => 'bg-rose-50 text-rose-600 dark:bg-rose-900/30 dark:text-rose-400',
+                        'slate' => 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300',
+                        'violet' => 'bg-violet-50 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400',
                     ];
                     $accentClass = $accentMap[$template['accent']] ?? $accentMap['slate'];
                 @endphp
-                <article class="glass-card rounded-[26px] border border-slate-200/60 overflow-hidden">
-                    <div class="border-b border-slate-200/70 px-5 py-5">
-                        <div class="flex items-start gap-4">
-                            <div class="flex h-14 w-14 items-center justify-center rounded-2xl border bg-gradient-to-br {{ $accentClass }}">
-                                <span class="material-symbols-outlined text-[24px]">{{ $template['icon'] }}</span>
-                            </div>
-                            <div>
-                                <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Notification Preview</p>
-                                <h3 class="mt-1 text-lg font-semibold text-slate-900">{{ $template['label'] }}</h3>
-                                <p class="mt-1 text-sm leading-6 text-slate-500">{{ $template['description'] }}</p>
-                            </div>
-                        </div>
 
-                        <div class="mt-5 rounded-3xl border border-slate-200 bg-white p-4 shadow-[0_18px_45px_-35px_rgba(15,23,42,0.45)]">
+                <x-admin.panel :title="$template['label']" :subtitle="$template['description']" flush>
+                    <x-slot:actions>
+                        <span class="flex h-10 w-10 items-center justify-center rounded-xl {{ $accentClass }}">
+                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">{{ $template['icon'] }}</span>
+                        </span>
+                    </x-slot:actions>
+
+                    <div class="space-y-4 p-5">
+                        {{-- Pratinjau pada perangkat user --}}
+                        <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+                            <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                                {{ __('admin.preview_label') }}
+                            </p>
+
                             <div class="flex items-start gap-3">
-                                <div class="mt-1 flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white">
-                                    <span class="material-symbols-outlined text-[18px]">pets</span>
-                                </div>
+                                <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-slate-900 text-white dark:bg-white dark:text-slate-900">
+                                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">pets</span>
+                                </span>
                                 <div class="min-w-0">
-                                    <p class="text-sm font-semibold text-slate-900">{{ old("templates.{$template['key']}.title", $template['stored_title']) }}</p>
-                                    <p class="mt-1 text-sm leading-6 text-slate-500">{{ old("templates.{$template['key']}.body", $template['stored_body']) }}</p>
-                                    <p class="mt-3 text-[11px] uppercase tracking-[0.18em] text-slate-400">Default preview on user device</p>
+                                    <p class="text-sm font-semibold text-slate-900 dark:text-white">
+                                        {{ old("templates.{$template['key']}.title", $template['stored_title']) }}
+                                    </p>
+                                    <p class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">
+                                        {{ old("templates.{$template['key']}.body", $template['stored_body']) }}
+                                    </p>
                                 </div>
                             </div>
-                        </div>
-                    </div>
 
-                    <div class="space-y-4 px-5 py-5">
+                            <p class="mt-3 text-[11px] text-slate-400">{{ __('admin.notification_preview_desc') }}</p>
+                        </div>
+
                         <div>
-                            <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Title</label>
+                            <label for="template-{{ $template['key'] }}-title" class="admin-label">
+                                {{ __('admin.notification_title_label') }}
+                            </label>
                             <input
+                                id="template-{{ $template['key'] }}-title"
                                 type="text"
                                 name="templates[{{ $template['key'] }}][title]"
                                 value="{{ old("templates.{$template['key']}.title", $template['stored_title']) }}"
-                                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm transition focus:border-emerald-400 focus:ring-emerald-200"
+                                class="admin-input @error("templates.{$template['key']}.title") admin-input-error @enderror"
                             >
+                            @error("templates.{$template['key']}.title")
+                                <p class="admin-error">{{ $message }}</p>
+                            @enderror
                         </div>
+
                         <div>
-                            <label class="mb-2 block text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Body</label>
+                            <label for="template-{{ $template['key'] }}-body" class="admin-label">
+                                {{ __('admin.notification_body_label') }}
+                            </label>
                             <textarea
+                                id="template-{{ $template['key'] }}-body"
                                 name="templates[{{ $template['key'] }}][body]"
                                 rows="4"
-                                class="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700 shadow-sm transition focus:border-emerald-400 focus:ring-emerald-200"
+                                class="admin-input @error("templates.{$template['key']}.body") admin-input-error @enderror"
                             >{{ old("templates.{$template['key']}.body", $template['stored_body']) }}</textarea>
+                            @error("templates.{$template['key']}.body")
+                                <p class="admin-error">{{ $message }}</p>
+                            @enderror
                         </div>
                     </div>
-                </article>
+                </x-admin.panel>
             @endforeach
-        </section>
+        </div>
 
+        {{-- Bilah simpan --}}
         <div class="sticky bottom-4 z-20 flex justify-end">
-            <div class="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur">
-                <p class="hidden text-sm text-slate-500 md:block">Simpan agar template baru dipakai untuk reminder berikutnya.</p>
-                <button type="submit" class="inline-flex h-11 items-center gap-2 rounded-2xl bg-primary px-5 text-sm font-semibold text-white transition hover:bg-emerald-600">
-                    <span class="material-symbols-outlined text-[18px]">save</span>
-                    Save Notification Settings
+            <div class="inline-flex items-center gap-3 rounded-2xl border border-slate-200 bg-white/95 px-4 py-3 shadow-lg backdrop-blur dark:border-slate-700 dark:bg-slate-900/95">
+                <p class="hidden text-xs text-slate-500 md:block dark:text-slate-400">{{ __('admin.notification_save_hint') }}</p>
+                <button type="submit" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">save</span>
+                    {{ __('admin.notification_save') }}
                 </button>
             </div>
         </div>

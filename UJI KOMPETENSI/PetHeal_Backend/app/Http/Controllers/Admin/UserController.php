@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -104,7 +106,7 @@ class UserController extends Controller
         $contextClinicId = currentClinicId();
         if (!$contextClinicId) {
             return redirect()->route('admin.users.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum menambah user.');
+                ->with('error', __('clinics.select_clinic_first'));
         }
 
         $user = User::create([
@@ -117,7 +119,9 @@ class UserController extends Controller
             'firebase_uid' => 'local_' . Str::uuid()->toString(),
         ]);
 
-        return redirect()->route('admin.users.index')->with('success', 'User berhasil ditambahkan.');
+        AuditLog::log('user.create', "Created patient account #{$user->id} ({$user->email})", $user);
+
+        return redirect()->route('admin.users.index')->with('success', __('admin.user_created'));
     }
 
     /**
@@ -160,8 +164,9 @@ class UserController extends Controller
         }
 
         $user->update($data);
+        AuditLog::log('user.update', "Updated account #{$user->id} ({$user->email})", $user);
 
-        return redirect()->route('admin.users.index')->with('success', 'User berhasil diperbarui.');
+        return redirect()->route('admin.users.index')->with('success', __('admin.user_updated'));
     }
 
     /**
@@ -179,21 +184,37 @@ class UserController extends Controller
         if (auth()->id() === $user->id) {
             return redirect()
                 ->route('admin.users.index')
-                ->with('error', 'You cannot delete your own admin account.');
+                ->with('error', __('admin.cannot_delete_self'));
         }
 
-        // Cascade delete related data to respect foreign key constraints
-        \App\Models\MedicalRecord::whereHas('booking', function ($query) use ($user) {
-            $query->where('user_id', $user->id);
-        })->delete();
+        if ($user->role !== 'user') {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', __('admin.cannot_delete_admin'));
+        }
 
-        \App\Models\Booking::where('user_id', $user->id)->delete();
-        $user->pets()->delete();
-        $user->deviceTokens()->delete();
-        $user->tokens()->delete();
+        // Never cascade-delete clinical/financial history. A patient with
+        // bookings must be retained so invoices, medical records, and audit
+        // trails stay reproducible.
+        if ($user->bookings()->exists()) {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', __('admin.cannot_delete_user_with_history'));
+        }
 
-        $user->delete();
+        DB::transaction(function () use ($user) {
+            AuditLog::log(
+                'user.delete',
+                "Deleted patient account #{$user->id} ({$user->email}) — no booking history",
+                $user
+            );
 
-        return redirect()->route('admin.users.index')->with('success', 'User berhasil dihapus.');
+            $user->pets()->delete();
+            $user->deviceTokens()->delete();
+            $user->tokens()->delete();
+            $user->delete();
+        });
+
+        return redirect()->route('admin.users.index')->with('success', __('admin.user_deleted'));
     }
 }

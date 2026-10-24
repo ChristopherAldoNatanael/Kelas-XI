@@ -158,7 +158,7 @@ class Phase3OperationalDepthTest extends TestCase
         $this->actingAs($this->adminA)
             ->get('/admin/payments')
             ->assertOk()
-            ->assertSee('Invoice & Transaksi', false)
+            ->assertSee(__('admin.invoice_transactions'))
             ->assertSee('INV-' . str_pad((string) $this->bookingA->id, 5, '0', STR_PAD_LEFT));
 
         $response = $this->actingAs($this->adminA)

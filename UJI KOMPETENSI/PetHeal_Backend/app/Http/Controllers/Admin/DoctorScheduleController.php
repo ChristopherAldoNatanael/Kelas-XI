@@ -29,7 +29,7 @@ class DoctorScheduleController extends Controller
         $clinicId = currentClinicId();
         if (!$clinicId) {
             return redirect()->route('admin.clinics.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum mengatur jadwal dokter.');
+                ->with('error', __('admin.select_clinic_schedule'));
         }
 
         $request->validate([
@@ -88,7 +88,7 @@ class DoctorScheduleController extends Controller
         $clinicId = currentClinicId();
         if (!$clinicId) {
             return redirect()->route('admin.clinics.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum mengatur jadwal dokter.');
+                ->with('error', __('admin.select_clinic_schedule'));
         }
 
         $data = $request->validate([
@@ -161,7 +161,7 @@ class DoctorScheduleController extends Controller
         $clinicId = currentClinicId();
         if (!$clinicId) {
             return redirect()->route('admin.clinics.index')
-                ->with('error', 'Pilih klinik terlebih dahulu sebelum mengatur jadwal dokter.');
+                ->with('error', __('admin.select_clinic_schedule'));
         }
 
         $doctor = Doctor::query()
@@ -184,6 +184,6 @@ class DoctorScheduleController extends Controller
 
         return redirect()
             ->route('admin.doctors.schedule', ['id' => $doctor->id, 'date' => $date])
-            ->with('success', 'Pengecualian jadwal dihapus. Dokter kembali memakai jadwal mingguan.');
+            ->with('success', __('admin.schedule_exception_deleted'));
     }
 }

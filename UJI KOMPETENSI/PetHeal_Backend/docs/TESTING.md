@@ -34,7 +34,7 @@ curl.exe -s -X POST -H "Authorization: Bearer $TOKEN_PUSAT" -H "Content-Type: ap
 
 ## Automated Tests
 
-Backend (117 test: 116 Feature + 1 Unit) — `phpunit.xml` memakai DB terpisah supaya data demo `pet_heal` tidak pernah tersentuh:
+Backend (173 test Feature) — `phpunit.xml` memakai DB terpisah supaya data demo `pet_heal` tidak pernah tersentuh:
 
 ```powershell
 # sekali saja
@@ -42,7 +42,7 @@ mysql -u root -e "CREATE DATABASE IF NOT EXISTS pet_heal_test CHARACTER SET utf8
 $env:DB_DATABASE="pet_heal_test"; php artisan migrate --force; Remove-Item Env:DB_DATABASE
 
 # setiap kali
-php artisan test        # ±2 menit, harus 117 passed
+php artisan test        # ±4 menit, harus 173 passed
 ```
 
 Android (20 test JVM):

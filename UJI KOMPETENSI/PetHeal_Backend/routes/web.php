@@ -73,11 +73,11 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/clinics/{clinic}/toggle-active', [App\Http\Controllers\Admin\ClinicController::class, 'toggleActive'])->name('clinics.toggle-active');
     });
 
-    // Clinic profile (own clinic) — clinic_admin + legacy admin may update
-    // their own clinic here. Slug & active status stay super_admin-only
-    // (see ClinicController@updateProfile).
-    Route::get('/clinic-profile', [App\Http\Controllers\Admin\ClinicController::class, 'profile'])->name('clinic-profile');
-    Route::put('/clinic-profile', [App\Http\Controllers\Admin\ClinicController::class, 'updateProfile'])->name('clinic-profile.update');
+    // Legacy URL: clinic profile now lives in Settings → Clinic. Keep a
+    // redirect so old bookmarks and links from before the consolidation
+    // still land on the editable form.
+    Route::get('/clinic-profile', fn () => redirect()->route('admin.settings', ['tab' => 'klinik']))
+        ->name('clinic-profile');
 
     // Dashboard
     Route::get('/', [DashboardController::class, 'index'])->name('dashboard');
@@ -86,6 +86,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Settings
     Route::get('/settings', [App\Http\Controllers\Admin\AdminAuthController::class, 'settings'])->name('settings');
     Route::post('/settings/profile', [App\Http\Controllers\Admin\AdminAuthController::class, 'updateProfile'])->name('settings.profile');
+    Route::put('/settings/clinic', [App\Http\Controllers\Admin\ClinicController::class, 'updateProfile'])->name('settings.clinic.update');
     // Ganti password admin wajib kode verifikasi yang dikirim ke email akun.
     Route::post('/settings/password/otp', [App\Http\Controllers\Admin\AdminAuthController::class, 'sendPasswordOtp'])->middleware('throttle:admin-otp-send')->name('settings.password.otp');
     Route::post('/settings/password/otp/cancel', [App\Http\Controllers\Admin\AdminAuthController::class, 'cancelPasswordOtp'])->name('settings.password.otp.cancel');
@@ -136,7 +137,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/services/template/xlsx', [App\Http\Controllers\Admin\ServiceController::class, 'downloadTemplateXlsx'])->name('services.template.xlsx');
     Route::get('/services/import/error-report', [App\Http\Controllers\Admin\ServiceController::class, 'downloadImportErrorReport'])->name('services.import.error-report');
     Route::post('/services/import', [App\Http\Controllers\Admin\ServiceController::class, 'import'])->name('services.import');
-    Route::resource('services', App\Http\Controllers\Admin\ServiceController::class);
+    Route::resource('services', App\Http\Controllers\Admin\ServiceController::class)->except(['show']);
 
     // Payments (Midtrans Integration)
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');

@@ -409,7 +409,7 @@ class Phase4OperationalTrustTest extends TestCase
         $this->actingAs($this->adminA)
             ->get('/admin/doctors/' . $this->doctorA->id . '/schedule?date=' . $this->tomorrow())
             ->assertOk()
-            ->assertSee('Jadwal & Cuti Dokter')
+            ->assertSee(__('admin.doctor_schedule_title'))
             ->assertSee('Cuti tahunan')
             ->assertSee('Simpan pengecualian');
     }

@@ -1,191 +1,252 @@
 @extends('layouts.admin')
-@section('title', __('dashboard.system_overview') . ' — ' . ($clinicName ?? 'VCMS') . ' Admin')
+
+@section('title', __('dashboard.system_overview') . ' — PetHeal Admin')
 @section('header', __('dashboard.system_overview'))
 
 @section('content')
-<!-- System Stats -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-    <div class="glass-card p-6 rounded-2xl flex items-center gap-4">
-        <div class="w-10 h-10 bg-emerald-500/10 text-emerald-600 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">local_hospital</span>
-        </div>
-        <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('dashboard.total_clinics') }}</p>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ $totalClinics }} <span class="text-xs font-normal text-slate-400">({{ $activeClinics }} {{ __('dashboard.active') }})</span></h3>
-        </div>
-    </div>
-    <div class="glass-card p-6 rounded-2xl flex items-center gap-4">
-        <div class="w-10 h-10 bg-blue-500/10 text-blue-600 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">medical_services</span>
-        </div>
-        <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('dashboard.total_doctors') }}</p>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ $totalDoctors }}</h3>
-        </div>
-    </div>
-    <div class="glass-card p-6 rounded-2xl flex items-center gap-4">
-        <div class="w-10 h-10 bg-indigo-500/10 text-indigo-600 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">group</span>
-        </div>
-        <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('dashboard.total_patients') }}</p>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ $totalUsers }}</h3>
-        </div>
-    </div>
-    <div class="glass-card p-6 rounded-2xl flex items-center gap-4">
-        <div class="w-10 h-10 bg-purple-500/10 text-purple-600 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-[20px]">calendar_month</span>
-        </div>
-        <div>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('dashboard.total_bookings') }}</p>
-            <h3 class="text-xl font-bold text-slate-900 dark:text-white">{{ $totalBookings }}</h3>
-        </div>
-    </div>
-</div>
+<div class="space-y-6">
 
-<!-- Quick Actions -->
-@if($pendingJoinRequests > 0)
-<div class="bg-yellow-50 border border-yellow-200 rounded-2xl p-5 mb-8 flex items-center justify-between">
-    <div class="flex items-center gap-3">
-        <span class="material-symbols-outlined text-yellow-600 text-xl">person_add</span>
-        <div>
-            <p class="text-sm font-semibold text-yellow-800">{{ $pendingJoinRequests }} {{ __('dashboard.pending_requests') }}</p>
-            <p class="text-xs text-yellow-600">{{ __('dashboard.pending_requests_desc') }}</p>
-        </div>
-    </div>
-    <a href="{{ route('admin.join-requests') }}" class="px-4 py-2 bg-yellow-500 hover:bg-yellow-600 text-white text-sm font-semibold rounded-xl transition-all">
-        {{ __('dashboard.review_now') }}
-    </a>
-</div>
-@endif
-
-<!-- Clinics Overview -->
-<div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
-    <div class="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-        <div>
-            <h3 class="text-md font-bold text-slate-900 dark:text-white tracking-tight">{{ __('dashboard.all_clinics') }}</h3>
-            <p class="text-xs text-slate-400 mt-0.5">{{ __('dashboard.all_clinics_desc') }}</p>
-        </div>
-        <a href="{{ route('admin.clinics.index') }}" class="text-xs text-primary hover:opacity-80 font-medium">{{ __('dashboard.manage_clinics') }}</a>
-    </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-left">
-            <thead>
-                <tr class="bg-slate-50/50 dark:bg-slate-800/30 text-[9px] uppercase tracking-[0.15em] font-bold text-slate-400 border-b border-slate-100 dark:border-slate-800">
-                    <th class="px-6 py-3">{{ __('clinics.clinic_name') }}</th>
-                    <th class="px-6 py-3">{{ __('dashboard.location') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('dashboard.doctors') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('dashboard.services_count') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('dashboard.bookings') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('dashboard.users') }}</th>
-                    <th class="px-6 py-3">{{ __('common.color') }}</th>
-                    <th class="px-6 py-3">{{ __('common.status') }}</th>
-                    <th class="px-6 py-3 text-center">{{ __('common.actions') }}</th>
-                </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100/50 dark:divide-slate-800/50">
-                @forelse($clinics as $c)
-                <tr class="hover:bg-slate-50/30 dark:hover:bg-slate-800/10 transition-colors">
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-3">
-                            @if($c->logo_url)
-                                <img src="{{ $c->logo_url }}" alt="{{ $c->name }}" class="h-8 w-8 rounded-lg object-cover border border-slate-200">
-                            @else
-                                <div class="h-8 w-8 rounded-lg flex items-center justify-center text-white text-xs font-bold" style="background-color: {{ $c->primary_color }}">
-                                    {{ substr($c->name, 0, 2) }}
-                                </div>
-                            @endif
-                            <div>
-                                <p class="font-semibold text-sm text-slate-800 dark:text-slate-200">{{ $c->name }}</p>
-                                <p class="text-[10px] text-slate-400">{{ $c->slug }}</p>
-                            </div>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4 text-xs text-slate-600 dark:text-slate-400 max-w-[200px] truncate">{{ $c->address }}</td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ $c->doctors_count }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ $c->services_count }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ $c->bookings_count }}</span>
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <span class="text-sm font-bold text-slate-800 dark:text-slate-200">{{ $c->users_count }}</span>
-                    </td>
-                    <td class="px-6 py-4">
-                        <div class="flex items-center gap-2">
-                            <div class="w-4 h-4 rounded-full border border-slate-200" style="background-color: {{ $c->primary_color }}"></div>
-                            <span class="text-[10px] font-mono text-slate-500">{{ $c->primary_color }}</span>
-                        </div>
-                    </td>
-                    <td class="px-6 py-4">
-                        @if($c->is_active)
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-emerald-50 text-emerald-600 border-emerald-100">{{ __('common.active') }}</span>
-                        @else
-                            <span class="px-2 py-0.5 text-[9px] font-bold rounded border bg-red-50 text-red-600 border-red-100">{{ __('common.inactive') }}</span>
-                        @endif
-                    </td>
-                    <td class="px-6 py-4 text-center">
-                        <form method="POST" action="{{ route('admin.switch-clinic') }}" class="inline">
-                            @csrf
-                            <input type="hidden" name="clinic_id" value="{{ $c->id }}">
-                            <button type="submit" class="px-3 py-1.5 text-[10px] font-bold rounded-lg transition-all
-                                {{ $c->is_active ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200' : 'bg-slate-50 text-slate-400 border border-slate-200' }}">
-                                {{ __('dashboard.enter_clinic') }}
-                            </button>
-                        </form>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="9" class="px-6 py-8 text-center text-sm text-slate-400">{{ __('common.no_data') }}</td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- System Summary -->
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-    <div class="glass-card p-6 rounded-2xl border border-slate-200/50">
-        <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">{{ __('dashboard.summary') }}</h3>
-        <div class="space-y-3 text-sm">
-            <div class="flex justify-between">
-                <span class="text-slate-500">{{ __('dashboard.total_services') }}</span>
-                <span class="font-semibold text-slate-800 dark:text-slate-200">{{ $totalServices }}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-slate-500">{{ __('dashboard.total_bookings') }}</span>
-                <span class="font-semibold text-slate-800 dark:text-slate-200">{{ $totalBookings }}</span>
-            </div>
-            <div class="flex justify-between">
-                <span class="text-slate-500">{{ __('dashboard.total_revenue') }}</span>
-                <span class="font-semibold text-emerald-600">Rp {{ number_format($totalRevenue, 0, ',', '.') }}</span>
-            </div>
-        </div>
-    </div>
-    <div class="glass-card p-6 rounded-2xl border border-slate-200/50">
-        <h3 class="text-sm font-bold text-slate-900 dark:text-white mb-4">{{ __('dashboard.quick_links') }}</h3>
-        <div class="space-y-2">
-            <a href="{{ route('admin.clinics.create') }}" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <span class="material-symbols-outlined text-primary text-lg">add_circle</span>
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('dashboard.add_new_clinic') }}</span>
-            </a>
-            <a href="{{ route('admin.join-requests') }}" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <span class="material-symbols-outlined text-yellow-500 text-lg">person_add</span>
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('dashboard.review_join_requests') }}</span>
+    {{-- Header halaman --}}
+    <x-admin.page-header
+        :title="__('dashboard.system_overview')"
+        :eyebrow="__('admin.eyebrow_system')"
+        icon="monitoring"
+        :description="__('admin.super_overview_desc')">
+        <x-slot:actions>
+            <a href="{{ route('admin.join-requests') }}"
+               class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">person_add</span>
+                {{ __('dashboard.review_join_requests') }}
                 @if($pendingJoinRequests > 0)
-                    <span class="ml-auto px-2 py-0.5 text-[9px] font-bold rounded-full bg-yellow-100 text-yellow-700">{{ $pendingJoinRequests }}</span>
+                    <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                        {{ $pendingJoinRequests }}
+                    </span>
                 @endif
             </a>
-            <a href="{{ route('admin.settings') }}" class="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                <span class="material-symbols-outlined text-slate-400 text-lg">settings</span>
-                <span class="text-sm text-slate-700 dark:text-slate-300">{{ __('menu.settings') }}</span>
+            <a href="{{ route('admin.clinics.create') }}"
+               class="admin-btn-primary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                {{ __('clinics.add_clinic') }}
+            </a>
+        </x-slot:actions>
+    </x-admin.page-header>
+
+    {{-- Permintaan join yang menunggu --}}
+    @if($pendingJoinRequests > 0)
+        <div class="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:flex-row sm:items-center sm:justify-between dark:border-amber-900/60 dark:bg-amber-900/20">
+            <div class="flex items-start gap-3">
+                <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">
+                    <span class="material-symbols-outlined text-[20px]" aria-hidden="true">person_add</span>
+                </span>
+                <div>
+                    <p class="text-sm font-bold text-amber-900 dark:text-amber-200">
+                        {{ $pendingJoinRequests }} {{ __('dashboard.pending_requests') }}
+                    </p>
+                    <p class="mt-0.5 text-xs text-amber-700 dark:text-amber-300/80">{{ __('dashboard.pending_requests_desc') }}</p>
+                </div>
+            </div>
+            <a href="{{ route('admin.join-requests') }}" class="admin-btn-primary !bg-amber-500 hover:!bg-amber-600 self-start sm:self-auto">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">fact_check</span>
+                {{ __('dashboard.review_now') }}
             </a>
         </div>
+    @endif
+
+    {{-- Kartu ringkasan --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <x-admin.stat-card
+            :label="__('dashboard.total_clinics')"
+            :value="$totalClinics"
+            icon="local_hospital"
+            tone="primary"
+            :hint="$activeClinics . ' ' . __('admin.stat_active_clinics')" />
+
+        <x-admin.stat-card
+            :label="__('dashboard.total_doctors')"
+            :value="number_format($totalDoctors)"
+            icon="medical_services"
+            tone="blue" />
+
+        <x-admin.stat-card
+            :label="__('dashboard.total_patients')"
+            :value="number_format($totalUsers)"
+            icon="group"
+            tone="violet" />
+
+        <x-admin.stat-card
+            :label="__('dashboard.total_bookings')"
+            :value="number_format($totalBookings)"
+            icon="calendar_month"
+            tone="sky" />
+    </div>
+
+    {{-- Tabel seluruh klinik --}}
+    <x-admin.panel :title="__('dashboard.all_clinics')" :subtitle="__('dashboard.all_clinics_desc')" flush>
+        <x-slot:actions>
+            <a href="{{ route('admin.clinics.index') }}"
+               class="text-xs font-semibold text-primary transition hover:opacity-80">
+                {{ __('dashboard.manage_clinics') }}
+            </a>
+        </x-slot:actions>
+
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead class="admin-table-head">
+                    <tr>
+                        <th class="px-5 py-3">{{ __('clinics.th_clinic') }}</th>
+                        <th class="px-5 py-3">{{ __('dashboard.location') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('dashboard.doctors') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('dashboard.services_count') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('dashboard.bookings') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('dashboard.users') }}</th>
+                        <th class="px-5 py-3">{{ __('common.color') }}</th>
+                        <th class="px-5 py-3">{{ __('common.status') }}</th>
+                        <th class="px-5 py-3 text-center">{{ __('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
+                    @forelse($clinics as $clinic)
+                        <tr class="admin-table-row">
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-3">
+                                    @if($clinic->logo_url)
+                                        <img src="{{ $clinic->logo_url }}" alt="{{ $clinic->name }}"
+                                             class="h-9 w-9 rounded-lg border border-slate-200 object-cover dark:border-slate-700">
+                                    @else
+                                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white"
+                                              style="background-color: {{ $clinic->primary_color }}">
+                                            {{ \Illuminate\Support\Str::substr($clinic->name, 0, 2) }}
+                                        </span>
+                                    @endif
+                                    <div class="min-w-0">
+                                        <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
+                                        <p class="truncate text-[11px] text-slate-400">{{ $clinic->slug }}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="max-w-[220px] truncate px-5 py-3 text-xs text-slate-600 dark:text-slate-400">
+                                {{ $clinic->address ?: '—' }}
+                            </td>
+                            <td class="px-5 py-3 text-center text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ $clinic->doctors_count }}
+                            </td>
+                            <td class="px-5 py-3 text-center text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ $clinic->services_count }}
+                            </td>
+                            <td class="px-5 py-3 text-center text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ $clinic->bookings_count }}
+                            </td>
+                            <td class="px-5 py-3 text-center text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ $clinic->users_count }}
+                            </td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-2">
+                                    <span class="h-4 w-4 rounded-full border border-slate-200 dark:border-slate-700"
+                                          style="background-color: {{ $clinic->primary_color }}"></span>
+                                    <span class="font-mono text-[10px] text-slate-500">{{ $clinic->primary_color }}</span>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3">
+                                <x-admin.badge
+                                    :label="$clinic->is_active ? __('common.active') : __('common.inactive')"
+                                    :tone="$clinic->is_active ? 'primary' : 'slate'"
+                                    dot />
+                            </td>
+                            <td class="px-5 py-3 text-center">
+                                <form method="POST" action="{{ route('admin.switch-clinic') }}" class="inline">
+                                    @csrf
+                                    <input type="hidden" name="clinic_id" value="{{ $clinic->id }}">
+                                    <button type="submit"
+                                            class="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-[11px] font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:text-slate-300"
+                                            title="{{ __('admin.clinic_enter_hint') }}">
+                                        <span class="material-symbols-outlined text-[15px]" aria-hidden="true">login</span>
+                                        {{ __('dashboard.enter_clinic') }}
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="9">
+                                <x-admin.empty-state
+                                    :title="__('admin.clinics_empty_title')"
+                                    :description="__('admin.clinics_empty_desc')"
+                                    icon="local_hospital"
+                                    tone="primary">
+                                    <x-slot:actions>
+                                        <a href="{{ route('admin.clinics.create') }}" class="admin-btn-primary">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
+                                            {{ __('clinics.add_clinic') }}
+                                        </a>
+                                    </x-slot:actions>
+                                </x-admin.empty-state>
+                            </td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
+    </x-admin.panel>
+
+    {{-- Ringkasan sistem & tautan cepat --}}
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <x-admin.panel :title="__('dashboard.summary')" :subtitle="__('admin.summary_desc')">
+            <dl class="space-y-3">
+                @foreach([
+                    ['label' => __('dashboard.total_services'), 'value' => number_format($totalServices)],
+                    ['label' => __('dashboard.total_bookings'), 'value' => number_format($totalBookings)],
+                    ['label' => __('dashboard.total_doctors'), 'value' => number_format($totalDoctors)],
+                    ['label' => __('dashboard.total_patients'), 'value' => number_format($totalUsers)],
+                ] as $row)
+                    <div class="flex items-center justify-between gap-3 border-b border-slate-100 pb-2.5 last:border-0 last:pb-0 dark:border-slate-800">
+                        <dt class="text-xs text-slate-500 dark:text-slate-400">{{ $row['label'] }}</dt>
+                        <dd class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ $row['value'] }}</dd>
+                    </div>
+                @endforeach
+            </dl>
+
+            <div class="mt-5 rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-900/15">
+                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">
+                    {{ __('dashboard.total_revenue') }}
+                </p>
+                <p class="mt-1.5 text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                    Rp {{ number_format($totalRevenue, 0, ',', '.') }}
+                </p>
+            </div>
+        </x-admin.panel>
+
+        <x-admin.panel :title="__('dashboard.quick_links')" :subtitle="__('admin.quick_links_desc')">
+            <div class="space-y-2">
+                <a href="{{ route('admin.clinics.create') }}"
+                   class="flex items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                    <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600 dark:bg-emerald-900/25 dark:text-emerald-400">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add_circle</span>
+                    </span>
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ __('dashboard.add_new_clinic') }}</span>
+                </a>
+
+                <a href="{{ route('admin.join-requests') }}"
+                   class="flex items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                    <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-900/25 dark:text-amber-400">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">person_add</span>
+                    </span>
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ __('dashboard.review_join_requests') }}</span>
+                    @if($pendingJoinRequests > 0)
+                        <span class="ml-auto rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+                            {{ $pendingJoinRequests }}
+                        </span>
+                    @endif
+                </a>
+
+                <a href="{{ route('admin.settings') }}"
+                   class="flex items-center gap-3 rounded-xl border border-slate-200/70 px-4 py-3 transition hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
+                    <span class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">settings</span>
+                    </span>
+                    <span class="text-sm font-medium text-slate-700 dark:text-slate-200">{{ __('menu.settings') }}</span>
+                </a>
+            </div>
+        </x-admin.panel>
     </div>
 </div>
 @endsection
