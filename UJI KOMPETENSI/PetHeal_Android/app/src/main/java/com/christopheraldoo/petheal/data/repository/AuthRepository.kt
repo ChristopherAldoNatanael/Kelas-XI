@@ -5,9 +5,12 @@ import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
 import okhttp3.RequestBody.Companion.asRequestBody
 import org.json.JSONObject
 import javax.inject.Inject
@@ -31,6 +34,7 @@ class AuthRepository @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val firebaseAuth: FirebaseAuth,
     private val networkInterceptor: NetworkInterceptor,
+    private val okHttpClient: OkHttpClient,
     private val deviceTokenRepository: DeviceTokenRepository,
     private val notificationRepository: NotificationRepository,
     private val medicalRecordRepository: MedicalRecordRepository
@@ -44,6 +48,46 @@ class AuthRepository @Inject constructor(
     private suspend fun saveTokenAndCache(token: String) {
         preferencesManager.saveAuthToken(token)
         networkInterceptor.updateToken(token)
+    }
+
+    /**
+     * Buang seluruh cache HTTP (respons API + gambar) milik akun sebelumnya.
+     *
+     * Cache OkHttp bersifat global per URL, bukan per user. Tanpa pembersihan,
+     * respons GET /pets atau /bookings milik akun lama masih bisa tersaji saat
+     * perangkat offline / koneksi ngrok putus (interceptor memakai
+     * `only-if-cached, max-stale=604800`), sehingga akun baru seolah punya
+     * hewan dan riwayat booking akun lama.
+     */
+    private suspend fun clearHttpCache() {
+        withContext(Dispatchers.IO) {
+            runCatching { okHttpClient.cache?.evictAll() }
+                .onFailure { android.util.Log.w("AuthRepository", "Gagal membersihkan cache HTTP: ${it.message}") }
+        }
+    }
+
+    /**
+     * Hapus identitas Firebase/Google, BUKAN hanya signOut.
+     *
+     * Firebase mewajibkan login yang masih "recent" untuk delete(). Kalau
+     * ditolak (mis. sesi sudah lama), kita tetap signOut supaya token lokal
+     * tidak dipakai lagi; baris akun di backend sudah dihapus oleh server.
+     * Akibatnya login berikutnya membuat akun baru yang kosong, bukan
+     * membuka kembali data lama.
+     */
+    private suspend fun deleteFirebaseAccountBestEffort() {
+        val current = firebaseAuth.currentUser
+        if (current != null) {
+            try {
+                current.delete().await()
+            } catch (e: Exception) {
+                android.util.Log.w(
+                    "AuthRepository",
+                    "Firebase user delete gagal (mungkin perlu login ulang): ${e.message}"
+                )
+            }
+        }
+        runCatching { firebaseAuth.signOut() }
     }
 
     /**
@@ -399,11 +443,16 @@ class AuthRepository @Inject constructor(
         return try {
             val response = apiService.deleteAccount()
             if (response.isSuccessful && response.body()?.success == true) {
+                // Hapus akun Firebase/Google juga (best effort) supaya ini
+                // bukan sekadar "sign out". Kalau Firebase menolak karena
+                // sesi lama, fallback signOut tetap dilakukan.
+                deleteFirebaseAccountBestEffort()
                 networkInterceptor.updateToken(null)
                 networkInterceptor.updateClinicSlug(null)
-                firebaseAuth.signOut()
                 runCatching { notificationRepository.clearLocal() }
                 medicalRecordRepository.clearCaches()
+                // Respons API akun lama tidak boleh tersaji ke akun berikutnya.
+                clearHttpCache()
                 preferencesManager.clearSession()
                 preferencesManager.clearClinic()
                 Result.Success(Unit)
@@ -500,12 +549,14 @@ class AuthRepository @Inject constructor(
             }
             // Clear cached token di NetworkInterceptor
             networkInterceptor.updateToken(null)
-            // Sign out from Firebase
+            // Sign out from Firebase (logout TIDAK menghapus akun Google)
             firebaseAuth.signOut()
             // Clear locally stored notifications for the current account
             notificationRepository.clearLocal()
             // PHASE 7: user-scoped caches must not leak into the next account.
             medicalRecordRepository.clearCaches()
+            // Cache HTTP juga milik akun ini — jangan dipakai akun berikutnya.
+            clearHttpCache()
             // Clear only the session data; keep auth provider for login UX
             preferencesManager.clearSession()
 
@@ -520,6 +571,8 @@ class AuthRepository @Inject constructor(
             networkInterceptor.updateToken(null)
             firebaseAuth.signOut()
             runCatching { notificationRepository.clearLocal() }
+            medicalRecordRepository.clearCaches()
+            clearHttpCache()
 
             Result.Error("Failed to logout from server: ${e.message ?: "Unknown error"}")
         }
@@ -639,6 +692,9 @@ class AuthRepository @Inject constructor(
             else -> Unit
         }
         networkInterceptor.updateToken(null)
+        clearHttpCache()
+        medicalRecordRepository.clearCaches()
+        runCatching { notificationRepository.clearLocal() }
 
         // 2. Fresh Firebase ID token (user is still signed in to Google).
         val firebaseUser = firebaseAuth.currentUser

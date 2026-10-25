@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Mail\OtpMail;
 use App\Models\Clinic;
+use App\Models\Notification;
 use App\Models\Pet;
 use App\Models\User;
+use App\Models\Vaccination;
+use App\Models\WeightRecord;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -98,12 +101,29 @@ class AccountOtpFlowTest extends TestCase
     public function test_delete_account_after_code_removes_user_and_pets(): void
     {
         $user = $this->makeUser('bersih');
-        Pet::create([
+        $pet = Pet::create([
             'user_id' => $user->id,
             'clinic_id' => $this->clinic->id,
             'name' => 'Kopi ' . $this->suffix,
             'species' => 'cat',
             'gender' => 'female',
+        ]);
+        WeightRecord::create([
+            'pet_id' => $pet->id,
+            'weight' => 4.25,
+            'recorded_at' => now()->toDateString(),
+        ]);
+        Vaccination::create([
+            'pet_id' => $pet->id,
+            'vaccine_name' => 'Rabies',
+            'date_administered' => now()->toDateString(),
+        ]);
+        Notification::create([
+            'user_id' => $user->id,
+            'clinic_id' => $this->clinic->id,
+            'title' => 'Halo ' . $this->suffix,
+            'body' => 'Notifikasi milik akun yang akan dihapus.',
+            'type' => 'system',
         ]);
 
         $response = $this->apiAs($user)->postJson('/api/auth/account/delete/request-otp')
@@ -127,10 +147,22 @@ class AccountOtpFlowTest extends TestCase
 
         $this->apiAs($user)->deleteJson('/api/auth/account')
             ->assertOk()
-            ->assertJsonPath('success', true);
+            ->assertJsonPath('success', true)
+            ->assertJsonPath('data.deleted.pets', 1);
 
         $this->assertDatabaseMissing('users', ['id' => $user->id]);
         $this->assertDatabaseMissing('pets', ['user_id' => $user->id]);
+        $this->assertDatabaseMissing('weight_records', ['pet_id' => $pet->id]);
+        $this->assertDatabaseMissing('vaccinations', ['pet_id' => $pet->id]);
+        $this->assertDatabaseMissing('notifications', ['user_id' => $user->id]);
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'tokenable_id' => $user->id,
+            'tokenable_type' => User::class,
+        ]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'account.self_delete',
+            'model_id' => $user->id,
+        ]);
     }
 
     public function test_empty_account_can_still_be_deleted_without_code(): void

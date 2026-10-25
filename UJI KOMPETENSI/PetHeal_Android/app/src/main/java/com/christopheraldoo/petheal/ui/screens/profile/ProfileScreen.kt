@@ -13,6 +13,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -421,7 +422,14 @@ fun ProfileScreen(
                         onClick = {
                             viewModel.verifyDeleteOtpAndDelete(
                                 code = deleteCode,
-                                onDeleted = onLogout
+                                onDeleted = {
+                                    Toast.makeText(
+                                        context,
+                                        "Akun dan seluruh datanya berhasil dihapus permanen.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    onLogout()
+                                }
                             )
                         },
                         colors = ButtonDefaults.textButtonColors(contentColor = Error)

@@ -88,8 +88,13 @@ object AppModule {
             // ✅ OPTIMIZED: Add cache control interceptor for API responses
             .addInterceptor { chain ->
                 var request = chain.request()
-                // Force cache for 60 seconds if offline
-                if (!networkMonitor.isOnlineNow()) {
+                // Hanya aset gambar (/storage/...) yang boleh disajikan dari
+                // cache saat offline. Respons API terautentikasi TIDAK boleh
+                // memakai only-if-cached: cache OkHttp di-key per URL, bukan
+                // per akun, sehingga data hewan/booking akun lama bisa muncul
+                // di akun baru setelah logout/hapus akun.
+                val isStorageAsset = request.url.encodedPath.contains("/storage/")
+                if (!networkMonitor.isOnlineNow() && isStorageAsset) {
                     request = request.newBuilder()
                         .header("Cache-Control", "public, only-if-cached, max-stale=604800")
                         .build()
