@@ -12,11 +12,17 @@ use App\Services\ImageService;
 use App\Services\FirebaseService;
 use App\Services\OtpService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 class AuthController extends Controller
 {
+    /** Penanda di cache bahwa kode konfirmasi hapus akun sudah diverifikasi. */
+    private const DELETE_VERIFIED_PREFIX = 'account-delete-verified:';
+
+    private const DELETE_VERIFIED_TTL_MINUTES = 15;
+
     protected FirebaseService $firebaseService;
 
     protected OtpService $otpService;
@@ -778,11 +784,258 @@ class AuthController extends Controller
     }
 
     /**
+     * Samarkan email untuk ditampilkan di UI ("di***@gmail.com") tanpa
+     * membocorkan alamat lengkap ke layar yang mungkin dilihat orang lain.
+     */
+    private function maskEmail(string $email): string
+    {
+        [$local, $domain] = array_pad(explode('@', $email, 2), 2, '');
+
+        if ($local === '' || $domain === '') {
+            return $email;
+        }
+
+        $visible = substr($local, 0, min(2, strlen($local)));
+
+        return $visible . str_repeat('*', max(1, strlen($local) - strlen($visible))) . '@' . $domain;
+    }
+
+    /**
+     * Langkah 1 hapus akun: kirim kode konfirmasi ke email pemilik akun.
+     *
+     * Akun TIDAK dihapus di sini. Penghapusan baru diizinkan setelah kode
+     * diverifikasi (lihat verifyDeleteOtp + deleteAccount), sehingga HP yang
+     * tidak terkunci tidak bisa dipakai untuk melenyapkan data hewan.
+     */
+    public function requestDeleteOtp(Request $request)
+    {
+        $user = $request->user();
+        $email = $this->otpService->normalize($user->email);
+
+        if ($email === '') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Akun Anda tidak memiliki alamat email sehingga kode tidak dapat dikirim.',
+            ], 422);
+        }
+
+        $code = $this->otpService->issue($email, OtpService::PURPOSE_DELETE_ACCOUNT, [
+            'user_id' => $user->id,
+        ]);
+        $mailSent = $this->otpService->send($email, OtpService::PURPOSE_DELETE_ACCOUNT, $code, [
+            'recipient_name' => $user->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $mailSent
+                ? 'Kode konfirmasi dikirim ke email Anda. Cek juga folder Spam/Promosi.'
+                : 'Kode sudah dibuat, tetapi email gagal dikirim. Coba kirim ulang beberapa saat lagi.',
+            'mail_sent' => $mailSent,
+            'data' => [
+                'email' => $this->maskEmail($email),
+                'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_DELETE_ACCOUNT),
+            ],
+        ]);
+    }
+
+    /**
+     * Langkah 2 hapus akun: verifikasi kode. Setelah valid, user punya
+     * 15 menit untuk menekan tombol hapus (DELETE /auth/account).
+     */
+    public function verifyDeleteOtp(Request $request)
+    {
+        $request->validate([
+            'code' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+        $email = $this->otpService->normalize($user->email);
+
+        $result = $this->otpService->verify(
+            $email,
+            OtpService::PURPOSE_DELETE_ACCOUNT,
+            $request->input('code'),
+            'Kode konfirmasi'
+        );
+
+        if (!$result['ok']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], $result['status']);
+        }
+
+        // Kode hanya boleh dipakai oleh akun yang memintanya, walaupun
+        // kebetulan email-nya sama (mis. email dipakai ulang setelah reset).
+        if ((int) ($result['payload']['user_id'] ?? 0) !== (int) $user->id) {
+            $this->otpService->consume($email, OtpService::PURPOSE_DELETE_ACCOUNT);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode konfirmasi tidak berlaku untuk akun ini. Minta kode baru.',
+            ], 400);
+        }
+
+        $this->otpService->consume($email, OtpService::PURPOSE_DELETE_ACCOUNT);
+        Cache::put(
+            self::DELETE_VERIFIED_PREFIX . $user->id,
+            true,
+            now()->addMinutes(self::DELETE_VERIFIED_TTL_MINUTES)
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Kode terverifikasi. Konfirmasi hapus akun dalam '
+                . self::DELETE_VERIFIED_TTL_MINUTES . ' menit.',
+            'data' => [
+                'expires_in_minutes' => self::DELETE_VERIFIED_TTL_MINUTES,
+            ],
+        ]);
+    }
+
+    /**
+     * Langkah 1 ganti email: kirim kode ke ALAMAT BARU.
+     *
+     * Kode dikirim ke email baru (bukan email lama) karena yang perlu dibuktikan
+     * adalah kepemilikan alamat baru. Kepemilikan sesi login sudah dibuktikan
+     * oleh Bearer token yang dipakai memanggil endpoint ini.
+     */
+    public function requestEmailChangeOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+        ]);
+
+        $user = $request->user();
+        $currentEmail = $this->otpService->normalize($user->email);
+        $newEmail = $this->otpService->normalize($validated['email']);
+
+        if ($newEmail === $currentEmail) {
+            return response()->json([
+                'success' => false,
+                'code' => 'same_email',
+                'message' => 'Alamat email baru sama dengan email yang sedang dipakai.',
+            ], 422);
+        }
+
+        if (User::where('email', $newEmail)->exists()) {
+            return response()->json([
+                'success' => false,
+                'code' => 'email_taken',
+                'message' => 'Email ini sudah dipakai akun lain. Gunakan alamat lain.',
+            ], 409);
+        }
+
+        $code = $this->otpService->issue($newEmail, OtpService::PURPOSE_EMAIL_CHANGE, [
+            'user_id' => $user->id,
+            'new_email' => $newEmail,
+        ]);
+        $mailSent = $this->otpService->send($newEmail, OtpService::PURPOSE_EMAIL_CHANGE, $code, [
+            'recipient_name' => $user->name,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => $mailSent
+                ? 'Kode konfirmasi dikirim ke alamat email baru. Cek juga folder Spam/Promosi.'
+                : 'Kode sudah dibuat, tetapi email gagal dikirim. Coba kirim ulang beberapa saat lagi.',
+            'mail_sent' => $mailSent,
+            'data' => [
+                'email' => $this->maskEmail($newEmail),
+                'expires_in_minutes' => $this->otpService->ttlMinutes(OtpService::PURPOSE_EMAIL_CHANGE),
+            ],
+        ]);
+    }
+
+    /**
+     * Langkah 2 ganti email: verifikasi kode lalu simpan alamat baru.
+     * Respons memakai bentuk user yang sama dengan updateProfile supaya
+     * aplikasi bisa langsung memperbarui sesi lokal.
+     */
+    public function verifyEmailChangeOtp(Request $request)
+    {
+        $validated = $request->validate([
+            'email' => 'required|email|max:255',
+            'code' => 'required|string|size:6',
+        ]);
+
+        $user = $request->user();
+        $newEmail = $this->otpService->normalize($validated['email']);
+
+        $result = $this->otpService->verify(
+            $newEmail,
+            OtpService::PURPOSE_EMAIL_CHANGE,
+            $validated['code'],
+            'Kode konfirmasi'
+        );
+
+        if (!$result['ok']) {
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'],
+            ], $result['status']);
+        }
+
+        $payload = $result['payload'];
+
+        if ((int) ($payload['user_id'] ?? 0) !== (int) $user->id
+            || $this->otpService->normalize((string) ($payload['new_email'] ?? '')) !== $newEmail) {
+            $this->otpService->consume($newEmail, OtpService::PURPOSE_EMAIL_CHANGE);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode konfirmasi tidak berlaku untuk perubahan ini. Minta kode baru.',
+            ], 400);
+        }
+
+        // Bisa saja email sudah dipakai setelah kode dikirim (race).
+        if (User::where('email', $newEmail)->where('id', '!=', $user->id)->exists()) {
+            $this->otpService->consume($newEmail, OtpService::PURPOSE_EMAIL_CHANGE);
+
+            return response()->json([
+                'success' => false,
+                'code' => 'email_taken',
+                'message' => 'Email ini sudah dipakai akun lain. Gunakan alamat lain.',
+            ], 409);
+        }
+
+        $user->email = $newEmail;
+        $user->email_verified_at = now();
+        $user->save();
+
+        // Kode untuk tujuan lain pada email lama tidak relevan lagi.
+        $this->otpService->consume($newEmail, OtpService::PURPOSE_EMAIL_CHANGE);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alamat email berhasil diperbarui.',
+            'data' => $this->userResponse($user->fresh()),
+        ]);
+    }
+
+    /**
      * Delete account
      */
     public function deleteAccount(Request $request)
     {
         $user = $request->user();
+
+        // Penghapusan data bernilai (hewan/booking) wajib lolos kode email.
+        // Akun kosong (mis. akun Google yang belum terikat klinik) tetap boleh
+        // dihapus langsung supaya pemulihan akun di aplikasi tidak macet.
+        $hasValuableData = $user->pets()->exists() || $user->bookings()->exists();
+        $verifiedKey = self::DELETE_VERIFIED_PREFIX . $user->id;
+
+        if ($hasValuableData && !Cache::has($verifiedKey)) {
+            return response()->json([
+                'success' => false,
+                'code' => 'delete_verification_required',
+                'message' => 'Verifikasi kode email diperlukan sebelum menghapus akun.',
+            ], 428);
+        }
+
+        Cache::forget($verifiedKey);
 
         // Delete related data in correct order to respect foreign key constraints
         // 1. Delete medical records first (references bookings and pets)

@@ -61,6 +61,13 @@
                                             {{ $doctor->name }}
                                         </a>
                                         <p class="truncate text-[11px] text-slate-400">{{ $doctor->email ?: __('admin.email_empty') }}</p>
+                                        <div class="mt-1">
+                                            @if($doctor->user)
+                                                <x-admin.badge label="Portal aktif" tone="primary" dot />
+                                            @else
+                                                <x-admin.badge label="Belum ada akun" tone="slate" />
+                                            @endif
+                                        </div>
                                     </div>
                                 </div>
                             </td>

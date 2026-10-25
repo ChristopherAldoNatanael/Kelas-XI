@@ -14,11 +14,17 @@
     $body = '#48574F';
     $muted = '#7C8B84';
     $hair = 'height:1px;background-color:#E7EBE9;font-size:0;line-height:0;';
+    // Label dapat ditimpa untuk email staf non-admin (mis. undangan dokter).
+    $consoleLabel = $consoleLabel ?? 'Admin Console';
+    $accessLabel = $accessLabel ?? 'Kode akses';
+    $recipientRoleLabel = $recipientRoleLabel ?? 'admin';
+    $footerLabel = $footerLabel ?? 'Dashboard Admin Klinik';
+    $securityNote = $securityNote ?? 'Tim PetHeal tidak pernah meminta kode ini melalui telepon, WhatsApp, atau chat. Kode untuk dashboard admin tidak berlaku di aplikasi pet owner.';
 @endphp
 <body style="margin:0;padding:0;background-color:#EEF1F3;">
 
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#EEF1F3;">
-    Kode akses admin {{ $clinicName }} &mdash; {{ $code }} &mdash; berlaku {{ $ttlMinutes }} menit.
+    {{ $accessLabel }} {{ $clinicName }} &mdash; {{ $code }} &mdash; berlaku {{ $ttlMinutes }} menit.
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF1F3;">
@@ -34,7 +40,7 @@
                             <tr>
                                 <td style="font-family:{{ $font }};font-size:15px;font-weight:700;color:#FFFFFF;letter-spacing:0.02em;">
                                     PetHeal
-                                    <span style="display:inline-block;margin-left:8px;padding:3px 7px;border:1px solid #355245;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#8FCBA9;vertical-align:middle;">Admin Console</span>
+                                    <span style="display:inline-block;margin-left:8px;padding:3px 7px;border:1px solid #355245;border-radius:4px;font-size:9px;font-weight:700;letter-spacing:0.16em;text-transform:uppercase;color:#8FCBA9;vertical-align:middle;">{{ $consoleLabel }}</span>
                                 </td>
                                 <td align="right" style="font-family:{{ $font }};font-size:11px;color:#93A89C;">
                                     {{ $clinicName }}
@@ -60,7 +66,7 @@
                     <td style="padding:24px 36px 0;">
                         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid #DDE3E0;border-top:3px solid #14794B;border-radius:6px;background-color:#FAFBFB;">
                             <tr>
-                                <td align="center" style="padding:16px 16px 4px;font-family:{{ $font }};font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:{{ $muted }};">Kode akses</td>
+                                <td align="center" style="padding:16px 16px 4px;font-family:{{ $font }};font-size:9px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:{{ $muted }};">{{ $accessLabel }}</td>
                             </tr>
                             <tr>
                                 <td align="center" style="padding:0 16px 14px;font-family:{{ $mono }};font-size:32px;line-height:1.2;font-weight:700;letter-spacing:10px;text-indent:10px;color:{{ $ink }};">{{ $code }}</td>
@@ -91,8 +97,7 @@
                 <tr>
                     <td style="padding:18px 36px 0;">
                         <p style="margin:0;font-family:{{ $font }};font-size:12px;line-height:1.7;color:{{ $muted }};">
-                            Tim PetHeal tidak pernah meminta kode ini melalui telepon, WhatsApp, atau chat.
-                            Kode untuk dashboard admin tidak berlaku di aplikasi pet owner.
+                            {{ $securityNote }}
                         </p>
                     </td>
                 </tr>
@@ -102,7 +107,7 @@
                     <td style="padding:24px 36px 30px;">
                         <div style="{{ $hair }}">&nbsp;</div>
                         <p style="margin:14px 0 0;font-family:{{ $font }};font-size:11px;line-height:1.7;color:{{ $muted }};">
-                            Email ini dikirim ke alamat admin yang terdaftar untuk {{ $clinicName }}.
+                            Email ini dikirim ke alamat {{ $recipientRoleLabel }} yang terdaftar untuk {{ $clinicName }}.
                             Jika Anda tidak merasa memulai {{ $reason }}, abaikan email ini &mdash;
                             tidak ada perubahan pada akun Anda.
                         </p>
@@ -113,7 +118,7 @@
             <table role="presentation" width="540" cellpadding="0" cellspacing="0" border="0" style="width:540px;max-width:100%;">
                 <tr>
                     <td align="center" style="padding:16px 8px 0;font-family:{{ $font }};font-size:10px;line-height:1.7;color:#93A29B;">
-                        Dashboard Admin Klinik &middot; PetHeal<br>
+                        {{ $footerLabel }} &middot; PetHeal<br>
                         Email otomatis, balasan ke alamat ini tidak dipantau.
                     </td>
                 </tr>

@@ -28,11 +28,17 @@ class AdminAuthController extends Controller
         if (Auth::check() && in_array(Auth::user()->role, ['super_admin', 'clinic_admin', 'admin'])) {
             return redirect()->route('admin.dashboard');
         }
-        return view('admin.auth.login');
+
+        if (Auth::check() && Auth::user()->role === 'doctor' && Auth::user()->doctor) {
+            return redirect()->route('doctor.dashboard');
+        }
+
+        return view('admin.auth.login', ['portal' => 'admin']);
     }
 
     /**
-     * Process login — supports super_admin, clinic_admin, legacy admin
+     * Process login — supports super_admin, clinic_admin, legacy admin and
+     * dokter (akun dokter diarahkan ke portal /doctor, bukan dasbor admin).
      */
     public function login(Request $request)
     {
@@ -43,7 +49,7 @@ class AdminAuthController extends Controller
         ]);
 
         $user = \App\Models\User::where('email', $credentials['email'])
-            ->whereIn('role', ['super_admin', 'clinic_admin', 'admin'])
+            ->whereIn('role', ['super_admin', 'clinic_admin', 'admin', 'doctor'])
             ->first();
 
         if ($user && Hash::check($credentials['password'], $user->password)) {
@@ -58,12 +64,23 @@ class AdminAuthController extends Controller
                 }
             }
 
+            // Akun dokter tanpa profil praktik tidak bisa memakai portal.
+            if ($user->role === 'doctor' && !$user->doctor) {
+                return back()->withErrors([
+                    'email' => 'Akun dokter belum terhubung ke profil praktik. Hubungi admin klinik Anda.',
+                ])->onlyInput('email');
+            }
+
             // PHASE 4: wire the remember-me checkbox (was dead UI — the
             // credential cookie was never set).
             Auth::login($user, (bool) $request->boolean('remember'));
             $request->session()->regenerate();
 
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(
+                $user->role === 'doctor'
+                    ? route('doctor.dashboard')
+                    : route('admin.dashboard')
+            );
         }
 
         return back()->withErrors([

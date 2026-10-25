@@ -79,6 +79,18 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     Route::post('/auth/profile/photo', [AuthController::class, 'uploadProfilePhoto'])->middleware('throttle:uploads');
     Route::delete('/auth/account', [AuthController::class, 'deleteAccount']);
 
+    // Aksi sensitif akun: hapus akun & ganti email wajib kode OTP.
+    // Dibatasi per AKUN (bukan per input email yang bisa dipalsukan).
+    Route::middleware('throttle:account-otp-send')->group(function () {
+        Route::post('/auth/account/delete/request-otp', [AuthController::class, 'requestDeleteOtp']);
+        Route::post('/auth/email/change/request-otp', [AuthController::class, 'requestEmailChangeOtp']);
+    });
+
+    Route::middleware('throttle:account-otp-verify')->group(function () {
+        Route::post('/auth/account/delete/verify-otp', [AuthController::class, 'verifyDeleteOtp']);
+        Route::post('/auth/email/change/verify-otp', [AuthController::class, 'verifyEmailChangeOtp']);
+    });
+
     // Dashboard (personal stats)
     Route::get('/dashboard', [App\Http\Controllers\Api\DashboardController::class, 'index']);
 

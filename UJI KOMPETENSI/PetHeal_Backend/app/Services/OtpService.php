@@ -23,6 +23,13 @@ class OtpService
     public const PURPOSE_RESET = 'reset';
 
     /**
+     * Kode untuk aksi sensitif di aplikasi pet owner. Dipisah dari
+     * `register`/`reset` supaya kode tidak bisa dipakai silang alur.
+     */
+    public const PURPOSE_DELETE_ACCOUNT = 'delete_account';
+    public const PURPOSE_EMAIL_CHANGE = 'email_change';
+
+    /**
      * Tujuan khusus dashboard admin. Sengaja dipisah dari `register`/`reset`
      * milik aplikasi pet owner: kode admin punya masa berlaku, template email,
      * dan teks sendiri, serta tidak bisa dipakai di alur aplikasi (dan sebaliknya).
@@ -30,15 +37,38 @@ class OtpService
     public const PURPOSE_ADMIN_REGISTER = 'admin_register';
     public const PURPOSE_ADMIN_PASSWORD = 'admin_password';
 
+    /**
+     * Ganti kata sandi portal dokter. Dipisah dari `admin_password` supaya
+     * kode admin tidak bisa dipakai di portal dokter (dan sebaliknya), serta
+     * template emailnya menyebut peran yang benar.
+     */
+    public const PURPOSE_DOCTOR_PASSWORD = 'doctor_password';
+
     private const MAX_ATTEMPTS = 5;
 
     /** Masa berlaku kode per tujuan (menit). */
     private const TTL_MINUTES = [
         self::PURPOSE_REGISTER => 10,
         self::PURPOSE_RESET => 15,
+        self::PURPOSE_DELETE_ACCOUNT => 10,
+        self::PURPOSE_EMAIL_CHANGE => 10,
         self::PURPOSE_ADMIN_REGISTER => 10,
         self::PURPOSE_ADMIN_PASSWORD => 10,
+        self::PURPOSE_DOCTOR_PASSWORD => 10,
     ];
+
+    /**
+     * Tujuan yang memakai template email "staf dashboard" (bukan aplikasi
+     * pet owner). Dipakai OtpMail untuk memilih keluarga teks yang benar.
+     */
+    public static function isDashboardPurpose(string $purpose): bool
+    {
+        return in_array($purpose, [
+            self::PURPOSE_ADMIN_REGISTER,
+            self::PURPOSE_ADMIN_PASSWORD,
+            self::PURPOSE_DOCTOR_PASSWORD,
+        ], true);
+    }
 
     /** Apakah tujuan ini milik dashboard admin (bukan aplikasi pet owner). */
     public static function isAdminPurpose(string $purpose): bool

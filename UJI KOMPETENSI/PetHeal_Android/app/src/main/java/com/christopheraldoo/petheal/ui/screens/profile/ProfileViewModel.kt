@@ -23,7 +23,27 @@ data class ProfileUiState(
     val isDeleted: Boolean = false,
     // Upload foto profil via badge kamera.
     val isUploadingPhoto: Boolean = false,
-    val photoMessage: String? = null
+    val photoMessage: String? = null,
+    // OTP konfirmasi email: hapus akun & ganti email.
+    val deleteOtp: OtpFlowState = OtpFlowState(),
+    val emailOtp: OtpFlowState = OtpFlowState(),
+    val emailChangeMessage: String? = null
+)
+
+/**
+ * Status satu alur OTP (kirim kode → verifikasi).
+ *
+ * [sentTo] adalah alamat tersamarkan dari server (mis. `uj****@mail.com`),
+ * bukan email mentah — UI tidak perlu tahu alamat lengkap.
+ */
+data class OtpFlowState(
+    val isSending: Boolean = false,
+    val isVerifying: Boolean = false,
+    val sentTo: String? = null,
+    val expiresInMinutes: Int = 10,
+    val mailSent: Boolean = true,
+    val isVerified: Boolean = false,
+    val error: String? = null
 )
 
 data class EditProfileUiState(
@@ -158,22 +178,84 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    /** PHASE 7: two-step verified deletion (dialog enforces the checks). */
-    fun deleteAccount(onDeleted: () -> Unit = {}) {
+    /**
+     * Langkah 1 hapus akun: minta kode ke email akun. Akun belum berubah
+     * sampai kode diverifikasi dan penghapusan dikonfirmasi.
+     */
+    fun requestDeleteOtp() {
         viewModelScope.launch {
             _profileState.value = _profileState.value.copy(
-                isDeleting = true, error = null, isDeleted = false
+                deleteOtp = OtpFlowState(isSending = true)
             )
+            when (val result = authRepository.requestDeleteAccountOtp()) {
+                is Result.Success -> {
+                    val body = result.data
+                    _profileState.value = _profileState.value.copy(
+                        deleteOtp = OtpFlowState(
+                            sentTo = body.data?.email,
+                            expiresInMinutes = body.data?.expiresInMinutes ?: 10,
+                            mailSent = body.mailSent ?: true
+                        )
+                    )
+                }
+                is Result.Error -> {
+                    _profileState.value = _profileState.value.copy(
+                        deleteOtp = OtpFlowState(error = result.message)
+                    )
+                }
+                else -> {
+                    _profileState.value = _profileState.value.copy(deleteOtp = OtpFlowState())
+                }
+            }
+        }
+    }
+
+    /**
+     * Langkah 2 hapus akun: verifikasi kode lalu langsung hapus. Digabung agar
+     * user tidak perlu menekan tombol kedua dalam jendela 15 menit dan agar
+     * kode yang sudah terverifikasi tidak menggantung.
+     */
+    fun verifyDeleteOtpAndDelete(code: String, onDeleted: () -> Unit = {}) {
+        viewModelScope.launch {
+            _profileState.value = _profileState.value.copy(
+                isDeleting = true,
+                isDeleted = false,
+                deleteOtp = _profileState.value.deleteOtp.copy(
+                    isVerifying = true,
+                    error = null
+                )
+            )
+
+            val verification = authRepository.verifyDeleteAccountOtp(code)
+            if (verification is Result.Error) {
+                _profileState.value = _profileState.value.copy(
+                    isDeleting = false,
+                    deleteOtp = _profileState.value.deleteOtp.copy(
+                        isVerifying = false,
+                        error = verification.message
+                    )
+                )
+                return@launch
+            }
+
             when (val result = authRepository.deleteAccountAndLogout()) {
                 is Result.Success -> {
                     _profileState.value = _profileState.value.copy(
-                        isDeleting = false, isDeleted = true
+                        isDeleting = false,
+                        isDeleted = true,
+                        deleteOtp = OtpFlowState(isVerified = true)
                     )
                     onDeleted()
                 }
                 is Result.Error -> {
+                    // Kode bisa kedaluwarsa (jendela 15 menit) atau data
+                    // berubah di server; tampilkan pesan asli backend.
                     _profileState.value = _profileState.value.copy(
-                        isDeleting = false, error = result.message
+                        isDeleting = false,
+                        deleteOtp = _profileState.value.deleteOtp.copy(
+                            isVerifying = false,
+                            error = result.message
+                        )
                     )
                 }
                 else -> {
@@ -181,6 +263,99 @@ class ProfileViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** Tutup alur OTP hapus akun (dipanggil saat dialog ditutup). */
+    fun resetDeleteOtp() {
+        _profileState.value = _profileState.value.copy(deleteOtp = OtpFlowState())
+    }
+
+    /** Langkah 1 ganti email: kirim kode ke alamat baru. */
+    fun requestEmailChangeOtp(email: String) {
+        viewModelScope.launch {
+            _profileState.value = _profileState.value.copy(
+                emailChangeMessage = null,
+                emailOtp = OtpFlowState(isSending = true)
+            )
+            when (val result = authRepository.requestEmailChangeOtp(email)) {
+                is Result.Success -> {
+                    val body = result.data
+                    _profileState.value = _profileState.value.copy(
+                        emailOtp = OtpFlowState(
+                            sentTo = body.data?.email,
+                            expiresInMinutes = body.data?.expiresInMinutes ?: 10,
+                            mailSent = body.mailSent ?: true
+                        )
+                    )
+                }
+                is Result.Error -> {
+                    _profileState.value = _profileState.value.copy(
+                        emailOtp = OtpFlowState(error = result.message)
+                    )
+                }
+                else -> {
+                    _profileState.value = _profileState.value.copy(emailOtp = OtpFlowState())
+                }
+            }
+        }
+    }
+
+    /** Langkah 2 ganti email: verifikasi kode, lalu simpan alamat baru. */
+    fun verifyEmailChangeOtp(email: String, code: String) {
+        viewModelScope.launch {
+            _profileState.value = _profileState.value.copy(
+                emailOtp = _profileState.value.emailOtp.copy(
+                    isVerifying = true,
+                    error = null
+                )
+            )
+            when (val result = authRepository.verifyEmailChangeOtp(email, code)) {
+                is Result.Success -> {
+                    val user = result.data
+                    preferencesManager.saveUserInfo(
+                        userId = user.id ?: 0,
+                        email = user.email ?: email,
+                        name = user.name ?: _editState.value.name,
+                        photo = user.photo
+                    )
+                    val current = _profileState.value.user
+                    _profileState.value = _profileState.value.copy(
+                        user = current?.copy(email = user.email) ?: user,
+                        emailChangeMessage = "Alamat email berhasil diperbarui.",
+                        emailOtp = _profileState.value.emailOtp.copy(
+                            isVerifying = false,
+                            isVerified = true
+                        )
+                    )
+                    _editState.value = _editState.value.copy(
+                        email = user.email ?: email,
+                        error = null
+                    )
+                }
+                is Result.Error -> {
+                    _profileState.value = _profileState.value.copy(
+                        emailOtp = _profileState.value.emailOtp.copy(
+                            isVerifying = false,
+                            error = result.message
+                        )
+                    )
+                }
+                else -> {
+                    _profileState.value = _profileState.value.copy(
+                        emailOtp = _profileState.value.emailOtp.copy(isVerifying = false)
+                    )
+                }
+            }
+        }
+    }
+
+    /** Tutup alur OTP ganti email tanpa menghapus pesan sukses di layar. */
+    fun resetEmailChangeOtp() {
+        _profileState.value = _profileState.value.copy(emailOtp = OtpFlowState())
+    }
+
+    fun clearEmailChangeMessage() {
+        _profileState.value = _profileState.value.copy(emailChangeMessage = null)
     }
 
     fun clearEditSuccess() {
@@ -219,7 +394,11 @@ class ProfileViewModel @Inject constructor(
     }
 
     fun clearError() {
-        _profileState.value = _profileState.value.copy(error = null)
+        _profileState.value = _profileState.value.copy(
+            error = null,
+            deleteOtp = _profileState.value.deleteOtp.copy(error = null),
+            emailOtp = _profileState.value.emailOtp.copy(error = null)
+        )
         _editState.value = _editState.value.copy(error = null)
     }
 }

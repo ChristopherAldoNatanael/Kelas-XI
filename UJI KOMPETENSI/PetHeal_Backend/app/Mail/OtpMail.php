@@ -34,36 +34,89 @@ class OtpMail extends Mailable
 
     public function build()
     {
-        if (OtpService::isAdminPurpose($this->purpose)) {
+        if (OtpService::isDashboardPurpose($this->purpose)) {
             return $this->buildAdminMail();
         }
 
-        $isRegister = $this->purpose === OtpService::PURPOSE_REGISTER;
+        return $this->buildMemberMail();
+    }
+
+    /**
+     * Email untuk aksi sensitif di aplikasi pet owner. Satu template, teks
+     * dibedakan per tujuan supaya subjek tidak salah (dulu semua tujuan
+     * non-register tampil sebagai "reset kata sandi").
+     */
+    private function buildMemberMail()
+    {
+        $config = match ($this->purpose) {
+            OtpService::PURPOSE_REGISTER => [
+                'subject' => 'Kode OTP pendaftaran PetHeal',
+                'title' => 'Verifikasi email pendaftaran',
+                'intro' => 'Masukkan kode ini di aplikasi untuk menyelesaikan pendaftaran akun PetHeal Anda.',
+                'reason' => 'pendaftaran akun',
+            ],
+            OtpService::PURPOSE_DELETE_ACCOUNT => [
+                'subject' => 'Kode konfirmasi hapus akun PetHeal',
+                'title' => 'Konfirmasi hapus akun',
+                'intro' => 'Masukkan kode ini di aplikasi untuk mengonfirmasi penghapusan akun PetHeal Anda secara permanen.',
+                'reason' => 'penghapusan akun',
+            ],
+            OtpService::PURPOSE_EMAIL_CHANGE => [
+                'subject' => 'Kode konfirmasi email baru PetHeal',
+                'title' => 'Konfirmasi alamat email baru',
+                'intro' => 'Masukkan kode ini di aplikasi untuk menyelesaikan perubahan alamat email akun PetHeal Anda.',
+                'reason' => 'perubahan alamat email',
+            ],
+            default => [
+                'subject' => 'Kode OTP reset kata sandi PetHeal',
+                'title' => 'Reset kata sandi',
+                'intro' => 'Masukkan kode ini di aplikasi untuk mengatur ulang kata sandi akun PetHeal Anda.',
+                'reason' => 'reset kata sandi',
+            ],
+        };
 
         return $this
-            ->subject($isRegister
-                ? 'Kode OTP pendaftaran PetHeal'
-                : 'Kode OTP reset kata sandi PetHeal')
+            ->subject($config['subject'])
             ->view('emails.otp')
             ->text('emails.otp-text')
             ->with([
-                'title' => $isRegister
-                    ? 'Verifikasi email pendaftaran'
-                    : 'Reset kata sandi',
-                'intro' => $isRegister
-                    ? 'Masukkan kode ini di aplikasi untuk menyelesaikan pendaftaran akun PetHeal Anda.'
-                    : 'Masukkan kode ini di aplikasi untuk mengatur ulang kata sandi akun PetHeal Anda.',
-                'reason' => $isRegister ? 'pendaftaran akun' : 'reset kata sandi',
+                'title' => $config['title'],
+                'intro' => $config['intro'],
+                'reason' => $config['reason'],
             ]);
     }
 
     private function buildAdminMail()
     {
         $isRegister = $this->purpose === OtpService::PURPOSE_ADMIN_REGISTER;
+        $isDoctor = $this->purpose === OtpService::PURPOSE_DOCTOR_PASSWORD;
         $clinic = $this->clinicName ?: 'PetHeal';
         $greeting = trim((string) $this->recipientName) !== ''
             ? 'Halo ' . $this->recipientName . ','
             : 'Halo,';
+
+        if ($isDoctor) {
+            return $this
+                ->subject("Verifikasi kata sandi dokter — {$clinic}")
+                ->view('emails.otp-admin')
+                ->text('emails.otp-admin-text')
+                ->with([
+                    'isRegister' => false,
+                    'clinicName' => $clinic,
+                    'greeting' => $greeting,
+                    'eyebrow' => 'Keamanan akun dokter',
+                    'title' => 'Kode ganti kata sandi',
+                    'intro' => "Kode ini diperlukan untuk mengganti kata sandi portal dokter {$clinic}. Masukkan di halaman Profil Saya → Ganti kata sandi.",
+                    'outcome' => 'Kata sandi baru hanya tersimpan setelah kode ini diverifikasi.',
+                    'reason' => 'penggantian kata sandi dokter',
+                    // Label template dashboard diganti agar email tidak menyebut "admin".
+                    'consoleLabel' => 'Portal Dokter',
+                    'accessLabel' => 'Kode verifikasi',
+                    'recipientRoleLabel' => 'dokter',
+                    'footerLabel' => 'Portal Dokter PetHeal',
+                    'securityNote' => 'Tim PetHeal tidak pernah meminta kode ini melalui telepon, WhatsApp, atau chat. Kode portal dokter tidak berlaku di aplikasi pet owner.',
+                ]);
+        }
 
         $subject = $isRegister
             ? "Kode akses admin — {$clinic}"

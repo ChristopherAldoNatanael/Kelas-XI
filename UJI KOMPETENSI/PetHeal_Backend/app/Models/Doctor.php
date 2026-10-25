@@ -24,6 +24,9 @@ class Doctor extends Model
     use HasPhotoUrl;
 
     protected $fillable = [
+        'user_id',
+        'invite_token',
+        'invite_token_expires_at',
         'name',
         'specialization',
         'phone',
@@ -39,6 +42,7 @@ class Doctor extends Model
     protected $casts = [
         'available_days' => 'array',
         'is_active' => 'boolean',
+        'invite_token_expires_at' => 'datetime',
     ];
 
     protected $appends = ['available_time', 'photo_url', 'average_rating'];
@@ -75,6 +79,14 @@ class Doctor extends Model
     public function clinic()
     {
         return $this->belongsTo(Clinic::class);
+    }
+
+    /**
+     * Akun login portal dokter (null selama dokter masih dikelola admin saja).
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 
     /**

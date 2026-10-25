@@ -103,6 +103,101 @@
                 </div>
             </x-admin.panel>
 
+            <x-admin.panel title="Akun Portal Dokter" subtitle="Akses masuk ke /doctor">
+                @if($doctor->user)
+                    <div class="flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-3 dark:border-emerald-900/60 dark:bg-emerald-900/20">
+                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-emerald-600 dark:bg-slate-900 dark:text-emerald-400">
+                            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">verified_user</span>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-900 dark:text-white">Akun aktif</p>
+                            <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">{{ $doctor->user->email }}</p>
+                            <p class="mt-0.5 text-[11px] text-slate-400">
+                                Dibuat {{ $doctor->user->created_at?->locale(app()->getLocale())->translatedFormat('d M Y') ?? '—' }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 flex flex-col gap-2">
+                        <a href="{{ route('doctor.login') }}" class="admin-btn-secondary justify-center">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
+                            Buka halaman login dokter
+                        </a>
+
+                        <form method="POST" action="{{ route('admin.doctors.revoke-account', $doctor->id) }}"
+                              onsubmit="return confirm('Cabut akses portal dokter ini? Profil praktik, jadwal, dan rekam medis tetap tersimpan, tetapi dokter tidak bisa masuk lagi sampai diundang ulang.')">
+                            @csrf
+                            <button type="submit" class="w-full rounded-xl border border-rose-200 px-3 py-2.5 text-xs font-bold text-rose-700 transition hover:bg-rose-50 dark:border-rose-900/60 dark:text-rose-300 dark:hover:bg-rose-900/20">
+                                Cabut Akses Portal
+                            </button>
+                        </form>
+                    </div>
+
+                    <p class="mt-3 text-[11px] leading-5 text-slate-400">
+                        Cabut akses hanya menghapus akun login. Riwayat medis dan jadwal dokter tetap utuh.
+                    </p>
+                @else
+                    <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 dark:bg-slate-900">
+                            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">person_off</span>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-200">Belum ada akun portal</p>
+                            <p class="mt-0.5 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                                Dokter tetap tampil di aplikasi pet owner, tetapi belum bisa masuk ke portal.
+                            </p>
+                        </div>
+                    </div>
+
+                    @if($doctor->email)
+                        @php($inviteActive = $doctor->invite_token && $doctor->invite_token_expires_at && $doctor->invite_token_expires_at->isFuture())
+
+                        <form method="POST" action="{{ route('admin.doctors.invite', $doctor->id) }}" class="mt-4">
+                            @csrf
+                            <button type="submit" class="admin-btn-primary w-full justify-center">
+                                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">forward_to_inbox</span>
+                                {{ $inviteActive ? 'Kirim Ulang Undangan' : 'Kirim Undangan' }} ke {{ $doctor->email }}
+                            </button>
+                        </form>
+
+                        @if($inviteActive)
+                            <div class="mt-3 flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50/60 px-3 py-2.5 text-[11px] leading-5 text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-200">
+                                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">schedule</span>
+                                <span>
+                                    Tautan undangan aktif sampai
+                                    <span class="font-bold">{{ $doctor->invite_token_expires_at->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</span>.
+                                    Kirim ulang untuk membuat tautan baru (tautan lama otomatis tidak berlaku).
+                                </span>
+                            </div>
+                        @endif
+
+                        <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Setelah undangan dikirim</p>
+                            <ol class="mt-2 space-y-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                                <li class="flex gap-2">
+                                    <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">1</span>
+                                    <span>Dokter membuka email <span class="font-semibold text-slate-600 dark:text-slate-300">"Aktivasi akun dokter"</span> dari PetHeal, lalu mengeklik tombol <span class="font-semibold text-slate-600 dark:text-slate-300">Buat Kata Sandi Portal Dokter</span>.</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">2</span>
+                                    <span>Halaman aktivasi terbuka dengan email sudah terisi. Dokter langsung membuat kata sandi — <span class="font-semibold text-slate-600 dark:text-slate-300">tanpa kode OTP</span>.</span>
+                                </li>
+                                <li class="flex gap-2">
+                                    <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">3</span>
+                                    <span>Akun aktif dan dokter bisa masuk lewat halaman login dokter. Tautan berlaku 60 menit dan hanya sekali pakai.</span>
+                                </li>
+                            </ol>
+                        </div>
+                    @else
+                        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-[11px] leading-5 text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200">
+                            Isi email dokter terlebih dahulu lewat tombol
+                            <a href="{{ route('admin.doctors.edit', $doctor->id) }}" class="font-bold underline">Edit</a>
+                            sebelum mengirim undangan.
+                        </div>
+                    @endif
+                @endif
+            </x-admin.panel>
+
             <x-admin.panel :title="__('admin.schedule_tab')">
                 <dl class="space-y-4">
                     <div>

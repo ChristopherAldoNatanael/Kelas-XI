@@ -112,6 +112,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Profil dokter yang terhubung ke akun ini (khusus role doctor).
+     */
+    public function doctor()
+    {
+        return $this->hasOne(Doctor::class);
+    }
+
+    /**
      * Get user's device tokens for FCM
      */
     public function deviceTokens()

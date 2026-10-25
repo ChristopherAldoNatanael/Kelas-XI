@@ -140,10 +140,35 @@ class Phase6SecurityMatrixTest extends TestCase
     {
         $this->actingAs($this->adminA)->get('/admin/clinics/' . $this->clinicB->id . '/edit')->assertStatus(403);
 
-        // doctor role cannot enter admin panel at all.
-        $this->actingAs($this->doctorUser)->get('/admin')->assertRedirect(route('admin.login'));
+        // Doctor role has its own portal. Admin pages must never render for it;
+        // a linked doctor is sent to /doctor instead of the admin panel.
+        $doctorProfile = Doctor::create([
+            'user_id' => $this->doctorUser->id,
+            'name' => 'Dr SEC A', 'specialization' => 'Umum',
+            'is_active' => true, 'clinic_id' => $this->clinicA->id,
+            'available_days' => ['monday'],
+            'start_time' => '08:00:00', 'end_time' => '17:00:00',
+        ]);
+
+        $this->actingAs($this->doctorUser)->get('/admin')->assertRedirect(route('doctor.dashboard'));
+        $this->actingAs($this->doctorUser)->get('/admin/bookings')->assertRedirect(route('doctor.dashboard'));
+        $this->actingAs($this->doctorUser)->get('/admin/doctors')->assertRedirect(route('doctor.dashboard'));
+        $this->assertSame($this->doctorUser->id, $doctorProfile->fresh()->user_id);
+
+        // A doctor account without a practice profile is logged out, never
+        // allowed into the admin panel.
+        $orphanDoctor = User::create([
+            'name' => 'Orphan Doctor',
+            'email' => 'orphan' . $this->suffix . '@sec.test',
+            'password' => Hash::make('password123'),
+            'role' => 'doctor',
+            'clinic_id' => $this->clinicA->id,
+        ]);
+        $this->actingAs($orphanDoctor)->get('/admin')->assertRedirect(route('doctor.login'));
 
         // Guest POST cannot mutate.
+        auth()->logout();
+        $this->app['auth']->forgetGuards();
         $this->post('/admin/doctors', ['name' => 'Ghost'])->assertRedirect(route('admin.login'));
         $this->post('/admin/bookings/' . $this->bookingB->id . '/confirm')
             ->assertRedirect(route('admin.login'));

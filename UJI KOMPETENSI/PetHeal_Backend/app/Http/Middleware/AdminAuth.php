@@ -21,6 +21,19 @@ class AdminAuth
             return redirect()->route('admin.login');
         }
 
+        // Akun dokter memakai portal sendiri. Arahkan (jangan logout) supaya
+        // tautan lama /admin tidak memutus sesi yang masih valid.
+        if (Auth::user()->role === 'doctor') {
+            if (Auth::user()->doctor) {
+                return redirect()->route('doctor.dashboard');
+            }
+
+            Auth::logout();
+
+            return redirect()->route('doctor.login')
+                ->withErrors(['email' => 'Akun dokter belum terhubung ke profil praktik.']);
+        }
+
         // Allow super_admin, clinic_admin, and legacy admin
         $allowedRoles = ['super_admin', 'clinic_admin', 'admin'];
         if (!in_array(Auth::user()->role, $allowedRoles)) {

@@ -109,7 +109,27 @@ data class ResendOtpRequest(
 data class OtpSentResponse(
     val success: Boolean,
     val message: String? = null,
+    // Backend mengirim `mail_sent=false` bila kode dibuat tetapi email gagal
+    // terkirim (mis. SMTP down). UI perlu memberi tahu user, bukan diam saja.
+    @SerializedName("mail_sent") val mailSent: Boolean? = null,
     val data: OtpSentData? = null
+)
+
+/**
+ * Verifikasi kode OTP yang tidak butuh parameter lain (hapus akun).
+ * Ganti email memakai [EmailChangeVerifyOtpRequest] karena butuh alamat baru.
+ */
+data class VerifyOtpCodeRequest(
+    val code: String
+)
+
+data class EmailChangeOtpRequest(
+    val email: String
+)
+
+data class EmailChangeVerifyOtpRequest(
+    val email: String,
+    val code: String
 )
 
 data class OtpSentData(

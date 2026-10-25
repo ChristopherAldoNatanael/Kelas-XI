@@ -8,6 +8,12 @@ use App\Http\Controllers\Admin\MedicalRecordController;
 use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Doctor\DoctorAuthController;
+use App\Http\Controllers\Doctor\DoctorBookingController;
+use App\Http\Controllers\Doctor\DoctorDashboardController;
+use App\Http\Controllers\Doctor\DoctorMedicalRecordController;
+use App\Http\Controllers\Doctor\DoctorProfileController;
+use App\Http\Controllers\Doctor\DoctorScheduleController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -119,6 +125,9 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/doctors/{id}/schedule', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'show'])->name('doctors.schedule');
     Route::post('/doctors/{id}/schedule-exceptions', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'store'])->name('doctors.schedule-exceptions.store');
     Route::delete('/doctors/{id}/schedule-exceptions/{exception}', [\App\Http\Controllers\Admin\DoctorScheduleController::class, 'destroy'])->name('doctors.schedule-exceptions.destroy');
+    // Akun portal dokter: undang lewat email, cabut bila akses harus dihentikan.
+    Route::post('/doctors/{id}/invite', [DoctorController::class, 'invite'])->middleware('throttle:admin-otp-send')->name('doctors.invite');
+    Route::post('/doctors/{id}/revoke-account', [DoctorController::class, 'revokeAccount'])->name('doctors.revoke-account');
     Route::resource('doctors', DoctorController::class);
 
     // Medical Records
@@ -146,4 +155,59 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/payments/{id}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
     Route::post('/payments/{id}/send-reminder', [PaymentController::class, 'sendReminder'])->name('payments.send-reminder');
     Route::get('/export/payments', [PaymentController::class, 'exportPdf'])->name('payments.export');
+});
+
+/*
+|--------------------------------------------------------------------------
+| Doctor Portal
+|--------------------------------------------------------------------------
+|
+| Portal khusus dokter: login terpisah, aktivasi lewat undangan email, dan
+| hanya data milik dokter yang login. Admin tetap mengelola klinik dari /admin.
+|
+*/
+Route::prefix('doctor')->name('doctor.')->group(function () {
+    Route::get('/login', [DoctorAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [DoctorAuthController::class, 'login'])
+        ->middleware('throttle:admin-login')
+        ->name('login.post');
+
+    Route::get('/activate', [DoctorAuthController::class, 'showActivationNotice'])->name('activate');
+    Route::get('/activate/{token}', [DoctorAuthController::class, 'showActivationForm'])->name('activate.token');
+    Route::post('/activate/{token}', [DoctorAuthController::class, 'activate'])
+        ->middleware('throttle:otp-verify')
+        ->name('activate.post');
+
+    Route::middleware('doctor.auth')->group(function () {
+        Route::post('/logout', [DoctorAuthController::class, 'logout'])->name('logout');
+
+        Route::get('/', [DoctorDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/welcome', [DoctorAuthController::class, 'welcome'])->name('welcome');
+
+        Route::get('/bookings', [DoctorBookingController::class, 'index'])->name('bookings.index');
+        Route::get('/bookings/{id}', [DoctorBookingController::class, 'show'])->name('bookings.show');
+        Route::post('/bookings/{id}/confirm', [DoctorBookingController::class, 'confirm'])->name('bookings.confirm');
+        Route::post('/bookings/{id}/complete', [DoctorBookingController::class, 'complete'])->name('bookings.complete');
+        Route::post('/bookings/{id}/cancel', [DoctorBookingController::class, 'cancel'])->name('bookings.cancel');
+
+        Route::get('/medical-records', [DoctorMedicalRecordController::class, 'index'])->name('medical-records.index');
+        Route::get('/medical-records/create/{bookingId}', [DoctorMedicalRecordController::class, 'create'])->name('medical-records.create');
+        Route::post('/medical-records', [DoctorMedicalRecordController::class, 'store'])->name('medical-records.store');
+        Route::get('/medical-records/{id}', [DoctorMedicalRecordController::class, 'show'])->name('medical-records.show');
+        Route::get('/medical-records/{id}/edit', [DoctorMedicalRecordController::class, 'edit'])->name('medical-records.edit');
+        Route::put('/medical-records/{id}', [DoctorMedicalRecordController::class, 'update'])->name('medical-records.update');
+
+        Route::get('/schedule', [DoctorScheduleController::class, 'index'])->name('schedule.index');
+        Route::post('/schedule', [DoctorScheduleController::class, 'store'])->name('schedule.store');
+        Route::delete('/schedule/{exceptionId}', [DoctorScheduleController::class, 'destroy'])->name('schedule.destroy');
+
+        Route::get('/profile', [DoctorProfileController::class, 'edit'])->name('profile.edit');
+        Route::put('/profile', [DoctorProfileController::class, 'update'])->name('profile.update');
+        Route::post('/profile/password/otp', [DoctorProfileController::class, 'sendPasswordOtp'])
+            ->middleware('throttle:doctor-otp-send')->name('profile.password.otp');
+        Route::post('/profile/password/otp/cancel', [DoctorProfileController::class, 'cancelPasswordOtp'])
+            ->name('profile.password.otp.cancel');
+        Route::put('/profile/password', [DoctorProfileController::class, 'updatePassword'])
+            ->middleware('throttle:doctor-password-verify')->name('profile.password');
+    });
 });

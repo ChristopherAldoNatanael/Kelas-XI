@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register custom middleware aliases
         $middleware->alias([
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,
+            'doctor.auth' => \App\Http\Middleware\DoctorAuth::class,
             'super_admin' => \App\Http\Middleware\EnsureSuperAdmin::class,
         ]);
 

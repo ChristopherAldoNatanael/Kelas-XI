@@ -60,6 +60,9 @@ import java.util.Locale
 import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.ui.components.OtpInput
 
 // ─── Brand tokens → satu sumber: ui/theme/Color.kt ───────────────────────────
 private val PrimaryFg     = OnPrimaryStrong
@@ -89,6 +92,7 @@ fun ProfileScreen(
     var deleteStep by remember { mutableStateOf(1) }
     var deleteUnderstood by remember { mutableStateOf(false) }
     var deleteConfirmText by remember { mutableStateOf("") }
+    var deleteCode by remember { mutableStateOf("") }
 
     // ── Ganti foto profil (badge kamera) ──────────────────────────────────
     // Alur sama seperti form hewan: kamera/galeri → kompres background
@@ -232,90 +236,195 @@ fun ProfileScreen(
     }
 
     // Delete-account dialog: step 1 = consequences + checklist,
-    // step 2 = type HAPUS. Both gates must pass; nothing fires by tap alone.
+    // step 2 = type HAPUS, step 3 = email OTP. Nothing fires by tap alone and
+    // the server only deletes after the code is verified.
+    fun resetDeleteDialog() {
+        showDeleteDialog = false
+        deleteStep = 1
+        deleteUnderstood = false
+        deleteConfirmText = ""
+        deleteCode = ""
+        viewModel.resetDeleteOtp()
+    }
+
     if (showDeleteDialog) {
         val busy = state.isDeleting
+        val deleteOtp = state.deleteOtp
         AlertDialog(
-            onDismissRequest = {
-                if (!busy) {
-                    showDeleteDialog = false
-                    deleteStep = 1
-                    deleteUnderstood = false
-                    deleteConfirmText = ""
-                }
-            },
+            onDismissRequest = { if (!busy) resetDeleteDialog() },
             containerColor = SurfaceDark,
             titleContentColor = TextPrimary,
             textContentColor = TextSecDark,
             title = { Text("Hapus Akun Permanen", fontWeight = FontWeight.Bold) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    if (deleteStep == 1) {
-                        Text(
-                            "Tindakan ini menghapus akun Anda secara permanen, " +
-                                "termasuk seluruh data hewan, booking, dan riwayat medis. " +
-                                "Data yang terhapus tidak dapat dikembalikan.",
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(enabled = !busy) {
-                                    deleteUnderstood = !deleteUnderstood
-                                }
-                        ) {
-                            Checkbox(
-                                checked = deleteUnderstood,
-                                onCheckedChange = { deleteUnderstood = it },
-                                enabled = !busy
-                            )
-                            Spacer(Modifier.width(8.dp))
+                    when (deleteStep) {
+                        1 -> {
                             Text(
-                                "Saya memahami dan tetap ingin menghapus akun",
-                                fontSize = 13.sp
+                                "Tindakan ini menghapus akun Anda secara permanen, " +
+                                    "termasuk seluruh data hewan, booking, dan riwayat medis. " +
+                                    "Data yang terhapus tidak dapat dikembalikan.",
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(enabled = !busy) {
+                                        deleteUnderstood = !deleteUnderstood
+                                    }
+                            ) {
+                                Checkbox(
+                                    checked = deleteUnderstood,
+                                    onCheckedChange = { deleteUnderstood = it },
+                                    enabled = !busy
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Saya memahami dan tetap ingin menghapus akun",
+                                    fontSize = 13.sp
+                                )
+                            }
+                        }
+
+                        2 -> {
+                            Text(
+                                "Langkah terakhir: ketik HAPUS (huruf kapital semua) " +
+                                    "untuk mengonfirmasi.",
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
+                            OutlinedTextField(
+                                value = deleteConfirmText,
+                                onValueChange = { deleteConfirmText = it },
+                                singleLine = true,
+                                enabled = !busy,
+                                placeholder = { Text("Ketik HAPUS") },
+                                keyboardOptions = KeyboardOptions(
+                                    capitalization = KeyboardCapitalization.Characters,
+                                    keyboardType = KeyboardType.Text
+                                ),
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
-                    } else {
-                        Text(
-                            "Langkah terakhir: ketik HAPUS (huruf kapital semua) " +
-                                "untuk mengonfirmasi.",
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp
-                        )
-                        OutlinedTextField(
-                            value = deleteConfirmText,
-                            onValueChange = { deleteConfirmText = it },
-                            singleLine = true,
-                            enabled = !busy,
-                            placeholder = { Text("Ketik HAPUS") },
-                            keyboardOptions = KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Characters,
-                                keyboardType = KeyboardType.Text
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
+
+                        else -> {
+                            Text(
+                                "Masukkan 6 digit kode yang dikirim ke email akun Anda. " +
+                                    "Kode ini membuktikan bahwa permintaan memang dari pemilik akun.",
+                                fontSize = 13.sp,
+                                lineHeight = 19.sp
+                            )
+
+                            when {
+                                deleteOtp.isSending -> {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                            color = Primary
+                                        )
+                                        Text("Mengirim kode...", fontSize = 13.sp)
+                                    }
+                                }
+
+                                deleteOtp.sentTo != null -> {
+                                    Text(
+                                        "Kode dikirim ke ${deleteOtp.sentTo}. " +
+                                            "Berlaku ${deleteOtp.expiresInMinutes} menit.",
+                                        fontSize = 12.sp,
+                                        color = TextSecDark
+                                    )
+                                    OtpInput(
+                                        value = deleteCode,
+                                        onValueChange = { deleteCode = it },
+                                        enabled = !busy,
+                                        isError = deleteOtp.error != null
+                                    )
+                                    if (!deleteOtp.mailSent) {
+                                        Text(
+                                            "Email mungkin terlambat masuk. Periksa folder Spam/Promosi " +
+                                                "atau kirim ulang kode.",
+                                            fontSize = 12.sp,
+                                            color = WarningText
+                                        )
+                                    }
+                                    deleteOtp.error?.let { message ->
+                                        Text(message, color = Error, fontSize = 12.sp)
+                                    }
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.End,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text("Tidak menerima kode?", fontSize = 12.sp, color = TextSecDark)
+                                        TextButton(
+                                            enabled = !busy,
+                                            onClick = {
+                                                deleteCode = ""
+                                                viewModel.requestDeleteOtp()
+                                            }
+                                        ) {
+                                            Text("Kirim Ulang", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        }
+                                    }
+                                }
+
+                                else -> {
+                                    Text(
+                                        "Kode belum terkirim. Periksa koneksi lalu coba lagi.",
+                                        fontSize = 12.sp,
+                                        color = TextSecDark
+                                    )
+                                    deleteOtp.error?.let { message ->
+                                        Text(message, color = Error, fontSize = 12.sp)
+                                    }
+                                    TextButton(
+                                        enabled = !deleteOtp.isSending,
+                                        onClick = { viewModel.requestDeleteOtp() }
+                                    ) {
+                                        Text("Coba Kirim Kode", fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
             confirmButton = {
-                if (deleteStep == 1) {
-                    TextButton(
+                when (deleteStep) {
+                    1 -> TextButton(
                         enabled = deleteUnderstood && !busy,
                         onClick = { deleteStep = 2 }
                     ) {
                         Text("Lanjutkan", fontWeight = FontWeight.SemiBold)
                     }
-                } else {
-                    TextButton(
+
+                    2 -> TextButton(
                         enabled = deleteConfirmText.trim() == "HAPUS" && !busy,
                         onClick = {
-                            viewModel.deleteAccount(onDeleted = onLogout)
+                            deleteStep = 3
+                            deleteCode = ""
+                            viewModel.requestDeleteOtp()
                         },
-                        colors = ButtonDefaults.textButtonColors(
-                            contentColor = Error
-                        )
+                        colors = ButtonDefaults.textButtonColors(contentColor = Error)
+                    ) {
+                        Text("Kirim Kode Verifikasi", fontWeight = FontWeight.Bold)
+                    }
+
+                    else -> TextButton(
+                        enabled = deleteCode.length == 6 && !busy && !deleteOtp.isSending,
+                        onClick = {
+                            viewModel.verifyDeleteOtpAndDelete(
+                                code = deleteCode,
+                                onDeleted = onLogout
+                            )
+                        },
+                        colors = ButtonDefaults.textButtonColors(contentColor = Error)
                     ) {
                         if (busy) {
                             CircularProgressIndicator(
@@ -324,7 +433,7 @@ fun ProfileScreen(
                                 color = Error
                             )
                         } else {
-                            Text("Ya, Hapus Akun Saya", fontWeight = FontWeight.Bold)
+                            Text("Verifikasi & Hapus", fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -333,13 +442,16 @@ fun ProfileScreen(
                 TextButton(
                     enabled = !busy,
                     onClick = {
-                        showDeleteDialog = false
-                        deleteStep = 1
-                        deleteUnderstood = false
-                        deleteConfirmText = ""
+                        if (deleteStep == 3 && deleteOtp.sentTo != null) {
+                            deleteStep = 2
+                            deleteCode = ""
+                            viewModel.resetDeleteOtp()
+                        } else {
+                            resetDeleteDialog()
+                        }
                     }
                 ) {
-                    Text("Batal", color = Primary)
+                    Text(if (deleteStep == 1) "Batal" else "Kembali", color = Primary)
                 }
             }
         )
@@ -618,6 +730,8 @@ fun ProfileScreen(
                         deleteStep = 1
                         deleteUnderstood = false
                         deleteConfirmText = ""
+                        deleteCode = ""
+                        viewModel.resetDeleteOtp()
                         showDeleteDialog = true
                     },
                     shape = RoundedCornerShape(18.dp),
@@ -702,6 +816,31 @@ fun EditProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val state by viewModel.editState.collectAsState()
+    val profileState by viewModel.profileState.collectAsState()
+
+    var showEmailDialog by remember { mutableStateOf(false) }
+
+    // Dialog ditutup otomatis setelah kode email baru terverifikasi; pesan
+    // sukses tetap tampil sebagai snackbar di layar ini.
+    LaunchedEffect(profileState.emailOtp.isVerified) {
+        if (profileState.emailOtp.isVerified) {
+            showEmailDialog = false
+            viewModel.resetEmailChangeOtp()
+        }
+    }
+
+    if (showEmailDialog) {
+        EmailChangeDialog(
+            currentEmail = state.email,
+            otp = profileState.emailOtp,
+            onRequestCode = viewModel::requestEmailChangeOtp,
+            onVerify = viewModel::verifyEmailChangeOtp,
+            onDismiss = {
+                showEmailDialog = false
+                viewModel.resetEmailChangeOtp()
+            }
+        )
+    }
 
     // Navigate back on success
     LaunchedEffect(state.isSuccess) {
@@ -771,7 +910,7 @@ fun EditProfileScreen(
                     )
                 )
 
-                // Email field (read-only)
+                // Email field (read-only) — perubahan wajib lewat OTP ke alamat baru.
                 EditField(
                     label = "Email",
                     value = state.email,
@@ -781,6 +920,27 @@ fun EditProfileScreen(
                     readOnly = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                 )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(
+                        onClick = {
+                            viewModel.resetEmailChangeOtp()
+                            showEmailDialog = true
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Edit,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Ubah alamat email", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
 
                 // Phone field
                 EditField(
@@ -848,10 +1008,189 @@ fun EditProfileScreen(
                 }
             }
         }
+
+        profileState.emailChangeMessage?.let { message ->
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(20.dp),
+                containerColor = SuccessSoft,
+                contentColor = SuccessDeep,
+                dismissAction = {
+                    IconButton(onClick = viewModel::clearEmailChangeMessage) {
+                        Icon(Icons.Filled.Close, contentDescription = "Tutup", tint = SuccessDeep)
+                    }
+                }
+            ) {
+                Text(message)
+            }
+        }
     }
 }
 
-// ─── Shared sub-composables ───────────────────────────────────────────────────
+// ─── Email change dialog ──────────────────────────────────────────────────────
+/**
+ * Dua langkah: masukkan alamat baru → kirim kode → verifikasi. Alamat baru
+ * hanya disimpan setelah kode terbukti diterima, jadi salah ketik tidak
+ * mengubah akun. Kode dikirim ke alamat baru, bukan alamat lama.
+ */
+@Composable
+private fun EmailChangeDialog(
+    currentEmail: String,
+    otp: OtpFlowState,
+    onRequestCode: (String) -> Unit,
+    onVerify: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var newEmail by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var step by remember { mutableStateOf(1) }
+    val busy = otp.isSending || otp.isVerifying
+    val emailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(newEmail.trim()).matches() &&
+        !newEmail.trim().equals(currentEmail.trim(), ignoreCase = true)
+
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDismiss() },
+        containerColor = SurfaceDark,
+        titleContentColor = TextPrimary,
+        textContentColor = TextSecDark,
+        title = {
+            Text(
+                if (step == 1) "Ubah Alamat Email" else "Verifikasi Email Baru",
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                if (step == 1) {
+                    Text("Email saat ini", fontSize = 11.sp, color = TextSecDark)
+                    Text(
+                        currentEmail.ifBlank { "—" },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                    OutlinedTextField(
+                        value = newEmail,
+                        onValueChange = { newEmail = it.trim() },
+                        singleLine = true,
+                        enabled = !busy,
+                        label = { Text("Email baru") },
+                        placeholder = { Text("nama@email.com") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        "Kami mengirim kode 6 digit ke alamat baru. Email baru aktif " +
+                            "setelah kode diverifikasi.",
+                        fontSize = 12.sp,
+                        lineHeight = 18.sp,
+                        color = TextSecDark
+                    )
+                    otp.error?.let { message ->
+                        Text(message, color = Error, fontSize = 12.sp)
+                    }
+                } else {
+                    Text(
+                        "Masukkan 6 digit kode yang dikirim ke " +
+                            "${otp.sentTo ?: newEmail}. Berlaku ${otp.expiresInMinutes} menit.",
+                        fontSize = 13.sp,
+                        lineHeight = 19.sp
+                    )
+                    OtpInput(
+                        value = code,
+                        onValueChange = { code = it },
+                        enabled = !busy,
+                        isError = otp.error != null
+                    )
+                    when {
+                        otp.isSending -> Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Primary
+                            )
+                            Text("Mengirim kode...", fontSize = 13.sp)
+                        }
+
+                        !otp.mailSent -> Text(
+                            "Email mungkin terlambat masuk. Periksa folder Spam/Promosi " +
+                                "atau kirim ulang kode.",
+                            fontSize = 12.sp,
+                            color = WarningText
+                        )
+                    }
+                    otp.error?.let { message ->
+                        Text(message, color = Error, fontSize = 12.sp)
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Tidak menerima kode?", fontSize = 12.sp, color = TextSecDark)
+                        TextButton(
+                            enabled = !busy,
+                            onClick = {
+                                code = ""
+                                onRequestCode(newEmail.trim())
+                            }
+                        ) {
+                            Text("Kirim Ulang", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            if (step == 1) {
+                TextButton(
+                    enabled = emailValid && !busy,
+                    onClick = {
+                        step = 2
+                        code = ""
+                        onRequestCode(newEmail.trim())
+                    }
+                ) {
+                    Text("Kirim Kode", fontWeight = FontWeight.Bold)
+                }
+            } else {
+                TextButton(
+                    enabled = code.length == 6 && !busy,
+                    onClick = { onVerify(newEmail.trim(), code) }
+                ) {
+                    if (otp.isVerifying) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Primary
+                        )
+                    } else {
+                        Text("Simpan Email", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(
+                enabled = !busy,
+                onClick = {
+                    if (step == 2) {
+                        step = 1
+                        code = ""
+                    } else {
+                        onDismiss()
+                    }
+                }
+            ) {
+                Text(if (step == 2) "Kembali" else "Batal", color = Primary)
+            }
+        }
+    )
+}
 
 @Composable
 private fun ProfileTrustPill(

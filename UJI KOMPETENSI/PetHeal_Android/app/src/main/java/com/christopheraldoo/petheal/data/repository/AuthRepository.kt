@@ -416,6 +416,78 @@ class AuthRepository @Inject constructor(
         }
     }
 
+    /**
+     * Kirim kode konfirmasi hapus akun ke email pemilik akun.
+     * Akun BELUM dihapus di sini — lihat [verifyDeleteAccountOtp].
+     */
+    suspend fun requestDeleteAccountOtp(): Result<OtpSentResponse> {
+        return try {
+            val response = apiService.requestDeleteAccountOtp()
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body)
+            } else {
+                errorResultFrom(response, "Gagal mengirim kode konfirmasi")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
+
+    /**
+     * Verifikasi kode hapus akun. Sukses berarti server membuka jendela
+     * 15 menit untuk DELETE /auth/account; pemanggilan hapus tetap terpisah
+     * agar kegagalan jaringan tidak menghapus data setengah jalan.
+     */
+    suspend fun verifyDeleteAccountOtp(code: String): Result<Unit> {
+        return try {
+            val response = apiService.verifyDeleteAccountOtp(VerifyOtpCodeRequest(code))
+            if (response.isSuccessful && response.body()?.success == true) {
+                Result.Success(Unit)
+            } else {
+                errorResultFrom(response, "Kode konfirmasi tidak valid")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
+
+    /**
+     * Kirim kode konfirmasi ke ALAMAT BARU. Email baru baru disimpan setelah
+     * kode diverifikasi, jadi salah ketik alamat tidak mengubah akun.
+     */
+    suspend fun requestEmailChangeOtp(email: String): Result<OtpSentResponse> {
+        return try {
+            val response = apiService.requestEmailChangeOtp(EmailChangeOtpRequest(email))
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body)
+            } else {
+                errorResultFrom(response, "Gagal mengirim kode konfirmasi")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
+
+    /** Verifikasi kode ganti email; sukses mengembalikan user dengan email baru. */
+    suspend fun verifyEmailChangeOtp(email: String, code: String): Result<User> {
+        return try {
+            val response = apiService.verifyEmailChangeOtp(
+                EmailChangeVerifyOtpRequest(email = email, code = code)
+            )
+            val body = response.body()
+            val user = body?.data
+            if (response.isSuccessful && body?.success == true && user != null) {
+                Result.Success(user)
+            } else {
+                errorResultFrom(response, "Kode konfirmasi tidak valid")
+            }
+        } catch (e: Exception) {
+            networkError(e)
+        }
+    }
+
     suspend fun logout(fcmToken: String?): Result<Unit> {
         return try {
             val deviceToken = fcmToken ?: preferencesManager.fcmToken.first()

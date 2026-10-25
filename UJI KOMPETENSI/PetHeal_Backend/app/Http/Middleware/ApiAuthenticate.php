@@ -46,8 +46,13 @@ class ApiAuthenticate
         // must never trap a user inside an account they cannot remove —
         // whether clinic-less, suspended, or carrying a stale slug header.
         // Bearer + Sanctum authentication above still applies.
-        $isSelfDelete = $request->isMethod('delete') && $request->is('api/auth/account');
-        if ($isSelfDelete) {
+        //
+        // OTP hapus akun & ganti email ikut bypass: keduanya hanya menyentuh
+        // baris milik pemanggil sendiri, dan justru harus tetap bisa dipakai
+        // saat klinik dinonaktifkan supaya user tidak terjebak tanpa jalan
+        // keluar dari akunnya.
+        $isSelfAccountAction = $request->is('api/auth/account', 'api/auth/account/*', 'api/auth/email/change/*');
+        if ($isSelfAccountAction) {
             return $next($request);
         }
 

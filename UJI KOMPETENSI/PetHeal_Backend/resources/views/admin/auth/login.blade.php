@@ -1,9 +1,13 @@
+@php
+    $portal = $portal ?? 'admin';
+    $isDoctorPortal = $portal === 'doctor';
+@endphp
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login Admin · PetHeal</title>
+    <title>{{ $isDoctorPortal ? 'Login Dokter' : 'Login Admin' }} · PetHeal</title>
     <link rel="icon" type="image/png" href="/favicon.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,6 +333,36 @@
         </div>
 
         <div class="brand-content">
+            @if($isDoctorPortal)
+            <h2>Selamat datang kembali, <span>Dokter</span></h2>
+            <p>Lihat jadwal praktik, konfirmasi booking, dan isi rekam medis pasien Anda dalam satu portal yang aman.</p>
+
+            <ul class="brand-features">
+                <li>
+                    <span class="icon-circle">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                    </span>
+                    Jadwal praktik & booking pribadi
+                </li>
+                <li>
+                    <span class="icon-circle">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    </span>
+                    Rekam medis pasien yang Anda tangani
+                </li>
+                <li>
+                    <span class="icon-circle">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#86EFAC" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    </span>
+                    Cuti & jam khusus tanpa mengganggu antrean
+                </li>
+            </ul>
+
+            <div class="brand-quote">
+                <p>"Saya bisa langsung melihat pasien hari ini dan menulis rekam medis tanpa menunggu admin."</p>
+                <span>— Dokter Klinik, PetHeal</span>
+            </div>
+            @else
             <h2>Selamat datang kembali, <span>Admin</span></h2>
             <p>Kelola jadwal, rekam medis, dan pembayaran seluruh klinik Anda dari satu dasbor yang aman.</p>
 
@@ -357,6 +391,7 @@
                 <p>"Sejak pakai dasbor ini, antrian klinik jauh lebih tertib dan catatan pasien tidak pernah hilang lagi."</p>
                 <span>— Admin Klinik, Bandung</span>
             </div>
+            @endif
         </div>
 
         <div class="brand-footer">
@@ -374,9 +409,9 @@
             </div>
 
             <div class="form-header">
-                <span class="eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Login Admin</span>
-                <h1>Masuk ke dasbor Anda</h1>
-                <p>Masukkan kredensial admin klinik untuk melanjutkan.</p>
+                <span class="eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> {{ $isDoctorPortal ? 'Portal Dokter' : 'Login Admin' }}</span>
+                <h1>{{ $isDoctorPortal ? 'Masuk ke portal dokter' : 'Masuk ke dasbor Anda' }}</h1>
+                <p>{{ $isDoctorPortal ? 'Gunakan akun dokter yang sudah diundang oleh admin klinik Anda.' : 'Masukkan kredensial admin klinik untuk melanjutkan.' }}</p>
             </div>
 
             @if(session('success'))
@@ -396,7 +431,7 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('admin.login.post') }}" id="loginForm">
+            <form method="POST" action="{{ $isDoctorPortal ? route('doctor.login.post') : route('admin.login.post') }}" id="loginForm">
                 @csrf
 
                 <div class="input-wrap @error('email') invalid @enderror">
@@ -443,16 +478,29 @@
                 </button>
             </form>
 
+            @if($isDoctorPortal)
+            <div class="join-card">
+                <span class="join-icon">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
+                </span>
+                <p>Baru diundang admin klinik? Buka email undangan dan klik tombol <strong>Buat Kata Sandi Portal Dokter</strong>. <a href="{{ route('doctor.activate') }}">Panduan aktivasi</a></p>
+            </div>
+            @else
             <div class="join-card">
                 <span class="join-icon">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
                 </span>
                 <p>Belum punya akses admin? <a href="{{ route('admin.register') }}">Request gabung klinik</a> — diverifikasi &lt; 24 jam.</p>
             </div>
+            @endif
 
             <div class="form-footer">
                 <a href="{{ url('/') }}">&larr; Kembali ke situs</a>
-                <span class="lock-hint"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Akses aman</span>
+                @if($isDoctorPortal)
+                    <a href="{{ route('admin.login') }}">Login admin</a>
+                @else
+                    <a href="{{ route('doctor.login') }}">Login dokter</a>
+                @endif
             </div>
 
         </div>

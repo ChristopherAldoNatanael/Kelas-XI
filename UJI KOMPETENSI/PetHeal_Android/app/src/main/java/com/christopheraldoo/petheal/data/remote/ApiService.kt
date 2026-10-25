@@ -44,6 +44,21 @@ interface ApiService {
     @DELETE("auth/account")
     suspend fun deleteAccount(): Response<MessageResponse>
 
+    // Verifikasi email sebelum hapus akun / ganti email. Kode dikirim ke email
+    // akun (hapus) atau ke alamat baru (ganti email); akun hanya berubah
+    // setelah kode diverifikasi.
+    @POST("auth/account/delete/request-otp")
+    suspend fun requestDeleteAccountOtp(): Response<OtpSentResponse>
+
+    @POST("auth/account/delete/verify-otp")
+    suspend fun verifyDeleteAccountOtp(@Body request: VerifyOtpCodeRequest): Response<OtpSentResponse>
+
+    @POST("auth/email/change/request-otp")
+    suspend fun requestEmailChangeOtp(@Body request: EmailChangeOtpRequest): Response<OtpSentResponse>
+
+    @POST("auth/email/change/verify-otp")
+    suspend fun verifyEmailChangeOtp(@Body request: EmailChangeVerifyOtpRequest): Response<ApiResponse<User>>
+
     @GET("auth/profile")
     suspend fun getProfile(): Response<ApiResponse<User>>
 

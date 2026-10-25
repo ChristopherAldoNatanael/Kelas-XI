@@ -115,6 +115,39 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by('admin-password|' . ($request->user()?->id ?: $request->ip()));
         });
 
+        // Portal dokter memakai aturan yang sama dengan admin: kode dikirim ke
+        // email akun yang sedang login, jadi kuncinya per akun.
+        RateLimiter::for('doctor-otp-send', function (Request $request) {
+            $key = 'doctor|' . ($request->user()?->id ?: $request->ip());
+
+            return [
+                Limit::perMinute(2)->by($key),
+                Limit::perDay(10)->by($key),
+            ];
+        });
+
+        RateLimiter::for('doctor-password-verify', function (Request $request) {
+            return Limit::perMinute(10)->by('doctor-password|' . ($request->user()?->id ?: $request->ip()));
+        });
+
+        // Aksi sensitif akun pet owner (hapus akun & ganti email). Endpoint ini
+        // sudah di belakang Bearer token, jadi kuncinya per AKUN — bukan per
+        // input email yang bisa dipalsukan untuk mengakali kuota kirim.
+        RateLimiter::for('account-otp-send', function (Request $request) {
+            $key = 'account-otp|' . ($request->user()?->id ?: $request->ip());
+
+            return [
+                Limit::perMinute(3)->by($key),
+                Limit::perDay(10)->by($key),
+            ];
+        });
+
+        RateLimiter::for('account-otp-verify', function (Request $request) {
+            return Limit::perMinute(10)->by(
+                'account-otp-verify|' . ($request->user()?->id ?: $request->ip())
+            );
+        });
+
         RateLimiter::for('uploads', function (Request $request) {
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
         });
