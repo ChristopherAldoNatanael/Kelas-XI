@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -70,7 +71,7 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getMedicalRecords exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -94,7 +95,7 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getMedicalRecord($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -115,7 +116,7 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getBookingMedicalRecord($bookingId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -130,7 +131,7 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getPaymentStatus($recordId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -153,7 +154,7 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getMedicalRecordsByPet($petId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

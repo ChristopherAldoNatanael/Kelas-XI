@@ -86,6 +86,7 @@ fun InvoiceCenter(
     bookings: List<Booking>,
     isLoading: Boolean,
     error: String?,
+    onRetry: (() -> Unit)? = null,
     onOpenBooking: (Int) -> Unit,
     onPay: (Booking) -> Unit,
     onOpenReceipt: (Booking) -> Unit,
@@ -123,7 +124,7 @@ fun InvoiceCenter(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (error != null) {
-            item { ErrorBanner(error) }
+            item { ErrorBanner(error, onRetry = onRetry) }
         }
 
         item {
@@ -175,7 +176,10 @@ fun InvoiceCenter(
                     Text("Memuat tagihan...", fontSize = 13.sp, color = TextSecondary)
                 }
             }
-        } else if (visibleInvoices.isEmpty()) {
+        } else if (visibleInvoices.isEmpty() && error == null) {
+            // Saat muat GAGAL dan belum ada data, hanya banner error (+retry)
+            // yang tampil — bukan empty state yang menyamarkan kegagalan
+            // jaringan sebagai "belum punya tagihan".
             item {
                 InvoiceEmptyState(
                     hasAnyInvoice = invoices.isNotEmpty(),

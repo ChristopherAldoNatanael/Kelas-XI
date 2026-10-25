@@ -56,7 +56,7 @@
             <div>
                 <label for="password" class="admin-label">{{ __('admin.initial_password') }} <span class="text-rose-500">*</span></label>
                 <input id="password" type="password" name="password" required autocomplete="new-password"
-                       placeholder="{{ __('admin.password_min_6') }}" class="admin-input">
+                       placeholder="{{ __('admin.password_min_8') }}" class="admin-input">
                 <p class="admin-hint">{{ __('admin.initial_password_hint') }}</p>
                 @error('password') <p class="admin-error">{{ $message }}</p> @enderror
             </div>

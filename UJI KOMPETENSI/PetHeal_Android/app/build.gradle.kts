@@ -62,6 +62,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // java.time dipakai di 13+ file (util/, ViewModel, Screen) padahal
+        // minSdk 24. Tanpa desugaring, Android 7.x crash NoClassDefFoundError.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -88,6 +91,9 @@ tasks.withType<Test>().configureEach {
 }
 
 dependencies {
+    // Java time desugaring (minSdk 24) — versi kompatibel AGP 8.7
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
+
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
@@ -137,7 +143,14 @@ dependencies {
     implementation("com.google.android.gms:play-services-auth:21.0.0")
 
     // Midtrans SDK
-    implementation("com.midtrans:uikit:2.0.0-SANDBOX")
+    implementation("com.midtrans:uikit:2.0.0-SANDBOX") {
+        // SDK Midtrans ikut membawa desugar_jdk_libs 1.1.5 sebagai dependency
+        // biasa; begitu core library desugaring aktif, dex 'j$.' lama tercampur
+        // dengan ext dex dan D8 menolak merge (mergeExtDexDebug gagal).
+        // java.time tetap tersedia dari coreLibraryDesugaring 2.0.4 di atas.
+        exclude(group = "com.android.tools", module = "desugar_jdk_libs")
+        exclude(group = "com.android.tools", module = "desugar_jdk_libs_configuration")
+    }
 
     // WebView for Snap Payment
     implementation("androidx.webkit:webkit:1.8.0")

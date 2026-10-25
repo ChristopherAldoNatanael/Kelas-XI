@@ -1,5 +1,158 @@
 # PROGRESS.md — Catatan Pengerjaan (update tiap selesai fase)
 
+## 2026-10-25 — Testing perangkat fisik: navigasi tab, error ramah, dialog privasi
+
+- **Satu mekanisme tab (`navigateToTab`).** Akar gejala "tombol membuka halaman
+  tidak sesuai" (repro: Pet Detail → Lihat Semua Rekam Medis): beberapa entry
+  point men-*navigate* route tab secara LANGSUNG (tanpa `popUpTo(Home)
+  saveState` + `launchSingleTop` + `restoreState`), sehingga entri tab kedua
+  menumpuk di atas sub-halaman lama dan back stack bercabang (entri Home ganda;
+  tap tab berikutnya mendarat tidak menentu). Helper tunggal di
+  `ui/components/PetHealBottomNav.kt` kini dipakai NavHost (tombol rekam medis
+  di PetDetail, onOpenBookings/onOpenPets di Notifications, kedua tombol di
+  PaymentResult yang dulu mendorong Home/Bookings baru tanpa mekanisme tab)
+  dan MainActivity (deep link/notifikasi target setingkat tab). Target detail
+  (entity deep link) sengaja tetap mendorong layar detail — perilaku benar.
+- **Error jaringan ramah pengguna, terpusat.** `data/remote/
+  NetworkErrorMessages.kt` memetakan: `UnknownHostException` → "Periksa
+  koneksi internet Anda…", `SocketTimeoutException`/`InterruptedIOException`
+  → timeout, `ConnectException`/`SSLException` → "layanan belum terjangkau",
+  sisanya → pesan umum jujur. Dipasang di ±50 titik `catch` pada 10
+  repository (`"Network error: ${e.message}"` → `userFriendlyExceptionMessage(e)`),
+  termasuk variant `e.message ?: "Network error"` di AuthRepository dan upgrade
+  helper `networkError()` di file yang sama. Istilah "ngrok"/HTTP code di
+  ClinicRepository dipindah ke `Log.e` (diagnostik), UI hanya pesan standar.
+  Verifikasi grep: nol sisa string teknis di `main/`; tidak ada logika UI yang
+  mencocokkan teks error (aman diganti). 401 tetap via SessionEvents (sudah
+  ditangani fase sebelumnya). Retry "Coba Lagi" memakai mekanisme reload
+  forceRefresh yang sudah ada.
+- **Dialog "Informasi & Pengaturan Izin Data" dirapikan.** Dua paragraf padat
+  tanpa hierarki (penyebab teks bertabrakan dengan tombol di layar kecil) → struktur
+  hierarki: kalimat pengantar, tiga baris izin (ikon + judul + deskripsi via
+  `PermissionInfoRow`), catatan jujur bahwa pencabutan izin terjadi di sistem
+  Android bukan via dialog; konten dibungkus `Column` berscroll.
+- **Tombol "Tutup" ganda di Keamanan Akun Google.** Dialog informatif memasang
+  label "Tutup" di confirmButton SEKALIGUS dismissButton. Kini untuk akun
+  Google hanya satu tombol (dismissButton = null); Back & ketuk-luar tetap
+  menutup via onDismissRequest. Mode email tidak berubah (Kirim Kode Reset +
+  Tutup).
+- **Test.** `NavigationStabilityFixesTest` (9 test): klasifikasi DNS/timeout/
+  connect/SSL/umum, jaminan hostname ngrok & teks exception tidak pernah
+  keluar dari pemetaan, pemetaan tab-route 1:1 dan literal (tanpa `{arg}`),
+  pola detail tidak menelan route tab. Suite unit Android penuh **66 test /
+  0 failure** (BackendIntegrationTest lolos terhadap serve lokal yang sedang
+  jalan) dan `assembleDebug` BUILD SUCCESSFUL.
+
+## 2026-10-25 — Audit pra-ujian Android: 8 bug fungsional + 4 klaim misleading (Android + 1 kontrak API aditif)
+
+- **Navigasi pasca-bayar.** `popUpTo` pada `PaymentScreen`/`MedicalExtraPayment`
+  memakai ROUTE TERISI (`createRoute(...)`) sehingga tidak match destination dan
+  layar bayar tidak ter-pop — Back dari hasil pembayaran bisa kembali ke layar
+  bayar. Kini memakai POLA route (`Screen.Payment.route` dst.) di 6 tempat
+  (`ui/navigation/PetHealNavHost.kt`).
+- **Encoding pesan hasil bayar.** `URLEncoder` (form-encoding) mengubah spasi
+  menjadi `+` yang tidak didekode Navigation → user melihat
+  `Pembayaran+berhasil!`. `Screen.PaymentResult.createRoute` kini mengganti
+  `+` → `%20` pasca-encode (tak ambigu; `+` literal sudah `%2B`, tanpa
+  double-encoding) (`ui/navigation/Screen.kt`).
+- **Harga dummy dihapus.** Default `totalAmount/dpAmount` 150.000/75.000 di
+  `CreateBookingUiState` adalah angka tebakan yang tampil saat loading/layanan
+  gagal — melanggar aturan "tidak ada data palsu". Kini 0 = belum tervalidasi;
+  ringkasan tampil `—`, CTA & `createBooking` menolak nominal 0; `selectService`
+  menghapus harga warisan bila layanan tanpa harga; kegagalan muat layanan &
+  metode bayar kini punya error + tombol Coba Lagi (sebelumnya selamanya
+  "Loading services...").
+- **Input berat 5,8.** Placeholder meminta "Contoh: 5,8" tetapi parser
+  `toDoubleOrNull()` hanya menerima `5.8` → tombol Simpan mati. Parser terpusat
+  baru `util/DecimalInput.kt::parseDecimalInput` (koma & titik; menolak
+  campur-separator/nilai mustahil; tanpa pembulatan) dipakai dialog berat +
+  form tambah/edit hewan; input tak valid kini memberi pesan inline, tidak
+  dikirim diam-diam sebagai null (berat lama tidak bisa terhapus tak sengaja).
+- **Filter rekam medis menjebak.** Kategori tanpa hasil dulu mengganti SELURUH
+  layar dengan "Belum ada rekam medis" (chip filter ikut hilang). Kini hero +
+  chip filter tetap tampil dengan empty state kontekstual + tombol "Lihat Semua
+  Rekam Medis"; "Belum ada rekam medis" hanya untuk arsip yang memang kosong
+  (`MedicalRecordsScreen.kt`).
+- **Hapus Foto hewan jadi nyata.** Tombol hanya menghapus foto lokal; foto lama
+  tetap muncul setelah simpan. Ditambah field API ADITIF `remove_photo`
+  (boolean, hanya terkirim bila tidak ada file pengganti; prioritas upload >
+  remove; klien lama tidak berubah) di `Api/PetController@update` +
+  `PetRequest.removePhoto`. Tandai hapus → preview kosong → file & kolom
+  dihapus server saat Simpan; batal edit tidak mengubah apa pun. Test baru
+  `PetPhotoRemovalTest` 4 test/15 assertion.
+- **Error jaringan ≠ akun kosong.** Banner error Booking & tab Tagihan kini
+  punya tombol Coba Lagi (`loadBookings(forceRefresh = true)` via
+  `ErrorBanner(message, onRetry)`) dan empty state "Belum Ada Booking/Tagihan"
+  tidak lagi tampil saat muat gagal tanpa data.
+- **Desugaring java.time.** `java.time` dipakai 13+ file dengan minSdk 24 dan
+  tanpa `coreLibraryDesugaring` → crash Android 7.x. `app/build.gradle.kts`:
+  `isCoreLibraryDesugaringEnabled = true` + `desugar_jdk_libs:2.0.4` (AGP 8.7
+  ✓). minSdk/target/jvmTarget tidak diubah. CATATAN BUILD: `com.midtrans:uikit`
+  diam-diam membawa `desugar_jdk_libs:1.1.5` sebagai dependency biasa — begitu
+  desugaring aktif, `mergeExtDexDebug` gagal (D8 melarang dex `j$.` bercampur
+  ext class lain). Solusi: `exclude` dua modul `com.android.tools:desugar_*`
+  dari Midtrans; Midtrans tidak memakai `java.time` runtime, pembayaran tetap
+  jalan (SDK pakai `java.util.Date`).
+- **4 klaim misleading dihapus/diperbaiki:** badge "Sehat" hanya muncul bila ada
+  rekam medis nyata (tanpa data → "Status belum tersedia", abu-abu netral);
+  pill "Secure Account"/"Support Ready" di Profil dihapus (statis tanpa sumber);
+  "Kelola Izin Data" → "Informasi & Pengaturan Izin Data" + aksi NYATA membuka
+  halaman aplikasi di Settings sistem; kartu "Kunjungan" tidak lagi memakai
+  `pet.updatedAt` sebagai tanggal kunjungan (edit profil ≠ aktivitas klinis).
+- **Verifikasi:** `testDebugUnitTest` + `assembleDebug` (lihat hasil aktual di
+  laporan sesi); `php artisan test` **215 passed / 1299 assertions**.
+- **Sisa (sengaja):** lokalisasi string Inggris non-CTA, normalisasi ~29 hex
+  hardcoded ke token, konsistensi header/radius (butuh uji visual perangkat;
+  risiko > manfaat menjelang ujian). `adb` tetap tidak tersedia → uji manual di
+  HP perlu dilakukan user: alur bayar+Back, simpan berat "5,8", hapus foto,
+  filter rekam medis.
+
+## 2026-10-25 — Audit pra-ujian: 7 bug payload/permission ditutup (backend saja)
+
+Audit menyeluruh (web admin, portal dokter, API, Android) menemukan **tidak ada**
+route/controller/view/endpoint yang hilang dan tidak ada data dummy di dashboard
+admin — semua angka dari query nyata. Yang diperbaiki hanya bug nyata, tanpa
+fitur baru dan tanpa perubahan skema database.
+
+- **Payload booking tidak pernah memuat layanan.** `Api/BookingController` hanya
+  eager-load `pet`+`doctor` (`index`, `upcoming`, `show`, `store`, `cancel`,
+  `reschedule`), sehingga `booking.service` selalu `null` dan Invoice Center
+  (`InvoiceCenter.kt:347`) serta bukti bayar (`PaymentReceipt.kt:106`) jatuh ke
+  teks generik "Layanan klinik"/"-". Kini `service` selalu ikut dimuat.
+- **Gate pembayaran bocor di Home.** `MedicalRecord::can_view_full_record`
+  menyembunyikan diagnosis/treatment/obat/catatan saat biaya tambahan belum
+  lunas, tetapi `Api/DashboardController` mengembalikan model rekam medis
+  **mentah** sehingga `HomeScreen.kt:979` tetap menampilkan `diagnosis`. Method
+  baru `MedicalRecord::maskClinicalFields()` menutup celah ini dan dipakai di
+  dashboard, `GET /bookings/{id}`, `GET /pets` dan `GET /pets/{id}`
+  (`MedicalRecordController::serializeRecord` tidak diubah, tetap sumber aturan).
+- **Clinic admin bisa mengubah akun staf/dokter lain.** `Admin/UserController`
+  `edit`/`update` tanpa guard role. Kini hanya baris `role=user` yang bisa
+  diubah; staf & akun portal dokter hanya oleh super admin atau pemilik akun
+  (`canManageAccount()`), dan tombol Edit di daftar user disembunyikan untuk
+  baris tersebut (`admin/users/index.blade.php`).
+- **Cache dashboard basi setelah tulis rekam medis.** `dashboard_stats_v3_c*`
+  dan `payment_stats_c*` hanya dibersihkan saat konfirmasi pembayaran. Kini
+  `Admin/MedicalRecordController` (store/update/destroy) dan
+  `Doctor/DoctorMedicalRecordController` (store/update) ikut membersihkannya.
+- **Label salah:** kartu Pembayaran Terbaru memakai key `view_all_bookings`.
+  Diganti `dashboard.view_all_payments` (ID/EN).
+- **`next_visit_date` bisa diisi tanggal lampau saat edit** (rule hanya `date`).
+  Kini `after:today` berlaku **hanya jika tanggalnya diubah**
+  (`Rule::when`), sehingga rekam medis lama yang jadwal kontrolnya sudah lewat
+  tetap bisa diperbaiki bagian lain tanpa dipaksa mengganti tanggal.
+- **Minimal password tidak konsisten:** create/edit user 6 karakter vs 8 di
+  self-service. Diseragamkan jadi 8 (`admin.php` key `password_min_8`,
+  hint `new_password_hint` ikut diperbarui).
+- **Verifikasi:** `php -l` bersih untuk 11 file; test regresi baru
+  `tests/Feature/PayloadGateAndPermissionFixesTest.php` **9 test / 48 assertion**;
+  full suite `php artisan test` **211 passed / 1284 assertions**.
+- **Sisa (sengaja tidak dikerjakan):** polish kosmetik Android (teks legal
+  placeholder di About, dialog statis "Kelola Izin Data", sisa string Inggris,
+  beberapa hex di layar, dead code `loadWeightHistory`/`markAllRead`/`getService`),
+  ketidakcocokan `docs/PLAN.md` Fase 5–7 yang masih `[ ]` padahal fiturnya sudah
+  jalan, serta item Backlog roadmap (chat, membership, dark mode, pull-to-refresh).
+
 ## 2026-10-25 — Hapus akun benar-benar permanen (backend + Android)
 - **Masalah:** setelah hapus akun lalu daftar ulang, hewan/riwayat booking akun lama masih terlihat. Backend sebenarnya sudah menghapus baris user + hewan (diverifikasi: 0 orphan pet/booking), tetapi dua celah membuat hasilnya tidak konsisten: (a) `deleteAccount` tidak memakai transaksi dan tidak menghapus file foto/audit, (b) cache HTTP OkHttp di Android tidak dibersihkan dan interceptor offline menyajikan respons API lama lintas akun (`only-if-cached, max-stale=604800`), serta Firebase hanya `signOut()`.
 - **Backend (`AuthController@deleteAccount`):** seluruh penghapusan dibungkus `DB::transaction`; eksplisit menghapus payment_events, doctor_reviews, medical_records, bookings, vaccinations, weight_records, pets, notifications, device_tokens, dan tokens; baris user dihapus terakhir dan diverifikasi tidak tersisa (kalau masih ada → rollback + error, tidak pernah balas sukses). Foto profil + foto hewan di disk `public` ikut dihapus setelah commit. Cache dashboard user dibersihkan. Audit `account.self_delete` ditulis dengan `user_id = NULL` (baris user sudah hilang). Respons menambahkan `data.deleted` (jumlah per tabel) + `photos_deleted`; `success`/HTTP 200 tetap sama.

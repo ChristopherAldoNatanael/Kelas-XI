@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.DashboardData
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -30,7 +31,7 @@ class DashboardRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getDashboard exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\MedicalRecord;
 use App\Services\FCMService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
@@ -21,6 +22,18 @@ class DoctorMedicalRecordController extends DoctorPortalController
 {
     public function __construct(private readonly FCMService $fcmService)
     {
+    }
+
+    /**
+     * Drop the cached admin aggregates for a clinic — a record written from the
+     * doctor portal changes admin revenue exactly like one written from the
+     * admin console. Same keys as PaymentStatusService::clearPaymentCaches().
+     */
+    private function forgetDashboardCaches(?int $clinicId): void
+    {
+        $suffix = $clinicId ?: 'all';
+        Cache::forget('payment_stats_c' . $suffix);
+        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
     }
 
     public function index(Request $request)
@@ -149,6 +162,8 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ]);
         });
 
+        $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
+
         if ($request->filled('next_visit_date')) {
             $this->fcmService->sendVaccinationReminder(
                 $booking->user_id,
@@ -207,7 +222,17 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'treatment' => 'required|string',
             'medicine' => 'nullable|string',
             'notes' => 'nullable|string',
-            'next_visit_date' => 'nullable|date',
+            // Sama seperti panel admin: "tanggal ke depan" hanya divalidasi
+            // bila tanggalnya diubah, agar rekam medis lama tetap bisa diedit.
+            'next_visit_date' => [
+                'nullable',
+                'date',
+                Rule::when(
+                    $request->filled('next_visit_date')
+                        && $request->input('next_visit_date') !== $record->next_visit_date?->toDateString(),
+                    ['after:today']
+                ),
+            ],
             'next_visit_time' => 'nullable|date_format:H:i',
             'cost' => 'nullable|numeric|min:0',
             'treatment_cost' => 'nullable|numeric|min:0',
@@ -228,6 +253,8 @@ class DoctorMedicalRecordController extends DoctorPortalController
         $record->medicine_cost = $this->normalizeMoneyInput($request, 'medicine_cost');
         $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
         $record->save();
+
+        $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
         AuditLog::log('doctor.medical_record.update', "Dokter memperbarui rekam medis #{$record->id}.", $record);
 

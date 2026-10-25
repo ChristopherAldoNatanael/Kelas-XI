@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
@@ -81,7 +82,7 @@ class DoctorRepository @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "getDoctors exception", e)
             cachedDoctors?.let { if (cachedSlug == slug) return Result.Success(it) }
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -112,7 +113,7 @@ class DoctorRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getDoctor($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -134,7 +135,7 @@ class DoctorRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getDoctorSlots($doctorId, $date) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -150,7 +151,7 @@ class DoctorRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getDoctorReviews($doctorId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -183,7 +184,7 @@ class DoctorRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "submitDoctorReview($doctorId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 

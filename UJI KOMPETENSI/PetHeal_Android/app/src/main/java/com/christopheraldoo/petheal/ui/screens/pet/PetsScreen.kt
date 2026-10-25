@@ -66,6 +66,7 @@ import com.christopheraldoo.petheal.ui.components.WeightPoint
 import com.christopheraldoo.petheal.ui.components.WeightTrendChart
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.compressImageFile
+import com.christopheraldoo.petheal.util.parseDecimalInput
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.MediumImage
@@ -696,20 +697,25 @@ fun PetDetailScreen(
                                 )
                             }
                         }
-                        // Checkmark badge
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(PetPrimary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Check,
-                                contentDescription = "Healthy",
-                                tint = Background,
-                                modifier = Modifier.size(18.dp)
-                            )
+                        // Checkmark badge — HANYA bila ada dasar data nyata
+                        // (rekam medis). Tanpa riwayat, aplikasi tidak boleh
+                        // mengklaim hewan "sehat"; tidak ada diagnosa dari
+                        // ketiadaan data.
+                        if (state.medicalRecords.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(PetPrimary),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.Check,
+                                    contentDescription = "Pemeriksaan terakhir tercatat",
+                                    tint = Background,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
 
@@ -724,10 +730,12 @@ fun PetDetailScreen(
                     )
 
                     // Health Status — derived from the most recent medical record
-                    val healthLabel = remember(state.medicalRecords) {
-                        val latest = state.medicalRecords.firstOrNull()
-                        if (latest == null) "Belum ada kunjungan" else "Pemeriksaan terakhir"
+                    val hasVisitRecord = state.medicalRecords.isNotEmpty()
+                    val healthLabel = when {
+                        hasVisitRecord -> "Pemeriksaan terakhir tercatat"
+                        else -> "Status belum tersedia"
                     }
+                    val healthColor = if (hasVisitRecord) PetPrimary else textMuted
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -736,13 +744,13 @@ fun PetDetailScreen(
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(PetPrimary)
+                                .background(healthColor)
                         )
                         Text(
                             healthLabel,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = PetPrimary
+                            color = healthColor
                         )
                     }
 
@@ -809,11 +817,12 @@ fun PetDetailScreen(
                 Spacer(modifier = Modifier.height(24.dp))
 
                 // ── Quick Stats Cards ───────────────────────────────────────────
-                val lastVisitLabel = remember(state.medicalRecords, pet?.updatedAt) {
+                // Hanya tanggal rekam medis yang NYATA. updated-at profil
+                // hewan bukan aktivitas klinis — mengedit profil tidak boleh
+                // terbaca sebagai kunjungan.
+                val lastVisitLabel = remember(state.medicalRecords) {
                     val latest = state.medicalRecords.firstOrNull()?.createdAt
-                        ?: pet?.updatedAt
-                    if (latest.isNullOrBlank()) "–"
-                    else latest.take(10)
+                    if (latest.isNullOrBlank()) "Belum ada" else latest.take(10)
                 }
                 val vaccinationCount = state.vaccinations.size
                 Row(
@@ -1290,7 +1299,8 @@ private fun AddWeightDialog(
 ) {
     var weight by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
-    val parsedWeight = weight.toDoubleOrNull()
+    // Parser yang sama dengan form utama — menerima "5,8" maupun "5.8".
+    val parsedWeight = parseDecimalInput(weight)
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -1333,7 +1343,7 @@ private fun AddWeightDialog(
         },
         confirmButton = {
             Button(
-                enabled = !isLoading && parsedWeight != null && parsedWeight > 0.0,
+                enabled = !isLoading && parsedWeight != null,
                 onClick = { parsedWeight?.let { onSubmit(it, notes.trim().ifBlank { null }) } },
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = PetPrimary, contentColor = Background)
@@ -1848,7 +1858,7 @@ fun AddPetScreen(
             isLoading = state.isLoading,
             error = state.error,
             onNavigateBack = onNavigateBack,
-            onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile ->
+            onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile, _ ->
                 viewModel.addPet(name, species, breed, gender, dateOfBirth, age, weight, photoFile)
             }
         )
@@ -1887,8 +1897,8 @@ fun EditPetScreen(
         initialWeight      = detailState.pet?.weight?.toString() ?: "",
         existingPhotoUrl   = detailState.pet?.photo,
         onNavigateBack = onNavigateBack,
-        onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile ->
-            viewModel.editPet(petId, name, species, breed, gender, dateOfBirth, age, weight, photoFile)
+        onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto ->
+            viewModel.editPet(petId, name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto)
         }
     )
 }
@@ -1932,7 +1942,8 @@ private fun PetFormScreen(
     existingPhotoUrl: String? = null,
     onNavigateBack: () -> Unit,
     onSubmit: (name: String, species: String, breed: String?, gender: String?,
-               dateOfBirth: String?, age: Int?, weight: Double?, photoFile: File?) -> Unit
+               dateOfBirth: String?, age: Int?, weight: Double?, photoFile: File?,
+               removePhoto: Boolean) -> Unit
 ) {    val context      = LocalContext.current
     val bgColor      = PetBg
     val surfaceColor = Color.White
@@ -1941,6 +1952,9 @@ private fun PetFormScreen(
     val borderColor  = Outline
     val focusManager = LocalFocusManager.current
 
+    // Foto LAMA (remote) baru benar-benar dihapus setelah user menekan
+    // Simpan. Membatalkan edit tidak mengubah apa pun di server.
+    var removeExistingPhoto by remember { mutableStateOf(false) }
     var name          by remember(initialName)        { mutableStateOf(initialName) }
     var species       by remember(initialSpecies)     { mutableStateOf(initialSpecies) }
     // PHASE 7: "Other" reveals a free-text species field. If an existing
@@ -2188,7 +2202,7 @@ private fun PetFormScreen(
                     }
                 }
                 // Remove photo (if one is set)
-                if (selectedPhotoUri != null || buildPhotoUrl(existingPhotoUrl) != null) {
+                if (selectedPhotoUri != null || (buildPhotoUrl(existingPhotoUrl) != null && !removeExistingPhoto)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -2196,8 +2210,16 @@ private fun PetFormScreen(
                             .background(ErrorStrong.copy(alpha = 0.08f))
                             .clickable {
                                 showPhotoSheet = false
-                                selectedPhotoUri = null
-                                selectedPhotoFile = null
+                                if (selectedPhotoUri != null) {
+                                    // Foto lokal yang belum disimpan: cukup
+                                    // batalkan pilihan.
+                                    selectedPhotoUri = null
+                                    selectedPhotoFile = null
+                                } else {
+                                    // Foto lama remote: tandai untuk dihapus
+                                    // saat Simpan (server yang menghapus file).
+                                    removeExistingPhoto = true
+                                }
                             }
                             .padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -2283,8 +2305,13 @@ private fun PetFormScreen(
                             .clickable { showPhotoSheet = true },
                         contentAlignment = Alignment.Center                    ) {
                         // Show: newly selected local URI > existing remote photo > nothing
-                        val existingFullUrl = buildPhotoUrl(existingPhotoUrl)
+                        val existingFullUrl =
+                            if (removeExistingPhoto) null else buildPhotoUrl(existingPhotoUrl)
                         val hasPhoto = selectedPhotoUri != null || existingFullUrl != null
+                        // Memilih foto baru membatalkan penanda hapus.
+                        LaunchedEffect(selectedPhotoUri) {
+                            if (selectedPhotoUri != null) removeExistingPhoto = false
+                        }
                         var photoFailed by remember(selectedPhotoUri, existingFullUrl) { mutableStateOf(false) }
 
                         if (hasPhoto && !photoFailed) {
@@ -2524,7 +2551,7 @@ private fun PetFormScreen(
                         PetTextField(
                             value = weight,
                             onValueChange = { weight = it },
-                            placeholder = "e.g. 5.5",
+                            placeholder = "Contoh: 5,8",
                             surfaceColor = surfaceColor,
                             textPrimary = textPrimary,
                             textMuted = textMuted,
@@ -2532,6 +2559,13 @@ private fun PetFormScreen(
                             keyboardType = KeyboardType.Decimal,
                             imeAction = ImeAction.Next
                         )
+                        if (weight.isNotBlank() && parseDecimalInput(weight) == null) {
+                            Text(
+                                "Format berat tidak valid. Gunakan angka, contoh: 5,8",
+                                fontSize = 12.sp,
+                                color = ErrorStrong
+                            )
+                        }
                     }
 
                     // Date of Birth — tappable calendar picker
@@ -2603,6 +2637,12 @@ private fun PetFormScreen(
             val effectiveSpecies =
                 if (species == "Other") customSpecies.trim() else species.trim()
             val isSpeciesValid = effectiveSpecies.isNotBlank()
+            // Parsing terpusat: "5,8" dan "5.8" sama-sama valid. Nilai yang
+            // tidak bisa dibaca TIDAK dikirim diam-diam sebagai null — tombol
+            // dikunci sampai input benar, supaya berat lama tidak terhapus
+            // tanpa sengaja.
+            val parsedWeight = parseDecimalInput(weight)
+            val isWeightValid = weight.isBlank() || parsedWeight != null
             val isPhotoTooLarge = (selectedPhotoFile?.takeIf { it.exists() }?.length() ?: 0L) > 4096L * 1024L
             Button(
                 onClick = {
@@ -2615,13 +2655,14 @@ private fun PetFormScreen(
                         gender.lowercase(),
                         dateOfBirth.trim().ifBlank { null },
                         null, // age
-                        weight.trim().ifBlank { null }?.toDoubleOrNull(),
-                        selectedPhotoFile
+                        parsedWeight,
+                        selectedPhotoFile,
+                        removeExistingPhoto && selectedPhotoFile == null
                     )
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(16.dp),
-                enabled = !isLoading && name.isNotBlank() && isSpeciesValid && !isPhotoTooLarge && !isProcessingPhoto,
+                enabled = !isLoading && name.isNotBlank() && isSpeciesValid && isWeightValid && !isPhotoTooLarge && !isProcessingPhoto,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = PetPrimary,
                     contentColor = Background,

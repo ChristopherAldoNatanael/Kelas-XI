@@ -5,11 +5,14 @@ import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 import android.widget.Toast
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -18,8 +21,11 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Badge
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SwitchLeft
+import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -105,6 +111,9 @@ fun PrivacySecurityScreen(
             },
             confirmButton = {
                 if (isGoogleAccount) {
+                    // Dialog informatif: SATU kontrol penutupan saja.
+                    // confirmButton + dismissButton keduanya berlabel
+                    // "Tutup" sebelumnya → dua tombol kembar.
                     TextButton(onClick = {
                         viewModel.clearMessages()
                         showPasswordDialog = false
@@ -118,11 +127,15 @@ fun PrivacySecurityScreen(
                     }
                 }
             },
-            dismissButton = {
-                TextButton(onClick = {
-                    viewModel.clearMessages()
-                    showPasswordDialog = false
-                }) { Text("Tutup") }
+            // Untuk akun Google tidak ada tombol kedua; dismissal via Back
+            // atau sentuhan luar dialog tetap aktif (onDismissRequest).
+            dismissButton = if (isGoogleAccount) null else {
+                {
+                    TextButton(onClick = {
+                        viewModel.clearMessages()
+                        showPasswordDialog = false
+                    }) { Text("Tutup") }
+                }
             }
         )
     }
@@ -130,11 +143,61 @@ fun PrivacySecurityScreen(
     if (showPermissionsDialog) {
         AlertDialog(
             onDismissRequest = { showPermissionsDialog = false },
-            title = { Text("Izin Data", fontWeight = FontWeight.Bold) },
+            title = { Text("Informasi & Pengaturan Izin Data", fontWeight = FontWeight.Bold) },
             text = {
-                Text("Aplikasi memakai akses kamera/galeri untuk foto hewan dan profil, izin notifikasi untuk pengingat, serta akses jaringan untuk sinkronisasi booking, pembayaran, dan rekam medis.")
+                // Konten panjang pernah bertabrakan dengan tombol pada
+                // layar kecil: dua paragraf padat tanpa hierarki dan
+                // tanpa scroll. Kini: pengantar -> daftar izin (ikon +
+                // judul + deskripsi) -> catatan, semuanya di Column yang
+                // bisa di-scroll bila tinggi layar tidak cukup.
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        "Aplikasi meminta izin berikut hanya untuk fitur inti PetHeal:",
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = OnBackground
+                    )
+                    PermissionInfoRow(
+                        icon = Icons.Default.PhotoCamera,
+                        title = "Kamera & Galeri",
+                        description = "Mengambil dan memperbarui foto hewan peliharaan serta foto profil."
+                    )
+                    PermissionInfoRow(
+                        icon = Icons.Default.Notifications,
+                        title = "Notifikasi",
+                        description = "Mengirim pengingat jadwal booking dan tindak lanjut (follow-up)."
+                    )
+                    PermissionInfoRow(
+                        icon = Icons.Default.Wifi,
+                        title = "Jaringan",
+                        description = "Sinkronisasi booking, pembayaran, dan rekam medis dengan layanan klinik."
+                    )
+                    Text(
+                        "PetHeal hanya menampilkan informasi ini — pencabutan atau pengaturan ulang izin dilakukan lewat sistem Android, bukan dari dialog ini.",
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        color = TextSecondary
+                    )
+                }
             },
             confirmButton = {
+                // Tindakan NYATA: membuka halaman izin aplikasi di sistem.
+                TextButton(onClick = {
+                    showPermissionsDialog = false
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(
+                                android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                android.net.Uri.fromParts("package", context.packageName, null)
+                            )
+                        )
+                    }
+                }) { Text("Buka Pengaturan Aplikasi") }
+            },
+            dismissButton = {
                 TextButton(onClick = { showPermissionsDialog = false }) { Text("Tutup") }
             }
         )
@@ -220,7 +283,9 @@ fun PrivacySecurityScreen(
             SettingsSectionCard(title = "Privasi") {
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
-                    label = "Kelola Izin Data",
+                    // Label jujur: layar ini menjelaskan izin lalu membawa
+                    // user ke pengaturan sistem — bukan mengelola izin sendiri.
+                    label = "Informasi & Pengaturan Izin Data",
                     onClick = { showPermissionsDialog = true }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
@@ -256,6 +321,34 @@ fun PrivacySecurityScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+/**
+ * Satu baris informasi izin dalam dialog: ikon kecil + judul + deskripsi.
+ * Dipakai agar daftar izin punya hierarki visual yang konsisten dan
+ * tidak menumpuk jadi satu paragraf panjang yang sulit dibaca.
+ */
+@Composable
+private fun PermissionInfoRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(SurfaceVariant),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+            Text(description, fontSize = 13.sp, lineHeight = 18.sp, color = TextSecondary)
         }
     }
 }

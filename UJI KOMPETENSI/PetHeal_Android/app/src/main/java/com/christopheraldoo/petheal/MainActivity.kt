@@ -17,6 +17,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.christopheraldoo.petheal.ui.components.PetHealTab
+import com.christopheraldoo.petheal.ui.components.navigateToTab
 import com.christopheraldoo.petheal.ui.navigation.PetHealNavHost
 import com.christopheraldoo.petheal.ui.navigation.Screen
 import com.christopheraldoo.petheal.ui.theme.PetHealTheme
@@ -121,23 +123,27 @@ class MainActivity : ComponentActivity() {
         val target = segments.firstOrNull()
         val id = segments.getOrNull(1)?.toIntOrNull()
 
+        // Target setingkat TAB wajib lewat mekanisme tab yang sama dengan
+        // bottom nav (navigateToTab) — kalau tidak, back stack menumpuk
+        // entri tab ganda di atas sub-halaman lama. Target detail (entity
+        // deep link) memang mendorong layar detail, dibiarkan.
         when (target) {
             "booking" -> if (id != null) {
                 nav.navigate(Screen.BookingDetail.createRoute(id)) { launchSingleTop = true }
             } else {
-                nav.navigate(Screen.Bookings.route) { launchSingleTop = true }
+                nav.navigateToTab(PetHealTab.Bookings)
             }
 
             "record", "medical-record" -> if (id != null) {
                 nav.navigate(Screen.MedicalRecordDetail.createRoute(id)) { launchSingleTop = true }
             } else {
-                nav.navigate(Screen.MedicalRecords.route) { launchSingleTop = true }
+                nav.navigateToTab(PetHealTab.Records)
             }
 
             "pet" -> if (id != null) {
                 nav.navigate(Screen.PetDetail.createRoute(id)) { launchSingleTop = true }
             } else {
-                nav.navigate(Screen.Pets.route) { launchSingleTop = true }
+                nav.navigateToTab(PetHealTab.Pets)
             }
 
             "doctor" -> if (id != null) {
@@ -147,9 +153,9 @@ class MainActivity : ComponentActivity() {
             }
 
             "notifications" -> nav.navigate(Screen.Notifications.route) { launchSingleTop = true }
-            "bookings", "appointments" -> nav.navigate(Screen.Bookings.route) { launchSingleTop = true }
-            "profile" -> nav.navigate(Screen.Profile.route) { launchSingleTop = true }
-            else -> nav.navigate(Screen.Home.route) { launchSingleTop = true }
+            "bookings", "appointments" -> nav.navigateToTab(PetHealTab.Bookings)
+            "profile" -> nav.navigateToTab(PetHealTab.Profile)
+            else -> nav.navigateToTab(PetHealTab.Home)
         }
     }
 

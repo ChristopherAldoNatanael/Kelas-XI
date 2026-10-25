@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Service
@@ -32,7 +33,7 @@ class ServiceRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getServices exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

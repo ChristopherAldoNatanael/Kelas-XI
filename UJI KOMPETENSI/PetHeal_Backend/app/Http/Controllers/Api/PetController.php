@@ -23,6 +23,12 @@ class PetController extends Controller
             ->latest()
             ->paginate($perPage);
 
+        // Same extra-payment gate as the medical-record endpoints: a locked
+        // record must not ship its diagnosis inside the pet payload.
+        $pets->getCollection()->each(
+            fn ($pet) => $pet->medicalRecords->each->maskClinicalFields()
+        );
+
         return response()->json([
             'success' => true,
             'data' => $pets->items(),
@@ -50,6 +56,8 @@ class PetController extends Controller
                 'message' => 'Pet not found',
             ], 404);
         }
+
+        $pet->medicalRecords->each->maskClinicalFields();
 
         return response()->json([
             'success' => true,
@@ -187,6 +195,7 @@ class PetController extends Controller
             'date_of_birth' => 'sometimes|nullable|date',
             'photo'         => 'sometimes|nullable',
             'notes'         => 'sometimes|nullable|string',
+            'remove_photo'  => 'sometimes|boolean',
         ]);
 
         $data = $request->only(['name', 'species', 'breed', 'age', 'weight', 'date_of_birth', 'notes']);
@@ -195,7 +204,10 @@ class PetController extends Controller
             $data['gender'] = strtolower($request->input('gender'));
         }
 
-        // Handle photo update — store relative path
+        // Handle photo update — store relative path.
+        // Precedence: uploaded file > remove_photo > raw photo string.
+        // `remove_photo` is additive (old clients never send it), so the
+        // existing contract is untouched.
         if ($request->hasFile('photo')) {
             // Delete old file if it's a relative path in storage
             if ($pet->photo && !str_starts_with($pet->photo, 'http')) {
@@ -209,6 +221,11 @@ class PetController extends Controller
                 800,
                 80
             );
+        } elseif ($request->boolean('remove_photo')) {
+            if ($pet->photo && !str_starts_with($pet->photo, 'http')) {
+                Storage::disk('public')->delete($pet->photo);
+            }
+            $data['photo'] = null;
         } elseif ($request->filled('photo')) {
             $data['photo'] = $request->input('photo');
         }

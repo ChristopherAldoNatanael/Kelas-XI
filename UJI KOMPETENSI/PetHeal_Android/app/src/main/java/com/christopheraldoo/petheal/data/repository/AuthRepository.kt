@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -216,9 +217,11 @@ class AuthRepository @Inject constructor(
         errorDetailsFrom(response, fallback).let { Result.Error(it.message, it.code) }
 
     private fun networkError(e: Exception): Result.Error {
+        // Detail teknis hanya ke log; UI dapat pesan terpusat yang
+        // membedakan DNS / timeout / server tidak terjangkau.
         android.util.Log.e("AuthRepository", "Network failure: ${e.message}", e)
         return Result.Error(
-            "Tidak dapat terhubung ke server. Periksa koneksi internet Anda lalu coba lagi.",
+            userFriendlyExceptionMessage(e),
             "network_error"
         )
     }
@@ -593,7 +596,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(response.body()?.message ?: "Failed to get profile")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
     
@@ -614,7 +617,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(response.body()?.message ?: "Failed to update profile")
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -650,7 +653,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(errorMessageFrom(response, "Gagal mengunggah foto profil"))
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
     
@@ -673,7 +676,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(errorMessageFrom(response, "Failed to remove account"))
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -725,7 +728,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(errorMessageFrom(response, "Failed to send reset code"))
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -739,7 +742,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(errorMessageFrom(response, "Invalid reset code"))
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -754,7 +757,7 @@ class AuthRepository @Inject constructor(
                 Result.Error(errorMessageFrom(response, "Failed to reset password"))
             }
         } catch (e: Exception) {
-            Result.Error(e.message ?: "Network error")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

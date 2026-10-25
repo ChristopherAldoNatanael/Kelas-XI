@@ -194,7 +194,11 @@ data class PetRequest(
     @SerializedName("date_of_birth") val dateOfBirth: String? = null,
     val age: Int? = null,
     val weight: Double? = null,
-    val photo: String? = null
+    val photo: String? = null,
+    // Additif & kompatibel: field hilang dari JSON saat null (Gson default),
+    // jadi payload lama tidak berubah. true = server menghapus photo yang
+    // tersimpan setelah update (dihormati hanya bila tidak ada file baru).
+    @SerializedName("remove_photo") val removePhoto: Boolean? = null
 )
 
 // ============= PET HEALTH TRACKING MODELS =============

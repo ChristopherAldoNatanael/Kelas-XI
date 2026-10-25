@@ -180,12 +180,14 @@ $roleBadges = [
                                            aria-label="{{ __('admin.view_detail') }} {{ $user->name }}">
                                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
                                         </a>
-                                        <a href="{{ route('admin.users.edit', $user->id) }}"
-                                           class="admin-icon-btn hover:!text-primary"
-                                           title="{{ __('admin.edit') }}"
-                                           aria-label="{{ __('admin.edit') }} {{ $user->name }}">
-                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
-                                        </a>
+                                        @if($user->role === 'user' || auth()->id() === $user->id || auth()->user()?->role === 'super_admin')
+                                            <a href="{{ route('admin.users.edit', $user->id) }}"
+                                               class="admin-icon-btn hover:!text-primary"
+                                               title="{{ __('admin.edit') }}"
+                                               aria-label="{{ __('admin.edit') }} {{ $user->name }}">
+                                                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                                            </a>
+                                        @endif
                                         @if($user->role === 'user')
                                             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}" class="inline"
                                                   onsubmit="return confirm('{{ __('admin.confirm_delete') }}')">

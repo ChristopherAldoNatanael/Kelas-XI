@@ -75,6 +75,30 @@ class MedicalRecord extends Model
         return in_array($this->extra_payment_status, ['not_required', 'paid'], true);
     }
 
+    /**
+     * Null out clinical fields while the record is still locked behind the
+     * extra-payment gate.
+     *
+     * MedicalRecordController::serializeRecord applies this gate explicitly.
+     * Endpoints that return the model raw (API dashboard, booking detail, pet
+     * detail) must call this, otherwise the gate is bypassed and a locked
+     * diagnosis leaks to the client.
+     */
+    public function maskClinicalFields(): self
+    {
+        if ($this->can_view_full_record) {
+            return $this;
+        }
+
+        $this->setAttribute('diagnosis', null);
+        $this->setAttribute('treatment', null);
+        $this->setAttribute('medicine', null);
+        $this->setAttribute('notes', null);
+        $this->setAttribute('next_visit_date', null);
+
+        return $this;
+    }
+
     public function clinic()
     {
         return $this->belongsTo(Clinic::class);

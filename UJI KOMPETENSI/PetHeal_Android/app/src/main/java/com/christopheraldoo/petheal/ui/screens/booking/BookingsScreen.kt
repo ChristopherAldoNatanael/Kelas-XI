@@ -329,9 +329,17 @@ fun BookingsScreen(
                 ) {
                     if (state.error != null) {
                         val listError = state.error
-                        item { ErrorBanner(listError ?: "Gagal memuat booking") }
+                        item {
+                            ErrorBanner(
+                                listError ?: "Gagal memuat booking",
+                                onRetry = { viewModel.loadBookings(forceRefresh = true) }
+                            )
+                        }
                     }
-                    if (state.bookings.isEmpty()) {
+                    // Error TANPA data ≠ akun kosong: empty state tidak boleh
+                    // ikut tampil saat muat gagal (koneksi putus akan terlihat
+                    // seperti "belum pernah booking").
+                    if (state.bookings.isEmpty() && state.error == null) {
                         item {
                             if (isDateFiltered && state.allBookings.isNotEmpty()) {
                                 FilteredBookingsEmptyState(
@@ -384,6 +392,7 @@ fun BookingsScreen(
                     bookings = state.allBookings,
                     isLoading = state.isLoading,
                     error = state.error,
+                    onRetry = { viewModel.loadBookings(forceRefresh = true) },
                     onOpenBooking = { bookingId ->
                         HapticFeedback.performClick(view)
                         onNavigateToBookingDetail(bookingId)
@@ -1908,11 +1917,27 @@ fun CreateBookingScreen(
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text("Pilih Layanan", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                     if (state.services.isEmpty()) {
-                        Box(
+                        // Bedakan loading / gagal muat / memang kosong — dulu
+                        // SEMUA kondisi tampil "Loading services..." sehingga
+                        // kegagalan tidak pernah terlihat.
+                        Column(
                             Modifier.fillMaxWidth().padding(vertical = 16.dp),
-                            contentAlignment = Alignment.Center
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Loading services...", fontSize = 14.sp, color = textSecondary)
+                            Text(
+                                text = if (state.isLoading) "Memuat layanan..."
+                                else state.servicesError
+                                    ?: "Belum ada layanan yang tersedia di klinik ini.",
+                                fontSize = 14.sp,
+                                color = textSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                            if (!state.isLoading && state.servicesError != null) {
+                                TextButton(onClick = { viewModel.loadCreateBookingData(doctorId, petId) }) {
+                                    Text("Coba Lagi", color = BkPrimary, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                         }
                     } else {
                         val serviceRows = state.services.chunked(2)
@@ -2025,11 +2050,25 @@ fun CreateBookingScreen(
                     Text("Metode Pembayaran", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = textPrimary)
 
                     if (state.paymentMethods.isEmpty()) {
-                        Box(
+                        // Sama seperti layanan: gagal muat ≠ memuat selamanya.
+                        Column(
                             Modifier.fillMaxWidth().padding(vertical = 20.dp),
-                            contentAlignment = Alignment.Center
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Text("Memuat metode pembayaran...", fontSize = 14.sp, color = textSecondary)
+                            Text(
+                                text = if (state.isLoading) "Memuat metode pembayaran..."
+                                else state.paymentMethodsError
+                                    ?: "Metode pembayaran belum tersedia. Hubungi klinik Anda.",
+                                fontSize = 14.sp,
+                                color = textSecondary,
+                                textAlign = TextAlign.Center
+                            )
+                            if (!state.isLoading && state.paymentMethodsError != null) {
+                                TextButton(onClick = { viewModel.loadCreateBookingData(doctorId, petId) }) {
+                                    Text("Coba Lagi", color = BkPrimary, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
                         }
                     } else {
                         // Group payment methods by type
@@ -2241,9 +2280,12 @@ fun CreateBookingScreen(
                             }
                         }
                         Text(
-                            if (state.selectedPaymentType == "dp") 
-                                formatRupiah(state.dpAmount) 
-                            else 
+                            // Nominal 0 = belum tervalidasi; jangan pernah
+                            // tampil sebagai angka rupiah.
+                            if (state.totalAmount <= 0.0) "—"
+                            else if (state.selectedPaymentType == "dp")
+                                formatRupiah(state.dpAmount)
+                            else
                                 formatRupiah(state.totalAmount),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
@@ -2254,7 +2296,10 @@ fun CreateBookingScreen(
                         onClick = { viewModel.createBooking(doctorId) },
                         modifier = Modifier.fillMaxWidth().height(56.dp),
                         shape = RoundedCornerShape(16.dp),
-                        enabled = !state.isLoading && state.selectedPetId != null && state.selectedServiceId != null && state.selectedTime != null && state.selectedPaymentMethod != null,
+                        enabled = !state.isLoading && state.selectedPetId != null && state.selectedServiceId != null &&
+                            state.selectedTime != null && state.selectedPaymentMethod != null &&
+                            // Bayar hanya dengan nominal tervalidasi dari backend.
+                            state.totalAmount > 0.0,
                         colors = ButtonDefaults.buttonColors(containerColor = BkPrimary, contentColor = BkPrimaryFg),
                         elevation = ButtonDefaults.buttonElevation(6.dp)
                     ) {
@@ -2289,14 +2334,20 @@ fun CreateBookingScreen(
 
 // ── Error banner ───────────────────────────────────────────────────────────────
 @Composable
-fun ErrorBanner(message: String) {
+fun ErrorBanner(message: String, onRetry: (() -> Unit)? = null) {
     Card(
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = ErrorStrong.copy(alpha = 0.1f))
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(20.dp))
-            Text(message, color = ErrorStrong, fontSize = 13.sp)
+            Text(message, color = ErrorStrong, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            if (onRetry != null) {
+                // Retry memakai mekanisme load yang sudah ada di ViewModel.
+                TextButton(onClick = onRetry) {
+                    Text("Coba Lagi", color = ErrorStrong, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
     }
 }

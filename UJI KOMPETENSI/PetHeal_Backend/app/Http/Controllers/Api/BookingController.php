@@ -30,7 +30,7 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $bookings = $request->user()->bookings()
-            ->with(['pet', 'doctor'])
+            ->with(['pet', 'doctor', 'service'])
             ->orderBy('booking_date', 'desc')
             ->orderBy('booking_time', 'desc')
             ->paginate(20);
@@ -55,7 +55,7 @@ class BookingController extends Controller
     {
         $bookings = $request->user()->bookings()
             ->upcoming()
-            ->with(['pet', 'doctor'])
+            ->with(['pet', 'doctor', 'service'])
             ->orderBy('booking_date')
             ->orderBy('booking_time')
             ->limit(1) // Only fetch the very next booking for Home Screen
@@ -73,7 +73,7 @@ class BookingController extends Controller
     public function show(Request $request, $id)
     {
         $booking = $request->user()->bookings()
-            ->with(['pet', 'doctor', 'medicalRecord'])
+            ->with(['pet', 'doctor', 'service', 'medicalRecord'])
             ->find($id);
 
         if (!$booking) {
@@ -82,6 +82,11 @@ class BookingController extends Controller
                 'message' => 'Booking not found',
             ], 404);
         }
+
+        // Nested medical record is serialized raw here, so the extra-payment
+        // gate has to be applied explicitly (same rule as
+        // MedicalRecordController::serializeRecord).
+        $booking->medicalRecord?->maskClinicalFields();
 
         return response()->json([
             'success' => true,
@@ -269,7 +274,7 @@ class BookingController extends Controller
             ], 409);
         }
 
-        $booking->load(['pet', 'doctor']);
+        $booking->load(['pet', 'doctor', 'service']);
 
         // Send notification (booking_date is now a plain string via accessor)
         $this->fcmService->sendBookingStatusUpdate(
@@ -315,6 +320,9 @@ class BookingController extends Controller
             // representation of "no reason" (admin side requires a reason).
             'cancellation_reason' => $request->filled('reason') ? $request->input('reason') : null,
         ]);
+
+        // Invoice/receipt consumers need the service name, not just pet+doctor.
+        $booking->load(['pet', 'doctor', 'service']);
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(
@@ -410,7 +418,7 @@ class BookingController extends Controller
             ], 409);
         }
 
-        $booking->load(['pet', 'doctor']);
+        $booking->load(['pet', 'doctor', 'service']);
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(

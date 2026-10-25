@@ -99,7 +99,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'phone' => 'nullable|string|max:20',
-            'password' => 'required|string|min:6',
+            'password' => 'required|string|min:8',
         ]);
 
         // PHASE 3 (F-06 orphan guard): refuse clinic-less rows in overview mode.
@@ -135,7 +135,29 @@ class UserController extends Controller
             $query->where('clinic_id', $clinicId);
         }
         $user = $query->firstOrFail();
+
+        if (! $this->canManageAccount($user)) {
+            return redirect()->route('admin.users.index')
+                ->with('error', __('admin.cannot_edit_staff'));
+        }
+
         return view('admin.users.edit', compact('user'));
+    }
+
+    /**
+     * Only patient rows are editable from this page. Staff rows
+     * (clinic_admin/admin/super_admin) and doctor portal accounts (role=doctor)
+     * hold login credentials — a clinic admin must never be able to change
+     * another staff member's email or password. Self-service belongs in
+     * admin.settings; doctor accounts are managed by invite/revoke.
+     */
+    private function canManageAccount(User $user): bool
+    {
+        if ($user->role === 'user') {
+            return true;
+        }
+
+        return auth()->id() === $user->id || isSuperAdmin();
     }
 
     /**
@@ -150,11 +172,16 @@ class UserController extends Controller
         }
         $user = $query->firstOrFail();
 
+        if (! $this->canManageAccount($user)) {
+            return redirect()->route('admin.users.index')
+                ->with('error', __('admin.cannot_edit_staff'));
+        }
+
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email,' . $id,
             'phone' => 'nullable|string|max:20',
-            'password' => 'nullable|string|min:6',
+            'password' => 'nullable|string|min:8',
         ]);
 
         $data = $request->only(['name', 'email', 'phone']);

@@ -263,7 +263,7 @@
             <x-slot:actions>
                 <a href="{{ route('admin.payments.index') }}"
                    class="text-xs font-semibold text-primary transition hover:opacity-80">
-                    {{ __('dashboard.view_all_bookings') }}
+                    {{ __('dashboard.view_all_payments') }}
                 </a>
             </x-slot:actions>
 

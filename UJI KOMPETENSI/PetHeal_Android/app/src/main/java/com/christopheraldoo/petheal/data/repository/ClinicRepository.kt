@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Clinic
@@ -55,14 +56,18 @@ class ClinicRepository @Inject constructor(
             }.getOrNull()
             if (!parsed.isNullOrBlank()) return parsed
             // Non-JSON body (ngrok error page / HTML 404 from a wrong base
-            // URL) can never be a VCMS response — say so explicitly.
+            // URL) can never be a VCMS response — but the UI tidak boleh
+            // melihat HTTP code, istilah ngrok, atau mentahan lainnya;
+            // detail itu hanya masuk log diagnostik.
             val code = response?.code() ?: -1
-            return "Server menjawab HTTP $code tanpa data JSON. " +
-                "Periksa URL backend di pengaturan dan pastikan backend + ngrok berjalan."
+            android.util.Log.e("ClinicRepository", "Non-JSON error body (HTTP $code): ${raw.take(200)}")
+            return com.christopheraldoo.petheal.data.remote.MSG_SERVICE_UNAVAILABLE
         }
         val code = response?.code()
         return if (code != null && code != 200) {
-            "Server menjawab HTTP $code. Periksa URL backend dan koneksi internet."
+            android.util.Log.e("ClinicRepository", "HTTP $code on clinics call")
+            if (code >= 500) com.christopheraldoo.petheal.data.remote.MSG_SERVICE_UNAVAILABLE
+            else com.christopheraldoo.petheal.data.remote.MSG_GENERIC
         } else {
             fallback
         }
@@ -97,7 +102,7 @@ class ClinicRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getClinic exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 

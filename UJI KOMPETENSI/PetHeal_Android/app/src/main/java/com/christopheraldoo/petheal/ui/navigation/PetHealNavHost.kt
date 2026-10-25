@@ -52,6 +52,7 @@ import com.christopheraldoo.petheal.ui.screens.payment.PaymentScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentResultScreen
 import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.navigateToTab
 import com.christopheraldoo.petheal.ui.components.route
 import androidx.compose.ui.res.stringResource
 
@@ -81,12 +82,11 @@ fun PetHealNavHost(
         // tab entry on the stack (no stacking) and clears sub-screens above it.
         // saveState/restoreState membuat filter, pencarian, dan posisi scroll
         // tiap tab TETAP ada saat berpindah tab (tidak reset / fetch ulang).
+        // Mekanisme tab kini hidup di satu tempat (navigateToTab) supaya
+        // entry point non-tab (tombol di detail, hasil bayar, notifikasi)
+        // tidak bisa lagi diam-diam menumpuk entri tab kedua.
         val navigateTab: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = { tab ->
-            navController.navigate(tab.route) {
-                popUpTo(Screen.Home.route) { saveState = true }
-                launchSingleTop = true
-                restoreState = true
-            }
+            navController.navigateToTab(tab)
         }
         // Splash Screen
         composable(Screen.Splash.route) {
@@ -260,7 +260,12 @@ fun PetHealNavHost(
                 petId = petId,
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToEdit = { navController.navigate(Screen.EditPet.createRoute(petId)) },
-                onNavigateToMedicalRecords = { navController.navigate(Screen.MedicalRecords.route) }
+                // Repro user: tombol ini pernah membuka tab lewat navigate()
+                // langsung sehingga tab "Rekam Medis" terduplikasi di atas
+                // PetDetail dan tombol tab berikutnya mendarat tidak menentu.
+                onNavigateToMedicalRecords = {
+                    navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Records)
+                }
             )
         }
 
@@ -423,8 +428,10 @@ fun PetHealNavHost(
                 onOpenMedicalRecord = { recordId -> navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId)) },
                 onOpenPet = { petId -> navController.navigate(Screen.PetDetail.createRoute(petId)) },
                 onOpenDoctor = { doctorId -> navController.navigate(Screen.DoctorDetail.createRoute(doctorId)) },
-                onOpenBookings = { navController.navigate(Screen.Bookings.route) },
-                onOpenPets = { navController.navigate(Screen.Pets.route) }
+                // Kelas bug yang sama dengan PetDetail: buka tab dari
+                // sub-halaman wajib lewat mekanisme tab, bukan navigate().
+                onOpenBookings = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings) },
+                onOpenPets = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Pets) }
             )
         }
 
@@ -497,17 +504,26 @@ fun PetHealNavHost(
                         medicalRecordId = recordId,
                         onPaymentSuccess = { orderId ->
                             navController.navigate(Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran tambahan rekam medis berhasil!")) {
-                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                                // popUpTo butuh POLA route destination, bukan
+                                // route terisi — string terisi tidak match dan
+                                // diam-diam tidak mem-pop apa pun.
+                                popUpTo(Screen.MedicalExtraPayment.route) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
                             navController.navigate(Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran tambahan menunggu penyelesaian.")) {
-                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                                // popUpTo butuh POLA route destination, bukan
+                                // route terisi — string terisi tidak match dan
+                                // diam-diam tidak mem-pop apa pun.
+                                popUpTo(Screen.MedicalExtraPayment.route) { inclusive = true }
                             }
                         },
                         onPaymentFailed = { errorMsg ->
                             navController.navigate(Screen.PaymentResult.createRoute("medical-$recordId", "failed", errorMsg)) {
-                                popUpTo(Screen.MedicalExtraPayment.createRoute(bookingId, recordId, amount)) { inclusive = true }
+                                // popUpTo butuh POLA route destination, bukan
+                                // route terisi — string terisi tidak match dan
+                                // diam-diam tidak mem-pop apa pun.
+                                popUpTo(Screen.MedicalExtraPayment.route) { inclusive = true }
                             }
                         },
                         onNavigateBack = { navController.popBackStack() },
@@ -589,21 +605,27 @@ fun PetHealNavHost(
                             navController.navigate(
                                 Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!", bookingId)
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
+                                // Pola route, bukan route terisi (lihat catatan
+                                // popUpTo di PaymentScreen medical di atas).
+                                popUpTo(Screen.Payment.route) { inclusive = true }
                             }
                         },
                         onPaymentPending = { orderId ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.", bookingId)
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
+                                // Pola route, bukan route terisi (lihat catatan
+                                // popUpTo di PaymentScreen medical di atas).
+                                popUpTo(Screen.Payment.route) { inclusive = true }
                             }
                         },
                         onPaymentFailed = { errorMsg ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute("booking-$bookingId", "failed", errorMsg, bookingId)
                             ) {
-                                popUpTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining, methodsCsv)) { inclusive = true }
+                                // Pola route, bukan route terisi (lihat catatan
+                                // popUpTo di PaymentScreen medical di atas).
+                                popUpTo(Screen.Payment.route) { inclusive = true }
                             }
                         },
                         onNavigateBack = { navController.popBackStack() },
@@ -650,15 +672,15 @@ fun PetHealNavHost(
                 clinicName = paymentNavState.clinicName,
                 clinicAddress = paymentNavState.clinicAddress,
                 clinicColor = paymentNavState.clinicColor,
+                // navigateTab mem-pop PaymentResult (dan sub-layar di atas
+                // Home) sekaligus mencegah entri Home/Bookings ganda —
+                // sebelumnya kedua tombol ini mendorong tab baru di atas
+                // Home lama, menghasilkan dua entri Home di back stack.
                 onNavigateToBookings = {
-                    navController.navigate(Screen.Bookings.route) {
-                        popUpTo(Screen.PaymentResult.route) { inclusive = true }
-                    }
+                    navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings)
                 },
                 onNavigateBack = {
-                    navController.navigate(Screen.Home.route) {
-                        popUpTo(Screen.PaymentResult.route) { inclusive = true }
-                    }
+                    navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Home)
                 }
             )
         }

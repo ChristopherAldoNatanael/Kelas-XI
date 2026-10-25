@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -59,7 +60,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getPets exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -75,7 +76,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getPet($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -116,7 +117,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "createPet exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -132,7 +133,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "updatePet($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -165,7 +166,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "updatePet($id) with photo exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -184,7 +185,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "uploadPetPhoto($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -199,7 +200,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "deletePet($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -215,7 +216,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getWeightHistory($petId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -237,7 +238,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "addWeightRecord($petId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -253,7 +254,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getVaccinations($petId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -283,7 +284,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "addVaccination($petId) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -299,7 +300,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "deleteWeightRecord exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -314,7 +315,7 @@ class PetRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "deleteVaccination exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

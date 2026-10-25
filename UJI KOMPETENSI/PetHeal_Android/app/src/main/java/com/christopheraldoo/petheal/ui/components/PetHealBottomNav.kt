@@ -69,6 +69,25 @@ val PetHealTab.route: String
         PetHealTab.Profile -> Screen.Profile.route
     }
 
+/**
+ * SATU-SATUNYA cara pindah ke layar tab (Beranda/Hewan/Booking/Rekam
+ * Medis/Profil) dari titik mana pun — tombol tab, tombol di halaman
+ * detail, hasil pembayaran, notifikasi, maupun deep link.
+ *
+ * Semua entry point WAJIB lewat sini. Navigasi langsung ke route tab
+ * (tanpa blok ini) menumpuk entri tab kedua di atas sub-halaman lama:
+ * back stack bercabang, entri Home ganda, dan tombol tab berikutnya
+ * membuka halaman yang tidak sesuai — gejala yang dilaporkan user di
+ * perangkat fisik ("View All Medical Records" mendarat tidak menentu).
+ */
+fun androidx.navigation.NavHostController.navigateToTab(tab: PetHealTab) {
+    navigate(tab.route) {
+        popUpTo(Screen.Home.route) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}
+
 @Composable
 fun PetHealFloatingBottomNav(
     selected: PetHealTab,

@@ -323,14 +323,19 @@ class PetsViewModel @Inject constructor(
         id: Int, name: String, species: String, breed: String?,
         gender: String?, dateOfBirth: String?,
         age: Int?, weight: Double?,
-        photoFile: File? = null
+        photoFile: File? = null,
+        removePhoto: Boolean = false
     ) {
         viewModelScope.launch {
             _addEditState.value = AddEditPetUiState(isLoading = true)
             val request = PetRequest(
                 name = name, species = species, breed = breed,
                 gender = gender, dateOfBirth = dateOfBirth,
-                age = age, weight = weight
+                age = age, weight = weight,
+                // File baru menggantikan foto lama (server menghapus file lama
+                // saat upload), jadi remove_photo hanya dikirim bila user
+                // menekan Hapus Foto TANPA memilih pengganti.
+                removePhoto = removePhoto.takeIf { it && photoFile == null }
             )
             when (val result = petRepository.updatePet(id, request, photoFile)) {
                 is Result.Success -> {

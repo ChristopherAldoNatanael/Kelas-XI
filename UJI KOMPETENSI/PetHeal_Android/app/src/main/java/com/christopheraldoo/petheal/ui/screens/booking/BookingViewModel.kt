@@ -121,8 +121,11 @@ data class CreateBookingUiState(
     val selectedTime: String? = null,
     val selectedPaymentMethod: PaymentMethod? = null,
     val selectedPaymentType: String = "full", // "full" or "dp"
-    val totalAmount: Double = 150000.0, // Default price
-    val dpAmount: Double = 75000.0, // 50% for DP
+    // 0 = BELUM ada harga tervalidasi dari backend. Dulu default 150000/75000
+    // yang tampil sebagai tagihan selama loading/gagal muat layanan — angka
+    // tebakan. CTA & ringkasan harga WAJIB mati selama totalAmount == 0.
+    val totalAmount: Double = 0.0,
+    val dpAmount: Double = 0.0,
     val notes: String = "",
     // State
     val isLoading: Boolean = false,
@@ -130,6 +133,10 @@ data class CreateBookingUiState(
     val createdBookingId: Int? = null, // NEW: Store the created booking ID
     val isSlotsLoading: Boolean = false,
     val slotsError: String? = null,
+    // Error per sumber data, supaya "gagal muat" tidak tampil sebagai
+    // "memuat..." selamanya atau daftar kosong yang menenangkan.
+    val servicesError: String? = null,
+    val paymentMethodsError: String? = null,
     val error: String? = null
 )
 
@@ -501,15 +508,20 @@ class BookingViewModel @Inject constructor(
             // Load pets list
             val petsResult = petRepository.getPets()
             val pets = if (petsResult is Result.Success) petsResult.data else emptyList()
-            // Load services
+            // Load services — kegagalan diumumkan, tidak ditelan jadi list
+            // kosong yang tampak seperti "memuat..." selamanya.
             val servicesResult = serviceRepository.getServices()
             val services = if (servicesResult is Result.Success) servicesResult.data else emptyList()
+            val servicesError =
+                (servicesResult as? Result.Error)?.message?.ifBlank { "Gagal memuat layanan." }
             // Load doctor
             val doctorResult = doctorRepository.getDoctor(doctorId)
             val doctor = if (doctorResult is Result.Success) doctorResult.data else null
             // Load payment methods
             val paymentResult = paymentMethodRepository.getPaymentMethods()
             val paymentMethods = if (paymentResult is Result.Success) paymentResult.data else emptyList()
+            val paymentMethodsError =
+                (paymentResult as? Result.Error)?.message?.ifBlank { "Gagal memuat metode pembayaran." }
 
             // Never open the flow on a day the doctor does not practice. The
             // API returns an empty list for off-days, which would otherwise
@@ -528,11 +540,16 @@ class BookingViewModel @Inject constructor(
                 services = services,
                 doctor = doctor,
                 paymentMethods = paymentMethods,
+                servicesError = servicesError,
+                paymentMethodsError = paymentMethodsError,
                 selectedDate = firstWorkingDate,
                 selectedServiceId = services.firstOrNull()?.id,
                 selectedServiceName = services.firstOrNull()?.name.orEmpty()
             )
-            services.firstOrNull()?.price?.let { setTotalAmount(it) }
+            // Harga hanya berasal dari layanan nyata. Layanan tanpa harga
+            // (data master belum lengkap) TIDAK usah dapat nominal warisan —
+            // total tetap 0 dan CTA tetap terkunci.
+            setTotalAmount(services.firstOrNull()?.price ?: 0.0)
             loadSlots(doctorId, firstWorkingDate)
         }
     }
@@ -652,7 +669,9 @@ class BookingViewModel @Inject constructor(
             selectedServiceName = service.name.orEmpty(),
             selectedPaymentMethod = null
         )
-        service.price?.let { setTotalAmount(it) }
+        // Layanan tanpa harga menghapus nominal lama (0 = belum tervalidasi),
+        // bukan mewarisi harga layanan sebelumnya.
+        setTotalAmount(service.price ?: 0.0)
     }
 
     fun selectDate(date: LocalDate, doctorId: Int) {
@@ -698,6 +717,11 @@ class BookingViewModel @Inject constructor(
         val petId   = s.selectedPetId ?: return setCreateError("Pilih hewan terlebih dahulu.")
         val serviceId = s.selectedServiceId ?: return setCreateError("Pilih layanan terlebih dahulu.")
         val time    = s.selectedTime  ?: return setCreateError("Pilih jam konsultasi terlebih dahulu.")
+        // Jangan pernah mengirim booking dengan nominal yang belum tervalidasi
+        // dari backend (0 = harga layanan belum diketahui).
+        if (s.totalAmount <= 0.0) {
+            return setCreateError("Harga layanan belum tersedia. Pilih layanan lain atau hubungi klinik.")
+        }
         // Slot bisa saja menjadi lewat antara saat dipilih dan saat submit
         // (layar lama terbuka, jam berjalan). Jangan kirim booking yang pasti
         // ditolak klinik.

@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.FilterAlt
 import androidx.compose.material.icons.filled.FolderShared
 import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.LocalHospital
@@ -153,12 +154,17 @@ fun MedicalRecordsScreen(
                     )
                 }
 
-                state.filteredRecords.isEmpty() -> {
+                // Arsip memang KOSONG ≠ filter yang tidak ketahuan. Empty
+                // state generik hanya untuk kondisi records.isEmpty(); hasil
+                // filter kosong tetap menampilkan hero + chip filter agar
+                // pengguna bisa kembali ke "Semua".
+                state.records.isEmpty() -> {
                     MedicalRecordEmptyState(onNavigateBack = onNavigateBack)
                 }
 
                 else -> {
                     val today = LocalDate.now()
+                    val filteredRecords = state.filteredRecords
                     val upcoming = state.filteredRecords.filter { record ->
                         parseLocalDate(record.nextVisitDate)?.let { !it.isBefore(today) } == true
                     }
@@ -188,6 +194,18 @@ fun MedicalRecordsScreen(
                             onFilterSelected = viewModel::setFilter,
                             labelFor = viewModel::filterLabel
                         )
+                    }
+
+                    if (filteredRecords.isEmpty()) {
+                        // Kategori terpilih tidak punya hasil, tapi arsip ada:
+                        // tawarkan aksi kontekstual, bukan empty state "belum
+                        // pernah ke dokter".
+                        item {
+                            FilteredRecordsEmptyState(
+                                filterLabel = viewModel.filterLabel(state.selectedFilter),
+                                onShowAll = { viewModel.setFilter("all") }
+                            )
+                        }
                     }
 
                         if (upcoming.isNotEmpty()) {
@@ -1447,6 +1465,57 @@ private fun InfoPill(icon: ImageVector, label: String) {
         ) {
             Icon(icon, contentDescription = null, tint = MrTextSecondary, modifier = Modifier.size(15.dp))
             Text(label, color = MrTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+    }
+}
+
+/**
+ * Empty state KONTEKSTUAL untuk filter yang tidak menghasilkan apa pun.
+ * Arsip sebenarnya ada — chip filter tetap tampil di atas, jadi pengguna
+ * bisa langsung kembali ke "Semua". Jangan pakai empty state generik
+ * "Belum ada rekam medis" di sini karena itu informasi yang salah.
+ */
+@Composable
+private fun FilteredRecordsEmptyState(
+    filterLabel: String,
+    onShowAll: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 32.dp, horizontal = 28.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(MrPrimarySoft),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.FilterAlt, contentDescription = null, tint = MrPrimary, modifier = Modifier.size(30.dp))
+        }
+        Text(
+            text = "Tidak ada rekam medis untuk \u201C$filterLabel\u201D",
+            color = MrTextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.SemiBold,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = "Rekam medis dengan kategori lain tetap tersimpan di arsip Anda.",
+            color = MrTextSecondary,
+            fontSize = 13.sp,
+            lineHeight = 20.sp,
+            textAlign = TextAlign.Center
+        )
+        OutlinedButton(
+            onClick = onShowAll,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MrPrimary)
+        ) {
+            Text("Lihat Semua Rekam Medis", fontWeight = FontWeight.SemiBold)
         }
     }
 }

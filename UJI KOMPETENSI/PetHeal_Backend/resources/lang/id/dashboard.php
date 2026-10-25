@@ -99,5 +99,5 @@ return [
     'bookings' => 'Booking',
     'revenue' => 'Pendapatan',
     'million_short' => 'jt',
-    'view_all_bookings' => 'Lihat Semua Booking',
+    'view_all_payments' => 'Lihat Semua Pembayaran',
 ];

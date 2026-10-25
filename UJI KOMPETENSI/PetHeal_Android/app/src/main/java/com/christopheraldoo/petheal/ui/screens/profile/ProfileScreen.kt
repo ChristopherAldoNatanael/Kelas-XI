@@ -621,23 +621,10 @@ fun ProfileScreen(
                         Text("Ubah Profil", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                     }
 
+                    // (Trust pill "Secure Account" / "Support Ready" dihapus —
+                    // klaim statis tanpa sumber data nyata; bukan fitur, hanya
+                    // dekorasi yang bisa ditanya penguji.)
                     Spacer(Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        ProfileTrustPill(
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Outlined.VerifiedUser,
-                            label = "Secure Account"
-                        )
-                        ProfileTrustPill(
-                            modifier = Modifier.weight(1f),
-                            icon = Icons.Outlined.SupportAgent,
-                            label = "Support Ready"
-                        )
-                    }
                 }
             }
 
@@ -1198,30 +1185,6 @@ private fun EmailChangeDialog(
             }
         }
     )
-}
-
-@Composable
-private fun ProfileTrustPill(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    label: String
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, BorderDark)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(17.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(label, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
 }
 
 @Composable

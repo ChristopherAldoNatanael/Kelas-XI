@@ -81,6 +81,10 @@
   untuk cuti/jam khusus; klien lama tetap hanya membaca `data`.
 - Create/reschedule booking memakai kode error aditif: `409 {code:"slot_conflict"}` dan
   `422 {code:"slot_unavailable"}` (cuti / jam di luar jadwal efektif / bukan kelipatan slot).
+- `PUT /api/pets/{id}` menerima field opsional aditif `remove_photo` (boolean, 2026-10-25):
+  bila true dan TANPA file `photo` baru → server menghapus file (path relatif) + null kolom
+  `photo`. Prioritas: file upload > remove_photo > string photo. Klien lama (tanpa field)
+  tidak berubah perilakunya.
 
 ## Naming Freeze (tidak ada yang dihapus)
 

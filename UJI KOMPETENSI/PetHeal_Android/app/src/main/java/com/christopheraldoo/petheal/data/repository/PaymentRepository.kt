@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.data.model.*
@@ -105,7 +106,7 @@ class PaymentRepository @Inject constructor(
             Result.Error("Connection timeout. Please try again.")
         } catch (e: Exception) {
             Log.e(TAG, "Exception creating snap token", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -127,7 +128,7 @@ class PaymentRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getTransactionStatus exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -149,7 +150,7 @@ class PaymentRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "syncBookingPaymentStatus exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -175,7 +176,7 @@ class PaymentRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "createRemainingPaymentSnapToken exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -198,7 +199,7 @@ class PaymentRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "createMedicalRecordExtraPayment exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -219,7 +220,7 @@ class PaymentRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getBookingPaymentStatus exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 

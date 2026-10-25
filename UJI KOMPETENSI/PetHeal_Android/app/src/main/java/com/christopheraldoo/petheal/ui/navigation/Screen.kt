@@ -81,7 +81,14 @@ sealed class Screen(val route: String) {
             message: String,
             bookingId: Int? = null
         ): String {
-            val base = "payment-result/$orderId/$status/${java.net.URLEncoder.encode(message, "UTF-8")}"
+            // URLEncoder = form-encoding: spasi menjadi '+', yang TIDAK
+            // didekode kembali oleh Navigation menjadi spasi (user melihat
+            // "Pembayaran+berhasil!"). Ganti '+' -> '%20' setelah encoding;
+            // ini tak ambigu karena '+' literal sudah diubah encoder ke
+            // '%2B'. Navigation tetap men-dekode %20 -> spasi satu kali,
+            // tanpa double-encoding untuk '%', Unicode, dan tanda baca.
+            val encoded = java.net.URLEncoder.encode(message, "UTF-8").replace("+", "%20")
+            val base = "payment-result/$orderId/$status/$encoded"
             return if (bookingId != null && bookingId > 0) "$base?bookingId=$bookingId" else base
         }
     }

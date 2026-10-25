@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -82,7 +83,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getBookings exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -99,7 +100,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getUpcomingBookings exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -121,7 +122,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getBooking($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -143,7 +144,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "createBooking exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -165,7 +166,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "cancelBooking($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -187,7 +188,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "rescheduleBooking($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -204,7 +205,7 @@ class BookingRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "deleteBooking($id) exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }

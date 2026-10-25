@@ -74,6 +74,10 @@ class DashboardController extends Controller
                 ->orderBy('created_at', 'desc')
                 ->limit(3)
                 ->get();
+            // This payload is serialized raw, so the extra-payment gate used by
+            // MedicalRecordController::serializeRecord must be applied here as
+            // well. Without it Home rendered `diagnosis` for a locked record.
+            $recentVisits->each->maskClinicalFields();
             // PHASE 3 (B15): lower bound added — overdue visits are not
             // "due in the next 14 days". Overdue stays visible via the
             // vaccination overdue alerts and visit history.

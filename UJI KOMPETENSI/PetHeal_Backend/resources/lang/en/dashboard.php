@@ -99,5 +99,5 @@ return [
     'bookings' => 'Bookings',
     'revenue' => 'Revenue',
     'million_short' => 'M',
-    'view_all_bookings' => 'View All Bookings',
+    'view_all_payments' => 'View All Payments',
 ];

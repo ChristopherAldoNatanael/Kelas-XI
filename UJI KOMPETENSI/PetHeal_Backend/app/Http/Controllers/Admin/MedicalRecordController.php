@@ -8,6 +8,7 @@ use App\Models\MedicalRecord;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Response;
 
 class MedicalRecordController extends Controller
@@ -17,6 +18,20 @@ class MedicalRecordController extends Controller
     public function __construct(FCMService $fcmService)
     {
         $this->fcmService = $fcmService;
+    }
+
+    /**
+     * Drop the cached admin aggregates for a clinic.
+     *
+     * A new/edited/deleted record changes revenue, so the 5-minute dashboard
+     * cache must not outlive the write. Same keys as
+     * PaymentStatusService::clearPaymentCaches().
+     */
+    private function forgetDashboardCaches(?int $clinicId): void
+    {
+        $suffix = $clinicId ?: 'all';
+        Cache::forget('payment_stats_c' . $suffix);
+        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
     }
 
     private function normalizeMoneyInput(Request $request, string $key, float $fallback = 0): float
@@ -186,6 +201,8 @@ class MedicalRecordController extends Controller
             ]);
         });
 
+        $this->forgetDashboardCaches($record->clinic_id ?: currentClinicId());
+
         // Send notification if next visit is scheduled
         $nextVisitDate = $request->input('next_visit_date');
         if ($nextVisitDate) {
@@ -248,7 +265,18 @@ class MedicalRecordController extends Controller
             'treatment' => 'required|string',
             'medicine' => 'nullable|string',
             'notes' => 'nullable|string',
-            'next_visit_date' => 'nullable|date',
+            // "Harus tanggal ke depan" hanya berlaku saat tanggal benar-benar
+            // diubah. Rekam medis lama dengan jadwal kontrol yang sudah lewat
+            // tetap bisa diperbaiki bagian lain tanpa dipaksa mengganti tanggal.
+            'next_visit_date' => [
+                'nullable',
+                'date',
+                \Illuminate\Validation\Rule::when(
+                    $request->filled('next_visit_date')
+                        && $request->input('next_visit_date') !== $record->next_visit_date?->toDateString(),
+                    ['after:today']
+                ),
+            ],
             'next_visit_time' => 'nullable|date_format:H:i',
             'cost' => 'nullable|numeric|min:0',
             'treatment_cost' => 'nullable|numeric|min:0',
@@ -269,6 +297,8 @@ class MedicalRecordController extends Controller
         $record->medicine_cost = $this->normalizeMoneyInput($request, 'medicine_cost');
         $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
         $record->save();
+
+        $this->forgetDashboardCaches($record->clinic_id ?: $clinicId);
 
         return redirect()->route('admin.medical-records.index')->with('success', __('admin.medical_record_updated'));
     }
@@ -351,7 +381,9 @@ class MedicalRecordController extends Controller
             $query->where('clinic_id', $clinicId);
         }
         $record = $query->firstOrFail();
+        $cacheClinicId = $record->clinic_id ?: $clinicId;
         $record->delete();
+        $this->forgetDashboardCaches($cacheClinicId);
 
         return redirect()->route('admin.medical-records.index')->with('success', __('admin.medical_record_deleted'));
     }

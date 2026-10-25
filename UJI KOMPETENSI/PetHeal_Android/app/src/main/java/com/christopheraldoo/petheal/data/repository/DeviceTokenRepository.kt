@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.data.repository
 
+import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
 import android.util.Log
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
@@ -28,7 +29,7 @@ class DeviceTokenRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "saveDeviceToken exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 
@@ -43,7 +44,7 @@ class DeviceTokenRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "removeDeviceToken exception", e)
-            Result.Error("Network error: ${e.message}")
+            Result.Error(userFriendlyExceptionMessage(e))
         }
     }
 }
