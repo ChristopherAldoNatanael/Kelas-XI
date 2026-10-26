@@ -226,7 +226,15 @@ private fun drawReceipt(canvas: Canvas, receipt: PaymentReceipt, accentColor: Co
     val paidValuePaint = textPaint(27f, statusColor, bold = true)
     var amountY = CARD_TOP + 812f
 
-    drawAmountRow(canvas, "Total", formatRupiah(receipt.totalAmount), amountY, amountRowPaint, amountValuePaint)
+    // Baris rincian (biaya tindakan/obat pada bukti tambahan rekam medis).
+    // Kapasitas terukur: itemLines maks 2 dan dpAmount hanya dipakai bukti
+    // booking (tanpa itemLines), jadi baseline maksimum 1076 < garis footer
+    // 1148. Geometry kanvas 1080x1760 tidak pernah dilampaui.
+    receipt.itemLines.forEach { (label, value) ->
+        drawAmountRow(canvas, label, value, amountY, amountRowPaint, amountValuePaint)
+        amountY += 66f
+    }
+    drawAmountRow(canvas, receipt.totalLabel, formatRupiah(receipt.totalAmount), amountY, amountRowPaint, amountValuePaint)
     amountY += 66f
     if (receipt.dpAmount > 0.01) {
         drawAmountRow(canvas, "DP awal", formatRupiah(receipt.dpAmount), amountY, amountRowPaint, amountValuePaint)

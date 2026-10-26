@@ -502,8 +502,16 @@ fun PetHealNavHost(
                         totalAmount = amount,
                         isRemainingPayment = false,
                         medicalRecordId = recordId,
-                        onPaymentSuccess = { orderId ->
-                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran tambahan rekam medis berhasil!")) {
+                        // bookingId + recordId ikut dibawa supaya layar hasil
+                        // mencetak BUKTI pembayaran biaya tambahan (sekualitas
+                        // bukti booking) lengkap dengan rincian tindakan/obat.
+                        onPaymentSuccess = { orderId, paymentType ->
+                            navController.navigate(
+                                Screen.PaymentResult.createRoute(
+                                    orderId, "success", "Pembayaran tambahan rekam medis berhasil!",
+                                    bookingId = bookingId, recordId = recordId, method = paymentType
+                                )
+                            ) {
                                 // popUpTo butuh POLA route destination, bukan
                                 // route terisi — string terisi tidak match dan
                                 // diam-diam tidak mem-pop apa pun.
@@ -601,7 +609,7 @@ fun PetHealNavHost(
                         totalAmount = totalAmount,
                         isRemainingPayment = isRemaining, // NEW: Pass isRemaining flag
                         enabledPayments = enabledPayments,
-                        onPaymentSuccess = { orderId ->
+                        onPaymentSuccess = { orderId, _ ->
                             navController.navigate(
                                 Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!", bookingId)
                             ) {
@@ -649,6 +657,15 @@ fun PetHealNavHost(
                 navArgument("bookingId") {
                     type = NavType.IntType
                     defaultValue = 0
+                },
+                // >0 = alur biaya tambahan rekam medis.
+                navArgument("recordId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+                navArgument("method") {
+                    type = NavType.StringType
+                    defaultValue = ""
                 }
             )
         ) { backStackEntry ->
@@ -656,12 +673,17 @@ fun PetHealNavHost(
             val status = backStackEntry.arguments?.getString("status") ?: "failed"
             val message = backStackEntry.arguments?.getString("message") ?: ""
             val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: 0
+            val resultRecordId = backStackEntry.arguments?.getInt("recordId") ?: 0
+            val resultMethod = backStackEntry.arguments?.getString("method")
+                .orEmpty().takeIf { it.isNotBlank() }
 
             val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
             val paymentNavState by paymentNavViewModel.state.collectAsState()
 
-            LaunchedEffect(bookingId) {
+            LaunchedEffect(bookingId, resultRecordId) {
                 if (bookingId > 0) paymentNavViewModel.loadBookingAndUser(bookingId)
+                // Bukti biaya butuh data TERBARU record (status bayar & rincian).
+                if (resultRecordId > 0) paymentNavViewModel.loadMedicalRecord(resultRecordId)
             }
 
             PaymentResultScreen(
@@ -672,6 +694,8 @@ fun PetHealNavHost(
                 clinicName = paymentNavState.clinicName,
                 clinicAddress = paymentNavState.clinicAddress,
                 clinicColor = paymentNavState.clinicColor,
+                medicalRecord = paymentNavState.medicalRecord,
+                paymentMethodLabel = resultMethod,
                 // navigateTab mem-pop PaymentResult (dan sub-layar di atas
                 // Home) sekaligus mencegah entri Home/Bookings ganda —
                 // sebelumnya kedua tombol ini mendorong tab baru di atas

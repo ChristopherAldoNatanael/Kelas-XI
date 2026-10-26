@@ -74,12 +74,19 @@ sealed class Screen(val route: String) {
     }
 
     // ── Payment Result ────────────────────────────────────────────────────────
-    object PaymentResult : Screen("payment-result/{orderId}/{status}/{message}?bookingId={bookingId}") {
+    object PaymentResult : Screen(
+        "payment-result/{orderId}/{status}/{message}?bookingId={bookingId}&recordId={recordId}&method={method}"
+    ) {
         fun createRoute(
             orderId: String,
             status: String,
             message: String,
-            bookingId: Int? = null
+            bookingId: Int? = null,
+            // >0 = pembayaran BIAYA TAMBAHAN rekam medis: layar hasil
+            // memuat record untuk mencetak bukti + rinciannya.
+            recordId: Int? = null,
+            // payment_type Midtrans ('gopay', 'qris', ...) utk label Metode.
+            method: String? = null
         ): String {
             // URLEncoder = form-encoding: spasi menjadi '+', yang TIDAK
             // didekode kembali oleh Navigation menjadi spasi (user melihat
@@ -89,7 +96,19 @@ sealed class Screen(val route: String) {
             // tanpa double-encoding untuk '%', Unicode, dan tanda baca.
             val encoded = java.net.URLEncoder.encode(message, "UTF-8").replace("+", "%20")
             val base = "payment-result/$orderId/$status/$encoded"
-            return if (bookingId != null && bookingId > 0) "$base?bookingId=$bookingId" else base
+            val query = buildString {
+                if (bookingId != null && bookingId > 0) append("?bookingId=$bookingId")
+                if (recordId != null && recordId > 0) {
+                    append(if (isNotEmpty()) "&" else "?")
+                    append("recordId=$recordId")
+                }
+                // Sanitasi: hanya token [A-Za-z0-9_-] yang boleh ikut URL.
+                method?.takeIf { it.isNotBlank() && it.matches(Regex("[A-Za-z0-9_-]{1,24}")) }?.let {
+                    append(if (isNotEmpty()) "&" else "?")
+                    append("method=$it")
+                }
+            }
+            return base + query
         }
     }
 }

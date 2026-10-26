@@ -1,5 +1,56 @@
 # PROGRESS.md — Catatan Pengerjaan (update tiap selesai fase)
 
+## 2026-10-25 — Bukti pembayaran biaya tambahan rekam medis (Android, tanpa perubahan backend)
+
+- **Gap lama:** pembayaran biaya tambahan selalu diarahkan ke layar hasil TANPA
+  `bookingId`/`recordId` → `booking == null` → tidak pernah muncul bukti
+  pembayaran (beda dengan booking yang otomatis membuka sheet bukti).
+- **Alur baru:** `Screen.PaymentResult` menerima query opsional
+  `recordId` + `method`. Tiga callback `MedicalExtraPayment` di NavHost sukses
+  kini membawa `bookingId`, `recordId`, dan `payment_type` Midtrans
+  (signature `onPaymentSuccess` naik jadi `(orderId, paymentType?)` — alur
+  booking mengabaikan argumen kedua). `PaymentNavViewModel.loadMedicalRecord`
+  fetch `forceRefresh=true` supaya status & nominal TERBARU (cache lama tidak
+  mungkin mencetak bukti "belum bayar").
+- **Data bukti 100% dari backend** (`Api/MedicalRecordController::serializeRecord`):
+  `treatment_cost`, `medicine_cost`, `extra_payment_*`. Builder baru
+  `MedicalRecord.toExtraPaymentReceipt` (`util/PaymentReceipt.kt`):
+  invoice `INV-RM-xxxxx`, status PAID/PARTIAL/PENDING dari nominal nyata,
+  tanggal terbit dari `extra_payment_date`, fallback waktu kini. Rincian
+  "Biaya tindakan"/"Biaya obat" HANYA dicetak bila nilainya > 0 — tanpa baris
+  karangan. Metode: token `payment_type` (disanitasi `[A-Za-z0-9_-]{1,24}`);
+  tak diketahui → "-" (tidak pernah menebak). **Diagnosis/tindakan/obat
+  tekstual tidak pernah masuk bukti** (dokumen keuangan, asserted by test).
+- **UI/UX sama persis dengan booking:** `PaymentReceipt` diberi field
+  opsional `totalLabel` + `itemLines` (default kosong → bukti booking lama tak
+  berubah). `PaymentReceiptSheet` & `PaymentReceiptPreviewCard` kini punya
+  varian berbasis-receipt (varian booking mendelegasi ke sini), dan renderer
+  PNG/PDF (`PaymentReceiptImage.kt`) menggambar `itemLines` sebagai baris
+  amount tambahan — kapasitas terukur: maks 5 baris (baseline 1076 < garis
+  footer 1148) pada kanvas 1080×1760; dpAmount (booking) tak pernah muncul
+  bersama itemLines (tambahan), jadi tak ada kombinasi yang melebihi slot.
+  Kartu pratinjau, auto-open sheet, simpan PNG/PDF, bagikan, dan salin teks
+  otomatis berlaku untuk bukti biaya tambahan.
+- **Degradasi jujur:** status success tapi data record belum terbayar/
+  gagal dimuat → layar hasil tampil normal tanpa kartu bukti (tanpa angka
+  fiktif). Pending/gagal tidak pernah mencetak bukti.
+- **Entry point kedua — halaman Detail Rekam Medis** (permintaan lanjutan):
+  bagian "Rincian Biaya" kini menampilkan tombol **"Lihat bukti pembayaran"**
+  (OutlinedButton hijau, ikon struk) bila ada pembayaran tambahan nyata
+  (`extra_payment_paid_amount > 0` ATAU status `paid`) — bukti bisa dibuka
+  kapan pun, tanpa harus sedang di layar hasil. Sheet dibuka in-place
+  (tanpa navigasi): sama persis dengan bukti booking termasuk PNG/PDF/
+  bagikan/salin dan rincian tindakan/obat. Kop klinik (nama/alamat/warna)
+  dialirkan dari `PreferencesManager` ke `MedicalRecordDetailUiState`
+  (pola idensial PaymentNavViewModel). Metode pada bukti detail = "Midtrans"
+  (fallback order id) karena `payment_type` hanya tersedia live di layar
+  hasil — tidak pernah menebak lebih spesifik.
+- **Test:** `MedicalExtraReceiptTest` (8 test): PAID penuh + itemization +
+  invoice number + tanggal nyata, larangan kebocoran klinis di teks bukti,
+  PARTIAL + sisa, fallback paid=status paid, nol biaya → tanpa baris rincian,
+  tanggal hilang → fallback tanpa crash, perakitan query route recordId/method,
+  sanitasi method.
+
 ## 2026-10-25 — Testing perangkat fisik: navigasi tab, error ramah, dialog privasi
 
 - **Satu mekanisme tab (`navigateToTab`).** Akar gejala "tombol membuka halaman

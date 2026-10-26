@@ -41,6 +41,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptPreviewCard
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
@@ -54,6 +55,7 @@ import com.christopheraldoo.petheal.ui.theme.Tertiary
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.util.toExtraPaymentReceipt
 
 private const val TAG = "PaymentScreen"
 
@@ -76,7 +78,10 @@ fun PaymentScreen(
     user: User?,
     isDpPayment: Boolean,
     totalAmount: Double,
-    onPaymentSuccess: (String) -> Unit,
+    // paymentType Midtrans (nullable) ikut dikirim supaya bukti biaya
+    // tambahan dapat melabeli "Metode" dengan data nyata; alur booking tidak
+    // memakainya (metodenya sudah dari backend).
+    onPaymentSuccess: (String, String?) -> Unit,
     onPaymentPending: (String) -> Unit,
     onPaymentFailed: (String) -> Unit,
     onNavigateBack: () -> Unit,
@@ -161,7 +166,7 @@ fun PaymentScreen(
                 "success" -> {
                     onBookingUpdated()
                     kotlinx.coroutines.delay(3000)
-                    onPaymentSuccess(result.orderId)
+                    onPaymentSuccess(result.orderId, result.paymentType)
                 }
                 "pending" -> {
                     onBookingUpdated()
@@ -666,6 +671,11 @@ fun PaymentResultScreen(
     clinicName: String? = null,
     clinicAddress: String? = null,
     clinicColor: String? = null,
+    // Pembayaran BIAYA TAMBAHAN rekam medis (record di-refresh setelah bayar):
+    // menghasilkan bukti sekualitas bukti booking + rincian tindakan/obat.
+    medicalRecord: MedicalRecord? = null,
+    // payment_type dari callback Midtrans (nullable; '-' bila tak diketahui).
+    paymentMethodLabel: String? = null,
     onNavigateToBookings: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
@@ -675,9 +685,24 @@ fun PaymentResultScreen(
     val textSecondary = TextSecondary
     var showReceipt by rememberSaveable { mutableStateOf(false) }
     var receiptAutoOpened by rememberSaveable { mutableStateOf(false) }
-    val hasPaymentProof = status == "success" && booking != null &&
+
+    // Bukti biaya tambahan HANYA dari data record nyata yang terbayar.
+    val extraReceipt = remember(medicalRecord, status, orderId, paymentMethodLabel) {
+        if (status == "success" && medicalRecord != null &&
+            (medicalRecord.extraPaymentPaidAmount ?: 0.0) > 0.01
+        ) {
+            medicalRecord.toExtraPaymentReceipt(
+                clinicName = clinicName,
+                clinicAddress = clinicAddress,
+                referenceOrderId = orderId,
+                paymentMethodLabel = paymentMethodLabel
+            )
+        } else null
+    }
+    val bookingProof = status == "success" && booking != null &&
         ((booking.paidAmount ?: 0.0) > 0.01 ||
             booking.paymentStatus?.lowercase() in setOf("paid", "dp_paid", "partial"))
+    val hasPaymentProof = bookingProof || extraReceipt != null
 
     LaunchedEffect(hasPaymentProof) {
         if (hasPaymentProof && !receiptAutoOpened) {
@@ -699,7 +724,11 @@ fun PaymentResultScreen(
             } else {
                 "Pembayaran tercatat dan status booking dimuat ulang."
             }
-            eyebrow = "Pembayaran booking diperbarui"
+            eyebrow = if (extraReceipt != null) {
+                "Biaya tambahan rekam medis"
+            } else {
+                "Pembayaran booking diperbarui"
+            }
         }
         "pending" -> {
             icon = Icons.Filled.Schedule
@@ -796,7 +825,16 @@ fun PaymentResultScreen(
                 }
             }
 
-            if (hasPaymentProof && booking != null) {
+            if (extraReceipt != null) {
+                // Bukti biaya tambahan: kartu & sheet yang sama persis
+                // dengan bukti booking, isinya rincian tindakan/obat.
+                Spacer(Modifier.height(20.dp))
+                PaymentReceiptPreviewCard(
+                    receipt = extraReceipt,
+                    clinicColor = clinicColor,
+                    onOpen = { showReceipt = true }
+                )
+            } else if (hasPaymentProof && booking != null) {
                 Spacer(Modifier.height(20.dp))
                 PaymentReceiptPreviewCard(
                     booking = booking,
@@ -826,7 +864,13 @@ fun PaymentResultScreen(
         }
     }
 
-    if (showReceipt && booking != null) {
+    if (showReceipt && extraReceipt != null) {
+        PaymentReceiptSheet(
+            receipt = extraReceipt,
+            clinicColor = clinicColor,
+            onDismiss = { showReceipt = false }
+        )
+    } else if (showReceipt && booking != null) {
         PaymentReceiptSheet(
             booking = booking,
             clinicName = clinicName,

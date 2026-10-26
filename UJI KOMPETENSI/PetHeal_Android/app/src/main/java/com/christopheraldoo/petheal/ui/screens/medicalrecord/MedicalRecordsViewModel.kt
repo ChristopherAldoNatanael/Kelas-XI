@@ -30,7 +30,12 @@ data class MedicalRecordsUiState(
 data class MedicalRecordDetailUiState(
     val isLoading: Boolean = false,
     val record: MedicalRecord? = null,
-    val error: String? = null
+    val error: String? = null,
+    // Kop bukti pembayaran biaya tambahan (diisi dari preferensi sesi
+    // klinik; sama dengan sumber PaymentNavViewModel).
+    val clinicName: String? = null,
+    val clinicAddress: String? = null,
+    val clinicColor: String? = null
 )
 
 /**
@@ -82,6 +87,22 @@ class MedicalRecordsViewModel @Inject constructor(
     val filterCategories = listOf("all", "vaccination", "checkup", "surgery", "lab")
 
     init {
+        // Kop bukti pembayaran: nama/alamat/warna klinik sesi aktif.
+        viewModelScope.launch {
+            preferencesManager.clinicName.collect { name ->
+                _detailState.value = _detailState.value.copy(clinicName = name)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicAddress.collect { address ->
+                _detailState.value = _detailState.value.copy(clinicAddress = address)
+            }
+        }
+        viewModelScope.launch {
+            preferencesManager.clinicColor.collect { color ->
+                _detailState.value = _detailState.value.copy(clinicColor = color)
+            }
+        }
         // Auto-refresh setelah additional payment sukses: lewati cache RAM
         // (root cause: stale cache membuat user harus restart aplikasi).
         // Pola yang sama dengan BookingViewModel + BookingRefreshManager.

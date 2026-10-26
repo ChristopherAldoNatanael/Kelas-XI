@@ -82,11 +82,31 @@ fun PaymentReceiptSheet(
     orderId: String? = null,
     onDismiss: () -> Unit
 ) {
-    val context = LocalContext.current
-    val accent = ClinicTheme.parsePrimaryColor(clinicColor)
+    // Varian booking: sumber data tetap Booking dari backend.
     val receipt = remember(booking, clinicName, clinicAddress, orderId) {
         booking.toPaymentReceipt(clinicName, clinicAddress, orderId)
     }
+    PaymentReceiptSheet(
+        receipt = receipt,
+        clinicColor = clinicColor,
+        onDismiss = onDismiss
+    )
+}
+
+/**
+ * Varian inti: bekerja dari PaymentReceipt jadi — bukti biaya tambahan
+ * rekam medis memakai sheet, tombol simpan/bagikan, dan teks yang sama
+ * persis dengan bukti booking. Tidak ada layout kedua yang bisa menyimpang.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaymentReceiptSheet(
+    receipt: PaymentReceipt,
+    clinicColor: String?,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val accent = ClinicTheme.parsePrimaryColor(clinicColor)
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     val saveLauncher = rememberLauncherForActivityResult(
@@ -362,6 +382,22 @@ fun PaymentReceiptPreviewCard(
     val receipt = remember(booking, clinicName, clinicAddress, orderId) {
         booking.toPaymentReceipt(clinicName, clinicAddress, orderId)
     }
+    PaymentReceiptPreviewCard(
+        receipt = receipt,
+        clinicColor = clinicColor,
+        onOpen = onOpen,
+        modifier = modifier
+    )
+}
+
+/** Kartu pratinjau berbasis receipt jadi (dipakai bukti booking & biaya tambahan). */
+@Composable
+fun PaymentReceiptPreviewCard(
+    receipt: PaymentReceipt,
+    clinicColor: String?,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val accent = ClinicTheme.parsePrimaryColor(clinicColor)
     val statusColor = receiptStatusTone(receipt.status, accent)
 
@@ -554,7 +590,12 @@ private fun ReceiptPaper(receipt: PaymentReceipt, accent: Color) {
 
             DashedDivider()
 
-            ReceiptAmountRow("Total", formatRupiah(receipt.totalAmount))
+            // Rincian biaya (mis. tindakan & obat) — hanya baris bernilai
+            // nyata dari backend; bukti booking normal tidak punya baris ini.
+            receipt.itemLines.forEach { (label, value) ->
+                ReceiptAmountRow(label, value)
+            }
+            ReceiptAmountRow(receipt.totalLabel, formatRupiah(receipt.totalAmount))
             if (receipt.dpAmount > 0.01) {
                 ReceiptAmountRow("DP awal", formatRupiah(receipt.dpAmount))
             }

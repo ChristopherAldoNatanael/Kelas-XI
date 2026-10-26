@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
+import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
 import com.christopheraldoo.petheal.data.repository.MedicalRefreshManager
 import com.christopheraldoo.petheal.data.repository.Result
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +26,9 @@ data class PaymentNavState(
     val error: String? = null,
     val clinicName: String? = null,
     val clinicAddress: String? = null,
-    val clinicColor: String? = null
+    val clinicColor: String? = null,
+    // Diisi hanya utk alur biaya tambahan rekam medis (recordId > 0).
+    val medicalRecord: MedicalRecord? = null
 )
 
 @HiltViewModel
@@ -33,6 +37,7 @@ class PaymentNavViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val bookingRefreshManager: BookingRefreshManager,
     private val medicalRefreshManager: MedicalRefreshManager,
+    private val medicalRecordRepository: MedicalRecordRepository,
     private val preferencesManager: PreferencesManager
 ) : ViewModel() {
 
@@ -82,6 +87,22 @@ class PaymentNavViewModel @Inject constructor(
                 booking = booking,
                 user = user
             )
+        }
+    }
+
+    /**
+     * Muat rekam medis TERBARU untuk bukti biaya tambahan. forceRefresh =
+     * true karena pembayaran baru saja mengubah extra_payment_* di server;
+     * cache lama akan mencetak bukti dengan status belum terbayar.
+     * Kegagalan bersifat best-effort: tanpa record, layar hasil tetap tampil
+     * tanpa kartu bukti (tidak pernah ada angka karangan).
+     */
+    fun loadMedicalRecord(recordId: Int) {
+        viewModelScope.launch {
+            when (val result = medicalRecordRepository.getMedicalRecord(recordId, forceRefresh = true)) {
+                is Result.Success -> _state.value = _state.value.copy(medicalRecord = result.data)
+                else -> Unit
+            }
         }
     }
 

@@ -82,6 +82,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,8 +101,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.toExtraPaymentReceipt
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -335,6 +341,9 @@ fun MedicalRecordDetailScreen(
                     item {
                         MedicalRecordPaymentSection(
                             record = record,
+                            clinicName = state.clinicName,
+                            clinicAddress = state.clinicAddress,
+                            clinicColor = state.clinicColor,
                             onPayClick = { bookingId, amount ->
                                 onNavigateToExtraPayment(bookingId, record.id ?: recordId, amount)
                             }
@@ -967,6 +976,9 @@ private fun MedicalRecordIdentitySection(record: MedicalRecord) {
 @Composable
 private fun MedicalRecordPaymentSection(
     record: MedicalRecord,
+    clinicName: String?,
+    clinicAddress: String?,
+    clinicColor: String?,
     onPayClick: (bookingId: Int, amount: Double) -> Unit = { _, _ -> }
 ) {
     val extraStatus = record.extraPaymentStatus
@@ -975,6 +987,21 @@ private fun MedicalRecordPaymentSection(
     val payBookingId = record.bookingId
     val needsExtraPayment = extraStatus in listOf("unpaid", "pending", "partial") &&
         outstanding > 0 && payBookingId != null
+
+    // Bukti biaya tambahan bisa dibuka KAPAN SAJA dari detail — tidak lagi
+    // terbatas saat layar hasil pembayaran baru lewat. Syaratnya data nyata:
+    // ada uang yang benar-benar terbayar ( Builder status PAID/PARTIAL ).
+    val hasExtraProof = (record.extraPaymentPaidAmount ?: 0.0) > 0.01 ||
+        extraStatus == "paid"
+    val extraReceipt = if (hasExtraProof) {
+        remember(record, clinicName, clinicAddress) {
+            record.toExtraPaymentReceipt(
+                clinicName = clinicName,
+                clinicAddress = clinicAddress
+            )
+        }
+    } else null
+    var showExtraReceipt by rememberSaveable { mutableStateOf(false) }
 
     DetailSectionCard(
         title = "Rincian Biaya",
@@ -1062,8 +1089,35 @@ private fun MedicalRecordPaymentSection(
                         Text("Bayar Sekarang", fontWeight = FontWeight.Bold)
                     }
                 }
+
+                if (extraReceipt != null) {
+                    // Sekualitas bukti booking: sheet yang sama (PNG/PDF/
+                    // bagikan/salin) dibuka in-place, tanpa navigasi.
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedButton(
+                        onClick = { showExtraReceipt = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, MrPrimary.copy(alpha = 0.45f)),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MrPrimary)
+                    ) {
+                        Icon(Icons.Filled.ReceiptLong, contentDescription = null, modifier = Modifier.size(20.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Lihat bukti pembayaran", fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
         }
+    }
+
+    if (showExtraReceipt && extraReceipt != null) {
+        PaymentReceiptSheet(
+            receipt = extraReceipt,
+            clinicColor = clinicColor,
+            onDismiss = { showExtraReceipt = false }
+        )
     }
 }
 

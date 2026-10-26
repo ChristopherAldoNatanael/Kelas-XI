@@ -1,6 +1,7 @@
 package com.christopheraldoo.petheal.util
 
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.data.model.MedicalRecord
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -26,7 +27,18 @@ data class PaymentReceipt(
     val paidAmount: Double,
     val remainingAmount: Double,
     val reference: String?,
-    val issuedAt: String
+    val issuedAt: String,
+    /**
+     * Label baris "Total" — untuk bukti layanan default "Total", untuk
+     * bukti biaya tambahan rekam medis "Total biaya tambahan".
+     */
+    val totalLabel: String = "Total",
+    /**
+     * Rincian uang tambahan (label -> nilai rupiah terformat) yang dicetak
+     * SEBELUM baris Total — dipakai bukti biaya tambahan rekam medis
+     * (biaya tindakan & biaya obat). Bukti booking lama tetap kosong.
+     */
+    val itemLines: List<Pair<String, String>> = emptyList()
 ) {
     val hasOutstanding: Boolean
         get() = remainingAmount > 0.01 && status != ReceiptStatus.PAID
@@ -51,7 +63,8 @@ data class PaymentReceipt(
         appendLine("Metode: $paymentMethod")
         appendLine("Jenis: $paymentType")
         appendLine()
-        appendLine("Total: ${formatRupiah(totalAmount)}")
+        itemLines.forEach { (label, value) -> appendLine("$label: $value") }
+        appendLine("$totalLabel: ${formatRupiah(totalAmount)}")
         if (dpAmount > 0.01) {
             appendLine("DP awal: ${formatRupiah(dpAmount)}")
         }
@@ -122,6 +135,83 @@ fun Booking.toPaymentReceipt(
 
 fun Booking.invoiceNumber(): String =
     "INV-${id?.toString()?.padStart(5, '0') ?: "----"}"
+
+/**
+ * Bukti pembayaran BIAYA TAMBAHAN rekam medis — sekualitas bukti booking
+ * (sheet PNG/PDF/teks yang sama) tapi isinya rincian tindakan & obat.
+ *
+ * Aturan kejujuran data:
+ *  - Semua angka dari field extra_payment_* / total_medical_cost backend;
+ *    UI tidak pernah menghitung ulang.
+ *  - Rincian (Biaya tindakan / Biaya obat) hanya dicetak bila backend
+ *    mengirim nilai > 0 — tidak ada baris nol/njih karangan.
+ *  - Diagnosis/tindakan/obat textual TIDAK PERNAH masuk bukti; dokumen
+ *    ini dokumen keuangan, bukan rekam klinis.
+ */
+fun MedicalRecord.toExtraPaymentReceipt(
+    clinicName: String?,
+    clinicAddress: String?,
+    referenceOrderId: String? = null,
+    paymentMethodLabel: String? = null
+): PaymentReceipt {
+    val amount = extraPaymentAmount
+        ?: totalMedicalCost
+        ?: cost
+        ?: 0.0
+    val statusRaw = extraPaymentStatus?.lowercase()
+    val paid = extraPaymentPaidAmount
+        ?: if (statusRaw == "paid") amount else 0.0
+    val remaining = (amount - paid).coerceAtLeast(0.0)
+
+    val status = when {
+        amount - paid <= 0.01 -> ReceiptStatus.PAID
+        paid > 0.01 -> ReceiptStatus.PARTIAL
+        else -> ReceiptStatus.PENDING
+    }
+
+    val itemLines = listOfNotNull(
+        treatmentCost?.takeIf { it > 0.01 }?.let { "Biaya tindakan" to formatRupiah(it) },
+        medicineCost?.takeIf { it > 0.01 }?.let { "Biaya obat" to formatRupiah(it) }
+    )
+
+    // Tanggal bayar nyata bila backend mengirimkannya; fallback waktu kini.
+    val issued = extraPaymentDate?.let { raw ->
+        runCatching {
+            LocalDateTime.parse(
+                raw.replace(' ', 'T').take(16)
+            ).format(receiptTimeFormatter)
+        }.getOrNull()
+    } ?: LocalDateTime.now().format(receiptTimeFormatter)
+
+    val visitDate = createdAt?.let { raw ->
+        runCatching { LocalDate.parse(raw.take(10)).format(receiptDateFormatter) }.getOrNull()
+    }
+
+    return PaymentReceipt(
+        invoiceNumber = "INV-RM-${id?.toString()?.padStart(5, '0') ?: "----"}",
+        clinicName = clinicName.orEmpty().trim(),
+        clinicAddress = clinicAddress.orEmpty().trim(),
+        status = status,
+        petName = pet?.name?.takeIf { it.isNotBlank() } ?: "-",
+        doctorName = doctor?.name?.takeIf { it.isNotBlank() } ?: "-",
+        serviceName = "Biaya tambahan rekam medis",
+        schedule = visitDate ?: "-",
+        paymentMethod = paymentMethodLabel?.takeIf { it.isNotBlank() }
+            ?: extraPaymentOrderId?.takeIf { it.isNotBlank() }?.let { "Midtrans" }
+            ?: "-",
+        paymentType = "Tindakan & obat",
+        totalAmount = amount,
+        dpAmount = 0.0,
+        paidAmount = paid,
+        remainingAmount = remaining,
+        reference = referenceOrderId?.takeIf { it.isNotBlank() }
+            ?: extraPaymentOrderId?.takeIf { it.isNotBlank() }
+            ?: id?.let { "RM-$it" },
+        issuedAt = issued,
+        totalLabel = "Total biaya tambahan",
+        itemLines = itemLines
+    )
+}
 
 private fun Booking.receiptSchedule(): String {
     val date = receiptBookingDate() ?: return bookingTime?.take(5) ?: "-"
