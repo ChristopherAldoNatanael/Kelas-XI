@@ -9,13 +9,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Hash;
+use App\Services\ClinicDeletionService;
 use App\Services\ImageService;
 
 class ClinicController extends Controller
 {
     public function index()
     {
-        $clinics = Clinic::withCount(['doctors', 'services', 'bookings', 'users'])
+        $clinics = Clinic::withCount([
+            'doctors',
+            'services',
+            'bookings',
+            'users',
+            'medicalRecords',
+            'notifications',
+            'joinRequests',
+            'scheduleExceptions',
+        ])
             ->orderBy('name')
             ->paginate(20);
 
@@ -128,6 +138,43 @@ class ClinicController extends Controller
         $clinic->update($data);
 
         return redirect()->route('admin.clinics.index')->with('success', __('clinics.updated_success'));
+    }
+
+    /**
+     * Hapus klinik permanen beserta seluruh datanya (super_admin only).
+     *
+     * Konfirmasi memakai slug klinik — bukan sekadar tombol OK — karena
+     * tindakan ini menghapus rekam medis, pembayaran, dan akun pasien.
+     */
+    public function destroy(Request $request, Clinic $clinic, ClinicDeletionService $deletion)
+    {
+        $request->validate([
+            'confirm_slug' => ['required', 'string'],
+        ]);
+
+        if ($request->input('confirm_slug') !== $clinic->slug) {
+            return redirect()->route('admin.clinics.index')
+                ->with('error', __('clinics.delete_slug_mismatch', ['slug' => $clinic->slug]));
+        }
+
+        $clinicId = (int) $clinic->id;
+        $clinicName = $clinic->name;
+
+        $summary = $deletion->delete($clinic);
+
+        // Jangan biarkan sesi menunjuk klinik yang sudah tidak ada.
+        if ((int) session('current_clinic_id') === $clinicId) {
+            session()->forget('current_clinic_id');
+        }
+
+        return redirect()->route('admin.clinics.index')
+            ->with('success', __('clinics.deleted_success', [
+                'name' => $clinicName,
+                'users' => $summary['users'],
+                'doctors' => $summary['doctors'],
+                'bookings' => $summary['bookings'],
+                'records' => $summary['medical_records'],
+            ]));
     }
 
     public function toggleActive(Clinic $clinic)

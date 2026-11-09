@@ -21,6 +21,12 @@
 - `pets` tetap milik user (`user_id`), tapi `medical_records/vaccinations/weight_records` ikut `pet->user->clinic_id` untuk laporan.
 - `audit_logs`: isi `clinic_id` + `user_id` setiap aksi admin. `notifications/device_tokens`: kirim hanya dalam klinik yang sama.
 
+## Permintaan Klinik (`clinic_join_requests`)
+- `type=join`: permintaan gabung ke klinik existing; `clinic_id` wajib dan approve hanya membuat akun `clinic_admin`.
+- `type=new_clinic`: pendaftaran klinik mandiri; `clinic_id` NULL sampai disetujui. Data klinik disimpan di kolom snapshot `requested_*`.
+- Daftar permintaan HANYA untuk `super_admin` dan **jangan** difilter `currentClinicId()`: request `new_clinic` akan hilang bila super admin sedang berada di konteks sebuah klinik.
+- Approve `new_clinic` membuat Clinic + User `clinic_admin` + audit log dalam satu transaksi dengan row lock; slug/email dicek ulang di dalam lock. Reject tidak pernah membuat Clinic/User.
+
 ## Larangan
 - DILARANG mempercayai `clinic_id` dari body request mentah tanpa verifikasi milik user/klinik aktif.
 - DILARANG menampilkan dropdown data klinik lain ke clinic_admin (filter di query, bukan cuma hide tombol).

@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
-import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInClient
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
@@ -76,7 +75,6 @@ fun LoginScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val pickerState by pickerViewModel.uiState.collectAsState()
-    val authProvider by viewModel.authProvider.collectAsState(initial = null)
     val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -301,25 +299,29 @@ fun LoginScreen(
             )
 
             // ── Forgot password ───────────────────────────────────────
-            if (authProvider != PreferencesManager.AUTH_PROVIDER_GOOGLE) {
-                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                    TextButton(
-                        onClick = {
-                            forgotPasswordMessage = null
-                            showForgotPasswordDialog = true
-                        }
-                    ) {
-                        Text(
-                            "Lupa Kata Sandi?",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = AuthPrimary
-                        )
+            // Selalu tampil: layar masuk ini berada SEBELUM login, jadi akun
+            // yang akan dipakai belum tentu sama dengan sesi terakhir.
+            // (Dulu disembunyikan bila auth_provider terakhir = "google",
+            // padahal nilai itu tersimpan di DataStore dan tidak dihapus saat
+            // keluar, sehingga setelah sekali login Google tombolnya hilang
+            // untuk semua akun di perangkat itu.)
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                TextButton(
+                    onClick = {
+                        forgotPasswordMessage = null
+                        showForgotPasswordDialog = true
                     }
+                ) {
+                    Text(
+                        "Lupa Kata Sandi?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = AuthPrimary
+                    )
                 }
-
-                Spacer(modifier = Modifier.height(4.dp))
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             // ── Klinik (HANYA untuk login email — tombol Google di bawah
             // mengabaikan pilihan ini dan memakai klinik milik akun) ──

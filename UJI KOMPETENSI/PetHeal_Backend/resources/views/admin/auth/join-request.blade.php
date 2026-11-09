@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Request Gabung Klinik</title>
+    <title>Daftar Klinik Hewan</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><g fill='%2318C964'><circle cx='5.6' cy='10.2' r='2'/><circle cx='9.4' cy='5.6' r='2.3'/><circle cx='14.6' cy='5.6' r='2.3'/><circle cx='18.4' cy='10.2' r='2'/><path d='M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z'/></g></svg>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -130,8 +130,9 @@
         }
         .error-box ul { margin: 0.25rem 0 0 1.1rem; }
         .field-error { font-size: 0.75rem; color: #DC2626; margin-top: 0.35rem; }
-        .input-wrap.invalid input { border-color: #FCA5A5; background: #FEF2F2; }
-        .input-wrap.invalid input:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
+        .input-wrap.invalid input, .input-wrap.invalid textarea { border-color: #FCA5A5; background: #FEF2F2; }
+        .input-wrap.invalid input:focus, .input-wrap.invalid textarea:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
+        .mode-tabs.hidden { display: none; }
 
         /* clinic cards */
         .clinic-grid {
@@ -218,6 +219,38 @@
             border-color: #1B2A1E; box-shadow: 0 0 0 3px rgba(27, 42, 30, 0.1); background: #fff;
         }
         .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .input-wrap textarea {
+            width: 100%; padding: 0.7rem 0.9rem; font-size: 0.9rem;
+            font-family: inherit; color: #111; background: #FAFAF9;
+            border: 1px solid #D6D3D1; border-radius: 10px; outline: none;
+            resize: vertical; min-height: 74px; line-height: 1.55;
+            transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+        }
+        .input-wrap textarea::placeholder { color: #A8A29E; }
+        .input-wrap textarea:focus {
+            border-color: #1B2A1E; box-shadow: 0 0 0 3px rgba(27, 42, 30, 0.1); background: #fff;
+        }
+        .input-wrap input[type="color"] {
+            padding: 0.2rem; height: 44px; cursor: pointer;
+        }
+        .field-hint { font-size: 0.72rem; color: #78716C; margin-top: 0.3rem; line-height: 1.5; }
+        .mode-tabs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem;
+            background: #F5F5F4; border: 1px solid #E7E5E4;
+            border-radius: 12px; padding: 0.3rem; margin-bottom: 1.35rem;
+        }
+        .mode-tabs label {
+            position: relative; display: flex; align-items: center; justify-content: center;
+            padding: 0.55rem 0.4rem; border-radius: 9px; text-align: center;
+            font-size: 0.78rem; font-weight: 700; color: #78716C; cursor: pointer;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+        }
+        .mode-tabs input { position: absolute; opacity: 0; pointer-events: none; }
+        .mode-tabs label:has(input:checked) {
+            background: #fff; color: #1B2A1E;
+            box-shadow: 0 2px 8px -4px rgba(0, 0, 0, 0.25);
+        }
+        .mode-tabs label:has(input:focus-visible) { outline: 2px solid #1B2A1E; outline-offset: 2px; }
         .pw-field { position: relative; }
         .pw-toggle {
             position: absolute; right: 0.6rem; top: 50%; transform: translateY(-50%);
@@ -268,6 +301,36 @@
             padding: 0.8rem 1rem; border-radius: 12px; font-size: 0.8125rem;
             line-height: 1.55; margin-bottom: 1.25rem;
         }
+
+        /* status permintaan klinik baru */
+        .status-icon {
+            width: 62px; height: 62px; border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 1.1rem;
+        }
+        .status-icon.pending { background: #FFFBEB; border: 1px solid #FDE68A; color: #B45309; }
+        .status-icon.approved { background: #F0FDF4; border: 1px solid #BBF7D0; color: #15803D; }
+        .status-icon.rejected { background: #FEF2F2; border: 1px solid #FECACA; color: #B91C1C; }
+        .status-summary {
+            display: flex; align-items: center; gap: 0.7rem; text-align: left;
+            background: #FAFAF9; border: 1px solid #E7E5E4;
+            border-radius: 12px; padding: 0.8rem 0.9rem; margin-bottom: 1rem;
+        }
+        .status-summary .mini-avatar {
+            width: 38px; height: 38px; border-radius: 11px; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 800; color: #fff; font-size: 1rem; overflow: hidden;
+        }
+        .status-summary strong { display: block; font-size: 0.87rem; color: #111; }
+        .status-summary small { display: block; font-size: 0.72rem; color: #78716C; margin-top: 0.12rem; word-break: break-all; }
+        .status-note {
+            background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 10px;
+            padding: 0.75rem 0.9rem; font-size: 0.8rem; line-height: 1.6;
+            color: #475569; text-align: left; margin-bottom: 1.25rem;
+        }
+        .status-note.rose { background: #FEF2F2; border-color: #FECACA; color: #991B1B; }
+        a.btn-submit { text-decoration: none; }
+        .status-footnote { text-align: center; font-size: 0.75rem; color: #A8A29E; margin-top: 0.9rem; }
         .otp-intro {
             background: #FAFAF9; border: 1px solid #E7E5E4; border-radius: 12px;
             padding: 0.9rem 1rem; margin-bottom: 1.25rem;
@@ -464,22 +527,46 @@
                 <span>Klinik Hewan</span>
             </div>
 
-            @php $pending = $pending ?? null; @endphp
+            @php
+                $pending = $pending ?? null;
+                $submitted = $submitted ?? null;
+                $mode = $mode ?? 'join';
+                $initialMode = old('registration_type', $mode) === 'new_clinic' ? 'new_clinic' : 'join';
+                $allDone = $pending || $submitted;
+            @endphp
             <div class="steps" aria-label="Langkah pendaftaran">
-                <div class="step {{ $pending ? 'done' : 'active' }}" id="stepDot1"><span class="num">{{ $pending ? '✓' : '1' }}</span> Klinik</div>
-                <div class="step-line"><span id="stepBar" style="width: {{ $pending ? '100%' : '0%' }}"></span></div>
-                <div class="step {{ $pending ? 'done' : '' }}" id="stepDot2"><span class="num">{{ $pending ? '✓' : '2' }}</span> Data diri</div>
-                <div class="step-line"><span id="stepBar2" style="width: {{ $pending ? '100%' : '0%' }}"></span></div>
-                <div class="step {{ $pending ? 'active' : '' }}" id="stepDot3"><span class="num">3</span> Verifikasi</div>
+                <div class="step {{ $allDone ? 'done' : 'active' }}" id="stepDot1"><span class="num">{{ $allDone ? '✓' : '1' }}</span> <span id="stepLabel1">{{ $initialMode === 'new_clinic' ? 'Data klinik' : 'Klinik' }}</span></div>
+                <div class="step-line"><span id="stepBar" style="width: {{ $allDone ? '100%' : '0%' }}"></span></div>
+                <div class="step {{ $allDone ? 'done' : '' }}" id="stepDot2"><span class="num">{{ $allDone ? '✓' : '2' }}</span> <span id="stepLabel2">{{ $initialMode === 'new_clinic' ? 'Data pemilik' : 'Data diri' }}</span></div>
+                <div class="step-line"><span id="stepBar2" style="width: {{ $allDone ? '100%' : '0%' }}"></span></div>
+                <div class="step {{ $pending ? 'active' : ($submitted ? 'done' : '') }}" id="stepDot3"><span class="num">{{ $submitted ? '✓' : '3' }}</span> Verifikasi</div>
             </div>
 
             <div class="form-header">
                 <span class="eyebrow"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.6" cy="10.2" r="2"/><circle cx="9.4" cy="5.6" r="2.3"/><circle cx="14.6" cy="5.6" r="2.3"/><circle cx="18.4" cy="10.2" r="2"/><path d="M12 11.2c-2.9 0-5.6 2.4-5.6 5.1 0 1.7 1.3 2.9 2.9 2.9 1 0 1.7-.5 2.7-.5s1.7.5 2.7.5c1.6 0 2.9-1.2 2.9-2.9 0-2.7-2.7-5.1-5.6-5.1z"/></svg> Pendaftaran Admin Klinik</span>
-                <h1 id="formTitle">{{ $pending ? 'Verifikasi email admin' : 'Pilih klinik yang ingin Anda kelola' }}</h1>
+                <h1 id="formTitle">
+                    @if($submitted)
+                        {{ $submitted['status'] === 'approved' ? 'Klinik Anda sudah aktif' : ($submitted['status'] === 'rejected' ? 'Pendaftaran belum disetujui' : 'Permintaan sedang ditinjau') }}
+                    @elseif($pending)
+                        Verifikasi email admin
+                    @else
+                        {{ $initialMode === 'new_clinic' ? 'Daftarkan klinik baru Anda' : 'Pilih klinik yang ingin Anda kelola' }}
+                    @endif
+                </h1>
                 <p id="formSubtitle">
-                    {{ $pending
-                        ? 'Satu langkah lagi sebelum permintaan Anda diteruskan ke super admin.'
-                        : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.' }}
+                    @if($submitted)
+                        {{ $submitted['status'] === 'pending'
+                            ? 'Tidak ada yang perlu Anda lakukan lagi. Super admin akan meninjau permintaan ini.'
+                            : ($submitted['status'] === 'approved'
+                                ? 'Akun admin sudah dibuat. Silakan masuk memakai email dan kata sandi Anda.'
+                                : 'Tidak ada klinik atau akun yang dibuat dari permintaan ini.') }}
+                    @elseif($pending)
+                        Satu langkah lagi sebelum permintaan Anda diteruskan ke super admin.
+                    @else
+                        {{ $initialMode === 'new_clinic'
+                            ? 'Isi data klinik lalu data pemilik. Klinik baru dibuat setelah super admin menyetujui.'
+                            : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.' }}
+                    @endif
                 </p>
             </div>
 
@@ -504,7 +591,64 @@
                 </div>
             @endif
 
-            @if($pending)
+            @if($submitted)
+                {{-- Status permintaan klinik baru. Halaman yang sama dengan form,
+                     supaya tidak ada halaman status kedua yang membingungkan. --}}
+                <div class="status-icon {{ $submitted['status'] }}">
+                    @if($submitted['status'] === 'approved')
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/></svg>
+                    @elseif($submitted['status'] === 'rejected')
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>
+                    @else
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    @endif
+                </div>
+
+                <div class="status-summary">
+                    <span class="mini-avatar" style="background: {{ $submitted['clinic_color'] }}">
+                        {{ strtoupper(substr($submitted['clinic_name'], 0, 1)) }}
+                    </span>
+                    <span style="min-width:0">
+                        <strong>{{ $submitted['clinic_name'] }}</strong>
+                        <small>{{ $submitted['email'] }} · dikirim {{ $submitted['submitted_at']?->locale(app()->getLocale())->translatedFormat('d M Y H:i') }}</small>
+                    </span>
+                </div>
+
+                @if($submitted['status'] === 'pending')
+                    <div class="status-note">
+                        Permintaan Anda sudah masuk ke super admin. Setelah disetujui, kami mengirim email berisi tautan login ke alamat di atas.
+                        Tidak perlu mengirim ulang formulir atau menghubungi super admin.
+                    </div>
+                @elseif($submitted['status'] === 'approved')
+                    <div class="status-note">
+                        Klinik dan akun admin sudah dibuat. Masuk memakai email <strong>{{ $submitted['email'] }}</strong> dan kata sandi yang Anda buat saat mendaftar.
+                    </div>
+                @else
+                    <div class="status-note rose">
+                        <strong>Permintaan ini ditolak.</strong>
+                        @if(filled($submitted['review_note']))
+                            <br>{{ $submitted['review_note'] }}
+                        @endif
+                    </div>
+                @endif
+
+                <div class="btn-row" style="margin-top:0.25rem">
+                    @if($submitted['status'] === 'rejected')
+                        <form method="POST" action="{{ route('admin.register.cancel') }}" style="flex:1">
+                            @csrf
+                            <button type="submit" class="btn-submit" style="width:100%">
+                                <span class="btn-text">Daftar ulang</span>
+                            </button>
+                        </form>
+                        <a href="{{ route('admin.login') }}" class="btn-ghost">Ke halaman login</a>
+                    @else
+                        <a href="{{ route('admin.login') }}" class="btn-submit">
+                            <span class="btn-text">Ke halaman login</span>
+                        </a>
+                    @endif
+                </div>
+                <p class="status-footnote">Gunakan email yang sama saat login. Hubungi super admin jika status tidak berubah setelah 1×24 jam.</p>
+            @elseif($pending)
                 {{-- Langkah 3: kode akses admin. Permintaan join belum dikirim. --}}
                 <div class="chosen-clinic">
                     <span class="mini-avatar" style="background: {{ $pending['clinic_color'] }}">
@@ -580,8 +724,19 @@
             <form method="POST" action="{{ route('admin.register.post') }}" id="joinForm" novalidate>
                 @csrf
 
-                <!-- STEP 1: pilih klinik -->
-                <fieldset id="step1">
+                <div class="mode-tabs" id="modeTabs" role="radiogroup" aria-label="Jenis pendaftaran">
+                    <label>
+                        <input type="radio" name="registration_type" value="join" {{ $initialMode === 'join' ? 'checked' : '' }}>
+                        Gabung klinik
+                    </label>
+                    <label>
+                        <input type="radio" name="registration_type" value="new_clinic" {{ $initialMode === 'new_clinic' ? 'checked' : '' }}>
+                        Daftarkan klinik baru
+                    </label>
+                </div>
+
+                <!-- STEP 1 (mode join): pilih klinik -->
+                <fieldset id="step1" data-mode="join">
                     <div class="clinic-grid" role="radiogroup" aria-label="Pilih klinik">
                         @forelse($clinics as $clinic)
                             @php $isOld = (string) old('clinic_id') === (string) $clinic->id; @endphp
@@ -617,22 +772,85 @@
                     </div>
                 </fieldset>
 
-                <!-- STEP 2: data diri -->
+                <!-- STEP 1 (mode new_clinic): data klinik yang didaftarkan -->
+                <fieldset id="step1New" class="hidden" data-mode="new_clinic">
+                    <div class="input-wrap @error('clinic_name') invalid @enderror">
+                        <label for="clinic_name" class="field-label">Nama klinik</label>
+                        <input type="text" id="clinic_name" name="clinic_name" value="{{ old('clinic_name') }}"
+                               placeholder="contoh: Klinik Hewan Sehat Bersama" autocomplete="organization">
+                        <p class="field-hint">Tulis nama resmi klinik — muncul di aplikasi PetHeal.</p>
+                        @error('clinic_name')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="input-wrap @error('clinic_slug') invalid @enderror">
+                        <label for="clinic_slug" class="field-label">Slug klinik</label>
+                        <input type="text" id="clinic_slug" name="clinic_slug" value="{{ old('clinic_slug') }}"
+                               placeholder="klinik-hewan-sehat" autocomplete="off" spellcheck="false">
+                        <p class="field-hint" id="slugHint">Dibuat otomatis dari nama, boleh diubah. Hanya huruf kecil, angka, dan tanda hubung.</p>
+                        @error('clinic_slug')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="input-wrap @error('clinic_address') invalid @enderror">
+                        <label for="clinic_address" class="field-label">Alamat klinik</label>
+                        <textarea id="clinic_address" name="clinic_address" rows="2"
+                                  placeholder="Jalan, nomor, kota" autocomplete="street-address">{{ old('clinic_address') }}</textarea>
+                        @error('clinic_address')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="row-2">
+                        <div class="input-wrap @error('clinic_phone') invalid @enderror">
+                            <label for="clinic_phone" class="field-label">Telepon klinik</label>
+                            <input type="tel" id="clinic_phone" name="clinic_phone" value="{{ old('clinic_phone') }}"
+                                   placeholder="021-1234567" autocomplete="tel">
+                            @error('clinic_phone')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="input-wrap @error('clinic_email') invalid @enderror">
+                            <label for="clinic_email" class="field-label">Email klinik <span style="font-weight:500;color:#A8A29E">(opsional)</span></label>
+                            <input type="email" id="clinic_email" name="clinic_email" value="{{ old('clinic_email') }}"
+                                   placeholder="info@klinik.com" autocomplete="email">
+                            @error('clinic_email')<div class="field-error">{{ $message }}</div>@enderror
+                        </div>
+                    </div>
+
+                    <div class="input-wrap @error('clinic_primary_color') invalid @enderror">
+                        <label for="clinic_primary_color" class="field-label">Warna utama</label>
+                        <input type="color" id="clinic_primary_color" name="clinic_primary_color"
+                               value="{{ old('clinic_primary_color', '#18C964') }}">
+                        <p class="field-hint">Dipakai untuk aksen dashboard klinik dan aplikasi.</p>
+                        @error('clinic_primary_color')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="input-wrap @error('clinic_description') invalid @enderror">
+                        <label for="clinic_description" class="field-label">Deskripsi <span style="font-weight:500;color:#A8A29E">(opsional)</span></label>
+                        <textarea id="clinic_description" name="clinic_description" rows="2"
+                                  placeholder="Ceritakan singkat layanan klinik Anda">{{ old('clinic_description') }}</textarea>
+                        @error('clinic_description')<div class="field-error">{{ $message }}</div>@enderror
+                    </div>
+
+                    <div class="btn-row">
+                        <button type="button" class="btn-submit" id="toStep2New">
+                            <span class="btn-text">Lanjut ke data pemilik →</span>
+                        </button>
+                    </div>
+                    <p class="clinic-hint">Logo diunggah setelah login dari Pengaturan → Klinik.</p>
+                </fieldset>
+
+                <!-- STEP 2: data pemilik -->
                 <fieldset id="step2" class="hidden">
                     <div class="chosen-clinic" id="chosenBox" style="display:none">
                         <span class="mini-avatar" id="chosenAvatar">?</span>
-                        <span><strong id="chosenName">—</strong><br><span style="font-size:0.72rem; opacity:0.85">Klinik tujuan permintaan</span></span>
+                        <span><strong id="chosenName">—</strong><br><span id="chosenCaption" style="font-size:0.72rem; opacity:0.85">Klinik tujuan permintaan</span></span>
                         <button type="button" id="changeClinic">Ganti</button>
                     </div>
 
                     <div class="row-2">
                         <div class="input-wrap @error('name') invalid @enderror">
-                            <label for="name" class="field-label">Nama lengkap</label>
+                            <label for="name" class="field-label">Nama lengkap pemilik</label>
                             <input type="text" id="name" name="name" value="{{ old('name') }}" required autofocus autocomplete="name" placeholder="Nama Anda">
                             @error('name')<div class="field-error">{{ $message }}</div>@enderror
                         </div>
                         <div class="input-wrap @error('phone') invalid @enderror">
-                            <label for="phone" class="field-label">Telepon</label>
+                            <label for="phone" class="field-label">WhatsApp / telepon</label>
                             <input type="tel" id="phone" name="phone" value="{{ old('phone') }}" autocomplete="tel" placeholder="0812xxxx">
                             @error('phone')<div class="field-error">{{ $message }}</div>@enderror
                         </div>
@@ -703,8 +921,8 @@
         </div>
 
         <div class="brand-content">
-            <h2>Bergabung dengan <span>klinik hewan</span> Anda</h2>
-            <p>Pilih klinik yang ingin Anda kelola. Data tiap klinik terisolasi penuh — dokter, layanan, dan booking tidak tercampur.</p>
+            <h2>Kelola <span>klinik hewan</span> Anda</h2>
+            <p>Gabung ke klinik yang sudah ada, atau daftarkan klinik baru. Data tiap klinik terisolasi penuh — dokter, layanan, dan booking tidak tercampur.</p>
 
             <ul class="brand-features">
                 <li>
@@ -740,11 +958,13 @@
         </div>
     </div>
 
-    @if(!$pending)
+    @if(!$pending && !$submitted)
     <script>
         // ---------- wizard ----------
         const step1 = document.getElementById('step1');
+        const step1New = document.getElementById('step1New');
         const step2 = document.getElementById('step2');
+        const modeTabs = document.getElementById('modeTabs');
         const dot1 = document.getElementById('stepDot1');
         const dot2 = document.getElementById('stepDot2');
         const bar = document.getElementById('stepBar');
@@ -752,14 +972,52 @@
         const title = document.getElementById('formTitle');
         const subtitle = document.getElementById('formSubtitle');
         const hint = document.getElementById('clinicHint');
+        const stepLabel1 = document.getElementById('stepLabel1');
+        const stepLabel2 = document.getElementById('stepLabel2');
+        let currentStep = 1;
+
+        function currentMode() {
+            const checked = document.querySelector('input[name="registration_type"]:checked');
+            return checked ? checked.value : 'join';
+        }
+
+        // Satu wizard, dua mode. Fieldset yang tidak dipakai di-disable supaya
+        // atribut required-nya tidak memblokir submit.
+        function syncMode() {
+            const mode = currentMode();
+            const onStep2 = currentStep === 2;
+
+            // Field step 1 tetap dikirim saat berada di step 2 — hanya mode yang
+            // tidak aktif yang di-disable (required-nya tidak ikut validasi).
+            step1.querySelectorAll('input').forEach(el => { el.disabled = mode !== 'join'; });
+            step1New.querySelectorAll('input, textarea').forEach(el => { el.disabled = mode !== 'new_clinic'; });
+
+            step1.classList.toggle('hidden', mode !== 'join' || onStep2);
+            step1New.classList.toggle('hidden', mode !== 'new_clinic' || onStep2);
+            step2.classList.toggle('hidden', !onStep2);
+            modeTabs.classList.toggle('hidden', onStep2);
+
+            if (stepLabel1) stepLabel1.textContent = mode === 'new_clinic' ? 'Data klinik' : 'Klinik';
+            if (stepLabel2) stepLabel2.textContent = mode === 'new_clinic' ? 'Data pemilik' : 'Data diri';
+
+            if (!onStep2) {
+                title.textContent = mode === 'new_clinic' ? 'Daftarkan klinik baru Anda' : 'Pilih klinik yang ingin Anda kelola';
+                subtitle.textContent = mode === 'new_clinic'
+                    ? 'Isi data klinik lalu data pemilik. Klinik baru dibuat setelah super admin menyetujui.'
+                    : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.';
+            }
+        }
 
         function showStep(n) {
+            currentStep = n;
+            syncMode();
+
             const toTwo = n === 2;
-            step1.classList.toggle('hidden', toTwo);
-            step2.classList.toggle('hidden', !toTwo);
-            (toTwo ? step2 : step1).classList.remove('step-enter');
-            void (toTwo ? step2 : step1).offsetWidth;
-            (toTwo ? step2 : step1).classList.add('step-enter');
+            const panel = toTwo ? step2 : (currentMode() === 'new_clinic' ? step1New : step1);
+            panel.classList.remove('step-enter');
+            void panel.offsetWidth;
+            panel.classList.add('step-enter');
+
             dot1.classList.toggle('active', !toTwo);
             dot1.classList.toggle('done', toTwo);
             dot1.querySelector('.num').innerHTML = toTwo
@@ -768,11 +1026,15 @@
             dot2.classList.toggle('active', toTwo);
             bar.style.width = toTwo ? '100%' : '0%';
             if (bar2) bar2.style.width = '0%';
-            title.textContent = toTwo ? 'Lengkapi data diri Anda' : 'Pilih klinik yang ingin Anda kelola';
-            subtitle.textContent = toTwo
-                ? 'Data ini dipakai super admin untuk memverifikasi permintaan Anda. Setelah dikirim, kami akan mengirim kode ke email Anda.'
-                : 'Setiap klinik punya data terpisah — dokter, layanan, dan booking tidak tercampur antar klinik.';
-            if (toTwo) { updateChosen(); document.getElementById('name').focus(); }
+
+            if (toTwo) {
+                title.textContent = currentMode() === 'new_clinic' ? 'Lengkapi data pemilik klinik' : 'Lengkapi data diri Anda';
+                subtitle.textContent = currentMode() === 'new_clinic'
+                    ? 'Data pemilik dipakai untuk membuat akun admin setelah klinik disetujui.'
+                    : 'Data ini dipakai super admin untuk memverifikasi permintaan Anda. Setelah dikirim, kami akan mengirim kode ke email Anda.';
+                updateChosen();
+                document.getElementById('name').focus();
+            }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
@@ -786,18 +1048,98 @@
             }
             showStep(2);
         });
+
+        document.getElementById('toStep2New').addEventListener('click', function () {
+            if (!validateClinicFields()) return;
+            showStep(2);
+        });
+
         document.getElementById('backToStep1').addEventListener('click', () => showStep(1));
         document.getElementById('changeClinic').addEventListener('click', () => showStep(1));
+
+        document.querySelectorAll('input[name="registration_type"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                currentStep = 1;
+                showStep(1);
+                updateChosen();
+            });
+        });
+
+        // ---------- slug otomatis dari nama klinik ----------
+        const clinicNameInput = document.getElementById('clinic_name');
+        const clinicSlugInput = document.getElementById('clinic_slug');
+        const colorInput = document.getElementById('clinic_primary_color');
+        let slugTouched = clinicSlugInput.value.trim() !== '';
+
+        function slugify(value) {
+            return value.toLowerCase().trim()
+                .replace(/[^a-z0-9\s-]/g, '')
+                .replace(/\s+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-+|-+$/g, '');
+        }
+        clinicSlugInput.addEventListener('input', function () {
+            slugTouched = true;
+            clinicSlugInput.value = slugify(clinicSlugInput.value);
+        });
+        clinicNameInput.addEventListener('input', function () {
+            if (slugTouched) return;
+            clinicSlugInput.value = slugify(clinicNameInput.value);
+        });
+
+        function validateClinicFields() {
+            const required = [
+                ['clinic_name', 'Nama klinik wajib diisi.'],
+                ['clinic_slug', 'Slug klinik wajib diisi.'],
+                ['clinic_address', 'Alamat klinik wajib diisi.'],
+                ['clinic_phone', 'Telepon klinik wajib diisi.'],
+            ];
+            for (const [id, message] of required) {
+                const el = document.getElementById(id);
+                if (!el.value.trim()) {
+                    el.focus();
+                    const wrap = el.closest('.input-wrap');
+                    wrap.classList.add('invalid');
+                    let err = wrap.querySelector('.field-error.js');
+                    if (!err) {
+                        err = document.createElement('div');
+                        err.className = 'field-error js';
+                        wrap.appendChild(err);
+                    }
+                    err.textContent = message;
+                    return false;
+                }
+            }
+            return true;
+        }
 
         // ---------- clinic card select + summary ----------
         const cards = document.querySelectorAll('.clinic-card');
         function updateChosen() {
-            const checked = document.querySelector('input[name="clinic_id"]:checked');
             const box = document.getElementById('chosenBox');
+            if (!box) return;
+
+            if (currentMode() === 'new_clinic') {
+                const name = clinicNameInput.value.trim() || 'Klinik baru';
+                const color = colorInput.value || '#18C964';
+                box.style.display = 'flex';
+                document.getElementById('chosenName').textContent = name;
+                const caption = document.getElementById('chosenCaption');
+                if (caption) caption.textContent = 'Klinik yang didaftarkan';
+                const avatar = document.getElementById('chosenAvatar');
+                avatar.innerHTML = '';
+                avatar.textContent = name.charAt(0).toUpperCase();
+                avatar.style.background = color;
+                return;
+            }
+
+            const checked = document.querySelector('input[name="clinic_id"]:checked');
             if (!checked) { box.style.display = 'none'; return; }
             const card = checked.closest('.clinic-card');
             box.style.display = 'flex';
             document.getElementById('chosenName').textContent = card.dataset.name;
+            const caption = document.getElementById('chosenCaption');
+            if (caption) caption.textContent = 'Klinik tujuan permintaan';
             const avatar = document.getElementById('chosenAvatar');
             const logo = card.dataset.logo;
             const color = card.dataset.color || '#18C964';
@@ -823,7 +1165,10 @@
             card.setAttribute('tabindex', '0');
         });
 
-        // jika server me-render ulang karena error validasi dan sudah ada pilihan / sedang di step 2
+        showStep(1);
+
+        // Jika server me-render ulang karena error validasi, buka langkah yang
+        // relevan: error data pemilik -> step 2, error data klinik -> step 1.
         @if(old('clinic_id') || $errors->has('name') || $errors->has('email') || $errors->has('password'))
             showStep(2);
         @endif
@@ -879,11 +1224,16 @@
 
         // ---------- submit loading ----------
         document.getElementById('joinForm').addEventListener('submit', function (e) {
-            if (!document.querySelector('input[name="clinic_id"]:checked')) {
+            if (currentMode() === 'join' && !document.querySelector('input[name="clinic_id"]:checked')) {
                 e.preventDefault();
                 showStep(1);
                 hint.classList.add('shake');
                 hint.textContent = 'Silakan pilih salah satu klinik terlebih dahulu.';
+                return;
+            }
+            if (currentMode() === 'new_clinic' && !validateClinicFields()) {
+                e.preventDefault();
+                showStep(1);
                 return;
             }
             const btn = document.getElementById('submitBtn');

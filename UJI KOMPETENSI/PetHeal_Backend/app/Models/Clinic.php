@@ -64,6 +64,26 @@ class Clinic extends Model
         return $this->hasMany(User::class);
     }
 
+    public function medicalRecords()
+    {
+        return $this->hasMany(MedicalRecord::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function joinRequests()
+    {
+        return $this->hasMany(ClinicJoinRequest::class);
+    }
+
+    public function scheduleExceptions()
+    {
+        return $this->hasMany(DoctorScheduleException::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

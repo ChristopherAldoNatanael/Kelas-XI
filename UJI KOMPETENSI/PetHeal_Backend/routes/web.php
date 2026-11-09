@@ -76,6 +76,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/clinics', [App\Http\Controllers\Admin\ClinicController::class, 'store'])->name('clinics.store');
         Route::get('/clinics/{clinic}/edit', [App\Http\Controllers\Admin\ClinicController::class, 'edit'])->name('clinics.edit');
         Route::put('/clinics/{clinic}', [App\Http\Controllers\Admin\ClinicController::class, 'update'])->name('clinics.update');
+        Route::delete('/clinics/{clinic}', [App\Http\Controllers\Admin\ClinicController::class, 'destroy'])->name('clinics.destroy');
         Route::post('/clinics/{clinic}/toggle-active', [App\Http\Controllers\Admin\ClinicController::class, 'toggleActive'])->name('clinics.toggle-active');
     });
 

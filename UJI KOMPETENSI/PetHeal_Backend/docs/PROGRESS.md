@@ -1,5 +1,18 @@
 # PROGRESS.md — Catatan Pengerjaan (update tiap selesai fase)
 
+## 2026-11-09 — Pendaftaran klinik mandiri (online) + approval super admin
+
+- **Tujuan**: pemilik klinik baru bisa daftar sendiri dari `/admin/register` tanpa menghubungi super admin. Tidak ada klinik/akun yang dibuat sebelum disetujui.
+- **Satu alur, dua mode**: halaman `/admin/register` punya tab **Gabung klinik** (alur lama, pilih klinik existing) dan **Daftarkan klinik baru**. Wizard sama: Step 1 data klinik → Step 2 data pemilik → kirim kode 6 digit → verifikasi → status di halaman yang sama. Tidak ada halaman register/status kedua.
+- **Data klinik** (`requested_clinic_name/slug/address/phone/email/primary_color/description`) disimpan sebagai snapshot di `clinic_join_requests` karena klinik belum ada. `clinic_id` kini nullable (`nullOnDelete`); `type` = `join` (default) / `new_clinic`.
+- **Slug**: dibuat otomatis dari nama di browser, bisa diedit sebelum submit, divalidasi regex `lowercase-hyphen` dan unik terhadap `clinics` + request `new_clinic` pending. Dikunci setelah approved (hanya super admin bisa ubah lewat CRUD klinik).
+- **Guardrail**: email tidak boleh sudah jadi user / punya request pending; nama+telepon klinik duplikat ditolak; saat approve slug & email dicek ulang di dalam row lock — gagal dengan pesan validasi jelas, bukan 500. Approve/reject ganda tidak mungkin (status pending + lock).
+- **Approve `new_clinic`** dalam satu transaksi: buat Clinic (`is_active=true`), buat User `clinic_admin` (`email_verified_at=now()`), update request → approved, tulis `AuditLog` `clinic.registration.approved`, lalu (setelah commit) kirim `ClinicRegistrationApprovedMail`. **Reject** menyimpan `review_note` opsional, tidak membuat data, dan mengirim `ClinicRegistrationRejectedMail`. Email hanya untuk `new_clinic` — alur join lama tidak berubah.
+- **Super admin**: `/admin/join-requests` tidak lagi di-scope `currentClinicId()` (request klinik baru punya `clinic_id=null` dan hilang bila super admin sedang di konteks klinik). Ada filter Semua / Gabung klinik / Klinik baru + badge pending, kolom tipe, detail snapshot klinik, dan form tolak dengan alasan.
+- **File**: migration `2026_11_09_000001_add_self_registration_to_clinic_join_requests_table.php`; `app/Models/ClinicJoinRequest.php`; `app/Http/Controllers/Admin/AdminAuthController.php`; `app/Mail/ClinicRegistrationApprovedMail.php` + `ClinicRegistrationRejectedMail.php`; view `admin/auth/join-request.blade.php`, `admin/join-requests.blade.php`, `emails/clinic-registration-{approved,rejected}(-text).blade.php`; lang `clinics.php` (id/en); test `tests/Feature/ClinicSelfRegistrationTest.php`.
+- **Verifikasi**: `php artisan test` **229 passed / 1389 assertions** (14 test baru), `php artisan view:cache` sukses, `npm run build` sukses (`app-CVaOraGG.css`), migration dijalankan di `pet_heal` + `pet_heal_test`.
+- **Sisa**: uji visual browser 1440px/375px belum dijalankan di sesi ini (butuh browser driver); Semgrep/Snyk tidak tersedia di environment. Klinik yang disetujui langsung muncul di `GET /api/public/clinics` (diuji di feature test).
+
 ## 2026-10-25 — Bukti pembayaran biaya tambahan rekam medis (Android, tanpa perubahan backend)
 
 - **Gap lama:** pembayaran biaya tambahan selalu diarahkan ke layar hasil TANPA

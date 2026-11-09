@@ -20,6 +20,10 @@
 *.tmp
 *.cache
 
+# Playwright MCP artifacts (screenshots, exports, page snapshots)
+.playwright-mcp/
+**/.playwright-mcp/
+
 # Editor and OS files
 .DS_Store
 Thumbs.db

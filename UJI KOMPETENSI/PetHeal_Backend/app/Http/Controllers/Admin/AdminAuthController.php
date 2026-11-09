@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Mail\ClinicRegistrationApprovedMail;
+use App\Mail\ClinicRegistrationRejectedMail;
 use App\Models\AuditLog;
 use App\Models\Clinic;
 use App\Models\ClinicJoinRequest;
@@ -10,13 +12,20 @@ use App\Models\User;
 use App\Services\OtpService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\ValidationException;
 
 class AdminAuthController extends Controller
 {
     /** Email yang sedang menunggu kode verifikasi pendaftaran admin. */
     private const JOIN_EMAIL = 'admin_join_email';
     private const JOIN_SENT_AT = 'admin_join_otp_sent_at';
+
+    /** Email yang permintaan klinik barunya sudah terkirim (halaman status). */
+    private const JOIN_SUBMITTED = 'admin_join_submitted_email';
 
     /** Penanda kapan kode ganti sandi terakhir dikirim (untuk jeda kirim ulang). */
     private const PASSWORD_SENT_AT = 'admin_password_otp_sent_at';
@@ -102,31 +111,50 @@ class AdminAuthController extends Controller
 
         $clinics = Clinic::where('is_active', true)->orderBy('name')->get();
         $pending = $this->pendingJoinVerification($request, $otp);
+        $submitted = $pending ? null : $this->submittedRegistration($request);
+        $mode = in_array($request->query('mode'), [ClinicJoinRequest::TYPE_JOIN, ClinicJoinRequest::TYPE_NEW_CLINIC], true)
+            ? (string) $request->query('mode')
+            : ClinicJoinRequest::TYPE_JOIN;
 
-        return view('admin.auth.join-request', compact('clinics', 'pending'));
+        return view('admin.auth.join-request', compact('clinics', 'pending', 'submitted', 'mode'));
     }
 
     /**
      * Langkah 1 pendaftaran admin: validasi data, buat kode, kirim ke email.
      * Belum ada ClinicJoinRequest yang dibuat di titik ini.
+     *
+     * Dua mode dalam satu form:
+     * - join       : bergabung ke klinik yang sudah ada (alur lama);
+     * - new_clinic : pemilik mendaftarkan klinik baru (dibuat saat disetujui).
      */
     public function requestJoinOtp(Request $request, OtpService $otp)
     {
-        $validated = $request->validate([
-            'clinic_id' => 'required|exists:clinics,id',
+        $type = $request->input('registration_type') === ClinicJoinRequest::TYPE_NEW_CLINIC
+            ? ClinicJoinRequest::TYPE_NEW_CLINIC
+            : ClinicJoinRequest::TYPE_JOIN;
+
+        $rules = [
             'name' => 'required|string|max:255',
             'email' => 'required|email',
-            'phone' => 'nullable|string|max:20',
+            'phone' => 'nullable|string|max:50',
             'password' => 'required|string|min:8|confirmed',
-        ]);
+        ];
 
-        $clinic = Clinic::where('is_active', true)->find($validated['clinic_id']);
-        if (!$clinic) {
-            return back()->withErrors([
-                'clinic_id' => 'Klinik ini sedang tidak aktif. Pilih klinik lain atau hubungi super admin.',
-            ])->withInput();
+        if ($type === ClinicJoinRequest::TYPE_NEW_CLINIC) {
+            $rules += [
+                'clinic_name' => 'required|string|max:255',
+                'clinic_slug' => ['required', 'string', 'max:255', 'regex:/^[a-z0-9]+(?:-[a-z0-9]+)*$/'],
+                'clinic_address' => 'required|string|max:1000',
+                'clinic_phone' => 'required|string|max:50',
+                'clinic_email' => 'nullable|email|max:255',
+                'clinic_primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
+                'clinic_description' => 'nullable|string|max:2000',
+            ];
+        } else {
+            $rules['clinic_id'] = 'required|exists:clinics,id';
         }
 
+        $validated = $request->validate($rules);
         $email = $otp->normalize($validated['email']);
 
         if (User::where('email', $email)->exists()) {
@@ -134,28 +162,62 @@ class AdminAuthController extends Controller
         }
 
         $alreadyPending = ClinicJoinRequest::where('email', $email)
-            ->where('clinic_id', $clinic->id)
             ->where('status', 'pending')
             ->exists();
 
         if ($alreadyPending) {
             return back()->withErrors([
-                'email' => 'Permintaan untuk email ini sudah menunggu persetujuan super admin. Tidak perlu mendaftar lagi.',
+                'email' => __('clinics.email_pending'),
             ])->withInput();
         }
 
+        $clinic = null;
+        $clinicPayload = null;
+
+        if ($type === ClinicJoinRequest::TYPE_NEW_CLINIC) {
+            $slug = $validated['clinic_slug'];
+
+            if (Clinic::where('slug', $slug)->exists()
+                || ClinicJoinRequest::newClinic()->where('requested_clinic_slug', $slug)->where('status', 'pending')->exists()) {
+                return back()->withErrors(['clinic_slug' => __('clinics.slug_taken')])->withInput();
+            }
+
+            if ($this->newClinicAlreadyExists($validated['clinic_name'], $validated['clinic_phone'])) {
+                return back()->withErrors(['clinic_name' => __('clinics.duplicate_clinic')])->withInput();
+            }
+
+            $clinicPayload = [
+                'name' => $validated['clinic_name'],
+                'slug' => $slug,
+                'address' => $validated['clinic_address'],
+                'phone' => $validated['clinic_phone'],
+                'email' => $validated['clinic_email'] ?? null,
+                'primary_color' => strtoupper($validated['clinic_primary_color']),
+                'description' => $validated['clinic_description'] ?? null,
+            ];
+        } else {
+            $clinic = Clinic::where('is_active', true)->find($validated['clinic_id']);
+            if (!$clinic) {
+                return back()->withErrors([
+                    'clinic_id' => 'Klinik ini sedang tidak aktif. Pilih klinik lain atau hubungi super admin.',
+                ])->withInput();
+            }
+        }
+
         $payload = [
+            'type' => $type,
             'name' => $validated['name'],
             'email' => $email,
             'phone' => $validated['phone'] ?? null,
-            'clinic_id' => $clinic->id,
+            'clinic_id' => $clinic?->id,
+            'clinic' => $clinicPayload,
             // Password tidak pernah disimpan plaintext, termasuk di payload kode.
             'password_hash' => Hash::make($validated['password']),
         ];
 
         $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_REGISTER, $payload);
         $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_REGISTER, $code, [
-            'clinic_name' => $clinic->name,
+            'clinic_name' => $clinic?->name ?? $clinicPayload['name'],
             'recipient_name' => $validated['name'],
         ]);
 
@@ -200,12 +262,22 @@ class AdminAuthController extends Controller
         }
 
         $payload = $result['payload'];
-        if (empty($payload['email']) || empty($payload['password_hash']) || empty($payload['clinic_id'])) {
+        $type = $payload['type'] ?? ClinicJoinRequest::TYPE_JOIN;
+        $clinicPayload = $payload['clinic'] ?? null;
+
+        if (empty($payload['email']) || empty($payload['password_hash'])
+            || ($type === ClinicJoinRequest::TYPE_NEW_CLINIC
+                ? (empty($clinicPayload['name']) || empty($clinicPayload['slug']) || empty($clinicPayload['address']))
+                : empty($payload['clinic_id']))) {
             $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
             $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
 
             return redirect()->route('admin.register')
                 ->with('warning', 'Data pendaftaran tidak ditemukan. Silakan isi formulir lagi.');
+        }
+
+        if ($type === ClinicJoinRequest::TYPE_NEW_CLINIC) {
+            return $this->verifyNewClinicOtp($request, $otp, $email, $payload, $clinicPayload);
         }
 
         $clinic = Clinic::find($payload['clinic_id']);
@@ -227,7 +299,6 @@ class AdminAuthController extends Controller
         }
 
         $alreadyPending = ClinicJoinRequest::where('email', $email)
-            ->where('clinic_id', $clinic->id)
             ->where('status', 'pending')
             ->exists();
 
@@ -240,6 +311,7 @@ class AdminAuthController extends Controller
         }
 
         ClinicJoinRequest::create([
+            'type' => ClinicJoinRequest::TYPE_JOIN,
             'clinic_id' => $clinic->id,
             'name' => $payload['name'] ?? '',
             'email' => $email,
@@ -256,6 +328,126 @@ class AdminAuthController extends Controller
             'success',
             'Email ' . $email . ' terverifikasi. Permintaan akses admin ' . $clinic->name . ' sudah dikirim ke super admin.'
         );
+    }
+
+    /**
+     * Verifikasi kode untuk pendaftaran klinik baru, lalu simpan permintaan.
+     * Belum ada Clinic/User yang dibuat — itu terjadi saat super admin approve.
+     */
+    private function verifyNewClinicOtp(Request $request, OtpService $otp, string $email, array $payload, array $clinicPayload)
+    {
+        $fail = function (string $sessionKey, string $message) use ($request, $otp, $email) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+
+            return redirect()->route('admin.register', ['mode' => ClinicJoinRequest::TYPE_NEW_CLINIC])
+                ->withErrors([$sessionKey => $message]);
+        };
+
+        // Guardrail diulang setelah kode terbit: data bisa berubah di sela-sela.
+        if (User::where('email', $email)->exists()) {
+            return $fail('email', __('auth.email_taken'));
+        }
+
+        $alreadyPending = ClinicJoinRequest::where('email', $email)
+            ->where('status', 'pending')
+            ->exists();
+
+        if ($alreadyPending) {
+            $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+            $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+            $request->session()->put(self::JOIN_SUBMITTED, $email);
+
+            return redirect()->route('admin.register')
+                ->with('success', __('clinics.email_pending'));
+        }
+
+        $slug = $clinicPayload['slug'];
+        if (Clinic::where('slug', $slug)->exists()
+            || ClinicJoinRequest::newClinic()->where('requested_clinic_slug', $slug)->where('status', 'pending')->exists()) {
+            return $fail('clinic_slug', __('clinics.slug_taken'));
+        }
+
+        if ($this->newClinicAlreadyExists($clinicPayload['name'], $clinicPayload['phone'])) {
+            return $fail('clinic_name', __('clinics.duplicate_clinic'));
+        }
+
+        ClinicJoinRequest::create([
+            'type' => ClinicJoinRequest::TYPE_NEW_CLINIC,
+            // Klinik belum ada; clinic_id diisi saat approve.
+            'clinic_id' => null,
+            'name' => $payload['name'] ?? '',
+            'email' => $email,
+            'phone' => $payload['phone'] ?? null,
+            'password_hash' => $payload['password_hash'],
+            'status' => 'pending',
+            'requested_clinic_name' => $clinicPayload['name'],
+            'requested_clinic_slug' => $slug,
+            'requested_clinic_address' => $clinicPayload['address'],
+            'requested_clinic_phone' => $clinicPayload['phone'],
+            'requested_clinic_email' => $clinicPayload['email'] ?? null,
+            'requested_primary_color' => $clinicPayload['primary_color'] ?? '#18C964',
+            'requested_description' => $clinicPayload['description'] ?? null,
+        ]);
+
+        $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
+        $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+        $request->session()->put(self::JOIN_SUBMITTED, $email);
+        $request->session()->regenerate();
+
+        return redirect()->route('admin.register')->with(
+            'success',
+            'Email ' . $email . ' terverifikasi. Permintaan pendaftaran klinik '
+                . $clinicPayload['name'] . ' sudah dikirim ke super admin.'
+        );
+    }
+
+    /** Klinik dengan nama + telepon yang sama sudah ada / sedang menunggu. */
+    private function newClinicAlreadyExists(string $name, ?string $phone): bool
+    {
+        return Clinic::where('name', $name)->where('phone', $phone)->exists()
+            || ClinicJoinRequest::newClinic()
+                ->where('requested_clinic_name', $name)
+                ->where('requested_clinic_phone', $phone)
+                ->where('status', 'pending')
+                ->exists();
+    }
+
+    /**
+     * Status permintaan klinik baru setelah email diverifikasi. Ditampilkan di
+     * halaman yang sama (/admin/register) supaya tidak ada halaman status kedua.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function submittedRegistration(Request $request): ?array
+    {
+        $email = (string) $request->session()->get(self::JOIN_SUBMITTED, '');
+
+        if ($email === '') {
+            return null;
+        }
+
+        $joinRequest = ClinicJoinRequest::with('clinic')
+            ->where('email', $email)
+            ->latest('id')
+            ->first();
+
+        if (!$joinRequest) {
+            $request->session()->forget(self::JOIN_SUBMITTED);
+
+            return null;
+        }
+
+        return [
+            'email' => $email,
+            'name' => $joinRequest->name,
+            'clinic_name' => $joinRequest->displayClinicName(),
+            'clinic_color' => $joinRequest->displayClinicColor(),
+            'status' => $joinRequest->status,
+            'review_note' => $joinRequest->review_note,
+            'is_new_clinic' => $joinRequest->isNewClinic(),
+            'submitted_at' => $joinRequest->created_at,
+        ];
     }
 
     /**
@@ -287,7 +479,7 @@ class AdminAuthController extends Controller
         $clinic = Clinic::find($payload['clinic_id'] ?? null);
         $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_REGISTER, $payload);
         $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_REGISTER, $code, [
-            'clinic_name' => $clinic?->name ?? 'PetHeal',
+            'clinic_name' => $clinic?->name ?? ($payload['clinic']['name'] ?? 'PetHeal'),
             'recipient_name' => $payload['name'] ?? null,
         ]);
 
@@ -310,7 +502,7 @@ class AdminAuthController extends Controller
             $otp->consume($email, OtpService::PURPOSE_ADMIN_REGISTER);
         }
 
-        $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT]);
+        $request->session()->forget([self::JOIN_EMAIL, self::JOIN_SENT_AT, self::JOIN_SUBMITTED]);
 
         return redirect()->route('admin.register')
             ->with('success', 'Pendaftaran dibatalkan. Data yang Anda isi tidak disimpan.');
@@ -338,10 +530,11 @@ class AdminAuthController extends Controller
         $clinic = Clinic::find($payload['clinic_id'] ?? null);
 
         return [
+            'type' => $payload['type'] ?? ClinicJoinRequest::TYPE_JOIN,
             'email' => $email,
             'name' => $payload['name'] ?? null,
-            'clinic_name' => $clinic?->name ?? 'PetHeal',
-            'clinic_color' => $clinic?->primary_color ?? '#18C964',
+            'clinic_name' => $clinic?->name ?? ($payload['clinic']['name'] ?? 'PetHeal'),
+            'clinic_color' => $clinic?->primary_color ?? ($payload['clinic']['primary_color'] ?? '#18C964'),
             'ttl' => $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_REGISTER),
             'expires_at' => $expiresAt,
             'resend_wait' => $this->resendWait($request),
@@ -356,36 +549,123 @@ class AdminAuthController extends Controller
     }
 
     /**
-     * Show join requests list — clinic scoped
+     * Daftar permintaan untuk super admin.
+     *
+     * Sengaja TIDAK difilter currentClinicId: permintaan klinik baru punya
+     * clinic_id = null dan akan hilang kalau super admin sedang berada di
+     * konteks salah satu klinik. Route ini sudah dibatasi middleware
+     * super_admin, jadi seluruh permintaan memang milik super admin.
      */
-    public function joinRequests()
+    public function joinRequests(Request $request)
     {
-        $clinicId = currentClinicId();
+        $type = (string) $request->query('type', 'all');
 
         $requests = ClinicJoinRequest::with(['clinic', 'reviewedBy'])
-            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when(
+                in_array($type, [ClinicJoinRequest::TYPE_JOIN, ClinicJoinRequest::TYPE_NEW_CLINIC], true),
+                fn ($q) => $q->where('type', $type)
+            )
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
-        return view('admin.join-requests', compact('requests'));
+        $counts = [
+            'all' => ClinicJoinRequest::count(),
+            ClinicJoinRequest::TYPE_JOIN => ClinicJoinRequest::where('type', ClinicJoinRequest::TYPE_JOIN)->count(),
+            ClinicJoinRequest::TYPE_NEW_CLINIC => ClinicJoinRequest::where('type', ClinicJoinRequest::TYPE_NEW_CLINIC)->count(),
+            'pending' => ClinicJoinRequest::where('status', 'pending')->count(),
+        ];
+
+        return view('admin.join-requests', compact('requests', 'type', 'counts'));
     }
 
     /**
-     * Approve a join request — clinic scoped
+     * Approve a pending request.
+     *
+     * `join`       : hanya membuat akun clinic_admin untuk klinik yang ada.
+     * `new_clinic` : membuat Clinic + akun clinic_admin + audit log dalam satu
+     *                transaksi. Slug/email dicek ulang di dalam lock supaya
+     *                approval gagal dengan pesan jelas, bukan 500.
      */
     public function approveJoinRequest(Request $request, $id)
     {
-        $clinicId = currentClinicId();
+        $wasRejected = false;
 
         // PHASE 5 (SA-02): approve + user create must be atomic under a row
         // lock — concurrent double-approvals previously raced past the
         // pending check (one side then hit users.email unique as a 500).
-        $joinRequest = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId) {
-            $query = ClinicJoinRequest::where('status', 'pending')->where('id', $id);
-            if ($clinicId) {
-                $query->where('clinic_id', $clinicId);
+        $joinRequest = DB::transaction(function () use ($id, &$wasRejected) {
+            $joinRequest = ClinicJoinRequest::where('status', 'pending')
+                ->where('id', $id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($joinRequest->isNewClinic()) {
+                $slug = (string) $joinRequest->requested_clinic_slug;
+
+                $slugTaken = $slug === ''
+                    || Clinic::where('slug', $slug)->exists()
+                    || ClinicJoinRequest::newClinic()
+                        ->where('requested_clinic_slug', $slug)
+                        ->where('status', 'pending')
+                        ->where('id', '<>', $joinRequest->id)
+                        ->exists();
+
+                if ($slugTaken) {
+                    throw ValidationException::withMessages([
+                        'slug' => __('clinics.slug_taken_on_approve', ['slug' => $slug !== '' ? $slug : '—']),
+                    ]);
+                }
+
+                if (User::where('email', $joinRequest->email)->exists()) {
+                    throw ValidationException::withMessages([
+                        'email' => __('clinics.email_taken_on_approve', ['email' => $joinRequest->email]),
+                    ]);
+                }
+
+                $clinic = Clinic::create([
+                    'name' => $joinRequest->requested_clinic_name,
+                    'slug' => $slug,
+                    'address' => $joinRequest->requested_clinic_address,
+                    'phone' => $joinRequest->requested_clinic_phone,
+                    'email' => $joinRequest->requested_clinic_email,
+                    'primary_color' => $joinRequest->requested_primary_color ?: '#18C964',
+                    'description' => $joinRequest->requested_description,
+                    'is_active' => true,
+                ]);
+
+                User::create([
+                    'name' => $joinRequest->name,
+                    'email' => $joinRequest->email,
+                    'phone' => $joinRequest->phone,
+                    'password' => $joinRequest->password_hash,
+                    'role' => 'clinic_admin',
+                    'clinic_id' => $clinic->id,
+                    'email_verified_at' => now(),
+                ]);
+
+                $joinRequest->update([
+                    'status' => 'approved',
+                    'clinic_id' => $clinic->id,
+                    'reviewed_by' => Auth::id(),
+                    'reviewed_at' => now(),
+                ]);
+
+                // clinic_id ditulis eksplisit: super admin biasanya tidak punya
+                // konteks klinik, jadi AuditLog::log() akan menyimpan null.
+                AuditLog::create([
+                    'user_id' => Auth::id(),
+                    'clinic_id' => $clinic->id,
+                    'action' => 'clinic.registration.approved',
+                    'model_type' => Clinic::class,
+                    'model_id' => $clinic->id,
+                    'description' => 'Klinik baru ' . $clinic->name . ' (' . $clinic->slug . ') disetujui untuk ' . $joinRequest->email,
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                ]);
+
+                return $joinRequest->fresh(['clinic']);
             }
-            $joinRequest = $query->lockForUpdate()->firstOrFail();
 
             // Check if email already taken by any user
             if (User::where('email', $joinRequest->email)->exists()) {
@@ -394,7 +674,9 @@ class AdminAuthController extends Controller
                     'status' => 'rejected',
                     'reviewed_by' => Auth::id(),
                     'reviewed_at' => now(),
+                    'review_note' => __('clinics.email_already_used'),
                 ]);
+                $wasRejected = true;
 
                 return $joinRequest;
             }
@@ -418,32 +700,79 @@ class AdminAuthController extends Controller
             return $joinRequest->fresh();
         });
 
-        if ($joinRequest->status === 'rejected') {
+        if ($wasRejected || $joinRequest->status === 'rejected') {
             return back()->withErrors(['email' => __('clinics.email_already_used')]);
+        }
+
+        if ($joinRequest->isNewClinic()) {
+            $this->sendClinicDecisionMail($joinRequest, approved: true);
+
+            return back()->with('success', __('clinics.new_clinic_approved_success', [
+                'name' => $joinRequest->displayClinicName(),
+            ]));
         }
 
         return back()->with('success', __('clinics.approved_success', ['name' => $joinRequest->name]));
     }
 
     /**
-     * Reject a join request — clinic scoped
+     * Reject a pending request. Klinik/akun tidak pernah dibuat di sini.
      */
     public function rejectJoinRequest(Request $request, $id)
     {
-        $clinicId = currentClinicId();
-        $query = ClinicJoinRequest::where('status', 'pending')->where('id', $id);
-        if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
-        }
-        $joinRequest = $query->firstOrFail();
+        $validated = $request->validate([
+            'review_note' => 'nullable|string|max:1000',
+        ]);
+
+        $joinRequest = ClinicJoinRequest::where('status', 'pending')->where('id', $id)->firstOrFail();
 
         $joinRequest->update([
             'status' => 'rejected',
             'reviewed_by' => Auth::id(),
             'reviewed_at' => now(),
+            'review_note' => $validated['review_note'] ?? null,
         ]);
 
-        return back()->with('success', __('clinics.rejected_success', ['name' => $joinRequest->name]));
+        if ($joinRequest->isNewClinic()) {
+            $this->sendClinicDecisionMail($joinRequest, approved: false);
+        }
+
+        return back()->with(
+            'success',
+            $joinRequest->isNewClinic()
+                ? __('clinics.new_clinic_rejected_success', ['name' => $joinRequest->displayClinicName()])
+                : __('clinics.rejected_success', ['name' => $joinRequest->name])
+        );
+    }
+
+    /**
+     * Email keputusan hanya untuk pendaftaran klinik baru — alur "gabung
+     * klinik" sengaja tidak berubah. Kegagalan kirim email tidak membatalkan
+     * keputusan yang sudah tersimpan.
+     */
+    private function sendClinicDecisionMail(ClinicJoinRequest $joinRequest, bool $approved): void
+    {
+        try {
+            $mailable = $approved
+                ? new ClinicRegistrationApprovedMail(
+                    clinicName: $joinRequest->displayClinicName(),
+                    ownerName: $joinRequest->name,
+                    loginUrl: route('admin.login'),
+                )
+                : new ClinicRegistrationRejectedMail(
+                    clinicName: $joinRequest->displayClinicName(),
+                    ownerName: $joinRequest->name,
+                    reason: $joinRequest->review_note,
+                );
+
+            Mail::to($joinRequest->email)->send($mailable);
+        } catch (\Throwable $e) {
+            Log::warning('Email keputusan pendaftaran klinik gagal dikirim', [
+                'request_id' => $joinRequest->id,
+                'status' => $approved ? 'approved' : 'rejected',
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
