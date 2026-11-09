@@ -104,6 +104,15 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/notification-settings', [NotificationSettingsController::class, 'index'])->middleware('super_admin')->name('notification-settings.index');
     Route::put('/notification-settings', [NotificationSettingsController::class, 'update'])->middleware('super_admin')->name('notification-settings.update');
 
+    // Kategori layanan standar (global) — dasar perbandingan harga antar
+    // klinik, jadi hanya super_admin yang boleh mengubah.
+    Route::middleware('super_admin')->group(function () {
+        Route::get('/service-categories', [App\Http\Controllers\Admin\ServiceCategoryController::class, 'index'])->name('service-categories.index');
+        Route::post('/service-categories', [App\Http\Controllers\Admin\ServiceCategoryController::class, 'store'])->name('service-categories.store');
+        Route::put('/service-categories/{serviceCategory}', [App\Http\Controllers\Admin\ServiceCategoryController::class, 'update'])->name('service-categories.update');
+        Route::delete('/service-categories/{serviceCategory}', [App\Http\Controllers\Admin\ServiceCategoryController::class, 'destroy'])->name('service-categories.destroy');
+    });
+
     // Audit Logs
     Route::get('/audit-logs', [DashboardController::class, 'auditLogs'])->name('audit-logs');
 

@@ -11,6 +11,7 @@ class Service extends Model
         'price',
         'duration',
         'category',
+        'service_category_id',
         'is_active',
         'clinic_id',
     ];
@@ -18,15 +19,21 @@ class Service extends Model
     protected function casts(): array
     {
         return [
-            'price' => 'decimal:2',
-            'duration' => 'integer',
-            'is_active' => 'boolean',
+            'price'               => 'decimal:2',
+            'duration'            => 'integer',
+            'is_active'           => 'boolean',
+            'service_category_id' => 'integer',
         ];
     }
 
     public function clinic()
     {
         return $this->belongsTo(Clinic::class);
+    }
+
+    public function serviceCategory()
+    {
+        return $this->belongsTo(ServiceCategory::class);
     }
 
     public function bookings()

@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.doctor
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
@@ -7,16 +8,25 @@ import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.TimeSlot
+import com.christopheraldoo.petheal.data.model.UserLocation
 import com.christopheraldoo.petheal.data.repository.BookingRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.Result
 import com.christopheraldoo.petheal.data.model.Pet
+import com.christopheraldoo.petheal.util.DoctorListing
+import com.christopheraldoo.petheal.util.DoctorListingMapper
+import com.christopheraldoo.petheal.util.DoctorLocationStatus
+import com.christopheraldoo.petheal.util.DoctorSort
+import com.christopheraldoo.petheal.util.LocationHelper
+import com.christopheraldoo.petheal.util.resolveUserLocation
 import com.christopheraldoo.petheal.util.withExpiredSlotsUnavailable
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -28,14 +38,34 @@ data class DoctorsUiState(
     val isRefreshing: Boolean = false,
     val error: String? = null,
     val notice: String? = null,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    /**
+     * MULTI-CLINIC (2026-11-09): lokasi user untuk menghitung jarak ke klinik
+     * dokter. Null = belum diketahui → jarak disembunyikan (bukan 0 km).
+     */
+    val userLocation: UserLocation? = null,
+    val locationStatus: DoctorLocationStatus = DoctorLocationStatus.Unset,
+    val sort: DoctorSort = DoctorSort.NEAREST
 ) {
-    val filtered: List<Doctor>
-        get() = if (searchQuery.isBlank()) doctors
-                else doctors.filter {
-                    it.name?.contains(searchQuery, ignoreCase = true) == true ||
-                    it.specialization?.contains(searchQuery, ignoreCase = true) == true
+    val hasLocation: Boolean get() = userLocation != null
+
+    /** Baris siap tampil: dokter + klinik + jarak, sudah terurut & tersaring. */
+    val filtered: List<DoctorListing>
+        get() {
+            val all = DoctorListingMapper.map(doctors, userLocation)
+            val matching = if (searchQuery.isBlank()) all
+                else all.filter {
+                    it.doctor.name?.contains(searchQuery, ignoreCase = true) == true ||
+                    it.doctor.specialization?.contains(searchQuery, ignoreCase = true) == true ||
+                    // Pasien sering mengingat klinik, bukan nama dokter.
+                    it.clinicName?.contains(searchQuery, ignoreCase = true) == true
                 }
+            return if (sort == DoctorSort.NEAREST && hasLocation) {
+                DoctorListingMapper.sortByDistance(matching)
+            } else {
+                DoctorListingMapper.sortByName(matching)
+            }
+        }
 }
 
 data class DoctorDetailUiState(
@@ -58,6 +88,7 @@ data class DoctorDetailUiState(
 
 @HiltViewModel
 class DoctorsViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val doctorRepository: DoctorRepository,
     private val petRepository: PetRepository,
     private val bookingRepository: BookingRepository,
@@ -72,6 +103,9 @@ class DoctorsViewModel @Inject constructor(
 
     init {
         loadDoctors()
+        // Lokasi dipakai HANYA untuk label jarak + urutan terdekat. Daftar
+        // dokter tidak menunggunya: tanpa lokasi tetap tampil, tanpa jarak.
+        loadSavedLocation(requestGpsIfMissing = true)
         // Layar list & detail memakai instance ViewModel berbeda. Ketika
         // detail mem-patch rating di repository, list ikut sinkron dari
         // snapshot cache tanpa network call / tanpa refresh manual.
@@ -149,6 +183,72 @@ class DoctorsViewModel @Inject constructor(
 
     fun onSearchChange(q: String) {
         _listState.value = _listState.value.copy(searchQuery = q)
+    }
+
+    // ── Lokasi user (opsional) ─────────────────────────────────────────────
+
+    /**
+     * Pakai lokasi tersimpan bila ada; bila belum, coba satu kali fix GPS.
+     * Tidak pernah memblokir daftar dan tidak pernah menampilkan error
+     * halaman — kegagalan hanya mengubah label chip lokasi.
+     */
+    private fun loadSavedLocation(requestGpsIfMissing: Boolean) {
+        viewModelScope.launch {
+            val saved = runCatching { preferencesManager.userLocation.first() }.getOrNull()
+            val hasPermission = LocationHelper.hasPermission(context)
+            val locate = runCatching {
+                resolveUserLocation(
+                    saved = saved,
+                    hasPermission = hasPermission,
+                    requestGps = requestGpsIfMissing && hasPermission,
+                    gps = { LocationHelper.currentLocation(context) }
+                )
+            }.getOrNull() ?: (null to DoctorLocationStatus.Failed)
+
+            _listState.value = _listState.value.copy(
+                userLocation = locate.first,
+                locationStatus = locate.second
+            )
+        }
+    }
+
+    /**
+     * Aksi chip lokasi: minta fix terbaru (izin sudah/akan diminta di layar),
+     * lalu simpan agar layar lain memakai lokasi yang sama.
+     */
+    fun refreshLocation() {
+        viewModelScope.launch {
+            if (!LocationHelper.hasPermission(context)) {
+                _listState.value = _listState.value.copy(
+                    locationStatus = DoctorLocationStatus.PermissionDenied
+                )
+                return@launch
+            }
+            _listState.value = _listState.value.copy(locationStatus = DoctorLocationStatus.Unset)
+            val (location, status) = resolveUserLocation(
+                saved = null,
+                hasPermission = true,
+                requestGps = true,
+                gps = { LocationHelper.currentLocation(context) }
+            )
+            if (location != null) {
+                // Disimpan supaya Beranda & discovery memakai titik yang sama.
+                runCatching { preferencesManager.saveUserLocation(location) }
+            }
+            _listState.value = _listState.value.copy(
+                userLocation = location ?: _listState.value.userLocation,
+                locationStatus = status,
+                sort = if (location != null) DoctorSort.NEAREST else _listState.value.sort
+            )
+        }
+    }
+
+    /** Ganti urutan: terdekat (butuh lokasi) atau abjad. */
+    fun setSort(sort: DoctorSort) {
+        _listState.value = _listState.value.copy(sort = sort)
+        if (sort == DoctorSort.NEAREST && !_listState.value.hasLocation) {
+            refreshLocation()
+        }
     }
 
     /**

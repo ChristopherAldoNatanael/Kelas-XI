@@ -119,8 +119,15 @@ fun PaymentScreen(
 
     // System back must run the same status verification as the close button —
     // leaving mid-checkout without syncing leaves booking/payment out of sync.
-    BackHandler(enabled = state.snapToken != null || state.snapRedirectUrl != null) {
-        bookingId?.let { viewModel.checkPaymentStatusOnExit(it) } ?: onNavigateBack()
+    // Juga dicegat saat halaman sedang memuat/gagal: dulu BackHandler hanya
+    // aktif bila snap token ada, sehingga pada status "gagal" / sebelum token,
+    // tombol kembali sistem bisa menembus keluar tanpa mengembalikan user.
+    BackHandler(enabled = !state.isPaymentCompleted) {
+        if (state.snapToken != null || state.snapRedirectUrl != null) {
+            bookingId?.let { viewModel.checkPaymentStatusOnExit(it) } ?: onNavigateBack()
+        } else {
+            onNavigateBack()
+        }
     }
 
     // Initiate payment on first load. Guard: ViewModel selamat dari rotasi,

@@ -17,4 +17,11 @@ class NavigationViewModel @Inject constructor(
 
     /** PHASE 7 (§21): collected once in NavHost → navigate to login. */
     val sessionEvents: SharedFlow<Any> = SessionEvents.events
+
+    /**
+     * MULTI-CLINIC: slug klinik yang dipakai untuk transaksi (header
+     * X-Clinic-Slug). Hanya dibaca oleh NavHost untuk mengarahkan tombol
+     * booking — tidak pernah menulis/mengubah klinik.
+     */
+    val activeClinicSlug: Flow<String?> = preferencesManager.clinicSlug
 }

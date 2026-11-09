@@ -17,12 +17,37 @@ class ServiceController extends Controller
      * 2. Explicit `?clinic_slug=` (public/anonymous callers must name a tenant).
      * 3. super_admin without clinic => null (existing unscoped overview).
      * 4. Anyone else without tenant => null meaning "missing", caller 422s.
+     *
+     * `?clinic_id=` selalu didahulukan di atas keempatnya (lihat
+     * forcedClinicId): pemanggil menyatakan klinik tujuannya sendiri.
      */
     private function resolveTenant(Request $request): array
     {
         $user = $request->user() ?? auth('sanctum')->user();
 
-        if ($user?->clinic_id) {
+        // MULTI-CLINIC DISCOVERY (2026-11-09): `?clinic_id=` memaksa katalog
+        // satu klinik. Diperlukan alur booking Android: setelah dokter
+        // dipilih, layanan yang ditawarkan HARUS dari klinik dokter itu,
+        // meski klinik favorit pasien berbeda. Slug tidak dipakai untuk ini
+        // karena slug = konteks tenant/staf; klinik booking dipilih per
+        // transaksi. Klinik nonaktif dianggap tidak ada (fail-closed).
+        $forced = $this->forcedClinicId($request);
+        if ($forced !== null) {
+            return $forced === 0 ? [null, 'not_found'] : [$forced, null];
+        }
+
+        // MULTI-CLINIC DISCOVERY: pasien = akun global. Katalog lintas klinik
+        // dibutuhkan untuk perbandingan harga, jadi akun pasien tanpa
+        // `?clinic_slug` mendapat seluruh layanan aktif (read-only, publik).
+        // `users.clinic_id` lama pada akun pasien diabaikan.
+        if ($user && ($user->role ?? null) === 'user') {
+            if ($user->clinic_id && !$request->filled('clinic_slug')) {
+                return [(int) $user->clinic_id, null];
+            }
+            if (!$request->filled('clinic_slug')) {
+                return [null, null];
+            }
+        } elseif ($user?->clinic_id) {
             return [(int) $user->clinic_id, null];
         }
 
@@ -41,6 +66,26 @@ class ServiceController extends Controller
         }
 
         return [(int) $clinic->id, null];
+    }
+
+    /**
+     * Klinik yang dipaksa klien lewat `?clinic_id=`.
+     *
+     * @return int|null null = tidak diminta, 0 = diminta tetapi tidak valid
+     *                    (tidak dikenal / nonaktif — diperlakukan seperti 404).
+     */
+    private function forcedClinicId(Request $request): ?int
+    {
+        $raw = $request->input('clinic_id');
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+        if (!ctype_digit((string) $raw)) {
+            return 0;
+        }
+        return Clinic::where('id', (int) $raw)->where('is_active', true)->exists()
+            ? (int) $raw
+            : 0;
     }
 
     public function index(Request $request)
@@ -66,6 +111,8 @@ class ServiceController extends Controller
         // instead of lingering up to 6h in cache.
         $serviceVersion = Cache::get('services_version', 1);
         $cacheKey = 'services_active:v' . $serviceVersion . ':c' . ($clinicId ?: 'all');
+        // Catatan: clinic_id yang diminta (bukan yang dimiliki staf) juga
+        // menghasilkan key unik karena $clinicId sudah klinik hasil resolve.
 
         $services = Cache::remember($cacheKey, 21600, function () use ($clinicId) {
             $query = Service::active()->orderBy('name');

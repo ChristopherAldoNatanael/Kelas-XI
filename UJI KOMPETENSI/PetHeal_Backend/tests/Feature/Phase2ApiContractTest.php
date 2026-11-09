@@ -181,6 +181,9 @@ class Phase2ApiContractTest extends TestCase
             'start_time' => '08:00:00', 'end_time' => '17:00:00',
         ]);
 
+        // MULTI-CLINIC DISCOVERY: pasien bebas memilih klinik, jadi dokter
+        // klinik B + layanan klinik A bukan lagi "lintas tenant" tetapi
+        // pasangan yang TIDAK SETARA → tetap 422 dengan envelope `errors`.
         $res = $this->apiAs($this->userA)->postJson('/api/bookings', [
             'pet_id' => $this->petA->id,
             'doctor_id' => $doctorB->id,
@@ -191,6 +194,13 @@ class Phase2ApiContractTest extends TestCase
 
         $res->assertJsonStructure(['success', 'message', 'errors']);
         $this->assertFalse($res->json('success'));
+        // Dokter & layanan dari klinik berbeda selalu ditolak pada key errors
+        // (dokter atau layanan; keduanya validasi klinik yang sama).
+        $errors = $res->json('errors');
+        $this->assertTrue(
+            array_key_exists('doctor_id', $errors) || array_key_exists('service_id', $errors),
+            'Expected clinic-mismatch validation on doctor_id/service_id'
+        );
     }
 
     // ---------- pagination canonical ----------

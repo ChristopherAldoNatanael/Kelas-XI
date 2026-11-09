@@ -53,9 +53,16 @@ Route::middleware('throttle:otp-verify')->group(function () {
 Route::get('/health', [HealthController::class, 'index']);
 
 // Public clinic routes (no auth required)
-Route::prefix('public')->group(function () {
+Route::prefix('public')->middleware('throttle:public-catalog')->group(function () {
     Route::get('/clinics', [App\Http\Controllers\Api\PublicClinicController::class, 'index']);
     Route::get('/clinics/{slug}', [App\Http\Controllers\Api\PublicClinicController::class, 'show']);
+    Route::get('/clinics/{slug}/services', [App\Http\Controllers\Api\PublicClinicController::class, 'services']);
+    Route::get('/service-categories', [App\Http\Controllers\Api\PublicClinicController::class, 'serviceCategories']);
+    // MULTI-CLINIC DISCOVERY: `compare` & `{id}` didaftarkan sebelum pola
+    // `/services/{slug}` lain agar tidak saling menimpa.
+    Route::get('/services/compare', [App\Http\Controllers\Api\PublicClinicController::class, 'compareServices']);
+    Route::get('/services/{id}', [App\Http\Controllers\Api\PublicClinicController::class, 'serviceDetail'])
+        ->whereNumber('id');
 });
 
 // Payment methods (public - no auth required)

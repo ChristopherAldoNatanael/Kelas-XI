@@ -59,11 +59,9 @@ fun RegisterScreen(
     onNavigateToCompleteSetup: () -> Unit = {},
     /** Daftar email = minta kode OTP dulu; akun dibuat di layar verifikasi. */
     onNavigateToOtpVerification: (String) -> Unit = {},
-    viewModel: RegisterViewModel = hiltViewModel(),
-    pickerViewModel: ClinicPickerViewModel = hiltViewModel()
+    viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val pickerState by pickerViewModel.uiState.collectAsState()
     val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -74,12 +72,9 @@ fun RegisterScreen(
     var confirmPassword by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var isGoogleSigningIn by rememberSaveable { mutableStateOf(false) }
-    // PHASE 7: tenant binding is mandatory — a slug-less account gets 403
-    // on every protected call. The sheet persists the choice; the slug is
-    // sent with both email and Google registration.
-    var showClinicPicker by rememberSaveable { mutableStateOf(false) }
+    // MULTI-CLINIC DISCOVERY: tidak ada lagi pemilihan klinik di form daftar.
+    // Akun pasien bersifat GLOBAL; klinik dipilih saat booking.
     val scope = rememberCoroutineScope()
-    LaunchedEffect(Unit) { pickerViewModel.load() }
 
     val googleSignInClient = remember {
         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -109,7 +104,7 @@ fun RegisterScreen(
                                 viewModel.registerWithGoogleIdToken(
                                     firebaseIdToken,
                                     name.trim().ifBlank { account.displayName.orEmpty() },
-                                    pickerState.selectedSlug
+                                    null
                                 )
                             } else {
                                 viewModel.setError("Token Firebase tidak berhasil diambil")
@@ -361,43 +356,28 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ── Klinik (wajib — akun terikat satu klinik) ─────────────
-            AuthFieldLabel("Klinik")
-            Spacer(modifier = Modifier.height(8.dp))
-            val pickedClinicName = pickerState.clinics
-                .firstOrNull { it.slug == pickerState.selectedSlug }?.name
-            OutlinedButton(
-                onClick = { showClinicPicker = true },
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp,
-                    Outline),
-                colors = ButtonDefaults.outlinedButtonColors(
-                    containerColor = Color.White,
-                    contentColor = OnBackground
-                )
+            // ── Info: akun global, klinik dipilih saat booking ────────
+            // MULTI-CLINIC DISCOVERY: pemilihan klinik DIHAPUS dari form.
+            // Satu akun bisa mencari, membandingkan, lalu booking di klinik
+            // berbeda; klinik dipilih pada langkah booking.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(AuthBg)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.Top
             ) {
                 Icon(
                     Icons.Filled.LocalHospital, null,
-                    tint = AuthTextSecondary, modifier = Modifier.size(20.dp)
+                    tint = AuthTextSecondary, modifier = Modifier.size(18.dp)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(10.dp))
                 Text(
-                    pickedClinicName ?: "Pilih klinik Anda",
-                    fontSize = 15.sp,
-                    fontWeight = if (pickedClinicName != null) FontWeight.SemiBold else FontWeight.Normal,
-                    color = if (pickedClinicName != null) (OnBackground) else AuthTextSecondary,
-                    modifier = Modifier.weight(1f),
-                    textAlign = TextAlign.Start
-                )
-            }
-            if (pickerState.selectedSlug.isNullOrBlank()) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    "Akun harus terikat pada satu klinik",
-                    color = MaterialTheme.colorScheme.error,
-                    fontSize = 12.sp,
-                    modifier = Modifier.padding(start = 4.dp)
+                    "Satu akun untuk semua klinik. Klinik dipilih saat Anda booking.",
+                    fontSize = 12.5.sp,
+                    lineHeight = 18.sp,
+                    color = AuthTextSecondary
                 )
             }
 
@@ -407,7 +387,7 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.requestOtp(name.trim(), email.trim(), password, pickerState.selectedSlug)
+                    viewModel.requestOtp(name.trim(), email.trim(), password, null)
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
@@ -415,8 +395,7 @@ fun RegisterScreen(
                     containerColor = AuthPrimary, contentColor = Color.White),
                 enabled = !uiState.isLoading && name.isNotBlank()
                         && email.isNotBlank() && password.length >= 8
-                        && passwordsMatch && confirmPassword.isNotBlank()
-                        && !pickerState.selectedSlug.isNullOrBlank(),
+                        && passwordsMatch && confirmPassword.isNotBlank(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
                 if (uiState.isLoading) {
@@ -486,7 +465,6 @@ fun RegisterScreen(
                     contentColor = OnBackground
                 ),
                 enabled = !uiState.isLoading && !isGoogleSigningIn
-                        && !pickerState.selectedSlug.isNullOrBlank()
             ) {
                 if (isGoogleSigningIn) {
                     CircularProgressIndicator(
@@ -531,13 +509,5 @@ fun RegisterScreen(
                 }
             }
         }
-    }
-
-    if (showClinicPicker) {
-        ClinicPickerSheet(
-            onDismiss = { showClinicPicker = false },
-            onClinicSelected = { showClinicPicker = false },
-            viewModel = pickerViewModel
-        )
     }
 }

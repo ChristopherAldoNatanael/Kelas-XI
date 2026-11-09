@@ -18,13 +18,25 @@ class ServiceRepository @Inject constructor(
         private const val TAG = "ServiceRepository"
     }
 
-    suspend fun getServices(): Result<List<Service>> {
+    /**
+     * Katalog layanan.
+     *
+     * `clinicId` (MULTI-CLINIC, 2026-11-09) memaksa satu klinik. WAJIB dipakai
+     * alur booking: tanpa ini pasien menerima layanan SEMUA klinik, lalu
+     * memilih layanan klinik lain dari dokter yang sudah dipilih — pasangan
+     * yang ditolak backend ("Dokter dan layanan harus berasal dari klinik
+     * yang sama").
+     */
+    suspend fun getServices(clinicId: Int? = null): Result<List<Service>> {
         return try {
             // PHASE 7: anonymous catalog requires explicit ?clinic_slug=.
             // Authenticated calls are scoped server-side; the param is
-            // harmless then and required when logged out.
-            val slug = runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
-            val response = apiService.getServices(slug)
+            // harmless then and required when logged out. Saat clinicId
+            // dikirim, server mengabaikan slug dan memakai klinik tersebut.
+            val slug = if (clinicId == null) {
+                runCatching { preferencesManager.clinicSlug.first() }.getOrNull()
+            } else null
+            val response = apiService.getServices(slug, clinicId)
             if (response.isSuccessful && response.body()?.success == true) {
                 Result.Success(response.body()?.data ?: emptyList())
             } else {

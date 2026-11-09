@@ -301,6 +301,8 @@ data class Service(
     val price: Double? = null,
     val category: String? = null,
     val duration: Int? = null,
+    /** Klinik pemilik layanan. Dipakai memastikan layanan cocok dengan dokter. */
+    @SerializedName("clinic_id") val clinicId: Int? = null,
     @SerializedName("is_active") val isActive: Boolean? = null,
     @SerializedName("created_at") val createdAt: String? = null,
     @SerializedName("updated_at") val updatedAt: String? = null
@@ -330,7 +332,27 @@ data class Doctor(
     // PHASE 4: tanggal cuti/jam khusus terdekat (detail dokter saja). Dipakai
     // date rail untuk menandai hari libur tanpa request tambahan.
     @SerializedName("schedule_exceptions") val scheduleExceptions: List<DoctorScheduleException>? = null,
+    /**
+     * MULTI-CLINIC: klinik tempat dokter ini praktik. Backend mengirim objek
+     * ringkas (`id`/`name`/`slug`/`address`/`primary_color`); null berarti
+     * server belum menyertakannya — UI harus tetap jalan tanpa baris klinik.
+     */
+    val clinic: DoctorClinicRef? = null,
     @SerializedName("created_at") val createdAt: String? = null
+)
+
+/** Klinik ringkas yang menempel pada dokter (bukan `ClinicCard` penuh). */
+data class DoctorClinicRef(
+    val id: Int? = null,
+    val name: String? = null,
+    val slug: String? = null,
+    val address: String? = null,
+    @SerializedName("primary_color") val primaryColor: String? = null,
+    // Koordinat klinik: satu-satunya sumber untuk menghitung jarak user di
+    // sisi klien (Haversine LocationHelper). Null = klinik belum diisi
+    // koordinat → jarak tidak ditampilkan, bukan 0 km.
+    val latitude: Double? = null,
+    val longitude: Double? = null
 )
 
 data class DoctorScheduleException(
@@ -487,7 +509,14 @@ data class BookingRequest(
     @SerializedName("payment_method_id") val paymentMethodId: Int? = null,
     @SerializedName("payment_type") val paymentType: String? = null,
     @SerializedName("total_amount") val totalAmount: Double? = null,
-    @SerializedName("dp_amount") val dpAmount: Double? = null
+    @SerializedName("dp_amount") val dpAmount: Double? = null,
+    /**
+     * MULTI-CLINIC (2026-11-09): klinik tujuan booking yang DIPILIH user,
+     * bukan klinik favorit di preferensi. Backend mencocokkannya dengan
+     * klinik dokter dan layanan; tanpa ini header `X-Clinic-Slug` yang
+     * tersimpan bisa menolak booking ke klinik lain.
+     */
+    @SerializedName("clinic_slug") val clinicSlug: String? = null
 )
 
 data class RescheduleRequest(

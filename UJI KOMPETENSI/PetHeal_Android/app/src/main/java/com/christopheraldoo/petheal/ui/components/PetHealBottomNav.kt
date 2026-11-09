@@ -81,11 +81,44 @@ val PetHealTab.route: String
  * perangkat fisik ("View All Medical Records" mendarat tidak menentu).
  */
 fun androidx.navigation.NavHostController.navigateToTab(tab: PetHealTab) {
-    navigate(tab.route) {
-        popUpTo(Screen.Home.route) { saveState = true }
+    // Route tujuan yang BENAR-BENAR terdaftar harus dipakai sebagai pola:
+    // popUpTo membandingkan route, bukan pola. Untuk BookingStart yang
+    // ber-argumen opsional, pattern "bookings/start?clinicSlug={...}" tidak
+    // akan match — jadi dicari dulu di graph.
+    val target = runCatching {
+        graph.findNode(tab.route)?.route
+    }.getOrNull() ?: tab.route
+
+    // Route layar saat ini (terisi, mis. "bookings/create/3/1"), bukan pola.
+    val current = currentDestination?.route
+
+    // Sudah di tab itu → tidak ada yang perlu dilakukan.
+    if (current == target) return
+
+    navigate(target) {
+        // FIX (2026-11-09): popUpTo(Home) TIDAK pernah melepas sub-layar di
+        // atas Home, sehingga "Kembali ke Beranda" dari layar hasil
+        // pembayaran hanya menambah salinan Home di atas PaymentResult dan
+        // tombol terasa mati. Mem-pop layar SAAT INI secara inclusive membuat
+        // target tab benar-benar tampil — dari layar mana pun.
+        if (current != null) {
+            popUpTo(current) { inclusive = true }
+        }
         launchSingleTop = true
         restoreState = true
     }
+}
+
+/**
+ * Kembali dengan jaminan: bila tumpukan kosong, mendarat di Beranda.
+ *
+ * `popBackStack()` tanpa hasil (tumpukan kosong / layar terakhir) tidak
+ * melakukan apa pun — tombol terasa mati. Dipakai semua tombol "Kembali"
+ * di alur pembayaran.
+ */
+fun androidx.navigation.NavHostController.navigateBackOrHome() {
+    val popped = popBackStack()
+    if (!popped) navigateToTab(PetHealTab.Home)
 }
 
 @Composable

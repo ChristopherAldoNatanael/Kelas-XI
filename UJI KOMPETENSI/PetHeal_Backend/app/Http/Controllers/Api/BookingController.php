@@ -11,6 +11,7 @@ use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 
 class BookingController extends Controller
@@ -30,7 +31,7 @@ class BookingController extends Controller
     public function index(Request $request)
     {
         $bookings = $request->user()->bookings()
-            ->with(['pet', 'doctor', 'service'])
+            ->with(['pet', 'doctor', 'service', 'clinic'])
             ->orderBy('booking_date', 'desc')
             ->orderBy('booking_time', 'desc')
             ->paginate(20);
@@ -55,7 +56,7 @@ class BookingController extends Controller
     {
         $bookings = $request->user()->bookings()
             ->upcoming()
-            ->with(['pet', 'doctor', 'service'])
+            ->with(['pet', 'doctor', 'service', 'clinic'])
             ->orderBy('booking_date')
             ->orderBy('booking_time')
             ->limit(1) // Only fetch the very next booking for Home Screen
@@ -73,7 +74,7 @@ class BookingController extends Controller
     public function show(Request $request, $id)
     {
         $booking = $request->user()->bookings()
-            ->with(['pet', 'doctor', 'service', 'medicalRecord'])
+            ->with(['pet', 'doctor', 'service', 'clinic', 'medicalRecord'])
             ->find($id);
 
         if (!$booking) {
@@ -105,16 +106,31 @@ class BookingController extends Controller
         // Clinic A -> ID Clinic B fail validation. super_admin without clinic
         // keeps unscoped rules (existing behavior).
         $user = $request->user();
-        $userClinicId = $user->clinic_id;
+        $isPatient = ($user->role ?? null) === 'user';
+        // MULTI-CLINIC DISCOVERY: pasien memilih klinik PER BOOKING. `clinic_id`
+        // lama pada akun pasien tidak lagi mengikat; klinik booking selalu
+        // diambil dari dokter/layanan yang dipilih (lihat $bookingClinicId).
+        $userClinicId = $isPatient ? null : $user->clinic_id;
         $isSuperAdmin = ($user->role ?? null) === 'super_admin';
 
-        // Fail closed before validating (middleware already blocks these,
-        // this is defense in depth with the same 403 contract as Phase 1).
+        // Multi-clinic support: user tanpa clinic_id boleh booking jika menyertakan
+        // clinic_slug yang valid. Klinik akan diresole dari doctor yang dipilih.
+        // super_admin tetap bisa booking tanpa clinic binding.
+        // clinic_admin dan doctor tetap scope ke klinik masing-masing.
+        $requestClinicSlug = $request->input('clinic_slug');
+        $requestClinicId = null;
+
         if (!$userClinicId && !$isSuperAdmin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak. Akun Anda tidak terikat pada klinik manapun.',
-            ], 403);
+            // User tanpa clinic_id (regular customer): wajib pilih melalui doctor/service
+            // clinic_id akan diresole dari doctor setelah validasi
+            // Tidak lagi 403 — izinkan lanjut, validasi di bawah.
+            if ($requestClinicSlug) {
+                $requestedClinic = \App\Models\Clinic::where('slug', $requestClinicSlug)
+                    ->where('is_active', true)->first();
+                if ($requestedClinic) {
+                    $requestClinicId = $requestedClinic->id;
+                }
+            }
         }
 
         $doctorRule = Rule::exists('doctors', 'id')->where('is_active', true);
@@ -123,6 +139,9 @@ class BookingController extends Controller
         if ($userClinicId) {
             $doctorRule->where('clinic_id', $userClinicId);
             $serviceRule->where('clinic_id', $userClinicId);
+        } elseif ($requestClinicId) {
+            $doctorRule->where('clinic_id', $requestClinicId);
+            $serviceRule->where('clinic_id', $requestClinicId);
         }
 
         $request->validate([
@@ -161,27 +180,51 @@ class BookingController extends Controller
             ], 404);
         }
 
-        // Clinic isolation (defense in depth: validation above is already
-        // tenant-scoped). super_admin without clinic keeps existing behavior
-        // (follows the doctor's clinic, used for manual/back-office bookings).
-        if (!$userClinicId && !$isSuperAdmin) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak. Akun Anda tidak terikat pada klinik manapun.',
-            ], 403);
+        // Clinic isolation:
+        // - Clinic staff/admin: strictly isolated to their own clinic.
+        // - Customer / super_admin: can book across clinics, but doctor & service must belong to the same clinic.
+        // Kesalahan pasangan klinik dikembalikan sebagai VALIDASI (422 +
+        // envelope `errors`) supaya klien dapat menandai field yang salah.
+        if ((int) ($doctor->clinic_id ?? 0) !== (int) ($service->clinic_id ?? 0)) {
+            throw ValidationException::withMessages([
+                'service_id' => ['Dokter dan layanan harus berasal dari klinik yang sama.'],
+            ]);
         }
-        if ($userClinicId && (int) $doctor->clinic_id !== (int) $userClinicId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Dokter tidak berada di klinik Anda.',
-            ], 422);
+
+        if ($userClinicId) {
+            if ((int) $doctor->clinic_id !== (int) $userClinicId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokter tidak berada di klinik Anda.',
+                ], 422);
+            }
+            if ((int) $service->clinic_id !== (int) $userClinicId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Layanan tidak berada di klinik Anda.',
+                ], 422);
+            }
+        } else {
+            if ((int) $doctor->clinic_id !== (int) $service->clinic_id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokter dan layanan harus berasal dari klinik yang sama.',
+                ], 422);
+            }
+
+            // Kalau klien menyebut klinik (clinic_slug), dokter/layanan wajib
+            // berasal dari klinik itu — mencegah booking "nyasar" ke klinik
+            // lain dari layar yang salah.
+            if ($requestClinicId && (int) $doctor->clinic_id !== (int) $requestClinicId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Dokter tidak berada di klinik yang dipilih.',
+                ], 422);
+            }
         }
-        if ($userClinicId && (int) $service->clinic_id !== (int) $userClinicId) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Layanan tidak berada di klinik Anda.',
-            ], 422);
-        }
+
+        // Klinik booking = klinik dokter (satu-satunya sumber kebenaran).
+        $bookingClinicId = (int) $doctor->clinic_id;
 
         // PHASE 4: tolak jam di luar jadwal efektif (cuti, jam khusus, atau di
         // luar jam praktik) SEBELUM menyimpan. Sebelumnya request yang

@@ -260,12 +260,14 @@ class Phase6SecurityMatrixTest extends TestCase
 
     // ---------- inactive clinic full denial ----------
 
-    public function test_inactive_clinic_denies_everything(): void
+    public function test_inactive_clinic_denies_staff_and_hides_catalog(): void
     {
         $this->clinicA->update(['is_active' => false]);
 
-        $this->apiAs($this->userA)->getJson('/api/pets')->assertStatus(403);
-        $this->apiAs($this->userA)->getJson('/api/dashboard')->assertStatus(403);
+        // MULTI-CLINIC DISCOVERY (2026-11-09): pasien bukan lagi milik satu
+        // klinik, jadi klinik nonaktif tidak mengunci akunnya. Yang wajib
+        // tetap berlaku: klinik itu hilang dari katalog & staf terkunci.
+        $this->apiAs($this->userA)->getJson('/api/doctors')->assertStatus(200);
 
         $this->actingAs($this->adminA)->get('/admin/bookings/' . $this->bookingB->id)
             ->assertRedirect(route('admin.login'));

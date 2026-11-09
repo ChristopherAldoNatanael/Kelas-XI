@@ -79,6 +79,12 @@
                 </div>
             </fieldset>
 
+            {{-- Lokasi & jam operasional (multi-clinic discovery) --}}
+            <fieldset class="space-y-5 border-t border-slate-100 pt-6 dark:border-slate-800">
+                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('clinics.location_title') }}</legend>
+                @include('admin.clinics.partials.location-fields', ['clinic' => $clinic])
+            </fieldset>
+
             {{-- Branding --}}
             <fieldset class="space-y-4 border-t border-slate-100 pt-6 dark:border-slate-800">
                 <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('admin.clinic_branding_section') }}</legend>

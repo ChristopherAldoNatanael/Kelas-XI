@@ -24,6 +24,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.christopheraldoo.petheal.ui.screens.auth.CompleteSetupScreen
+import com.christopheraldoo.petheal.ui.screens.discovery.ClinicDetailScreen
+import com.christopheraldoo.petheal.ui.screens.discovery.ClinicDiscoveryScreen
+import com.christopheraldoo.petheal.ui.screens.discovery.PriceCompareScreen
 import com.christopheraldoo.petheal.ui.screens.auth.LoginScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OnboardingScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OtpVerificationScreen
@@ -52,15 +55,20 @@ import com.christopheraldoo.petheal.ui.screens.payment.PaymentScreen
 import com.christopheraldoo.petheal.ui.screens.payment.PaymentResultScreen
 import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.navigateBackOrHome
 import com.christopheraldoo.petheal.ui.components.navigateToTab
 import com.christopheraldoo.petheal.ui.components.route
 import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.collectAsState
 
 @Composable
 fun PetHealNavHost(
     navController: NavHostController = rememberNavController(),
     viewModel: NavigationViewModel = hiltViewModel()
 ) {
+    // Klinik aktif untuk transaksi (dipakai memutuskan tujuan tombol booking
+    // di layar perbandingan harga). Tidak mengubah klinik apa pun.
+    val activeClinicSlug by viewModel.activeClinicSlug.collectAsState(initial = null)
     // PHASE 7 (§21): a 401 on any authenticated call ends the session
     // exactly once — return to login without loops or crashes.
     LaunchedEffect(Unit) {
@@ -199,12 +207,74 @@ fun PetHealNavHost(
             )
         }
 
+        // ── MULTI-CLINIC DISCOVERY ──────────────────────────────────────────
+        composable(Screen.ClinicDiscovery.route) {
+            ClinicDiscoveryScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenClinic = { slug -> navController.navigate(Screen.ClinicDetail.createRoute(slug)) },
+                onComparePrices = {
+                    navController.navigate(Screen.PriceCompare.createRoute())
+                }
+            )
+        }
+
+        composable(
+            route = Screen.ClinicDetail.route,
+            arguments = listOf(navArgument("slug") { type = NavType.StringType })
+        ) {
+            ClinicDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onCompareService = { serviceId ->
+                    navController.navigate(Screen.PriceCompare.createRoute(serviceId = serviceId))
+                },
+                onBookAtClinic = { clinicSlug, _ ->
+                    // MULTI-CLINIC: klinik yang diklik user diteruskan ke alur
+                    // booking dan langsung terpilih di langkah 2. User tidak
+                    // perlu menemukan kliniknya lagi di daftar.
+                    navController.navigate(Screen.BookingStart.createRoute(clinicSlug))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PriceCompare.route,
+            arguments = listOf(
+                navArgument("categorySlug") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("serviceId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) {
+            PriceCompareScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenClinic = { slug -> navController.navigate(Screen.ClinicDetail.createRoute(slug)) },
+                onBookService = { clinicSlug, _ ->
+                    // MULTI-CLINIC: klinik baris yang diklik langsung masuk
+                    // alur booking dan terpilih di langkah 2. Tidak perlu lagi
+                    // mampir ke detail klinik (yang dulu jadi jalan buntu).
+                    // Klinik aktif hanya dipakai bila baris tidak menyebutnya.
+                    navController.navigate(
+                        Screen.BookingStart.createRoute(
+                            clinicSlug.ifBlank { activeClinicSlug }
+                        )
+                    )
+                }
+            )
+        }
+
         // Main Screens
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToPets = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Pets) },
+                onNavigateToDiscovery = { navController.navigate(Screen.ClinicDiscovery.route) },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
-                onNavigateToBookingStart = { navController.navigate(Screen.BookingStart.route) },
+                onNavigateToBookingStart = {
+                    navController.navigate(Screen.BookingStart.createRoute())
+                },
                 onNavigateToDoctor = { doctorId, autoReview ->
                     navController.navigate(Screen.DoctorDetail.createRoute(doctorId, autoReview))
                 },
@@ -303,7 +373,9 @@ fun PetHealNavHost(
             BookingsScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
-                onNavigateToBookingStart = { navController.navigate(Screen.BookingStart.route) },
+                onNavigateToBookingStart = {
+                    navController.navigate(Screen.BookingStart.createRoute())
+                },
                 onNavigateToBookingDetail = { bookingId ->
                     navController.navigate(Screen.BookingDetail.createRoute(bookingId))
                 },
@@ -315,13 +387,24 @@ fun PetHealNavHost(
         }
 
         // "bookings/start" + "bookings/create/{doctorId}/{petId}" must be before "bookings/{bookingId}"
-        composable(Screen.BookingStart.route) {
+        composable(
+            route = Screen.BookingStart.route,
+            arguments = listOf(
+                navArgument("clinicSlug") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                }
+            )
+        ) { backStackEntry ->
             BookingStartScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
                 onContinue = { doctorId, petId ->
                     navController.navigate(Screen.CreateBooking.createRoute(doctorId, petId))
-                }
+                },
+                initialClinicSlug = backStackEntry.arguments
+                    ?.getString("clinicSlug")
+                    ?.takeIf { it.isNotBlank() }
             )
         }
 
@@ -534,7 +617,9 @@ fun PetHealNavHost(
                                 popUpTo(Screen.MedicalExtraPayment.route) { inclusive = true }
                             }
                         },
-                        onNavigateBack = { navController.popBackStack() },
+                        // Kembali aman: pindah benar-benar; bila tumpukan
+                        // kosong mendarat di Beranda (bukan tombol mati).
+                        onNavigateBack = { navController.navigateBackOrHome() },
                         onBookingUpdated = { paymentNavViewModel.notifyMedicalUpdated() }
                     )
                     }
@@ -636,7 +721,7 @@ fun PetHealNavHost(
                                 popUpTo(Screen.Payment.route) { inclusive = true }
                             }
                         },
-                        onNavigateBack = { navController.popBackStack() },
+                        onNavigateBack = { navController.navigateBackOrHome() },
                         onBookingUpdated = {
                             Log.d("PaymentNav", "Booking updated, requesting bookings refresh")
                             paymentNavViewModel.notifyBookingUpdated()

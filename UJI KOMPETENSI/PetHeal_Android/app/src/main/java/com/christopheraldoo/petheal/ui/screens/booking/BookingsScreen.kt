@@ -1702,7 +1702,13 @@ fun CreateBookingScreen(
     val textSecondary = TextSecondary
     val dividerColor  = Outline
 
-    LaunchedEffect(Unit) { viewModel.loadCreateBookingData(doctorId, petId) }
+    LaunchedEffect(Unit) {
+        viewModel.loadCreateBookingData(doctorId, petId)
+        // MULTI-CLINIC: klinik transaksi = klinik dokter yang dipilih di
+        // langkah 2. Tanpa ini header X-Clinic-Slug masih menunjuk klinik
+        // favorit dan booking ke klinik lain bisa ditolak server.
+        viewModel.applySelectedClinicAsActive()
+    }
     LaunchedEffect(state.isCreated) {
         val createdId = state.createdBookingId
         if (state.isCreated && createdId != null) {
@@ -1858,6 +1864,87 @@ fun CreateBookingScreen(
                                 }
                                 doc.availableTime?.let {
                                     Text(it, fontSize = 11.sp, color = textSecondary)
+                                }
+                                // MULTI-CLINIC: tujuan transaksi harus
+                                // terbaca di sini — halaman ini yang
+                                // menghasilkan booking & pembayaran.
+                                if (!state.clinicName.isNullOrBlank()) {
+                                    Spacer(Modifier.height(4.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            Icons.Filled.LocalHospital, null,
+                                            tint = BkPrimary, modifier = Modifier.size(13.dp)
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            buildString {
+                                                append(state.clinicName)
+                                                if (!state.clinicAddress.isNullOrBlank()) {
+                                                    append(" · ")
+                                                    append(state.clinicAddress)
+                                                }
+                                            },
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = textPrimary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Gagal memuat dokter: jelaskan + tawarkan retry ──────
+                // Sebelumnya kegagalan ini hanya membuat kartu dokter hilang,
+                // layanan kosong, dan CTA mati tanpa satu pun penjelasan —
+                // user melihat layar yang "setengah jadi" tanpa jalan keluar.
+                state.doctorError?.let { doctorError ->
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = ErrorSoft,
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Error.copy(alpha = 0.35f)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Filled.ErrorOutline, null,
+                                    tint = Error, modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "Data dokter belum bisa dimuat",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textPrimary
+                                )
+                            }
+                            Text(
+                                doctorError,
+                                fontSize = 12.sp,
+                                color = textSecondary,
+                                lineHeight = 17.sp
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Button(
+                                    onClick = { viewModel.loadCreateBookingData(doctorId, petId) },
+                                    shape = RoundedCornerShape(10.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = BkPrimary, contentColor = BkPrimaryFg
+                                    )
+                                ) {
+                                    Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text("Coba Lagi", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                                TextButton(onClick = onNavigateBack) {
+                                    Text("Pilih dokter lain", fontSize = 13.sp, color = textSecondary)
                                 }
                             }
                         }
@@ -2267,6 +2354,25 @@ fun CreateBookingScreen(
             Column(Modifier.fillMaxWidth()) {
                 Divider(color = dividerColor, thickness = 1.dp)
                 Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp).padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // MULTI-CLINIC: tujuan booking terbaca tepat di atas CTA,
+                    // saat user memutuskan membayar.
+                    if (!state.clinicName.isNullOrBlank()) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Filled.LocalHospital, null,
+                                tint = textSecondary, modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(5.dp))
+                            Text(
+                                "Booking di ${state.clinicName}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = textPrimary,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text("Estimasi Total", fontSize = 13.sp, color = textSecondary)

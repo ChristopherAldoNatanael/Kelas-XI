@@ -236,9 +236,17 @@ fun CompleteSetupScreen(
             if (isGoogle) {
                 Button(
                     onClick = {
-                        pickerState.selectedSlug?.let { viewModel.complete(it) }
+                        // MULTI-CLINIC DISCOVERY: klinik hanya preferensi awal,
+                        // akun tetap valid tanpa memilih apa pun.
+                        val slug = pickerState.selectedSlug
+                        if (slug.isNullOrBlank()) {
+                            viewModel.skip()
+                        } else {
+                            val name = pickerState.clinics.firstOrNull { it.slug == slug }?.name
+                            viewModel.complete(slug, name)
+                        }
                     },
-                    enabled = !uiState.isLoading && !pickerState.selectedSlug.isNullOrBlank(),
+                    enabled = !uiState.isLoading,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp),
@@ -255,7 +263,12 @@ fun CompleteSetupScreen(
                             strokeWidth = 2.5.dp
                         )
                     } else {
-                        Text("Simpan & Lanjutkan", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text(
+                            if (pickerState.selectedSlug.isNullOrBlank()) "Lanjutkan"
+                            else "Simpan & Lanjutkan",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             } else {

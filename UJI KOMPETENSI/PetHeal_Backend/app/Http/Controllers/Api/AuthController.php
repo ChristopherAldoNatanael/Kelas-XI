@@ -145,8 +145,12 @@ class AuthController extends Controller
             ], 401);
         }
 
-        // If clinic_slug provided, validate user belongs to that clinic
-        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        // MULTI-CLINIC DISCOVERY: pasien memakai akun global, `clinic_slug`
+        // tidak lagi memvalidasi kepemilikan klinik. Tenant check hanya untuk
+        // staf klinik (clinic_admin/doctor/admin).
+        $clinic = ($user->role ?? null) === 'user'
+            ? null
+            : $this->resolveClinic($request->input('clinic_slug'));
         if ($clinic && $user->clinic_id && $user->clinic_id !== $clinic->id) {
             return response()->json([
                 'success' => false,
@@ -158,7 +162,10 @@ class AuthController extends Controller
         // (Middleware enforces this on every call; login mirrors it so the
         // client gets a clear 403 instead of a token that never works.)
         // super_admin exempt (no clinic binding).
-        if ($user->role !== 'super_admin' && $user->clinic_id && !$user->clinic?->is_active) {
+        // MULTI-CLINIC DISCOVERY: pasien global tidak boleh dikunci oleh
+        // klinik lama pada profilnya — ia bebas memilih klinik lain saat
+        // booking, jadi status klinik lama tidak menghalangi login.
+        if (!in_array($user->role, ['super_admin', 'user'], true) && $user->clinic_id && !$user->clinic?->is_active) {
             return response()->json([
                 'success' => false,
                 'message' => 'Akses ditolak. Klinik Anda sedang nonaktif.',
@@ -223,20 +230,18 @@ class AuthController extends Controller
             ], 409);
         }
 
-        $clinic = $this->resolveClinic($validated['clinic_slug'] ?? null);
-        if (!empty($validated['clinic_slug']) && !$clinic) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Klinik tidak ditemukan atau tidak aktif.',
-            ], 422);
-        }
-
+        // `clinic_slug` sengaja TIDAK divalidasi ketat lagi: akun pasien global
+        // tidak terikat klinik, jadi slug asing tidak boleh menggagalkan
+        // pendaftaran (klien lama tetap mengirim field ini).
         $payload = [
             'name' => $validated['name'],
             'email' => $email,
             'password_hash' => Hash::make($validated['password']),
             'phone' => $validated['phone'] ?? null,
-            'clinic_id' => $clinic?->id,
+            // MULTI-CLINIC DISCOVERY: pasien mendaftar sebagai akun GLOBAL.
+            // `clinic_slug` di body tetap diterima (klien lama) tetapi tidak
+            // mengikat akun ke klinik — klinik dipilih saat booking.
+            'clinic_id' => null,
             'role' => 'user',
         ];
 
@@ -397,7 +402,10 @@ class AuthController extends Controller
         }
 
         // If user exists and clinic_slug provided, validate clinic match
-        $clinic = $this->resolveClinic($request->input('clinic_slug'));
+        // (staf klinik saja — pasien adalah akun global lintas klinik).
+        $clinic = ($user && $user->role !== 'user')
+            ? $this->resolveClinic($request->input('clinic_slug'))
+            : null;
         if ($user && $clinic && $user->clinic_id && $user->clinic_id !== $clinic->id) {
             return response()->json([
                 'success' => false,
@@ -422,7 +430,8 @@ class AuthController extends Controller
                 'email' => $firebaseUser['email'],
                 'role' => 'user',
                 'photo' => $firebaseUser['picture'] ?? null,
-                'clinic_id' => $clinic?->id,
+                // Pasien global: tidak diikat ke klinik.
+                'clinic_id' => null,
             ]);
         }
 
@@ -483,15 +492,9 @@ class AuthController extends Controller
             ], 422);
         }
 
-        // Resolve clinic if provided
-        $clinic = $this->resolveClinic($request->input('clinic_slug'));
-        if ($request->input('clinic_slug') && !$clinic) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Klinik tidak ditemukan atau tidak aktif.',
-            ], 422);
-        }
-
+        // MULTI-CLINIC DISCOVERY: `clinic_slug` tidak lagi mengikat akun pasien
+        // dan slug asing tidak boleh menggagalkan pendaftaran (kompatibilitas
+        // klien lama yang masih mengirim field tersebut).
         // Create new user
         $user = User::create([
             'firebase_uid' => $firebaseUser['uid'],
@@ -500,7 +503,7 @@ class AuthController extends Controller
             'role' => 'user',
             'phone' => $request->input('phone'),
             'photo' => $firebaseUser['picture'] ?? null,
-            'clinic_id' => $clinic?->id,
+            'clinic_id' => null,
         ]);
 
         // Create Sanctum token

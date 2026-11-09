@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
@@ -13,7 +14,11 @@ import com.christopheraldoo.petheal.data.repository.DashboardRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.NotificationRepository
 import com.christopheraldoo.petheal.data.repository.Result
+import com.christopheraldoo.petheal.util.DoctorListing
+import com.christopheraldoo.petheal.util.DoctorListingMapper
+import com.christopheraldoo.petheal.util.LocationHelper
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -50,7 +55,16 @@ data class HomeUiState(
     val loadError: String? = null,
     // PHASE 9: finished visits whose doctor has not been rated yet (max 3).
     // Shown once as a gentle reminder — never a nag.
-    val pendingReviews: List<PendingReview> = emptyList()
+    val pendingReviews: List<PendingReview> = emptyList(),
+    /**
+     * MULTI-CLINIC (2026-11-09): dokter terdekat dari lokasi user, sudah
+     * membawa nama klinik & jarak. Kosong = belum ada lokasi / belum dimuat —
+     * seksi disembunyikan, bukan diisi contoh.
+     */
+    val nearbyDoctors: List<DoctorListing> = emptyList(),
+    val nearbyHasLocation: Boolean = false,
+    val nearbyLoadError: String? = null,
+    val isNearbyLoading: Boolean = false
 )
 
 /**
@@ -67,6 +81,7 @@ data class PendingReview(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val dashboardRepository: DashboardRepository,
     private val preferencesManager: PreferencesManager,
     private val authRepository: AuthRepository,
@@ -126,6 +141,70 @@ class HomeViewModel @Inject constructor(
         }
 
         loadBookingData()
+        loadNearbyDoctors()
+    }
+
+    // ── MULTI-CLINIC: dokter terdekat dari lokasi user ─────────────────────
+
+    /**
+     * Isi seksi "Dokter terdekat".
+     *
+     * Lokasi diambil dari preferensi (titik yang sudah dipilih user di layar
+     * lain). Bila belum ada dan izin lokasi SUDAH diberikan, satu fix GPS
+     * dipakai sekali; selain itu seksi tetap kosong — tidak pernah meminta
+     * izin dari Beranda dan tidak pernah mengarang jarak.
+     */
+    fun loadNearbyDoctors(forceGps: Boolean = false) {
+        if (_uiState.value.isNearbyLoading) return
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(
+                isNearbyLoading = true,
+                nearbyLoadError = null
+            )
+
+            val saved = runCatching { preferencesManager.userLocation.first() }.getOrNull()
+            var location = saved
+            if (location == null && forceGps && LocationHelper.hasPermission(context)) {
+                val fix = runCatching { LocationHelper.currentLocation(context) }.getOrNull()
+                if (fix is com.christopheraldoo.petheal.util.LocationResult.Success) {
+                    location = com.christopheraldoo.petheal.data.model.UserLocation(
+                        latitude = fix.latitude,
+                        longitude = fix.longitude,
+                        label = "Lokasi GPS"
+                    )
+                    runCatching { preferencesManager.saveUserLocation(location) }
+                }
+            }
+
+            when (val result = doctorRepository.getDoctors(forceRefresh = false)) {
+                is Result.Success -> {
+                    val listings = DoctorListingMapper.map(result.data, location)
+                    val nearby = if (location != null) {
+                        DoctorListingMapper.sortByDistance(listings)
+                            .filter { it.distanceKm != null }
+                            .take(NEARBY_LIMIT)
+                    } else {
+                        emptyList()
+                    }
+                    _uiState.value = _uiState.value.copy(
+                        isNearbyLoading = false,
+                        nearbyDoctors = nearby,
+                        nearbyHasLocation = location != null,
+                        nearbyLoadError = null
+                    )
+                }
+                is Result.Error -> _uiState.value = _uiState.value.copy(
+                    isNearbyLoading = false,
+                    nearbyLoadError = result.message
+                )
+                else -> _uiState.value = _uiState.value.copy(isNearbyLoading = false)
+            }
+        }
+    }
+
+    companion object {
+        /** Berapa dokter ditampilkan di Beranda; sisanya lewat "Lihat semua". */
+        const val NEARBY_LIMIT = 3
     }
 
     fun loadBookingData(quiet: Boolean = false) {
@@ -215,6 +294,9 @@ class HomeViewModel @Inject constructor(
         if (System.currentTimeMillis() - lastLoadAt < maxAgeMs) return
         loadBookingData(quiet = true)
         loadPendingReviews()
+        // Kembali dari layar lain bisa berarti user baru mengatur/mengganti
+        // lokasi — jarak dokter ikut diperbarui.
+        loadNearbyDoctors()
     }
 
     /**

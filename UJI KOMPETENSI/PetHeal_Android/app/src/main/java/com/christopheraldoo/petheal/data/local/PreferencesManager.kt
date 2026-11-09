@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.christopheraldoo.petheal.data.model.LocationSource
+import com.christopheraldoo.petheal.data.model.UserLocation
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -45,6 +47,14 @@ class PreferencesManager @Inject constructor(
         private val KEY_CLINIC_LOGO = stringPreferencesKey("clinic_logo")
         private val KEY_CLINIC_COLOR = stringPreferencesKey("clinic_color")
         private val KEY_CLINIC_ADDRESS = stringPreferencesKey("clinic_address")
+
+        // MULTI-CLINIC DISCOVERY: lokasi pengguna untuk mencari klinik
+        // terdekat. Opsional — kosong berarti "Lokasi belum diatur" dan
+        // aplikasi tetap berjalan (klinik tampil tanpa jarak).
+        private val KEY_LOCATION_LAT = stringPreferencesKey("location_lat")
+        private val KEY_LOCATION_LNG = stringPreferencesKey("location_lng")
+        private val KEY_LOCATION_LABEL = stringPreferencesKey("location_label")
+        private val KEY_LOCATION_SOURCE = stringPreferencesKey("location_source")
     }
 
     val authToken: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -190,6 +200,46 @@ class PreferencesManager @Inject constructor(
             preferences.remove(KEY_CLINIC_LOGO)
             preferences.remove(KEY_CLINIC_COLOR)
             preferences.remove(KEY_CLINIC_ADDRESS)
+        }
+    }
+
+    // ── MULTI-CLINIC DISCOVERY: lokasi pengguna ────────────────────────────
+
+    /** Null = user belum pernah mengatur lokasi (state "Lokasi belum diatur"). */
+    val userLocation: Flow<UserLocation?> = context.dataStore.data.map { preferences ->
+        val lat = preferences[KEY_LOCATION_LAT]?.toDoubleOrNull() ?: return@map null
+        val lng = preferences[KEY_LOCATION_LNG]?.toDoubleOrNull() ?: return@map null
+        UserLocation(
+            latitude = lat,
+            longitude = lng,
+            label = preferences[KEY_LOCATION_LABEL],
+            source = if (preferences[KEY_LOCATION_SOURCE] == LocationSource.MANUAL.name) {
+                LocationSource.MANUAL
+            } else {
+                LocationSource.GPS
+            }
+        )
+    }
+
+    suspend fun saveUserLocation(location: UserLocation) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_LOCATION_LAT] = location.latitude.toString()
+            preferences[KEY_LOCATION_LNG] = location.longitude.toString()
+            if (!location.label.isNullOrBlank()) {
+                preferences[KEY_LOCATION_LABEL] = location.label
+            } else {
+                preferences.remove(KEY_LOCATION_LABEL)
+            }
+            preferences[KEY_LOCATION_SOURCE] = location.source.name
+        }
+    }
+
+    suspend fun clearUserLocation() {
+        context.dataStore.edit { preferences ->
+            preferences.remove(KEY_LOCATION_LAT)
+            preferences.remove(KEY_LOCATION_LNG)
+            preferences.remove(KEY_LOCATION_LABEL)
+            preferences.remove(KEY_LOCATION_SOURCE)
         }
     }
 

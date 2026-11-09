@@ -88,6 +88,10 @@
                         <textarea name="description" id="description" rows="2" class="admin-input">{{ old('description', $clinic->description) }}</textarea>
                     </div>
 
+                    <div class="rounded-2xl border border-slate-200/80 bg-slate-50/60 p-4 dark:border-slate-800 dark:bg-slate-900/40">
+                        @include('admin.clinics.partials.location-fields', ['clinic' => $clinic])
+                    </div>
+
                     <label class="flex cursor-pointer items-center gap-3">
                         <input type="checkbox" name="is_active" value="1" id="is_active" {{ old('is_active', $clinic->is_active) ? 'checked' : '' }}
                                class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary">
@@ -242,3 +246,7 @@
     updatePreview();
 </script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/pin-location.js')
+@endpush

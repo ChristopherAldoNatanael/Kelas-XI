@@ -5,9 +5,16 @@ import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+import com.christopheraldoo.petheal.ui.theme.WarningText
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -36,6 +43,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
@@ -43,6 +52,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.SwapHoriz
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -54,11 +64,15 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,29 +90,43 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.Pet
+import com.christopheraldoo.petheal.ui.theme.Star
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
-import com.christopheraldoo.petheal.ui.theme.Star
 import com.christopheraldoo.petheal.util.reviewCountLabel
 
 private val BsPrimary = Primary
+private val BsPrimarySoft = PrimaryLight
+private val BsPrimaryDark = PrimaryDark
 private val BsPrimaryFg = OnPrimaryStrong
 private val BsBg = Background
 private val BsSurface = Surface
+private val BsSurfaceVariant = SurfaceVariant
 private val BsBorder = Outline
 private val BsTextPrimary = OnBackground
 private val BsTextSecondary = TextSecondary
+private val BsTextTertiary = TextTertiary
 
-// ── Entry point alur transaksi booking ──────────────────────────────────────
-// Berbeda dari Cari Dokter (discovery): layar ini tidak menampilkan profil
-// panjang, ulasan lengkap, atau jadwal. Hanya dua pilihan ringkas — hewan
-// dan dokter — lalu diteruskan ke CreateBooking (layanan → tanggal → jam →
-// pembayaran → konfirmasi) dengan keduanya sudah terisi.
+/**
+ * Langkah 1–2 alur transaksi booking.
+ *
+ * MULTI-CLINIC (2026-11-09): sebelumnya layar ini menampilkan dokter SEMUA
+ * klinik tanpa satu pun penanda klinik, lalu diam-diam mengunci transaksi ke
+ * klinik favorit di preferensi. Sekarang klinik adalah keputusan eksplisit:
+ *
+ *   1. pilih hewan,
+ *   2. pilih KLINIK → baru dokter klinik tersebut,
+ *   3. layanan/jadwal (CreateBookingScreen) tersaring ke klinik dokter.
+ *
+ * `initialClinicSlug` berasal dari tombol "Booking di klinik ini" pada detail
+ * klinik, supaya user yang sudah memilih klinik tidak memilih ulang.
+ */
 @Composable
 fun BookingStartScreen(
     onNavigateBack: () -> Unit,
     onNavigateToAddPet: () -> Unit = {},
     onContinue: (doctorId: Int, petId: Int) -> Unit,
+    initialClinicSlug: String? = null,
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.startState.collectAsState()
@@ -114,11 +142,33 @@ fun BookingStartScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
+    // Hanya sejak user benar-benar memilih klinik (bukan setiap kali daftar
+    // klinik dimuat ulang) — supaya tombol "Ganti" tidak dibatalkan diam-diam.
+    var initialPickApplied by remember { mutableStateOf(false) }
+    LaunchedEffect(state.clinics, initialClinicSlug, state.preferredClinicSlug) {
+        if (initialPickApplied || state.clinics.isEmpty()) return@LaunchedEffect
+        val target = state.clinics.firstOrNull {
+            !initialClinicSlug.isNullOrBlank() && it.slug == initialClinicSlug
+        } ?: state.clinics.firstOrNull {
+            !state.preferredClinicSlug.isNullOrBlank() && it.slug == state.preferredClinicSlug
+        } ?: return@LaunchedEffect
+        // Menandai sudah diterapkan lebih dulu agar pemuatan ulang berikutnya
+        // tidak menimpa pilihan manual user.
+        initialPickApplied = true
+        viewModel.selectStartClinic(target.id)
+    }
+
     val selectedDoctor = remember(state.doctors, state.selectedDoctorId) {
         state.doctors.firstOrNull { it.id == state.selectedDoctorId }
     }
     val selectedPet = remember(state.pets, state.selectedPetId) {
         state.pets.firstOrNull { it.id == state.selectedPetId }
+    }
+    val selectedClinic = state.selectedClinic
+    val currentStep = when {
+        state.selectedPetId == null -> 1
+        state.selectedClinicId == null -> 2
+        else -> 3
     }
 
     Column(modifier = Modifier.fillMaxSize().background(BsBg)) {
@@ -138,12 +188,12 @@ fun BookingStartScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Buat Booking", color = BsTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            "Langkah 1 dari 2 · pilih hewan & dokter",
+                            "Langkah $currentStep dari 3 · hewan, klinik & dokter",
                             color = BsTextSecondary, fontSize = 12.sp
                         )
                     }
                 }
-                BookingStartSteps(currentStep = if (state.selectedPetId == null) 1 else 2)
+                BookingStartSteps(currentStep = currentStep)
                 Divider(color = BsBorder, thickness = 0.5.dp)
             }
         }
@@ -158,23 +208,15 @@ fun BookingStartScreen(
                 )
             else -> LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(22.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
                 modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
                 // ── Langkah 1: hewan ──
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        BookingStartSectionTitle(
-                            step = "1",
-                            title = "Hewan siapa yang akan diperiksa?"
-                        )
+                        BookingStartSectionTitle(step = "1", title = "Hewan siapa yang diperiksa?")
                         if (state.pets.isEmpty()) {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = BsSurface,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BsBorder),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
+                            CardSurface {
                                 Column(
                                     modifier = Modifier.padding(18.dp),
                                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -215,54 +257,134 @@ fun BookingStartScreen(
                         }
                     }
                 }
-                // ── Langkah 2: dokter (ringkas, tanpa profil panjang) ──
+
+                // ── Langkah 2: klinik ──
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        BookingStartSectionTitle(
-                            step = "2",
-                            title = "Dokter mana yang menangani?"
+                        BookingStartSectionTitle(step = "2", title = "Di klinik mana?")
+                        Text(
+                            text = when {
+                                selectedClinic != null ->
+                                    "Menampilkan dokter yang praktik di ${selectedClinic.name}."
+                                state.clinics.isNotEmpty() ->
+                                    "Satu booking hanya untuk satu klinik. Pilih klinik dulu, " +
+                                        "lalu dokter yang praktik di sana."
+                                else -> "Booking hanya bisa dibuat ke klinik yang punya dokter aktif."
+                            },
+                            color = BsTextSecondary, fontSize = 12.sp, lineHeight = 17.sp
                         )
-                        OutlinedTextField(
-                            value = state.searchQuery,
-                            onValueChange = viewModel::onStartSearch,
-                            placeholder = { Text("Cari nama atau spesialisasi...", color = BsTextSecondary, fontSize = 14.sp) },
-                            leadingIcon = { Icon(Icons.Outlined.Search, null, tint = BsTextSecondary, modifier = Modifier.size(20.dp)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                            shape = RoundedCornerShape(14.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedTextColor = BsTextPrimary, unfocusedTextColor = BsTextPrimary,
-                                focusedBorderColor = BsPrimary, unfocusedBorderColor = BsBorder,
-                                cursorColor = BsPrimary,
-                                focusedContainerColor = BsSurface, unfocusedContainerColor = BsSurface
-                            ),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (state.filteredDoctors.isEmpty()) {
-                            Surface(
-                                shape = RoundedCornerShape(14.dp),
-                                color = BsSurface,
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BsBorder),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    if (state.searchQuery.isNotBlank()) "Tidak ada dokter yang cocok dengan pencarian."
-                                    else "Belum ada dokter tersedia saat ini.",
-                                    color = BsTextSecondary, fontSize = 13.sp,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(20.dp)
-                                )
+                        if (state.clinics.isEmpty()) {
+                            CardSurface {
+                                Column(
+                                    modifier = Modifier.padding(20.dp).fillMaxWidth(),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        "Belum ada klinik dengan dokter aktif",
+                                        color = BsTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        "Booking hanya bisa dibuat ke klinik yang punya dokter aktif.",
+                                        color = BsTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
+                                    )
+                                }
                             }
+                        } else if (selectedClinic == null) {
+                            // Daftar klinik: dokter sengaja BELUM ditampilkan.
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                state.clinics.forEach { clinic ->
+                                    StartClinicRow(
+                                        clinic = clinic,
+                                        selected = false,
+                                        onClick = { viewModel.selectStartClinic(clinic.id) }
+                                    )
+                                }
+                                if (state.totalDoctors > 0) {
+                                    Text(
+                                        "${state.totalDoctors} dokter aktif di ${state.clinics.size} klinik",
+                                        color = BsTextTertiary, fontSize = 11.sp,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                            }
+                        } else {
+                            StartSelectedClinicCard(
+                                name = selectedClinic.name,
+                                address = selectedClinic.address,
+                                doctorCount = selectedClinic.doctorCount,
+                                onChangeClinic = viewModel::clearStartClinic
+                            )
                         }
                     }
                 }
-                items(state.filteredDoctors, key = { it.id ?: 0 }) { doctor ->
-                    StartDoctorRow(
-                        doctor = doctor,
-                        selected = doctor.id == state.selectedDoctorId,
-                        onClick = { doctor.id?.let(viewModel::selectStartDoctor) }
-                    )
+
+                // ── Langkah 3 (bagian dokter): hanya dokter klinik terpilih ──
+                if (selectedClinic != null) {
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            BookingStartSectionTitle(step = "3", title = "Dokter mana yang menangani?")
+                            OutlinedTextField(
+                                value = state.searchQuery,
+                                onValueChange = viewModel::onStartSearch,
+                                placeholder = {
+                                    Text(
+                                        "Cari nama atau spesialisasi di klinik ini",
+                                        color = BsTextSecondary, fontSize = 13.sp
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Outlined.Search, null,
+                                        tint = BsTextSecondary, modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                                shape = RoundedCornerShape(14.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = BsTextPrimary, unfocusedTextColor = BsTextPrimary,
+                                    focusedBorderColor = BsPrimary, unfocusedBorderColor = BsBorder,
+                                    cursorColor = BsPrimary,
+                                    focusedContainerColor = BsSurface, unfocusedContainerColor = BsSurface
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (state.filteredDoctors.isEmpty()) {
+                                CardSurface {
+                                    Text(
+                                        if (state.searchQuery.isNotBlank())
+                                            "Tidak ada dokter di klinik ini yang cocok dengan pencarian."
+                                        else
+                                            "Klinik ini belum punya dokter aktif. Pilih klinik lain.",
+                                        color = BsTextSecondary, fontSize = 13.sp,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(20.dp).fillMaxWidth()
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    items(state.filteredDoctors, key = { it.id ?: 0 }) { doctor ->
+                        StartDoctorRow(
+                            doctor = doctor,
+                            selected = doctor.id == state.selectedDoctorId,
+                            onClick = { doctor.id?.let(viewModel::selectStartDoctor) }
+                        )
+                    }
+                }
+
+                state.error?.let { message ->
+                    item {
+                        CardSurface(color = WarningSoft, borderColor = null) {
+                            Text(
+                                message,
+                                color = WarningText, fontSize = 12.sp,
+                                modifier = Modifier.padding(12.dp)
+                            )
+                        }
+                    }
                 }
                 item { Spacer(Modifier.height(84.dp)) }
             }
@@ -274,13 +396,15 @@ fun BookingStartScreen(
                 Divider(color = BsBorder, thickness = 0.5.dp)
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(
-                        when {
+                        text = when {
                             selectedPet == null -> "Pilih hewan dulu untuk lanjut"
-                            selectedDoctor == null -> "Pilih dokter untuk ${selectedPet.name ?: "hewanmu"}"
-                            else -> "${selectedPet.name} • ${selectedDoctor.name}"
+                            selectedClinic == null -> "Pilih klinik tujuan booking"
+                            selectedDoctor == null ->
+                                "${selectedPet.name ?: "Hewan"} di ${selectedClinic.name} — pilih dokter"
+                            else -> "${selectedPet.name} · ${selectedDoctor.name} · ${selectedClinic.name}"
                         },
                         color = BsTextSecondary, fontSize = 12.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
@@ -299,11 +423,29 @@ fun BookingStartScreen(
                     ) {
                         Icon(Icons.Outlined.CalendarMonth, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Lanjutkan", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                        Text("Lanjut ke layanan & jadwal", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                     }
                 }
             }
         }
+    }
+}
+
+// ── Building blocks ─────────────────────────────────────────────────────────
+
+@Composable
+private fun CardSurface(
+    color: Color = BsSurface,
+    borderColor: Color? = BsBorder,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = color,
+        border = borderColor?.let { BorderStroke(1.dp, it) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        content()
     }
 }
 
@@ -314,11 +456,20 @@ private fun BookingStartSteps(currentStep: Int) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        BookingStartStepPill(number = "1", label = "Hewan", active = currentStep >= 1, done = currentStep > 1)
+        BookingStartStepPill(
+            number = "1", label = "Hewan",
+            active = currentStep >= 1, done = currentStep > 1
+        )
         Box(modifier = Modifier.weight(1f).height(1.dp).background(BsBorder))
-        BookingStartStepPill(number = "2", label = "Dokter", active = currentStep >= 2, done = false)
+        BookingStartStepPill(
+            number = "2", label = "Klinik",
+            active = currentStep >= 2, done = currentStep > 2
+        )
         Box(modifier = Modifier.weight(1f).height(1.dp).background(BsBorder))
-        BookingStartStepPill(number = "3", label = "Jadwal", active = false, done = false)
+        BookingStartStepPill(
+            number = "3", label = "Dokter",
+            active = currentStep >= 3, done = false
+        )
     }
 }
 
@@ -330,7 +481,7 @@ private fun BookingStartStepPill(number: String, label: String, active: Boolean,
     ) {
         Box(
             modifier = Modifier.size(22.dp).clip(CircleShape)
-                .background(if (active || done) BsPrimary else BsBorder),
+                .background(if (done) BsPrimaryDark else if (active) BsPrimary else BsBorder),
             contentAlignment = Alignment.Center
         ) {
             if (done) {
@@ -364,12 +515,139 @@ private fun BookingStartSectionTitle(step: String, title: String) {
     }
 }
 
+/** Satu baris klinik yang bisa dipilih, lengkap dengan jumlah dokter aktif. */
+@Composable
+private fun StartClinicRow(
+    clinic: BookingClinicOption,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (selected) BsPrimarySoft else BsSurface)
+            .border(1.dp, if (selected) BsPrimary else BsBorder, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp)
+    ) {
+        Box(
+            modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                .background(BsPrimary.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Filled.LocalHospital, null, tint = BsPrimaryDark, modifier = Modifier.size(20.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    clinic.name,
+                    color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (clinic.isPreferred) {
+                    Spacer(Modifier.width(6.dp))
+                    PreferredTag()
+                }
+            }
+            if (!clinic.address.isNullOrBlank()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.LocationOn, null,
+                        tint = BsTextTertiary, modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(Modifier.width(3.dp))
+                    Text(
+                        clinic.address.orEmpty(),
+                        color = BsTextSecondary, fontSize = 11.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+            Text(
+                "${clinic.doctorCount} dokter aktif",
+                color = BsTextTertiary, fontSize = 11.sp
+            )
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(Icons.Filled.ChevronRight, null, tint = BsTextSecondary, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Klinik terpilih: satu kartu tegas + jalan keluar yang jelas untuk ganti. */
+@Composable
+private fun StartSelectedClinicCard(
+    name: String,
+    address: String?,
+    doctorCount: Int,
+    onChangeClinic: () -> Unit
+) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = BsPrimarySoft,
+        border = BorderStroke(1.dp, BsPrimary.copy(alpha = 0.45f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
+                    .background(BsPrimary.copy(alpha = 0.18f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Filled.LocalHospital, null, tint = BsPrimaryDark, modifier = Modifier.size(20.dp))
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    "Booking di klinik ini",
+                    color = BsPrimaryDark, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    name,
+                    color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                if (!address.isNullOrBlank()) {
+                    Text(
+                        address,
+                        color = BsTextSecondary, fontSize = 11.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                    )
+                } else {
+                    Text("$doctorCount dokter aktif", color = BsTextSecondary, fontSize = 11.sp)
+                }
+            }
+            TextButton(onClick = onChangeClinic, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                Icon(Icons.Outlined.SwapHoriz, null, tint = BsPrimaryDark, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(4.dp))
+                Text("Ganti", color = BsPrimaryDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PreferredTag() {
+    Surface(shape = RoundedCornerShape(6.dp), color = BsSurfaceVariant) {
+        Text(
+            "Terakhir dipakai",
+            color = BsTextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+        )
+    }
+}
+
 @Composable
 private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
         color = if (selected) BsPrimary else BsSurface,
-        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, BsBorder),
+        border = if (selected) null else BorderStroke(1.dp, BsBorder),
         modifier = Modifier.clip(CircleShape).clickable(onClick = onClick)
     ) {
         Row(
@@ -515,7 +793,7 @@ private fun BookingStartError(message: String, onRetry: () -> Unit, modifier: Mo
             OutlinedButton(
                 onClick = onRetry,
                 shape = RoundedCornerShape(50),
-                border = androidx.compose.foundation.BorderStroke(1.dp, BsPrimary)
+                border = BorderStroke(1.dp, BsPrimary)
             ) {
                 Icon(Icons.Filled.Refresh, null, tint = BsPrimary, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))

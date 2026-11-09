@@ -4,6 +4,7 @@ import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
@@ -34,9 +35,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Payments
@@ -46,6 +49,7 @@ import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vaccines
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -114,6 +118,8 @@ fun HomeScreen(
     onNavigateToMedicalRecords: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToNotifications: () -> Unit = {},
+    // MULTI-CLINIC DISCOVERY: masuk ke pencarian/penjelajahan klinik.
+    onNavigateToDiscovery: () -> Unit = {},
     onNavigateToDoctor: (doctorId: Int, autoReview: Boolean) -> Unit = { _, _ -> },
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -206,11 +212,19 @@ fun HomeScreen(
                 onNavigateToBookingStart = onNavigateToBookingStart
             )
 
+            NearbyDoctorsSection(
+                state = uiState,
+                onDoctorClick = { doctorId -> onNavigateToDoctor(doctorId, false) },
+                onSeeAll = onNavigateToDoctors,
+                onEnableLocation = { viewModel.loadNearbyDoctors(forceGps = true) }
+            )
+
             QuickActionsSection(
                 onNavigateToDoctors = onNavigateToDoctors,
                 onNavigateToBookingStart = onNavigateToBookingStart,
                 onNavigateToPets = onNavigateToPets,
-                onNavigateToMedicalRecords = onNavigateToMedicalRecords
+                onNavigateToMedicalRecords = onNavigateToMedicalRecords,
+                onNavigateToDiscovery = onNavigateToDiscovery
             )
 
             RecentActivitySection(recentVisits = uiState.recentVisits)
@@ -805,6 +819,192 @@ private fun UpcomingBookingSection(
     }
 }
 
+/**
+ * MULTI-CLINIC: dokter terdekat + kliniknya.
+ *
+ * Dua keadaan jujur:
+ *  - lokasi diketahui → maksimal 3 dokter terdekat, tiap baris menyebut
+ *    klinik dan jaraknya;
+ *  - lokasi belum ada → satu ajakan mengaktifkan lokasi. Tidak ada angka
+ *    jarak karangan dan tidak ada izin yang diminta otomatis dari Beranda.
+ */
+@Composable
+private fun NearbyDoctorsSection(
+    state: HomeUiState,
+    onDoctorClick: (Int) -> Unit,
+    onSeeAll: () -> Unit,
+    onEnableLocation: () -> Unit
+) {
+    val hasDoctors = state.nearbyDoctors.isNotEmpty()
+    // Tanpa lokasi dan tanpa dokter, seksi tetap tampil sebagai ajakan —
+    // kecuali memang gagal memuat dokter (sudah ada pesan retry di Cari Dokter).
+    if (!hasDoctors && state.nearbyHasLocation) return
+    if (!hasDoctors && state.nearbyLoadError != null) return
+
+    Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text(
+                    "Dokter terdekat",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HomeTextPrimary
+                )
+                Text(
+                    if (state.nearbyHasLocation) "Diurutkan dari jarak klinik ke lokasi Anda"
+                    else "Jarak butuh lokasi Anda",
+                    fontSize = 12.sp,
+                    color = HomeTextSecondary
+                )
+            }
+            Text(
+                text = "Lihat semua",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = HomePrimary,
+                modifier = Modifier.clickable { onSeeAll() }
+            )
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+
+        when {
+            state.isNearbyLoading && !hasDoctors -> {
+                Text("Memuat dokter terdekat…", fontSize = 12.sp, color = HomeTextSecondary)
+            }
+
+            !state.nearbyHasLocation -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(HomeSoftSurface)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Outlined.MyLocation, null,
+                        tint = HomePrimary, modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        "Aktifkan lokasi supaya jarak ke tiap klinik terlihat.",
+                        fontSize = 12.sp,
+                        color = TextMuted,
+                        lineHeight = 17.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        "Aktifkan",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = HomePrimary,
+                        modifier = Modifier.clickable(onClick = onEnableLocation).padding(6.dp)
+                    )
+                }
+            }
+
+            else -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                state.nearbyDoctors.forEach { listing ->
+                    NearbyDoctorRow(
+                        listing = listing,
+                        onClick = { listing.id?.let(onDoctorClick) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NearbyDoctorRow(listing: com.christopheraldoo.petheal.util.DoctorListing, onClick: () -> Unit) {
+    val doctor = listing.doctor
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(HomeSurface)
+            .border(1.dp, HomeBorder, RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(CircleShape)
+                .background(HomeBg),
+            contentAlignment = Alignment.Center
+        ) {
+            val photo = remember(doctor.photo) { buildPhotoUrl(doctor.photo) }
+            if (!photo.isNullOrBlank()) {
+                ThumbnailImage(
+                    model = photo,
+                    contentDescription = doctor.name,
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Icon(
+                    Icons.Filled.Person, null,
+                    tint = TextTertiary, modifier = Modifier.size(22.dp)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                doctor.name ?: "Dokter",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = HomeTextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                doctor.specialization ?: "Dokter Hewan",
+                fontSize = 11.5.sp,
+                color = HomePrimary,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(3.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Filled.LocalHospital, null,
+                    tint = TextTertiary, modifier = Modifier.size(12.dp)
+                )
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    listing.clinicLabel ?: "Klinik belum diisi",
+                    fontSize = 11.sp,
+                    color = HomeTextSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                listing.distanceLabel?.let { distance ->
+                    Text(" · ", fontSize = 11.sp, color = TextTertiary)
+                    Text(
+                        distance,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = HomeTextPrimary
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Icon(
+            Icons.Filled.ChevronRight, null,
+            tint = HomeTextSecondary, modifier = Modifier.size(20.dp)
+        )
+    }
+}
+
 @Composable
 private fun DoctorPhotoCard(photo: String?) {
     Box(
@@ -834,7 +1034,8 @@ private fun QuickActionsSection(
     onNavigateToDoctors: () -> Unit,
     onNavigateToBookingStart: () -> Unit = {},
     onNavigateToPets: () -> Unit,
-    onNavigateToMedicalRecords: () -> Unit
+    onNavigateToMedicalRecords: () -> Unit,
+    onNavigateToDiscovery: () -> Unit = {}
 ) {
     Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
         Text("Akses Cepat", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = HomeTextPrimary)
@@ -849,8 +1050,10 @@ private fun QuickActionsSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
+            // "Cari Klinik" memakai token semantik (PrimaryWash) — bukan hex
+            // baru — dan membuka discovery multi-klinik.
+            QuickActionItem(Icons.Filled.LocalHospital, "Cari\nKlinik", PrimaryWash, Primary, onNavigateToDiscovery)
             QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", InfoSoft, StatusCompleted, onNavigateToBookingStart)
-            QuickActionItem(Icons.Filled.Pets, "Hewan\nSaya", Color(0xFFF3E8FF), Color(0xFF9333EA), onNavigateToPets)
             QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", WarningSoft, WarningDeep, onNavigateToMedicalRecords)
             QuickActionItem(Icons.Filled.MedicalServices, "Cari\nDokter", Color(0xFFFFE4E6), Color(0xFFDB2777), onNavigateToDoctors)
         }

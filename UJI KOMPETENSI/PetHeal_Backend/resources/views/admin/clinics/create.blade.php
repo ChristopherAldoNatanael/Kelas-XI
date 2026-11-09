@@ -87,6 +87,10 @@
                                   placeholder="{{ __('clinics.description_placeholder') }}">{{ old('description') }}</textarea>
                     </div>
 
+                    <div class="border-t border-slate-100 pt-5 dark:border-slate-800">
+                        @include('admin.clinics.partials.location-fields', ['clinic' => null])
+                    </div>
+
                     <label class="flex cursor-pointer items-center gap-3">
                         <input type="checkbox" name="is_active" value="1" id="is_active" checked
                                class="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary">
@@ -270,3 +274,7 @@
     updatePreview();
 </script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/pin-location.js')
+@endpush

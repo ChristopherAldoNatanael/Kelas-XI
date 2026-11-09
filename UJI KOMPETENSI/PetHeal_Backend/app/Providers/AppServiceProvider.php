@@ -156,9 +156,18 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(10)->by($request->user()?->id ?: $request->ip());
         });
 
+
         RateLimiter::for('webhook', function (Request $request) {
             return Limit::perMinute(120)->by($request->ip());
         });
+
+        // Katalog publik (discovery klinik, kategori, perbandingan harga) dipakai
+        // halaman onboarding & halaman klinik sebelum login, jadi diberi batas
+        // per IP yang longgar tapi tetap ada.
+        RateLimiter::for('public-catalog', function (Request $request) {
+            return Limit::perMinute(120)->by($request->ip());
+        });
+
         
         RateLimiter::for('api-heavy', function (Request $request) {
             return Limit::perMinute(30)->by($request->user()?->id ?: $request->ip());

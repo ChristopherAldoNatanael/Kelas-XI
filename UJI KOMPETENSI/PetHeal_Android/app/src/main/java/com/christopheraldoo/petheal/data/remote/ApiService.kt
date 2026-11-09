@@ -150,27 +150,102 @@ interface ApiService {
     @GET("public/clinics")
     suspend fun getPublicClinics(): Response<PublicClinicsResponse>
 
+    /**
+     * MULTI-CLINIC DISCOVERY: daftar klinik dengan pencarian, filter, dan
+     * pengurutan berdasarkan jarak/rating. `lat`/`lng` opsional — tanpa
+     * koordinat backend mengembalikan `distance_km = null` (bukan 0).
+     */
+    @GET("public/clinics")
+    suspend fun discoverClinics(
+        @Query("search") search: String? = null,
+        @Query("category") category: String? = null,
+        @Query("service") service: String? = null,
+        @Query("sort") sort: String? = null,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("min_rating") minRating: Double? = null,
+        @Query("max_distance_km") maxDistanceKm: Double? = null,
+        @Query("open_now") openNow: Boolean? = null,
+        @Query("limit") limit: Int? = null
+    ): Response<ClinicListResponse>
+
     @GET("public/clinics/{slug}")
     suspend fun getPublicClinic(@Path("slug") slug: String): Response<ClinicDetailResponse>
+
+    /** Detail klinik + daftar layanan (layar Clinic Detail). */
+    @GET("public/clinics/{slug}")
+    suspend fun getClinicDetail(
+        @Path("slug") slug: String,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null
+    ): Response<ClinicDetailFullResponse>
+
+    @GET("public/service-categories")
+    suspend fun getServiceCategories(): Response<ServiceCategoriesResponse>
+
+    /**
+     * Perbandingan harga antar klinik. Dasar pembanding SELALU kategori
+     * standar / `service_id` (bukan nama mirip) — lihat backend
+     * PublicClinicController::compareServices.
+     */
+    @GET("public/services/compare")
+    suspend fun compareServices(
+        @Query("category_slug") categorySlug: String? = null,
+        @Query("service_id") serviceId: Int? = null,
+        @Query("name") name: String? = null,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null,
+        @Query("sort") sort: String? = null,
+        @Query("min_price") minPrice: Double? = null,
+        @Query("max_price") maxPrice: Double? = null,
+        @Query("max_distance_km") maxDistanceKm: Double? = null,
+        @Query("min_rating") minRating: Double? = null,
+        @Query("open_now") openNow: Boolean? = null
+    ): Response<CompareResponse>
+
+    @GET("public/services/{id}")
+    suspend fun getPublicServiceDetail(
+        @Path("id") id: Int,
+        @Query("lat") lat: Double? = null,
+        @Query("lng") lng: Double? = null
+    ): Response<ServiceDetailResponse>
 
     // ============= SERVICES =============
     // PHASE 7: anonymous callers MUST pass clinic_slug (backend 422 otherwise).
     // Authenticated users are scoped by their own clinic server-side.
+    // MULTI-CLINIC: `clinic_id` memaksa scope satu klinik. Tanpa parameter
+    // ini pasien menerima layanan SEMUA klinik (perilaku lama, sengaja
+    // dipertahankan agar perbandingan harga lintas klinik tetap jalan).
     @GET("services")
-    suspend fun getServices(@Query("clinic_slug") clinicSlug: String? = null): Response<ServicesResponse>
+    suspend fun getServices(
+        @Query("clinic_slug") clinicSlug: String? = null,
+        @Query("clinic_id") clinicId: Int? = null
+    ): Response<ServicesResponse>
 
     @GET("services/{id}")
     suspend fun getService(
         @Path("id") id: Int,
-        @Query("clinic_slug") clinicSlug: String? = null
+        @Query("clinic_slug") clinicSlug: String? = null,
+        @Query("clinic_id") clinicId: Int? = null
     ): Response<ServiceResponse>
 
     // ============= DOCTORS =============
+    // `clinic_id`/`clinic_slug` memfilter katalog ke satu klinik. Tanpa
+    // keduanya pasien menerima dokter seluruh klinik, masing-masing membawa
+    // `clinic` ringkas agar UI tidak perlu menebak klinik tujuannya.
     @GET("doctors")
-    suspend fun getDoctors(): Response<DoctorsResponse>
+    suspend fun getDoctors(
+        @Query("clinic_id") clinicId: Int? = null,
+        @Query("clinic_slug") clinicSlug: String? = null
+    ): Response<DoctorsResponse>
 
+    // `clinic_id` memaksa scope satu klinik. Dipakai saat dokter berasal dari
+    // klinik yang bukan klinik tersimpan (booking lintas klinik).
     @GET("doctors/{id}")
-    suspend fun getDoctor(@Path("id") id: Int): Response<DoctorResponse>
+    suspend fun getDoctor(
+        @Path("id") id: Int,
+        @Query("clinic_id") clinicId: Int? = null
+    ): Response<DoctorResponse>
 
     @GET("doctors/{id}/slots")
     suspend fun getDoctorSlots(@Path("id") id: Int, @Query("date") date: String): Response<SlotsResponse>

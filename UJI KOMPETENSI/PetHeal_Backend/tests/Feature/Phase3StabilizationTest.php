@@ -129,17 +129,26 @@ class Phase3StabilizationTest extends TestCase
 
     // ---------- F-03: inactive clinic enforcement ----------
 
-    public function test_inactive_clinic_blocks_api_and_web(): void
+    public function test_inactive_clinic_blocks_staff_but_not_global_patient(): void
     {
         $this->clinicA->update(['is_active' => false]);
 
-        $this->apiAs($this->userA)->getJson('/api/doctors')->assertStatus(403);
-
+        // Staf klinik (clinic_admin) tetap terkurung & diblokir saat klinik mati.
+        // Diperiksa lewat session web yang sama (tanpa API) agar state guard
+        // tidak bercampur dalam satu instance test.
         $this->actingAs($this->adminA)->get('/admin')->assertRedirect(route('admin.login'));
 
+        // MULTI-CLINIC DISCOVERY (2026-11-09): pasien adalah akun GLOBAL.
+        // Klinik lama pada akunnya tidak lagi mengikat, jadi login & API tetap
+        // jalan — ia tinggal memilih klinik lain saat booking. Katalog yang
+        // dikembalikan tetap mengecualikan klinik nonaktif.
         $this->postJson('/api/auth/login', [
             'email' => $this->userA->email, 'password' => 'password123',
-        ])->assertStatus(403);
+        ])->assertOk()->assertJsonPath('success', true);
+
+        $res = $this->apiAs($this->userA)->getJson('/api/doctors')->assertOk();
+        $clinicIds = collect($res->json('data'))->pluck('clinic_id')->unique()->all();
+        $this->assertNotContains($this->clinicA->id, $clinicIds);
     }
 
     // ---------- B1/B2: no downgrade of recorded money ----------

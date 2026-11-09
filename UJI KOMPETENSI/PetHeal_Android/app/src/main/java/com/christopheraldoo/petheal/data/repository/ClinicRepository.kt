@@ -126,14 +126,59 @@ class ClinicRepository @Inject constructor(
         preferencesManager.clinicSlug.first()
 
     /**
+     * MULTI-CLINIC (2026-11-09): jadikan klinik ini klinik yang dipakai
+     * transaksi berikutnya (header `X-Clinic-Slug`, kontak bantuan, branding).
+     *
+     * Hanya dipanggil ketika user MENYATAKAN pilihannya (mis. menekan
+     * "Booking di klinik ini"), bukan saat menelusuri discovery.
+     */
+    suspend fun rememberClinic(
+        name: String?,
+        slug: String,
+        address: String? = null,
+        color: String? = null,
+        logoUrl: String? = null,
+        id: Int? = null
+    ) {
+        if (slug.isBlank()) return
+        if (android.util.Log.isLoggable(TAG, android.util.Log.DEBUG)) {
+            android.util.Log.d(TAG, "rememberClinic: $slug")
+        }
+        // Kontak/klinik cache milik klinik sebelumnya tidak boleh terbawa.
+        cachedSupportContact = null
+        cachedSupportSlug = null
+        supportCachedAt = 0L
+        preferencesManager.saveClinic(
+            id = id ?: preferencesManager.clinicId.first(),
+            name = name,
+            slug = slug,
+            logoUrl = logoUrl,
+            color = color,
+            address = address
+        )
+    }
+
+    /**
      * Kontak bantuan klinik aktif (dipakai semua tombol Bantuan).
      *
      * Sumber tunggal: `clinics.phone` / `clinics.email` lewat endpoint publik,
      * jadi tidak ada setting ganda di aplikasi dan perubahan dari web admin
      * langsung terpakai setelah cache singkat kedaluwarsa.
      */
-    suspend fun getSupportContact(forceRefresh: Boolean = false): Result<ClinicContact> {
-        val slug = currentSlug()
+    suspend fun getSupportContact(forceRefresh: Boolean = false): Result<ClinicContact> =
+        getSupportContactFor(currentSlug(), forceRefresh)
+
+    /**
+     * Kontak untuk klinik transaksi TERTENTU (alur booking lintas klinik).
+     *
+     * `clinicSlug` = klinik dokter yang dibooking, bukan klinik favorit.
+     * Null/kosong jatuh ke klinik tersimpan — kontaknya tidak pernah dipalsukan.
+     */
+    suspend fun getSupportContactFor(
+        clinicSlug: String?,
+        forceRefresh: Boolean = false
+    ): Result<ClinicContact> {
+        val slug = clinicSlug?.takeIf { it.isNotBlank() } ?: currentSlug()
         if (slug.isNullOrBlank()) {
             return Result.Error("Klinik belum dipilih. Pilih klinik terlebih dahulu.")
         }

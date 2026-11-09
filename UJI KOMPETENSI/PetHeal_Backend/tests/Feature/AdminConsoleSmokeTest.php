@@ -166,6 +166,10 @@ class AdminConsoleSmokeTest extends TestCase
             '/admin/join-requests',
             '/admin/notification-settings',
             '/admin/schedule',
+            // MULTI-CLINIC DISCOVERY: kategori layanan standar = dasar
+            // perbandingan harga antar klinik (super_admin only).
+            '/admin/service-categories',
+            '/admin/services/create',
         ];
 
         // payments/{id} diarahkan ke detail booking (perilaku lama).

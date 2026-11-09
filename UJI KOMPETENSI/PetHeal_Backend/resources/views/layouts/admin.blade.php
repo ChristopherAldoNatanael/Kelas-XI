@@ -219,6 +219,14 @@
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">person_add</span>
                         <span class="sidebar-text">{{ __('menu.join_requests') }}</span>
                     </a>
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.service-categories.*') ? 'active-nav-item' : '' }} relative"
+                       href="{{ route('admin.service-categories.index') }}" @if(request()->routeIs('admin.service-categories.*')) aria-current="page" @endif>
+                        @if(request()->routeIs('admin.service-categories.*'))
+                        <div class="active-indicator" aria-hidden="true"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] shrink-0" aria-hidden="true">category</span>
+                        <span class="sidebar-text">{{ __('clinics.service_categories') }}</span>
+                    </a>
                     @endif
                     {{-- Profil klinik bukan halaman terpisah lagi: hidup sebagai
                          tab di Pengaturan supaya tidak ada dua halaman data klinik. --}}

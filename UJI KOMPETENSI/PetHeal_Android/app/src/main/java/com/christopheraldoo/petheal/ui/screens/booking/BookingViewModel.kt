@@ -45,23 +45,81 @@ enum class BookingDateFilter {
     THIS_MONTH     // Bulan Ini
 }
 
+/** Satu klinik yang benar-benar punya dokter aktif, siap dipilih user. */
+data class BookingClinicOption(
+    val id: Int,
+    val name: String,
+    val slug: String? = null,
+    val address: String? = null,
+    val doctorCount: Int = 0,
+    /** Klinik favorit (klinik aktif di preferensi) — ditandai "Terakhir dipakai". */
+    val isPreferred: Boolean = false
+) {
+    val key: String get() = slug ?: id.toString()
+}
+
 data class BookingStartUiState(
     val pets: List<Pet> = emptyList(),
+    /** Katalog dokter lintas klinik: sumber daftar klinik & pilihan dokter. */
     val doctors: List<Doctor> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
     val selectedPetId: Int? = null,
-    val selectedDoctorId: Int? = null
+    val selectedDoctorId: Int? = null,
+    /**
+     * MULTI-CLINIC (2026-11-09): klinik tujuan booking yang DIPILIH user di
+     * langkah 2. Booking selalu milik satu klinik; sebelum revisi ini klinik
+     * ditentukan diam-diam dari preferensi sehingga user melihat dokter
+     * semua klinik tanpa tahu transaksinya masuk ke klinik mana.
+     */
+    val selectedClinicId: Int? = null,
+    /** Nama klinik favorit tersimpan — hanya untuk label "Terakhir dipakai". */
+    val preferredClinicName: String? = null,
+    /** Slug klinik favorit tersimpan; dipakai bila layar asal hanya punya slug. */
+    val preferredClinicSlug: String? = null
 ) {
+    val clinics: List<BookingClinicOption>
+        get() = doctors
+            .mapNotNull { doctor -> doctor.clinic?.takeIf { it.id != null } }
+            .groupBy { it.id }
+            .map { (id, refs) ->
+                val first = refs.first()
+                BookingClinicOption(
+                    id = id!!,
+                    name = first.name.orEmpty().ifBlank { "Klinik tanpa nama" },
+                    slug = first.slug,
+                    address = first.address,
+                    doctorCount = refs.size,
+                    isPreferred = !preferredClinicName.isNullOrBlank() &&
+                        first.name.equals(preferredClinicName, ignoreCase = true)
+                )
+            }
+            .sortedWith(compareByDescending<BookingClinicOption> { it.isPreferred }.thenBy { it.name })
+
+    /** Klinik yang sedang dipilih user (null = belum memilih). */
+    val selectedClinic: BookingClinicOption?
+        get() = selectedClinicId?.let { id -> clinics.firstOrNull { it.id == id } }
+
+    /** Dokter yang praktik di klinik terpilih. Sengaja TIDAK dibiarkan kosong. */
+    val doctorsInSelectedClinic: List<Doctor>
+        get() = selectedClinicId?.let { id -> doctors.filter { it.clinic?.id == id } }.orEmpty()
+
     val filteredDoctors: List<Doctor>
-        get() = if (searchQuery.isBlank()) doctors
-                else doctors.filter {
-                    it.name?.contains(searchQuery, ignoreCase = true) == true ||
-                    it.specialization?.contains(searchQuery, ignoreCase = true) == true
-                }
+        get() {
+            val pool = doctorsInSelectedClinic
+            if (searchQuery.isBlank()) return pool
+            return pool.filter {
+                it.name?.contains(searchQuery, ignoreCase = true) == true ||
+                it.specialization?.contains(searchQuery, ignoreCase = true) == true
+            }
+        }
+
+    /** Total dokter aktif di seluruh klinik — ditampilkan sebelum memilih. */
+    val totalDoctors: Int get() = doctors.size
+
     val canContinue: Boolean
-        get() = selectedPetId != null && selectedDoctorId != null
+        get() = selectedPetId != null && selectedDoctorId != null && selectedClinicId != null
 }
 
 data class BookingsUiState(
@@ -133,6 +191,16 @@ data class CreateBookingUiState(
     val createdBookingId: Int? = null, // NEW: Store the created booking ID
     val isSlotsLoading: Boolean = false,
     val slotsError: String? = null,
+    /**
+     * MULTI-CLINIC (2026-11-09): klinik yang akan menerima booking — klinik
+     * DOKTER, bukan klinik favorit di preferensi. Ditampilkan sebagai
+     * ringkasan supaya user bisa memeriksa tujuannya sebelum membayar.
+     */
+    val clinicName: String? = null,
+    val clinicAddress: String? = null,
+    val clinicSlug: String? = null,
+    /** Gagal memuat dokter (mis. server error) — layar wajib menawarkan retry. */
+    val doctorError: String? = null,
     // Error per sumber data, supaya "gagal muat" tidak tampil sebagai
     // "memuat..." selamanya atau daftar kosong yang menenangkan.
     val servicesError: String? = null,
@@ -508,15 +576,34 @@ class BookingViewModel @Inject constructor(
             // Load pets list
             val petsResult = petRepository.getPets()
             val pets = if (petsResult is Result.Success) petsResult.data else emptyList()
+            // Dokter dimuat DULU: kliniknya menentukan katalog layanan.
+            // MULTI-CLINIC: scope ke klinik yang dipilih di langkah 2 (bila
+            // ada), bukan klinik tersimpan — dokter klinik lain harus tetap
+            // bisa dibuka walau klinik favorit menunjuk klinik berbeda.
+            val chosenClinicId = _startState.value.selectedClinicId
+            val doctorResult = doctorRepository.getDoctor(doctorId, clinicId = chosenClinicId)
+            val doctor = if (doctorResult is Result.Success) doctorResult.data else null
+            // Kegagalan dokter TIDAK boleh tampil sebagai layar kosong tanpa
+            // penjelasan: simpan pesannya agar UI menawarkan "Coba lagi".
+            val doctorError = (doctorResult as? Result.Error)?.message
+                ?.ifBlank { "Data dokter belum bisa dimuat." }
+            val bookingClinicId = doctor?.clinic?.id ?: chosenClinicId
             // Load services — kegagalan diumumkan, tidak ditelan jadi list
             // kosong yang tampak seperti "memuat..." selamanya.
-            val servicesResult = serviceRepository.getServices()
-            val services = if (servicesResult is Result.Success) servicesResult.data else emptyList()
+            // MULTI-CLINIC (2026-11-09): WAJIB dibatasi ke klinik dokter.
+            // Sebelumnya `getServices()` tanpa scope: pasien menerima layanan
+            // semua klinik lalu bisa memilih layanan klinik lain → backend
+            // menolak "Dokter dan layanan harus berasal dari klinik yang sama".
+            val servicesResult = serviceRepository.getServices(clinicId = bookingClinicId)
+            val services = if (servicesResult is Result.Success) {
+                servicesResult.data.filter { svc ->
+                    bookingClinicId == null || svc.clinicId == null || svc.clinicId == bookingClinicId
+                }
+            } else {
+                emptyList()
+            }
             val servicesError =
                 (servicesResult as? Result.Error)?.message?.ifBlank { "Gagal memuat layanan." }
-            // Load doctor
-            val doctorResult = doctorRepository.getDoctor(doctorId)
-            val doctor = if (doctorResult is Result.Success) doctorResult.data else null
             // Load payment methods
             val paymentResult = paymentMethodRepository.getPaymentMethods()
             val paymentMethods = if (paymentResult is Result.Success) paymentResult.data else emptyList()
@@ -542,6 +629,10 @@ class BookingViewModel @Inject constructor(
                 paymentMethods = paymentMethods,
                 servicesError = servicesError,
                 paymentMethodsError = paymentMethodsError,
+                clinicName = doctor?.clinic?.name,
+                clinicAddress = doctor?.clinic?.address,
+                clinicSlug = doctor?.clinic?.slug,
+                doctorError = doctorError,
                 selectedDate = firstWorkingDate,
                 selectedServiceId = services.firstOrNull()?.id,
                 selectedServiceName = services.firstOrNull()?.name.orEmpty()
@@ -566,7 +657,10 @@ class BookingViewModel @Inject constructor(
         viewModelScope.launch {
             val create = _createState.value
             val userName = preferencesManager.userName.first()
-            val storedClinicName = preferencesManager.clinicName.first()
+            // MULTI-CLINIC: bantuan harus menuju klinik DOKTER yang dibooking,
+            // bukan klinik favorit tersimpan — pesan WA-nya akan salah kirim.
+            val storedClinicName = create.clinicName
+                ?: preferencesManager.clinicName.first()
             val message = buildClinicHelpMessage(
                 clinicName = storedClinicName,
                 userName = userName,
@@ -591,7 +685,9 @@ class BookingViewModel @Inject constructor(
                 isLoading = true
             )
 
-            when (val r = clinicRepository.getSupportContact(forceRefresh)) {
+            // Klinik transaksi (dokter), bukan klinik favorit — kalau tidak,
+            // pesan bantuan terkirim ke klinik yang salah.
+            when (val r = clinicRepository.getSupportContactFor(create.clinicSlug, forceRefresh)) {
                 is Result.Success -> {
                     val contact = r.data.copy(
                         clinicName = r.data.clinicName ?: storedClinicName
@@ -746,7 +842,10 @@ class BookingViewModel @Inject constructor(
                 paymentMethodId = s.selectedPaymentMethod?.id,
                 paymentType = s.selectedPaymentType,
                 totalAmount = s.totalAmount,
-                dpAmount = s.dpAmount
+                dpAmount = s.dpAmount,
+                // Klinik dinyatakan eksplisit: header X-Clinic-Slug bisa
+                // menunjuk klinik favorit yang berbeda dari klinik dokter.
+                clinicSlug = s.clinicSlug
             )
             when (val r = bookingRepository.createBooking(req)) {
                 is Result.Success -> {
@@ -799,6 +898,20 @@ class BookingViewModel @Inject constructor(
                 isLoading = current.pets.isEmpty() && current.doctors.isEmpty(),
                 error = null
             )
+            // Nama klinik favorit tersimpan — HANYA untuk label "Terakhir
+            // dipakai". Klinik tujuan booking dipilih user di langkah 2,
+            // tidak pernah diturunkan diam-diam dari preferensi ini.
+            val clinicName = runCatching {
+                preferencesManager.clinicName.first()
+            }.getOrNull() ?: current.preferredClinicName
+            val clinicSlug = runCatching {
+                preferencesManager.clinicSlug.first()
+            }.getOrNull() ?: current.preferredClinicSlug
+            _startState.value = _startState.value.copy(
+                preferredClinicName = clinicName,
+                preferredClinicSlug = clinicSlug
+            )
+
             val pets = when (val r = petRepository.getPets()) {
                 is Result.Success -> r.data
                 else -> current.pets
@@ -824,8 +937,21 @@ class BookingViewModel @Inject constructor(
                     }
                 }
             }
+            // Klinik terpilih bisa lenyap dari katalog (klinik/nonaktif /
+            // dokter pindah). Jangan biarkan pilihan hantu lolos ke langkah 3.
+            val stillHasClinic = _startState.value.selectedClinicId?.let { id ->
+                doctors.any { it.clinic?.id == id }
+            } == true
+            val stillHasDoctor = _startState.value.selectedDoctorId?.let { id ->
+                val clinic = _startState.value.selectedClinicId
+                doctors.any { it.id == id && it.clinic?.id == clinic }
+            } == true
             _startState.value = _startState.value.copy(
-                isLoading = false, pets = pets, doctors = doctors
+                isLoading = false,
+                pets = pets,
+                doctors = doctors,
+                selectedClinicId = _startState.value.selectedClinicId.takeIf { stillHasClinic },
+                selectedDoctorId = _startState.value.selectedDoctorId.takeIf { stillHasDoctor }
             )
             // Pasangan rating mencurigakan (avg > 0 tapi 0 ulasan) langsung
             // dibetulkan dari server; hasilnya mengalir lewat ratingVersion.
@@ -839,12 +965,66 @@ class BookingViewModel @Inject constructor(
         _startState.value = _startState.value.copy(searchQuery = query)
     }
 
+    /**
+     * Pastikan klinik tujuan terpilih = klinik yang dipakai transaksi
+     * (header `X-Clinic-Slug`, kontak bantuan, branding). Dipanggil di awal
+     * langkah 3 karena user sudah menyatakan pilihannya di langkah 2.
+     * Amannya: bila tidak ada slug, tidak ada yang ditulis.
+     */
+    fun applySelectedClinicAsActive() {
+        val clinic = _startState.value.selectedClinic ?: return
+        val slug = clinic.slug ?: return
+        viewModelScope.launch {
+            clinicRepository.rememberClinic(
+                name = clinic.name,
+                slug = slug,
+                address = clinic.address,
+                id = clinic.id
+            )
+        }
+    }
+
     fun selectStartPet(petId: Int) {
         _startState.value = _startState.value.copy(selectedPetId = petId)
     }
 
+    /**
+     * Pilih klinik tujuan booking. Dokter klinik lain dibuang dari pilihan
+     * karena satu booking hanya boleh berisi satu klinik — lebih baik
+     * direset sekarang daripada gagal saat submit.
+     */
+    fun selectStartClinic(clinicId: Int) {
+        if (_startState.value.selectedClinicId == clinicId) return
+        _startState.value = _startState.value.copy(
+            selectedClinicId = clinicId,
+            selectedDoctorId = null,
+            searchQuery = ""
+        )
+    }
+
+    /** Batalkan pilihan klinik (kembali ke daftar klinik). */
+    fun clearStartClinic() {
+        _startState.value = _startState.value.copy(
+            selectedClinicId = null,
+            selectedDoctorId = null,
+            searchQuery = ""
+        )
+    }
+
+    /** Hanya menerima dokter dari klinik terpilih — penjaga terakhir di VM. */
     fun selectStartDoctor(doctorId: Int) {
-        _startState.value = _startState.value.copy(selectedDoctorId = doctorId)
+        val state = _startState.value
+        val clinicId = state.selectedClinicId ?: return
+        val belongs = state.doctors.any { it.id == doctorId && it.clinic?.id == clinicId }
+        if (!belongs) {
+            // Satu booking = satu klinik. Tidak pernah dicampur diam-diam.
+            _startState.value = state.copy(
+                error = "Dokter itu tidak praktik di klinik ini. Untuk dokter tersebut, " +
+                    "ganti klinik tujuan lebih dulu."
+            )
+            return
+        }
+        _startState.value = state.copy(selectedDoctorId = doctorId, error = null)
     }
 
     fun clearStartError() {

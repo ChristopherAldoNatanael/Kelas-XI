@@ -65,16 +65,7 @@
                 </div>
 
                 <div class="space-y-5">
-                    <div>
-                        <label for="category" class="admin-label">{{ __('admin.category') }}</label>
-                        <select name="category" id="category" class="admin-input">
-                            <option value="">{{ __('admin.select_category') }}</option>
-                            @foreach($categories as $category)
-                                <option value="{{ $category }}" {{ old('category', $service->category) === $category ? 'selected' : '' }}>{{ $category }}</option>
-                            @endforeach
-                        </select>
-                        @error('category') <p class="admin-error">{{ $message }}</p> @enderror
-                    </div>
+                    @include('admin.services.partials.category-select', ['service' => $service])
 
                     <div>
                         <label class="flex cursor-pointer items-center gap-3">

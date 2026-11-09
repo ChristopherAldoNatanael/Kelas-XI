@@ -665,8 +665,7 @@ class AuthRepository @Inject constructor(
         return preferencesManager.userId.first()?.toIntOrNull()
     }
 
-    /** PHASE 7: remove the current account (used to discard a clinic-less
-     * account before re-registering it bound to a clinic). */
+    /** Hapus akun pemanggil (dipakai alur "Hapus akun" di layar Keamanan). */
     suspend fun deleteCurrentAccount(): Result<Unit> {
         return try {
             val response = apiService.deleteAccount()
@@ -680,45 +679,10 @@ class AuthRepository @Inject constructor(
         }
     }
 
-    /**
-     * PHASE 7: bind a clinic-less Google account to [slug].
-     *
-     * The backend has no "attach clinic later" endpoint, and a null-clinic
-     * account gets 403 on everything — so the repair is: delete the empty
-     * account, then register again with the slug (nothing of value can exist
-     * on it yet). Returns the fresh bound [AuthData] and persists it.
-     */
-    suspend fun reregisterGoogleAccount(slug: String): Result<AuthData> {
-        // 1. Drop the unusable account (server revokes its tokens).
-        when (val dropped = deleteCurrentAccount()) {
-            is Result.Error -> return Result.Error(dropped.message)
-            else -> Unit
-        }
-        networkInterceptor.updateToken(null)
-        clearHttpCache()
-        medicalRecordRepository.clearCaches()
-        runCatching { notificationRepository.clearLocal() }
-
-        // 2. Fresh Firebase ID token (user is still signed in to Google).
-        val firebaseUser = firebaseAuth.currentUser
-            ?: return Result.Error("Sesi Google berakhir. Silakan masuk kembali.")
-        val idToken = try {
-            firebaseUser.getIdToken(true).await()?.token
-        } catch (e: Exception) { null }
-            ?: return Result.Error("Gagal mengambil token Google. Coba lagi.")
-
-        // 3. Register bound from the start.
-        val name = runCatching { preferencesManager.userName.first() }.getOrNull()
-            ?.takeIf { it.isNotBlank() }
-            ?: firebaseUser.displayName
-            ?: "Pengguna"
-        val fcmToken = runCatching { preferencesManager.fcmToken.first() }.getOrNull()
-        return when (val result = registerWithGoogle(idToken, name, null, fcmToken, slug)) {
-            is Result.Success -> result
-            is Result.Error -> Result.Error(result.message)
-            else -> Result.Error("Pendaftaran ulang gagal. Coba lagi.")
-        }
-    }
+    // MULTI-CLINIC DISCOVERY (2026-11-09): `reregisterGoogleAccount()` DIHAPUS.
+    // Dulu akun Google tanpa klinik "diperbaiki" dengan menghapus akun lalu
+    // mendaftar ulang — destruktif dan tidak perlu lagi karena akun pasien
+    // global tidak memerlukan klinik. Riwayat ada di docs/PHASE_MULTI_CLINIC.md.
 
     suspend fun requestForgotPassword(email: String): Result<Unit> {        return try {
             val response = apiService.forgotPassword(ForgotPasswordRequest(email = email))

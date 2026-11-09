@@ -56,34 +56,46 @@ class ApiAuthenticate
             return $next($request);
         }
 
-        if ($user->role !== 'super_admin') {
+        // MULTI-CLINIC DISCOVERY (2026-11-09): pasien (`user`) adalah akun
+        // GLOBAL. Sejak revisi ini user mendaftar tanpa memilih klinik dan
+        // memilih klinik per booking, sehingga `users.clinic_id` NULL harus
+        // diizinkan (sebelumnya 403 di semua route terproteksi).
+        // Staf klinik (clinic_admin/doctor/admin) tetap WAJIB terikat ke
+        // klinik aktif yang sama — isolasi tenant tidak dilonggarkan.
+        // super_admin tetap boleh beroperasi tanpa klinik (overview sistem).
+        if (! $this->isPatient($user) && ($user->role ?? null) !== 'super_admin') {
             $clinic = $user->clinic;
             if (!$user->clinic_id || !$clinic || !$clinic->is_active) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Akses ditolak. Akun Anda tidak terikat pada klinik yang aktif.',
+                    'message' => 'Akses tidak diizinkan. Akun anda tidak terhubung ke klinik yang aktif.',
                 ], 403);
             }
         }
 
-        // Validate X-Clinic-Slug header if present
+        // X-Clinic-Slug hanya penanda konteks TENANT (staf klinik). Pasien
+        // boleh mengirim slug klinik mana pun yang akan dibooking, dan nilai
+        // header tidak pernah dipakai sebagai sumber otorisasi.
         $clinicSlug = $request->header('X-Clinic-Slug');
-        if ($clinicSlug && $user->clinic) {
-            // User has a clinic — header must match their clinic
+        if ($clinicSlug && ! $this->isPatient($user) && $user->clinic) {
+            // Staff must stay inside their own clinic
             if ($user->clinic->slug !== $clinicSlug) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Akses ditolak. Clinic slug tidak sesuai dengan akun Anda.',
                 ], 403);
             }
-        } elseif ($clinicSlug && !$user->clinic && $user->role !== 'super_admin') {
-            // User without clinic sending a header — reject
-            return response()->json([
-                'success' => false,
-                'message' => 'Akses ditolak. Anda tidak terikat pada klinik manapun.',
-            ], 403);
         }
 
         return $next($request);
+    }
+
+    /**
+     * Pasien = akun global yang tidak dikelola klinik (role `user`).
+     * Role lain (super_admin, clinic_admin, admin, doctor) tetap tenant-scoped.
+     */
+    private function isPatient($user): bool
+    {
+        return ($user->role ?? null) === 'user';
     }
 }

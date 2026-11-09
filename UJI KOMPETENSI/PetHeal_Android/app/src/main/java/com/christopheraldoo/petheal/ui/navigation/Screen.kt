@@ -1,6 +1,15 @@
 package com.christopheraldoo.petheal.ui.navigation
 
 sealed class Screen(val route: String) {
+    companion object {
+        /**
+         * Route `bookings/start` tanpa argumen opsional. `navigate()` ke
+         * route ber-argumen opsional tidak otomatis mengisi default, jadi
+         * pemanggil yang tidak punya konteks klinik memakai ini.
+         */
+        const val BOOKING_START_CLEAN = "bookings/start"
+    }
+
     object Splash         : Screen("splash")
     object Onboarding     : Screen("onboarding")
     object Login          : Screen("login")
@@ -24,6 +33,22 @@ sealed class Screen(val route: String) {
         fun createRoute(petId: Int) = "pets/$petId"
     }
 
+    // ── Multi-clinic discovery ──────────────────────────────────────────────
+    // Pencarian & penjelajahan klinik (akun pasien global, tanpa ikatan klinik).
+    object ClinicDiscovery : Screen("clinics/discover")
+    object ClinicDetail    : Screen("clinics/{slug}") {
+        fun createRoute(slug: String) = "clinics/$slug"
+    }
+    // Perbandingan harga layanan setara antar klinik. Dasar pembanding:
+    // kategori standar atau satu layanan acuan.
+    object PriceCompare : Screen("compare?categorySlug={categorySlug}&serviceId={serviceId}") {
+        fun createRoute(categorySlug: String? = null, serviceId: Int? = null): String {
+            val category = categorySlug?.let { java.net.URLEncoder.encode(it, "UTF-8") } ?: ""
+            val service = serviceId?.takeIf { it > 0 } ?: 0
+            return "compare?categorySlug=$category&serviceId=$service"
+        }
+    }
+
     // ── Doctors ─────────────────────────────────────────────────────────────
     object Doctors      : Screen("doctors")
     object DoctorDetail : Screen("doctors/{doctorId}?autoReview={autoReview}") {
@@ -35,7 +60,12 @@ sealed class Screen(val route: String) {
     object Bookings       : Screen("bookings")
     // Entry transaksi mandiri (hewan + dokter ringkas). Daftarkan sebelum
     // "bookings/{bookingId}" agar tidak tertelan pola argumen.
-    object BookingStart   : Screen("bookings/start")
+    // `clinicSlug` = klinik yang dipilih user di layar detail/discovery. Alur
+    // booking memakainya sebagai titik awal; langkah 2 tetap bisa diganti.
+    object BookingStart   : Screen("bookings/start?clinicSlug={clinicSlug}") {
+        fun createRoute(clinicSlug: String? = null) =
+            "bookings/start?clinicSlug=${clinicSlug.orEmpty()}"
+    }
     object CreateBooking  : Screen("bookings/create/{doctorId}/{petId}") {  // before BookingDetail
         fun createRoute(doctorId: Int, petId: Int) = "bookings/create/$doctorId/$petId"
     }

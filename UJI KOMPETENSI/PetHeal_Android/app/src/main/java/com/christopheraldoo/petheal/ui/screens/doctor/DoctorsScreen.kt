@@ -8,7 +8,10 @@ import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
+import android.Manifest
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -61,7 +64,12 @@ import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.TimeSlot
 import com.christopheraldoo.petheal.ui.components.SkeletonDoctorList
+import com.christopheraldoo.petheal.util.DoctorListing
+import com.christopheraldoo.petheal.util.DoctorLocationStatus
+import com.christopheraldoo.petheal.util.DoctorSort
+import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.doctorLocationChipLabel
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -130,6 +138,17 @@ fun DoctorsScreen(
 ) {
     val state by viewModel.listState.collectAsState()
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+    // Jarak ke klinik butuh izin lokasi. Diminta HANYA saat user menekan chip
+    // "Urutkan terdekat"; menolak izin tidak mengubah apa pun selain bahwa
+    // jarak tidak ditampilkan.
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.any { it } || LocationHelper.hasPermission(context)) {
+            viewModel.refreshLocation()
+        }
+    }
     // Kembali dari detail (mis. setelah kirim review) → sinkronkan daftar
     // dari cache yang sudah di-patch. Murah: tanpa spinner bila cache ada.
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -156,8 +175,10 @@ fun DoctorsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Cari Dokter", color = TextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text(
-                        if (state.doctors.isEmpty()) "Jelajahi dokter di klinik ini"
-                        else "${state.doctors.size} dokter tersedia · ketuk untuk lihat profil",
+                        // Daftar ini lintas klinik: sebut jumlah kliniknya
+                        // supaya jelas ini bukan katalog satu klinik.
+                        if (state.doctors.isEmpty()) "Jelajahi dokter dari semua klinik"
+                        else "${state.doctors.size} dokter · ${state.doctors.mapNotNull { it.clinic?.id }.distinct().size} klinik",
                         color = TextSecDark, fontSize = 12.sp
                     )
                 }
@@ -198,6 +219,20 @@ fun DoctorsScreen(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+        // ── Lokasi & urutan: jarak butuh titik user, jadi ditawarkan eksplisit ──
+        DoctorLocationBar(
+            state = state,
+            onSorterClick = {
+                when {
+                    state.sort == DoctorSort.NAME -> viewModel.setSort(DoctorSort.NEAREST)
+                    state.hasLocation -> viewModel.setSort(DoctorSort.NAME)
+                    else -> locationPermissionLauncher.launch(arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    ))
+                }
+            }
+        )
         Divider(color = BorderDark, thickness = 0.5.dp)
         val listError = state.error
         // Pull-to-refresh custom (tanpa dependensi baru): tarik dari posisi
@@ -250,8 +285,12 @@ fun DoctorsScreen(
                     ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(state.filtered, key = { it.id ?: 0 }) { doctor ->
-                        DoctorCard(doctor = doctor, onClick = { doctor.id?.let(onNavigateToDoctorDetail) })
+                    items(state.filtered, key = { it.id ?: 0 }) { listing ->
+                        DoctorCard(
+                            listing = listing,
+                            showDistance = state.hasLocation,
+                            onClick = { listing.id?.let(onNavigateToDoctorDetail) }
+                        )
                     }
                 }
             }
@@ -376,6 +415,8 @@ fun DoctorDetailScreen(
                         specialization = state.doctor?.specialization,
                         availableDays = state.doctor?.availableDays,
                         availableTime = state.doctor?.availableTime,
+                        clinicName = state.doctor?.clinic?.name,
+                        clinicAddress = state.doctor?.clinic?.address,
                         modifier = Modifier.padding(horizontal = 20.dp)
                     )
                     Spacer(Modifier.height(20.dp))
@@ -433,6 +474,8 @@ private fun DoctorAboutCard(
     specialization: String?,
     availableDays: String?,
     availableTime: String?,
+    clinicName: String? = null,
+    clinicAddress: String? = null,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -448,6 +491,21 @@ private fun DoctorAboutCard(
             label = "Spesialisasi",
             value = specialization ?: "Dokter Hewan"
         )
+        // MULTI-CLINIC: klinik tempat dokter praktik — booking diarahkan ke
+        // klinik ini. Hanya ditampilkan bila server benar-benar mengirimnya.
+        if (!clinicName.isNullOrBlank()) {
+            DoctorAboutRow(
+                icon = Icons.Filled.LocalHospital,
+                label = "Praktik di",
+                value = buildString {
+                    append(clinicName)
+                    if (!clinicAddress.isNullOrBlank()) {
+                        append("\n")
+                        append(clinicAddress)
+                    }
+                }
+            )
+        }
         DoctorAboutRow(
             icon = Icons.Outlined.CalendarMonth,
             label = "Hari praktik",
@@ -690,8 +748,61 @@ private fun SubmitReviewDialog(
     )
 }
 
+/** Chip lokasi + urutan; satu kontrol, dua aksi yang terbaca dari labelnya. */
 @Composable
-private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
+private fun DoctorLocationBar(state: DoctorsUiState, onSorterClick: () -> Unit) {
+    Row(
+        modifier = Modifier.fillMaxWidth().background(SurfaceDark)
+            .padding(horizontal = 16.dp).padding(bottom = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        val label = doctorLocationChipLabel(state.locationStatus, state.hasLocation, state.sort)
+        val icon = when {
+            state.sort == DoctorSort.NAME -> Icons.Filled.SortByAlpha
+            state.hasLocation -> Icons.Filled.NearMe
+            state.locationStatus == DoctorLocationStatus.PermissionDenied ||
+                state.locationStatus == DoctorLocationStatus.ServicesDisabled -> Icons.Filled.LocationOff
+            else -> Icons.Outlined.MyLocation
+        }
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = if (state.hasLocation) Primary.copy(alpha = 0.10f) else BgDark,
+            border = BorderStroke(1.dp, if (state.hasLocation) Primary.copy(alpha = 0.45f) else BorderDark),
+            modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onSorterClick)
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(icon, contentDescription = null, tint = Primary, modifier = Modifier.size(15.dp))
+                Text(label, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        if (state.hasLocation) {
+            Text(
+                "Jarak dihitung dari lokasi Anda",
+                color = TextSecDark, fontSize = 11.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        } else if (state.locationStatus == DoctorLocationStatus.PermissionDenied) {
+            Text(
+                "Izin lokasi ditolak — jarak disembunyikan",
+                color = TextSecDark, fontSize = 11.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun DoctorCard(listing: DoctorListing, showDistance: Boolean, onClick: () -> Unit) {
+    val doctor = listing.doctor
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(SurfaceDark)
@@ -728,6 +839,37 @@ private fun DoctorCard(doctor: Doctor, onClick: () -> Unit) {
                     Icon(Icons.Outlined.Schedule, null, tint = TextSecDark, modifier = Modifier.size(12.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(days, color = TextSecDark, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            // ── Klinik tempat dokter ini praktik (booking masuk ke sini) ──
+            if (listing.hasClinic) {
+                Spacer(Modifier.height(4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        Icons.Filled.LocalHospital, null,
+                        tint = Primary, modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        listing.clinicLabel.orEmpty(),
+                        color = TextPrimary,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    // Jarak hanya muncul bila titik user diketahui; kalau tidak,
+                    // tidak ada angka karangan.
+                    val distance = listing.distanceLabel
+                    if (showDistance && distance != null) {
+                        Text(" · ", color = TextSecDark, fontSize = 11.5.sp)
+                        Text(
+                            distance,
+                            color = TextSecDark, fontSize = 11.5.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
         }

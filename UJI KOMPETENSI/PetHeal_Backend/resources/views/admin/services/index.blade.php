@@ -104,10 +104,14 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3">
-                                @if($service->category)
-                                    <x-admin.badge :label="$service->category" tone="blue" />
+                                {{-- Kategori standar = kunci perbandingan harga antar klinik. --}}
+                                @if($service->serviceCategory)
+                                    <x-admin.badge :label="$service->serviceCategory->name" tone="blue" />
                                 @else
-                                    <span class="text-xs text-slate-400">—</span>
+                                    <x-admin.badge :label="__('clinics.category_no_comparison')" tone="amber" />
+                                @endif
+                                @if($service->category)
+                                    <p class="mt-1 text-[10px] text-slate-400">{{ $service->category }}</p>
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">

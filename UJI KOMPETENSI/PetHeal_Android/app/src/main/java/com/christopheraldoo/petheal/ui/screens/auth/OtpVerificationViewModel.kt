@@ -54,12 +54,14 @@ class OtpVerificationViewModel @Inject constructor(
             }
 
             when (val result = authRepository.verifyRegisterOtp(email, code, fcmToken)) {
+                // MULTI-CLINIC DISCOVERY: akun pasien tanpa klinik langsung sah
+                // → verifikasi selesai dan masuk Home. Tidak ada lagi langkah
+                // "pilih klinik" setelah OTP.
                 is Result.Success -> {
-                    val bound = !result.data.user.clinic?.slug.isNullOrBlank()
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        isVerified = bound,
-                        needsClinicSetup = !bound
+                        isVerified = true,
+                        needsClinicSetup = false
                     )
                 }
                 is Result.Error ->

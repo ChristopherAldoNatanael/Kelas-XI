@@ -42,12 +42,12 @@ class LoginViewModel @Inject constructor(
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
             when (val result = authRepository.loginWithEmailPassword(email, password, fcmToken, clinicSlug)) {
+                // MULTI-CLINIC DISCOVERY: akun pasien tanpa klinik adalah state
+                // SAH (bukan error) — langsung masuk Home, klinik dipilih saat
+                // booking. `needsClinicSetup` hanya untuk akun lama yang masih
+                // belum punya klinik sama sekali DAN tidak akan dipaksa.
                 is Result.Success ->
-                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
-                        _uiState.value = LoginUiState(needsClinicSetup = true)
-                    } else {
-                        _uiState.value = LoginUiState(isSuccess = true)
-                    }
+                    _uiState.value = LoginUiState(isSuccess = true)
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }
@@ -61,12 +61,7 @@ class LoginViewModel @Inject constructor(
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
             when (val result = authRepository.loginWithGoogle(idToken, fcmToken, clinicSlug)) {
-                is Result.Success ->
-                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
-                        _uiState.value = LoginUiState(needsClinicSetup = true)
-                    } else {
-                        _uiState.value = LoginUiState(isSuccess = true)
-                    }
+                is Result.Success -> _uiState.value = LoginUiState(isSuccess = true)
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }

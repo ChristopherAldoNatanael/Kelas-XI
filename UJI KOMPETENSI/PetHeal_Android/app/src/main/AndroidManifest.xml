@@ -7,6 +7,14 @@
     <!-- Push Notifications — Android 13+ (API 33+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- MULTI-CLINIC DISCOVERY: lokasi OPTIONAL untuk menemukan klinik
+         terdekat. Tidak pernah diminta paksa — tanpa izin aplikasi tetap
+         berjalan (jarak disembunyikan, user bisa isi lokasi manual). -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
     <!-- Camera -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />

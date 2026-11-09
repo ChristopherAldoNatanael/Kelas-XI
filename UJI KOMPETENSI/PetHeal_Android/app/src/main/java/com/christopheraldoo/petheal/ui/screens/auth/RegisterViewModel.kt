@@ -56,12 +56,8 @@ class RegisterViewModel @Inject constructor(
             _uiState.value = RegisterUiState(isLoading = true)
             val fcmToken = try { FirebaseMessaging.getInstance().token.await() } catch (e: Exception) { null }
             when (val result = authRepository.registerWithGoogle(idToken, name, null, fcmToken, clinicSlug)) {
-                is Result.Success ->
-                    if (result.data.user.clinic?.slug.isNullOrBlank()) {
-                        _uiState.value = RegisterUiState(needsClinicSetup = true)
-                    } else {
-                        _uiState.value = RegisterUiState(isSuccess = true)
-                    }
+                // MULTI-CLINIC DISCOVERY: akun Google tanpa klinik langsung valid.
+                is Result.Success -> _uiState.value = RegisterUiState(isSuccess = true)
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }

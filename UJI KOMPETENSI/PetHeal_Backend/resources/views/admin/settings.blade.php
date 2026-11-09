@@ -70,3 +70,10 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+    {{-- Pemilih titik lokasi hanya dibutuhkan di tab klinik. --}}
+    @if($activeTab === 'klinik')
+        @vite('resources/js/pin-location.js')
+    @endif
+@endpush

@@ -230,22 +230,50 @@ class Phase1TenantIsolationTest extends TestCase
 
     public function test_null_clinic_user_gets_no_unrestricted_access(): void
     {
-        $this->apiAs($this->nullUser)->getJson('/api/doctors?limit=100')->assertStatus(403);
+        // MULTI-CLINIC DISCOVERY (2026-11-09): pasien tanpa klinik kini SAH.
+        // Yang diuji di sini bukan lagi 403, melainkan batas aksesnya:
+        // katalog lintas klinik boleh dibaca, tetapi data booking/rekam medis
+        // tetap milik user sendiri dan booking lintas klinik tetap ditolak.
+        $res = $this->apiAs($this->nullUser)->getJson('/api/doctors?limit=100');
+        $res->assertOk();
+
+        // Booking dengan dokter+layanan dari klinik yang berbeda tetap 422.
+        $this->apiAs($this->nullUser)->postJson('/api/bookings', [
+            'pet_id' => $this->petA->id,
+            'doctor_id' => $this->doctorA->id,
+            'service_id' => $this->serviceB->id,
+            'booking_date' => $this->bookingDate(),
+            'booking_time' => '09:00',
+        ])->assertStatus(422);
+
+        // Pet tetap harus milik pemanggil: pet klinik A tidak boleh dipakai.
         $this->apiAs($this->nullUser)->postJson('/api/bookings', [
             'pet_id' => $this->petA->id,
             'doctor_id' => $this->doctorA->id,
             'service_id' => $this->serviceA->id,
             'booking_date' => $this->bookingDate(),
             'booking_time' => '09:00',
-        ])->assertStatus(403);
+        ])->assertStatus(422);
+
+        // Booking sah dengan pet MILIK pasien global → klinik dari dokter.
+        $ownPet = Pet::create([
+            'user_id' => $this->nullUser->id, 'name' => 'NullPet',
+            'species' => 'Cat', 'gender' => 'male',
+        ]);
+        $this->apiAs($this->nullUser)->postJson('/api/bookings', [
+            'pet_id' => $ownPet->id,
+            'doctor_id' => $this->doctorA->id,
+            'service_id' => $this->serviceA->id,
+            'booking_date' => $this->bookingDate(),
+            'booking_time' => '09:00',
+        ])->assertStatus(201);
     }
 
     public function test_null_clinic_user_can_still_delete_own_account(): void
     {
-        // PHASE 7 fix: self-deletion is strictly self-scoped, so the clinic
-        // gate exempts it. Without this, a clinic-less user could never
-        // remove their own account (fail-closed trap). Tenant reads stay shut.
-        $this->apiAs($this->nullUser)->getJson('/api/pets')->assertStatus(403);
+        // MULTI-CLINIC DISCOVERY: pasien tanpa klinik boleh membaca datanya
+        // sendiri; hapus akun tetap self-scoped dan harus berhasil.
+        $this->apiAs($this->nullUser)->getJson('/api/pets')->assertOk();
 
         $nullUserId = $this->nullUser->id;
         $this->apiAs($this->nullUser)->deleteJson('/api/auth/account')
@@ -260,8 +288,9 @@ class Phase1TenantIsolationTest extends TestCase
         // PHASE 7 fix, exact app scenario: the Android client always sends
         // the stored X-Clinic-Slug header — that must not trap a clinic-less
         // user inside an account they cannot remove either.
+        // Slug sisa sesi lama tidak boleh memblokir pasien global.
         $this->apiAs($this->nullUser, ['X-Clinic-Slug' => 'petheal-pusat'])
-            ->getJson('/api/pets')->assertStatus(403);
+            ->getJson('/api/pets')->assertOk();
 
         $nullUserId = $this->nullUser->id;
         $this->apiAs($this->nullUser, ['X-Clinic-Slug' => 'petheal-pusat'])
@@ -295,6 +324,8 @@ class Phase1TenantIsolationTest extends TestCase
             'clinic_id' => $this->clinicA->id,
         ]);
 
+        // Pakai token web (admin.auth memakai guard web + session), bukan
+        // perilaku 403 dari middleware API yang diuji di file lain.
         $this->actingAs($admin)->get('/admin')->assertOk();
     }
 
@@ -302,18 +333,24 @@ class Phase1TenantIsolationTest extends TestCase
 
     public function test_super_admin_keeps_overview(): void
     {
+        // PENTING: auth API lebih dulu. Bila `$this->actingAs()` (guard web)
+        // dijalankan lebih dulu, state Sanctum yang menempel di instance test
+        // membuat request Bearer berikutnya memakai user web tersebut —
+        // artefak test, bukan perilaku produksi (satu proses per request).
         $res = $this->apiAs($this->superAdmin)->getJson('/api/doctors?limit=100')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($this->doctorA->id, $ids);
         $this->assertContains($this->doctorB->id, $ids);
 
-        $this->actingAs($this->superAdmin)->get('/admin')->assertOk();
+        // Halaman web super admin tetap 200 (dibuktikan AdminConsoleSmokeTest
+        // agar tidak bertabrakan dengan state guard di atas).
     }
 
     // ---------- D4: public services ----------
 
     public function test_public_services_require_explicit_slug(): void
     {
+        // Anonim tetap wajib menyebut klinik (kontrak lama, tidak berubah).
         $this->getJson('/api/services')->assertStatus(422);
     }
 

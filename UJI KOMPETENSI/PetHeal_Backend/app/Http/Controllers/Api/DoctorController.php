@@ -16,29 +16,98 @@ class DoctorController extends Controller
     /**
      * Get all active doctors (clinic-scoped)
      */
+    /**
+     * MULTI-CLINIC DISCOVERY: scope klinik untuk katalog dokter.
+     *
+     * Pasien (`user`) memilih dokter per klinik yang sedang dilihat, jadi
+     * `?clinic_slug=` boleh dipakai; tanpa slug → seluruh dokter aktif
+     * (read-only lintas klinik). `users.clinic_id` lama pada akun pasien
+     * diabaikan. Role staf tetap terkurung pada kliniknya (fail-closed).
+     */
+    private function catalogClinicId(Request $request, ?int $requestedClinicId): ?int
+    {
+        // `$request->user()` (guard Sanctum) — bukan auth()->user() global yang
+        // bisa menunjuk guard lain.
+        $user = $request->user();
+
+        // MULTI-CLINIC (2026-11-09): `?clinic_id=` memfilter katalog ke satu
+        // klinik, dipakai alur booking Android supaya dokter yang dipilih
+        // pasti praktik di klinik tujuan booking. Hanya klinik aktif yang
+        // valid; klinik nonaktif/nonexistent => 0 (ditolak sebagai 404).
+        $forcedId = $request->input('clinic_id');
+        if ($forcedId !== null && $forcedId !== '') {
+            if (!ctype_digit((string) $forcedId)) {
+                return 0;
+            }
+            $exists = \App\Models\Clinic::where('id', (int) $forcedId)
+                ->where('is_active', true)
+                ->exists();
+            return $exists ? (int) $forcedId : 0;
+        }
+
+        if ($requestedClinicId) {
+            return $requestedClinicId;
+        }
+
+        return $user?->clinic_id ? (int) $user->clinic_id : null;
+    }
+
     public function index(Request $request)
     {
         $limit = min(max((int) $request->query('limit', 100), 1), 100);
         $search = trim((string) $request->query('search', ''));
-        $clinicId = auth()->user()?->clinic_id;
+        $slug = trim((string) $request->query('clinic_slug', ''));
+        $forcedClinicId = $request->input('clinic_id');
+        $requestedClinicId = null;
+        if ($slug !== '' && ($forcedClinicId === null || $forcedClinicId === '')) {
+            $requestedClinicId = (int) (\App\Models\Clinic::where('slug', $slug)
+                ->where('is_active', true)->value('id') ?: 0) ?: null;
+            if (!$requestedClinicId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Clinic not found',
+                ], 404);
+            }
+        }
+        $clinicId = $this->catalogClinicId($request, $requestedClinicId);
+        // clinic_id yang tidak dikenal / klinik nonaktif -> 404, bukan daftar
+        // kosong yang tampak seperti "klinik ini tidak punya dokter".
+        if ($clinicId === 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Clinic not found',
+            ], 404);
+        }
+        $isPatient = (auth()->user()?->role ?? null) === 'user';
         $cacheVersion = Cache::get('active_doctors_version', 1);
         // PHASE 1 (D3): key must separate super_admin overview ('all') from
         // fail-closed tenant scope, otherwise cached rows leak across scopes.
-        $scopeKey = $clinicId ?: (isSuperAdmin() ? 'all' : 'none');
+        // MULTI-CLINIC: pasien tanpa slug = katalog lintas klinik ('all').
+        $scopeKey = $clinicId ?: (($isPatient || isSuperAdmin()) ? 'all' : 'none');
         $cacheKey = 'active_doctors:v' . $cacheVersion . ':c' . $scopeKey . ':' . md5($limit . '|' . strtolower($search));
 
-        $doctors = Cache::remember($cacheKey, 900, function () use ($limit, $search, $clinicId) {
+        $doctors = Cache::remember($cacheKey, 900, function () use ($limit, $search, $clinicId, $isPatient) {
             $query = Doctor::where('is_active', true)
                 ->withCount('reviews')
                 // PHASE 3 (MH-01): preload the aggregate consumed by the
                 // average_rating accessor (kills the per-row AVG query).
-                ->withAvg('reviews', 'rating');
+                ->withAvg('reviews', 'rating')
+                // MULTI-CLINIC DISCOVERY: dokter klinik NONAKTIF tidak boleh
+                // tampil di katalog lintas klinik (pasien bisa booking ke sana
+                // dan langsung gagal).
+                ->whereHas('clinic', fn ($q) => $q->where('is_active', true))
+                // MULTI-CLINIC (2026-11-09): setiap dokter membawa klinik
+                // ringkasnya. Tanpa ini pasien yang melihat katalog lintas
+                // klinik tidak punya cara tahu dokter itu praktik di mana —
+                // sumber kebingungan utama alur booking.
+                ->with(['clinic:id,name,slug,address,primary_color,latitude,longitude']);
 
             // Clinic isolation: filter by user's clinic.
-            // PHASE 1 (D3, fail-closed): tenant without clinic matches nothing.
+            // PHASE 1 (D3, fail-closed): tenant staff without clinic matches
+            // nothing. Pasien global boleh melihat katalog semua klinik.
             if ($clinicId) {
                 $query->where('clinic_id', $clinicId);
-            } elseif (!isSuperAdmin()) {
+            } elseif (!$isPatient && !isSuperAdmin()) {
                 $query->whereRaw('1 = 0');
             }
 
@@ -63,17 +132,31 @@ class DoctorController extends Controller
     /**
      * Get single doctor details (clinic-scoped)
      */
-    public function show($id)
+    public function show(Request $request, $id)
     {
         // PHASE 3 (MH-01): withAvg feeds the average_rating accessor.
         $query = Doctor::withCount('reviews')->withAvg('reviews', 'rating')->where('id', $id);
 
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
-        $clinicId = auth()->user()?->clinic_id;
+        // MULTI-CLINIC: pasien global (role `user`) boleh melihat detail dokter
+        // klinik mana pun; staf klinik tetap terkurung.
+        $clinicId = auth()->user()->clinic_id ?? null;
+        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
-        } elseif (!isSuperAdmin()) {
+        } elseif ($isScopedStaff && !isSuperAdmin()) {
             $query->whereRaw('1 = 0');
+        }
+        // MULTI-CLINIC (2026-11-09): `?clinic_id=` mempersempit ke satu klinik.
+        // Pasien global sudah boleh lintas klinik; parameter ini untuk klien
+        // yang ingin memastikan dokter berasal dari klinik tertentu. Staf
+        // tetap terkunci ke kliniknya sendiri (parameter tidak melonggarkan).
+        if (!$isScopedStaff) {
+            $requestedClinic = $request->input('clinic_id');
+            if ($requestedClinic !== null && $requestedClinic !== ''
+                && ctype_digit((string) $requestedClinic)) {
+                $query->where('clinic_id', (int) $requestedClinic);
+            }
         }
 
         $doctor = $query->first();
@@ -93,6 +176,9 @@ class DoctorController extends Controller
                 ->orderBy('date')
                 ->limit(30);
         }]);
+        // MULTI-CLINIC: klinik dokter ikut di detail agar layar booking bisa
+        // memastikan user melihat klinik tujuan yang benar.
+        $doctor->load(['clinic:id,name,slug,address,primary_color,latitude,longitude']);
 
         return response()->json([
             'success' => true,
@@ -110,11 +196,13 @@ class DoctorController extends Controller
         ]);
 
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
-        $clinicId = auth()->user()?->clinic_id;
+        // Slot dokter dipakai pasien klinik mana pun saat booking.
+        $clinicId = auth()->user()->clinic_id ?? null;
+        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
-        } elseif (!isSuperAdmin()) {
+        } elseif ($isScopedStaff && !isSuperAdmin()) {
             $query->whereRaw('1 = 0');
         }
         $doctor = $query->first();
@@ -153,11 +241,13 @@ class DoctorController extends Controller
     public function storeReview(Request $request, $id)
     {
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
-        $clinicId = auth()->user()?->clinic_id;
+        // Slot dokter dipakai pasien klinik mana pun saat booking.
+        $clinicId = auth()->user()->clinic_id ?? null;
+        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
-        } elseif (!isSuperAdmin()) {
+        } elseif ($isScopedStaff && !isSuperAdmin()) {
             $query->whereRaw('1 = 0');
         }
         $doctor = $query->first();
@@ -200,13 +290,9 @@ class DoctorController extends Controller
         // PHASE 1 (D3): booking must belong to the same clinic as the doctor
         // (and to the reviewer's clinic when the reviewer is a tenant user).
         // Prevents reviewing another clinic's completed booking by id guessing.
+        // MULTI-CLINIC: pasien global tidak punya klinik, jadi cukup booking
+        // miliknya + klinik booking == klinik dokter.
         if ((int) $booking->clinic_id !== (int) $doctor->clinic_id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Booking not found or not completed',
-            ], 404);
-        }
-        if ($clinicId && (int) $booking->clinic_id !== (int) $clinicId) {
             return response()->json([
                 'success' => false,
                 'message' => 'Booking not found or not completed',
@@ -246,11 +332,13 @@ class DoctorController extends Controller
     public function getReviews($id)
     {
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
-        $clinicId = auth()->user()?->clinic_id;
+        // Slot dokter dipakai pasien klinik mana pun saat booking.
+        $clinicId = auth()->user()->clinic_id ?? null;
+        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
-        } elseif (!isSuperAdmin()) {
+        } elseif ($isScopedStaff && !isSuperAdmin()) {
             $query->whereRaw('1 = 0');
         }
         $doctor = $query->first();

@@ -108,6 +108,20 @@
                                     <x-admin.badge :label="$clinic->services_count . ' ' . __('dashboard.services_count')" tone="violet" />
                                     <x-admin.badge :label="$clinic->users_count . ' ' . __('dashboard.users')" tone="slate" />
                                 </div>
+                                {{-- Multi-clinic discovery: klinik tanpa koordinat tidak
+                                     akan muncul di daftar "klinik terdekat". --}}
+                                <div class="mt-1.5">
+                                    @php($hasCoords = $clinic->latitude !== null && $clinic->longitude !== null)
+                                    <x-admin.badge
+                                        :label="$hasCoords ? __('clinics.coordinates_status_complete') : __('clinics.coordinates_status_missing')"
+                                        :tone="$hasCoords ? 'sky' : 'orange'"
+                                        dot />
+                                    @if($clinic->rating !== null)
+                                        <x-admin.badge :label="'★ ' . number_format((float) $clinic->rating, 1, ',', '.') . ' (' . $clinic->reviews_count . ')'" tone="amber" />
+                                    @else
+                                        <x-admin.badge :label="__('clinics.rating_none')" tone="slate" />
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-2">

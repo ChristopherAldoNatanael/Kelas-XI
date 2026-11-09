@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\ClinicRatingService;
 use Illuminate\Database\Eloquent\Model;
 
 class DoctorReview extends Model
@@ -17,6 +18,22 @@ class DoctorReview extends Model
     protected $casts = [
         'rating' => 'integer',
     ];
+
+    /**
+     * Review adalah sumber rating klinik. Sinkronisasi dilakukan pada level
+     * model (bukan hanya controller) supaya pembuatan/penghapusan lewat jalur
+     * mana pun tetap memperbarui `clinics.rating` dan `clinics.reviews_count`.
+     */
+    protected static function booted(): void
+    {
+        static::saved(function (self $review) {
+            ClinicRatingService::refreshForDoctor((int) $review->doctor_id);
+        });
+
+        static::deleted(function (self $review) {
+            ClinicRatingService::refreshForDoctor((int) $review->doctor_id);
+        });
+    }
 
     public function doctor()
     {

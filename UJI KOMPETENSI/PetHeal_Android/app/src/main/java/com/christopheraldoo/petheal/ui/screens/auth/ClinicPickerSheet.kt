@@ -99,8 +99,12 @@ fun ClinicPickerSheet(
                     Icon(Icons.Filled.Refresh, contentDescription = "Muat ulang")
                 }
             }
+            // Teks lama ("satu akun terikat pada satu klinik") sudah tidak
+            // benar sejak multi-clinic: pasien global boleh booking di klinik
+            // berbeda per transaksi, dan pilihan ini hanya favorit.
             Text(
-                text = "Satu akun terikat pada satu klinik. Data tiap klinik terisolasi penuh.",
+                text = "Klinik ini dipakai untuk booking berikutnya. Kamu tetap bisa " +
+                    "booking di klinik lain dengan memilih kliniknya saat booking.",
                 fontSize = 13.sp,
                 color = TextSecondary
             )

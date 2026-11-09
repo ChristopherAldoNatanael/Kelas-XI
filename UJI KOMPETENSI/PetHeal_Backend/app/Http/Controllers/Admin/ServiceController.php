@@ -23,7 +23,8 @@ class ServiceController extends Controller
     public function index()
     {
         $clinicId = currentClinicId();
-        $services = Service::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+        $services = Service::with('serviceCategory')
+            ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->orderBy('name')
             ->paginate(20);
         return view('admin.services.index', compact('services'));
@@ -42,12 +43,19 @@ class ServiceController extends Controller
             'price' => 'required|numeric|min:0',
             'duration' => 'nullable|integer|min:1',
             'category' => 'nullable|string',
+            'service_category_id' => 'nullable|integer|exists:service_categories,id',
             'is_active' => 'boolean',
         ]);
 
         $data = $request->only([
-            'name', 'description', 'price', 'duration', 'category', 'is_active',
+            'name', 'description', 'price', 'duration', 'category', 'service_category_id', 'is_active',
         ]);
+        // MULTI-DISCOVERY: kategori standar menentukan apakah layanan ini bisa
+        // dibandingkan harganya dengan klinik lain. `category` lama tetap
+        // opsional — klien/tes lama boleh tidak mengirimnya.
+        $data['service_category_id'] = $request->filled('service_category_id')
+            ? (int) $request->input('service_category_id') : null;
+        $data['category'] = ($data['category'] ?? null) ?: null;
 
         // PHASE 3 (F-06 orphan guard): refuse clinic-less rows in overview mode.
         $contextClinicId = currentClinicId();
@@ -91,12 +99,18 @@ class ServiceController extends Controller
             'price' => 'required|numeric|min:0',
             'duration' => 'nullable|integer|min:1',
             'category' => 'nullable|string',
+            'service_category_id' => 'nullable|integer|exists:service_categories,id',
             'is_active' => 'boolean',
         ]);
 
-        $service->update($request->only([
+        $data = $request->only([
             'name', 'description', 'price', 'duration', 'category', 'is_active',
-        ]));
+        ]);
+        $data['service_category_id'] = $request->filled('service_category_id')
+            ? (int) $request->input('service_category_id') : null;
+        $data['category'] = ($data['category'] ?? null) ?: null;
+
+        $service->update($data);
         $this->refreshServiceApiCache();
 
         AuditLog::log('service.update', "Updated service {$service->name}", $service);
