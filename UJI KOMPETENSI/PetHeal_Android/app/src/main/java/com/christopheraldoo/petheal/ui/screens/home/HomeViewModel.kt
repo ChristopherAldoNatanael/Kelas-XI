@@ -31,6 +31,11 @@ data class HomeUiState(
     val userName: String = "",
     val userPhoto: String? = null,
     // PHASE 7: dynamic tenant branding (backend-owned, safe fallbacks).
+    /**
+     * Klinik yang terakhir dipakai — HANYA untuk branding/label, bukan klaim
+     * bahwa pasien terikat ke klinik itu. Satu pasien bisa berobat di banyak
+     * klinik, jadi Beranda menyebut klinik aktif sebagai "terakhir dipakai".
+     */
     val clinicName: String? = null,
     val clinicLogo: String? = null,
     val clinicColor: String? = null,

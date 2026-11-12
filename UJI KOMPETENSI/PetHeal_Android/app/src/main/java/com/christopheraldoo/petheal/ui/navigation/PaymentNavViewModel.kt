@@ -2,7 +2,6 @@ package com.christopheraldoo.petheal.ui.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.User
@@ -24,12 +23,25 @@ data class PaymentNavState(
     val user: User? = null,
     val isLoading: Boolean = false,
     val error: String? = null,
-    val clinicName: String? = null,
-    val clinicAddress: String? = null,
-    val clinicColor: String? = null,
     // Diisi hanya utk alur biaya tambahan rekam medis (recordId > 0).
     val medicalRecord: MedicalRecord? = null
-)
+) {
+    /**
+     * MULTI-CLINIC (2026-11-11): kop bukti pembayaran SELALU mengikuti
+     * klinik milik transaksi — klinik booking untuk pembayaran booking, dan
+     * klinik rekam medis untuk biaya tambahan. Sebelumnya nilai ini diambil
+     * dari preferensi "klinik aktif", sehingga membayar di Klinik A bisa
+     * mencetak kwitansi atas nama Klinik B (klinik terakhir dipakai).
+     */
+    val receiptClinicName: String?
+        get() = (medicalRecord?.clinic ?: booking?.clinic)?.name
+
+    val receiptClinicAddress: String?
+        get() = (medicalRecord?.clinic ?: booking?.clinic)?.address
+
+    val receiptClinicColor: String?
+        get() = (medicalRecord?.clinic ?: booking?.clinic)?.primaryColor
+}
 
 @HiltViewModel
 class PaymentNavViewModel @Inject constructor(
@@ -37,30 +49,11 @@ class PaymentNavViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val bookingRefreshManager: BookingRefreshManager,
     private val medicalRefreshManager: MedicalRefreshManager,
-    private val medicalRecordRepository: MedicalRecordRepository,
-    private val preferencesManager: PreferencesManager
+    private val medicalRecordRepository: MedicalRecordRepository
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(PaymentNavState())
     val state: StateFlow<PaymentNavState> = _state.asStateFlow()
-
-    init {
-        viewModelScope.launch {
-            preferencesManager.clinicName.collect { name ->
-                _state.value = _state.value.copy(clinicName = name)
-            }
-        }
-        viewModelScope.launch {
-            preferencesManager.clinicAddress.collect { address ->
-                _state.value = _state.value.copy(clinicAddress = address)
-            }
-        }
-        viewModelScope.launch {
-            preferencesManager.clinicColor.collect { color ->
-                _state.value = _state.value.copy(clinicColor = color)
-            }
-        }
-    }
 
     fun loadBookingAndUser(bookingId: Int) {
         viewModelScope.launch {

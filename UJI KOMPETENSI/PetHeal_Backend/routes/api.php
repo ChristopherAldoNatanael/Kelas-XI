@@ -133,6 +133,10 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
 
     // Booking routes
     Route::get('/bookings/upcoming', [BookingController::class, 'upcoming']);
+    // Check-in mandiri: pasien mendapat nomor antrian saat tiba di klinik.
+    Route::post('/bookings/{id}/check-in', [BookingController::class, 'checkIn'])
+        ->middleware('throttle:api')
+        ->name('bookings.check-in');
     Route::post('/bookings/{id}/cancel', [BookingController::class, 'cancel']);
     Route::post('/bookings/{id}/reschedule', [BookingController::class, 'reschedule']);
     Route::get('/bookings/{id}/medical-record', [MedicalRecordController::class, 'getByBooking']);

@@ -170,6 +170,35 @@ class BookingRepository @Inject constructor(
         }
     }
 
+    /**
+     * Check-in mandiri untuk booking hari ini.
+     *
+     * Server menolak (422) bila booking belum dikonfirmasi atau jadwalnya
+     * bukan hari ini; pesan dari server diteruskan apa adanya agar pasien
+     * tahu alasannya, bukan "gagal" tanpa keterangan.
+     */
+    suspend fun checkInBooking(id: Int): Result<Booking> {
+        return try {
+            val response = apiService.checkInBooking(id)
+
+            if (response.isSuccessful && response.body()?.success == true) {
+                val booking = response.body()?.data
+                if (booking != null) {
+                    Result.Success(booking)
+                } else {
+                    Result.Error("Check-in gagal diproses.")
+                }
+            } else {
+                val error = getErrorMessage(response.code(), response.body()?.message)
+                Log.e(TAG, "checkInBooking($id) failed: $error (HTTP ${response.code()})")
+                Result.Error(error)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "checkInBooking($id) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
     suspend fun rescheduleBooking(id: Int, newDate: String, newTime: String): Result<Booking> {
         return try {
             val response = apiService.rescheduleBooking(id, RescheduleRequest(newDate, newTime))

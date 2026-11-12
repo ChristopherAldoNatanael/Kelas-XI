@@ -108,6 +108,10 @@ fun PaymentScreen(
         isDpPayment -> "Amankan jadwal dengan membayar uang muka (DP)."
         else -> "Selesaikan pembayaran booking untuk mengonfirmasi konsultasi."
     }
+    // MULTI-CLINIC: pembayaran ini masuk ke klinik milik booking-nya. Pasien
+    // yang berobat di beberapa klinik harus bisa memastikan penerimanya
+    // sebelum menekan bayar. Hilang bila data klinik tidak ada.
+    val payeeClinicName = booking.clinic?.name?.takeIf { it.isNotBlank() }
 
     var showResultDialog by remember { mutableStateOf(false) }
     var resultDialogType by remember { mutableStateOf<String?>(null) }
@@ -234,6 +238,15 @@ fun PaymentScreen(
                         Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                         Text("Menyiapkan pembayaran yang aman", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
                         Text(paymentContextSubtitle, fontSize = 12.sp, color = textSecondary, textAlign = TextAlign.Center)
+                        if (payeeClinicName != null) {
+                            Text(
+                                "Dibayarkan ke $payeeClinicName",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PayPrimary,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                         midtransCodesLabel(enabledPayments)?.let { methodLabel ->
                             Surface(
                                 shape = RoundedCornerShape(50),
@@ -693,14 +706,21 @@ fun PaymentResultScreen(
     var showReceipt by rememberSaveable { mutableStateOf(false) }
     var receiptAutoOpened by rememberSaveable { mutableStateOf(false) }
 
+    // MULTI-CLINIC: kop bukti mengikuti klinik milik dokumen yang dicetak.
+    // Parameter dari navigasi tetap dipakai bila cocok; record/booking jadi
+    // sumber utama supaya tidak pernah tercetak klinik yang salah.
+    val effectiveClinicName = medicalRecord?.clinic?.name ?: booking?.clinic?.name ?: clinicName
+    val effectiveClinicAddress = medicalRecord?.clinic?.address ?: booking?.clinic?.address ?: clinicAddress
+    val effectiveClinicColor = medicalRecord?.clinic?.primaryColor ?: booking?.clinic?.primaryColor ?: clinicColor
+
     // Bukti biaya tambahan HANYA dari data record nyata yang terbayar.
     val extraReceipt = remember(medicalRecord, status, orderId, paymentMethodLabel) {
         if (status == "success" && medicalRecord != null &&
             (medicalRecord.extraPaymentPaidAmount ?: 0.0) > 0.01
         ) {
             medicalRecord.toExtraPaymentReceipt(
-                clinicName = clinicName,
-                clinicAddress = clinicAddress,
+                clinicName = medicalRecord.clinic?.name,
+                clinicAddress = medicalRecord.clinic?.address,
                 referenceOrderId = orderId,
                 paymentMethodLabel = paymentMethodLabel
             )
@@ -838,16 +858,16 @@ fun PaymentResultScreen(
                 Spacer(Modifier.height(20.dp))
                 PaymentReceiptPreviewCard(
                     receipt = extraReceipt,
-                    clinicColor = clinicColor,
+                    clinicColor = effectiveClinicColor,
                     onOpen = { showReceipt = true }
                 )
             } else if (hasPaymentProof && booking != null) {
                 Spacer(Modifier.height(20.dp))
                 PaymentReceiptPreviewCard(
                     booking = booking,
-                    clinicName = clinicName,
-                    clinicAddress = clinicAddress,
-                    clinicColor = clinicColor,
+                    clinicName = effectiveClinicName,
+                    clinicAddress = effectiveClinicAddress,
+                    clinicColor = effectiveClinicColor,
                     orderId = orderId,
                     onOpen = { showReceipt = true }
                 )
@@ -874,15 +894,15 @@ fun PaymentResultScreen(
     if (showReceipt && extraReceipt != null) {
         PaymentReceiptSheet(
             receipt = extraReceipt,
-            clinicColor = clinicColor,
+            clinicColor = effectiveClinicColor,
             onDismiss = { showReceipt = false }
         )
     } else if (showReceipt && booking != null) {
         PaymentReceiptSheet(
             booking = booking,
-            clinicName = clinicName,
-            clinicAddress = clinicAddress,
-            clinicColor = clinicColor,
+            clinicName = effectiveClinicName,
+            clinicAddress = effectiveClinicAddress,
+            clinicColor = effectiveClinicColor,
             orderId = orderId,
             onDismiss = { showReceipt = false }
         )

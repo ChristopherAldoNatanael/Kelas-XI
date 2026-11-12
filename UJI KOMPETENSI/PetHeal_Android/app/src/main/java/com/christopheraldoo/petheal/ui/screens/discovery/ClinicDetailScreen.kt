@@ -229,8 +229,11 @@ private fun ClinicDetailContent(
                 modifier = Modifier.padding(horizontal = Dimens.ScreenPaddingHorizontal),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                StatChip("${clinic.servicesCount ?: 0} layanan", Modifier.weight(1f))
-                StatChip("${clinic.doctorsCount ?: 0} dokter", Modifier.weight(1f))
+                // Jumlah null = server tidak mengirim angka. "0 layanan"
+                // berarti klinik tidak punya layanan — itu pernyataan berbeda
+                // dan menyesatkan (aturan NULL ≠ 0, MULTI_CLINIC §11).
+                clinic.servicesCount?.let { StatChip("$it layanan", Modifier.weight(1f)) }
+                clinic.doctorsCount?.let { StatChip("$it dokter", Modifier.weight(1f)) }
                 StatChip(
                     when (clinic.operatingStatus) {
                         "open" -> "Buka"

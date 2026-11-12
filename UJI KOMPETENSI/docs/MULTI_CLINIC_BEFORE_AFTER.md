@@ -327,7 +327,484 @@ semua layar:
 
 Verifikasi: `compileDebugKotlin` + `assembleDebug` hijau (APK 28,9 MB).
 
+## 6f. Audit pra-sidang: guard integritas data & uang (sesi ketujuh)
+
+Audit menyeluruh (backend + Android) menemukan tiga kelas masalah yang tidak
+terlihat dari layar. Semua sudah diperbaiki dan dikunci dengan test di
+[`DataIntegrityGuardsTest.php`](../PetHeal_Backend/tests/Feature/DataIntegrityGuardsTest.php).
+
+### 1. Menghapus dokter pernah ikut memusnahkan rekam medis & invoice
+
+FK `bookings.doctor_id` dan `medical_records.doctor_id` memakai
+`onDelete('cascade')`. Satu klik "hapus dokter" menghapus rekam medis, booking,
+dan dengan begitu juga dasar perhitungan pendapatan klinik.
+
+Perbaikan di [`Admin/DoctorController::destroy`](../PetHeal_Backend/app/Http/Controllers/Admin/DoctorController.php):
+dokter yang punya riwayat **tidak dihapus**; profilnya dinonaktifkan
+(`is_active = false`) dan admin diberi pesan. Pola ini sama dengan guard hapus
+pasien di `Admin/UserController::destroy`. Dokter tanpa riwayat tetap bisa
+dihapus permanen.
+
+### 2. Booking batal ikut terhitung sebagai pendapatan
+
+`payments` dan dashboard menjumlahkan `SUM(paid_amount)` tanpa melihat status,
+padahal belum ada mekanisme refund. Angka "terkumpul" jadi lebih besar daripada
+uang yang benar-benar diterima. Sekarang agregat hanya menjumlahkan transaksi
+yang tidak `cancelled`, konsisten dengan cara `total_outstanding` dihitung.
+
+> **Diganti di §6n (P0 #3).** Setelah refund ada, mengecualikan `cancelled`
+> LALU mengurangkan refund membuat booking yang dibatalkan dan direfund penuh
+> menyumbang angka **negatif**. Formula akhirnya: seluruh `paid_amount` − refund.
+
+Dashboard pasien juga tidak lagi menagihkan sisa pembayaran dari booking yang
+sudah dibatalkan.
+
+### 2b. Pembayaran tidak boleh lunas dengan nominal kurang
+`PaymentStatusService` sekarang membandingkan sisa tagihan sebelum menandai
+`paid`/`dp_paid`. Event tetap dicatat di `payment_events` (jejak audit), dan
+event duplikat tetap idempoten.
+
+### 3. Upload & foto yang gagal diam-diam
+
+- `POST/PUT /api/pets` menerima berkas apa pun di field `photo` (sebelumnya
+  hanya `nullable`). Sekarang `image|mimes:jpeg,png,jpg,webp|max:4096`.
+- Foto dokter yang gagal diproses hanya masuk log, sementara admin melihat
+  "berhasil". Sekarang admin menerima pesan error eksplisit
+  (`admin.doctor_photo_failed`) dan datanya tetap tersimpan.
+
+### Verifikasi
+
+```
+php artisan test → 259 passed (1526 assertions)
+```
+
+Catatan kejujuran: pada satu kali jalan, `PayloadGateAndPermissionFixesTest`
+gagal 2 test (404) karena urutan test; percobaan berikutnya hijau. Test tersebut
+lulus juga saat dijalankan sendiri, berpasangan dengan test baru, dan pada suite
+penuh berikutnya. Sifatnya flaky antar-test, bukan regresi dari perubahan ini.
+
+## 6g. Tahap 1 pra-UKK: SOAP + lampiran rekam medis (sesi kedelapan)
+
+Rekam medis sebelumnya hanya punya tiga kolom teks bebas (diagnosis,
+treatment, medicine) dan tidak bisa menyimpan bukti pemeriksaan. Sekarang:
+
+- **SOAP** — `subjective`, `objective`, `assessment`, `plan` (semua nullable).
+  Kolom lama **tidak dihapus**: rekam medis lama, ekspor PDF/CSV, dan laporan
+  pendapatan tetap membaca `diagnosis`/`treatment` seperti sebelumnya. Form
+  dikirim sebagai grup `soap[*]`.
+- **Lampiran** — tabel `medical_record_attachments` dengan `path`,
+  `original_name`, `caption`, `mime_type`, `size_bytes`. Gambar di-re-encode
+  ke JPEG maks 1600px (cukup untuk membaca rontgen); PDF disimpan apa adanya
+  karena itu dokumen medis. Batas 5 MB, maks 10 berkas per unggahan.
+  Service [`MedicalRecordAttachmentService.php`](../PetHeal_Backend/app/Services/MedicalRecordAttachmentService.php)
+  dipakai bersama admin & portal dokter; menu hapus juga menghapus berkas di
+  disk, bukan hanya baris database.
+- **Gerbang pembayaran ikut menjaga SOAP & lampiran.** `maskClinicalFields()`
+  mengosongkan empat kolom SOAP dan mengosongkan daftar lampiran saat rekam
+  medis masih terkunci. Tanpa ini, diagnosis terlindungi tetapi isi
+  pemeriksaan bocor — inkonsistensi yang sulit dijelaskan saat sidang.
+- **API** `serializeRecord()` mengirim `subjective/objective/assessment/plan`
+  dan `attachments[]` (`url`, `caption`, `original_name`, `mime_type`,
+  `is_image`). Lampiran tanpa URL valid dibuang server, jadi aplikasi tidak
+  pernah menampilkan gambar rusak.
+- **Aplikasi pasien** — blok SOAP muncul hanya bila diisi, dan daftar
+  lampiran bisa diketuk untuk dibuka lewat penampil sistem.
+
+### Verifikasi
+
+```
+php artisan test → 264 passed (1548 assertions)
+compileDebugKotlin → BUILD SUCCESSFUL
+```
+
+### Dua jebakan yang benar-benar terjadi di sesi ini
+
+1. **Closure `use` kurang `$request`.** `DB::transaction(function () use ($record, $booking))`
+   memakai `$request->file()` di dalamnya → `Undefined variable $request`,
+   dan 4 test alur rekam medis gagal. Selalu daftarkan variabel luar yang
+   dipakai di dalam closure.
+2. **DB test sendiri tidak ikut termigrasi.** `phpunit.xml` memakai
+   `pet_heal_test`, bukan DB dev. `php artisan migrate --env=testing` tidak
+   menyentuhnya. Yang bekerja:
+   `$env:DB_DATABASE="pet_heal_test"; php artisan migrate`.
+
+## 6h. Tahap 2 pra-UKK: stok obat (sesi kesembilan)
+
+Sebelumnya obat hanya teks bebas (`medical_records.medicine`) dan biaya obat
+diisi manual dari dua tempat berbeda. Sekarang stok nyata, dan angkanya bisa
+dipertanggungjawabkan.
+
+### Skema
+
+| Tabel | Isi |
+|---|---|
+| `medicines` | master obat per klinik: `name`, `unit`, `form`, `stock`, `min_stock`, `price`, `expiry_date`, `manufacturer`, `is_active`. Unik `(clinic_id, name)` |
+| `medicine_stock_movements` | buku besar: `type` (in/out/adjustment/return), `quantity` bertanda, `stock_after`, `reason`, `medical_record_id`, `created_by` |
+| `prescription_items` | resep terstruktur: `medicine_id`, salinan `medicine_name`/`unit`/`unit_price`, `dose`, `quantity` |
+
+`stock_after` disimpan di setiap mutasi supaya setiap baris buku besar bisa
+dibaca berdiri sendiri; saldo obat adalah hasil penjumlahan mutasi.
+
+### Aturan yang dikunci
+
+1. **Satu pintu untuk stok** — [`MedicineStockService.php`](../PetHeal_Backend/app/Services/MedicineStockService.php).
+   `medicines.stock` sengaja **tidak** mass-assignable, jadi angka stok tidak
+   pernah datang dari input form.
+2. **Stok tidak boleh minus.** Permintaan melebihi stok melempar
+   `RuntimeException` dengan pesan manusiawi ("Stok Amoxicillin tidak cukup.
+   Tersedia 6 tablet, diminta 10 tablet").
+3. **Koreksi mencatat selisih**, bukan angka target, dan alasan wajib diisi.
+   Selisih dihitung dari stok **terkini di database**, bukan dari objek di
+   memori (bug yang sempat terjadi: objek usang membuat saldo akhir meleset).
+4. **Resep memotong stok sekali.** Mengedit resep mengembalikan pemotongan
+   lama lebih dulu, lalu memotong ulang — bukan menumpuk.
+5. **Obat klinik lain ditolak** di validasi form *dan* di service.
+6. **Obat yang pernah dipakai resep tidak dihapus**, hanya dinonaktifkan —
+   pola yang sama dengan guard hapus dokter/pasien.
+7. **Biaya obat otomatis** dari `quantity × unit_price` bila resep terisi;
+   input manual tetap dipakai bila resep kosong (klinik yang belum memakai
+   master obat tidak kehilangan cara lama).
+8. **Hapus rekam medis mengembalikan stok** yang pernah dipotong resepnya.
+
+### Admin
+
+- Menu **Stok Obat** ([`admin/medicines/`](../PetHeal_Backend/resources/views/admin/medicines)):
+  daftar + filter stok menipis/kedaluwarsa/pencarian, ringkasan tiga kartu,
+  form tambah/ubah, aksi **stok masuk**, **koreksi stok opname**, dan halaman
+  **mutasi stok** per obat.
+- Dashboard menampilkan banner peringatan bila ada obat menipis atau
+  kedaluwarsa ≤60 hari. Angka ini dihitung **live**, bukan dari cache, supaya
+  langsung berubah setelah resep memotong stok.
+
+### Verifikasi
+
+```
+php artisan test  → 274 passed (1569 assertions)
+php artisan view:cache → semua Blade terkompilasi
+migrate (dev + pet_heal_test) → 3 migrasi baru
+```
+
+### Jebakan yang benar-benar terjadi di sesi ini
+
+1. **Urutan migrasi.** `prescription_items` mereferensikan `medicines`; file
+   migrasi awal bertanggal lebih lampau → `Failed to open the referenced
+   table 'medicines'`. Migrasi yang punya FK wajib bertanggal SETELAH tabel
+   induknya.
+2. **`stock` sengaja tidak fillable.** Menulis `Medicine::create(['stock'=>10])`
+   diam-diam menyimpan 0. Stok awal wajib lewat `setOpeningStock()`.
+3. **Objek model usang setelah mutasi.** `adjustTo()` sempat menghitung selisih
+   dari `$medicine->stock` di memori; setelah mutasi lain, angka itu basi.
+
+## 6i. Tahap 3 pra-UKK: antrian harian (sesi kesepuluh)
+
+**Keputusan desain paling penting:** antrian adalah **sumbu terpisah** dari
+`bookings.status`. `status` mengurus administrasi (pending → confirmed →
+completed/cancelled); antrian mengurus kehadiran fisik di klinik. Menggabung
+keduanya akan memaksa mengubah enum status yang dipakai banyak tes, laporan,
+dan tombol admin — risiko besar tanpa manfaat.
+
+### Kolom baru (semua nullable, additive)
+
+`bookings`: `queue_number`, `queue_date`, `queue_status`, `checked_in_at`,
+`called_at`, `queue_finished_at`.
+Unique `(clinic_id, queue_date, queue_number)`; index papan
+`(clinic_id, queue_date, queue_status)`.
+
+`queue_status`: `waiting` · `called` · `in_service` · `done` · `no_show`.
+
+### Aturan yang dikunci
+
+| Aturan | Alasan |
+|---|---|
+| Nomor diberikan **saat datang** (check-in), bukan saat booking | nomor yang dipesan jauh hari tidak berarti apa-apa di ruang tunggu |
+| Urutan mengikuti **check-in**, bukan jam booking | pasien yang datang lebih dulu dilayani lebih dulu |
+| Nomor **unik per klinik per hari** | klinik B mulai dari 1 lagi, tidak tercampur |
+| Check-in **idempoten** | menekan dua kali tidak memberi nomor baru |
+| `pending`/`cancelled` tidak bisa check-in | mencegah antrian untuk booking yang belum sah |
+| `no_show` **tidak** mengembalikan nomor | urutan tidak bergeser di belakang |
+| Antrian selesai **tidak** menandai booking selesai | booking ditutup saat dokter menyimpan rekam medis |
+
+### Admin & pasien
+
+- Menu **Antrian** ([`admin/queue/`](../PetHeal_Backend/resources/views/admin/queue)):
+  kartu statistik, daftar sedang ditangani / menunggu / belum check-in /
+  selesai, tombol **Check-in**, **Mulai periksa**, **Selesai**, **Tidak hadir**,
+  dan **Panggil berikutnya** (mengambil nomor terkecil yang menunggu).
+- API `POST /api/bookings/{id}/check-in` dengan throttle `api`: hanya untuk
+  booking milik pasien, **hari ini**, dan sudah dikonfirmasi. Respons membawa
+  `queue_number`, `queue_label`, dan `queue_position`.
+- `GET /api/bookings` juga mengirim `queue_label` + `queue_position` sehingga
+  aplikasi tidak menebak.
+- Aplikasi: kartu booking menampilkan nomor antrian + posisi tunggu bila sudah
+  check-in, dan tombol **Check-in & ambil nomor antrian** hanya pada hari
+  jadwal untuk booking terkonfirmasi yang belum punya nomor.
+
+### Verifikasi
+
+```
+php artisan test   → 288 passed (1595 assertions)   [14 tes antrian baru]
+compileDebugKotlin → BUILD SUCCESSFUL
+view:cache         → semua Blade terkompilasi
+```
+
+### Jebakan yang benar-benar terjadi di sesi ini
+
+`$locked->queue_date === $queueDate` **selalu false**, karena `queue_date`
+adalah cast tanggal (objek Carbon) sementara pembandingnya string. Akibatnya
+check-in ganda memberi nomor baru (1 lalu 2). Perbaikannya: bandingkan
+`$locked->queue_date?->toDateString()`. Test `check_in_is_idempotent` mengunci
+perilaku ini.
+
+## 6j. Tahap 4 pra-UKK: refund manual (sesi kesebelas)
+
+**Masalah nyata:** booking yang dibatalkan tetap menyumbang `paid_amount` ke
+laporan, padahal uangnya harus dikembalikan. Laporan jadi lebih besar daripada
+uang milik klinik.
+
+**Refund di sini = PENCATATAN, bukan transfer.** Uang dikembalikan admin lewat
+bank/tunai/e-wallet, lalu dicatat sebagai bukti. Teks bantuan di form
+menyatakan hal ini eksplisit supaya admin tidak mengira sistem memindahkan
+uang sendiri.
+
+### Skema
+
+`booking_refunds`: `booking_id`, `clinic_id`, `amount`, `method`
+(transfer/cash/ewallet/other), `reference`, `reason`, `recorded_by`.
+
+Satu booking boleh punya **beberapa** refund (pengembalian bertahap) — karena
+itu tabel terpisah, bukan satu kolom `refunded_at`.
+
+### Aturan yang dikunci ([`RefundService.php`](../PetHeal_Backend/app/Services/RefundService.php))
+
+| Aturan | Alasan |
+|---|---|
+| Refund ≤ `paid_amount` − total refund sebelumnya | tidak mungkin mengembalikan uang yang belum masuk |
+| Hanya booking `cancelled` | kalau masih berjalan itu pembatalan, bukan refund |
+| Alasan wajib | refund tanpa alasan tidak bisa dipertanggungjawabkan |
+| Lock baris saat mencatat | dua admin tidak bisa bersama-sama melewati batas |
+| `total_collected` dikurangi total refund | laporan menunjukkan uang yang benar-benar diterima |
+| Invoice PDF mencantumkan refund | struk dan layar admin tidak boleh bercerita beda |
+
+### Verifikasi
+
+```
+php artisan test → 298 passed (1610 assertions)   [10 tes refund]
+assembleDebug    → BUILD SUCCESSFUL · app-debug.apk 28,9 MB
+view:cache       → semua Blade terkompilasi
+```
+
+## 6m. Audit menyeluruh tiap layar Android (sesi keempatbelas)
+
+Audit ini bukan tambahan fitur: ia menutup **jalur kebocoran klinik sesi** yang
+masih tersisa setelah sesi 6l. Aturan yang sekarang dipegang di seluruh aplikasi:
+**dokumen & label klinik selalu membaca klinik milik transaksinya sendiri; bila
+data itu tidak ada, baris disembunyikan (atau label netral "Klinik" di kwitansi) —
+tidak pernah meminjam klinik sesi lain.**
+
+### Sisi Android
+
+| Lokasi | Sebelum | Sesudah |
+|---|---|---|
+| `PaymentNavViewModel` | kop kwitansi = preferensi klinik aktif | diturunkan dari `booking.clinic` / `medicalRecord.clinic` (`receiptClinicName/Address/Color`) |
+| `PaymentResultScreen` | memakai parameter klinik sesi | `medicalRecord.clinic` → `booking.clinic` → parameter |
+| `BookingsScreen` (kwitansi) | nama dari booking, **alamat dari sesi** | ketiganya dari `booking.clinic` |
+| `MedicalRecordsScreen` | `record.clinic ?: sesi` | hanya `record.clinic` |
+| `BookingViewModel` / `MedicalRecordsViewModel` | field klinik sesi di state | dihapus (tidak ada lagi sumber salah) |
+| Kartu booking, detail booking, invoice center | tanpa identitas klinik | baris klinik dari `booking.clinic` |
+| Rekam medis (kartu + detail) | klinik penerbit tidak pernah disebut | baris klinik dari `record.clinic` |
+| Beranda (kunjungan terdekat & terakhir) | tanpa klinik | `booking.clinic` / `record.clinic` |
+| Beranda (avatar) | logo klinik menimpa foto pasien | foto pasien dulu, logo hanya bila tidak ada foto |
+| Layar Midtrans | tidak menyebut penerima uang | "Dibayarkan ke <klinik booking>" |
+| Detail dokter | `getDoctor(id)` tanpa scope klinik | rute membawa `clinicId` dari baris dokter |
+| Bandingkan harga | badge "Klinik Anda" | "Terakhir dipakai" (pasien tidak terikat satu klinik) |
+| Detail klinik | "0 dokter"/"0 layanan" saat angka null | chip disembunyikan |
+| Invoice | nominal null tampil Rp 0 | tampil "—" |
+| Bantuan alur booking | fallback ke klinik favorit | ditolak dengan pesan, tidak pernah salah kirim |
+
+### Sisi backend
+
+1. **`DoctorController::catalogClinicId`** — `users.clinic_id` pada akun pasien
+   diabaikan (sesuai docblock-nya). Tanpa ini pasien lama hanya melihat dokter
+   klinik lamanya.
+2. **`DoctorController::doctorScope`** (baru) — detail/slot/review memakai satu
+   definisi: pasien tanpa filter klinik, staf tetap terikat kliniknya.
+   Sebelumnya `clinic_id` difilter untuk semua orang, sehingga pasien lintas
+   klinik mendapat 404 saat membuka dokter klinik lain.
+3. **`ServiceController::resolveTenant`** — `users.clinic_id` tidak lagi dipakai
+   untuk role `user`; katalog layanan lintas klinik kembali utuh (dasar
+   perbandingan harga).
+4. `GET /doctors/{id}/reviews` mengembalikan `rating: null` bila belum ada
+   ulasan (bukan 0).
+5. `POST /bookings/{id}/check-in` **ada** (`BookingController::checkIn`) — route
+   sebelumnya menunjuk method yang tidak ada sehingga selalu 500.
+6. `GET /bookings/{id}` dan respons booking lain menyertakan `clinic`.
+
+Uji baru: `tests/Feature/PatientGlobalScopeTest.php` — 6 tes (pasien lama
+melihat dokter klinik lain, detail lintas klinik, katalog layanan global,
+rating null, check-in idempoten, check-in milik orang lain ditolak).
+
+### Halaman yang masih perlu diuji di perangkat
+
+| Halaman | Yang harus dipastikan |
+|---|---|
+| Riwayat → struk pembayaran | nama **dan** alamat klinik sesuai booking, bukan klinik lain |
+| Detail rekam medis → struk biaya tambahan | klinik penerima = klinik rekam medis |
+| Booking list / detail / invoice | setiap entri menampilkan kliniknya |
+| Detail dokter dari Beranda | terbuka normal walau pasien pernah memakai klinik lain |
+| Detail klinik | tidak menampilkan "0 layanan" saat angka belum tersedia |
+
+### Aturan untuk layar baru (WAJIB)
+
+1. Jangan pernah mengambil klinik dari `PreferencesManager` untuk **menampilkan
+   data transaksi**. Sumbernya: `Booking.clinic`, `Record.clinic`,
+   `Doctor.clinic`, atau model discovery.
+2. `X-Clinic-Slug` untuk staf / konteks saja, bukan sumber tampilan.
+
+## 6n. Audit pasca-implementasi: 7 bug P0 (sesi kelimabelas)
+
+Audit setelah empat fitur besar terpasang menemukan tujuh bug di jalur yang
+dipakai **setiap hari** — bukan kasus tepi, dan semuanya lolos dari test lama
+karena test lama menguji lapisan service, bukan alur form/HTTP penuh. Semua
+sudah diperbaiki dan dikunci dengan test regresi.
+
+### P0 #1 — Rekam medis baru + resep berakhir 500
+
+Kolom `prescription_items.medical_record_id` bersifat NOT NULL, tetapi
+`PrescriptionService::syncForRecord()` dipanggil **sebelum** `$record->save()`.
+Selama record belum punya `id`, setiap item ditulis dengan FK kosong → query
+gagal → admin/dokter melihat error 500 saat mengisi obat pada rekam medis baru.
+
+Perbaikan: `$record->save()` dipindah ke dalam transaksi **sebelum**
+`syncForRecord()`, di
+[`Admin/MedicalRecordController`](../PetHeal_Backend/app/Http/Controllers/Admin/MedicalRecordController.php)
+dan
+[`Doctor/DoctorMedicalRecordController`](../PetHeal_Backend/app/Http/Controllers/Doctor/DoctorMedicalRecordController.php).
+Stok tidak cukup tetap membatalkan seluruh transaksi, jadi tidak ada rekam
+medis setengah jadi.
+
+Dikunci: `MedicineStockTest::test_admin_create_with_prescription_saves_record_and_deducts_stock`.
+
+### P0 #2 — Koreksi resep berulang membuat stok membengkak
+
+`MedicineStockService::restoreForMedicalRecord()` hanya menjumlahkan baris
+`out`, padahal baris `return` (hasil koreksi sebelumnya) juga ada di buku
+mutasi. Akibatnya edit pertama benar, edit kedua mengembalikan 2× qty, ketiga
+3× — stok naik tanpa ada yang menyadari.
+
+Perbaikan: jumlahkan **net** `out + return`, dan lewati bila `net >= 0` (tidak
+ada sisa pemakaian).
+
+Dikunci: `MedicineStockTest::test_repeated_prescription_edits_keep_stock_in_sync`
+(qty 4 → 6 → 3 → 8 → 2, saldo harus `10 − qty` setelah **setiap** simpan).
+
+### P0 #3 — Refund penuh membuat pendapatan minus
+
+Ada dua definisi "terkumpul" yang saling menumpuk: pembatalan dikeluarkan dari
+`paid_amount` **lalu** refund dikurangkan lagi. Booking Rp 100.000 yang
+dibatalkan dan direfund penuh menyumbang **−100.000** ke laporan.
+
+Perbaikan: satu formula untuk semua status —
+`SUM(paid_amount) − total refund`. Dipakai
+[`PaymentController::paymentStats()`](../PetHeal_Backend/app/Http/Controllers/Admin/PaymentController.php)
+dan dashboard (`DashboardController`), sehingga dua halaman tidak bisa
+bercerita beda.
+
+Dikunci: `RefundTest::test_fully_refunded_booking_contributes_zero_not_negative`
+dan `DataIntegrityGuardsTest::test_cancelled_booking_counts_until_refunded_then_nets_to_zero`
+(naik +100.000 saat dibatalkan, kembali tepat ke angka semula setelah refund).
+
+### P0 #4 — `/admin/queue` 500 untuk super admin tanpa klinik aktif
+
+Picker klinik memakai `route('admin.clinic-context.switch', $clinic->slug)`,
+padahal rute itu **tidak pernah ada**. Halaman langsung 500, bukan menampilkan
+pilihan.
+
+Perbaikan: picker menjadi form POST ke `admin.switch-clinic` dengan
+`clinic_id` + `return_to=queue`; `AdminAuthController::switchClinic()` mengenali
+`return_to=queue` dan kembali ke papan antrian (bukan dashboard). Rute
+`clinic-context.switch` tidak lagi dipakai di picker mana pun.
+
+Dikunci: `ClinicQueueTest::test_super_admin_without_clinic_sees_picker_not_500`.
+
+### P0 #5 — Label & posisi antrian hilang setiap kali daftar di-refresh
+
+`queue_label` ("A-01") dan `queue_position` hanya dihitung di respons
+check-in. `GET /api/bookings` mengirim `queue_number` mentah, sehingga strip
+antrian kosong lagi setelah aplikasi memuat ulang daftar.
+
+Perbaikan: `Api/BookingController` mendapat `attachQueueMeta()` dan memakainya
+di `index`, `upcoming`, `show`, dan `checkIn`. Nilai juga dimasukkan **ke dalam
+`data`** (bukan hanya level atas) supaya klien yang memetakan DTO `Booking`
+tetap menerimanya.
+
+Dikunci: `PatientGlobalScopeTest` memeriksa baris `GET /api/bookings` punya
+`queue_label = "A-01"` dan `queue_position = 0`.
+
+### P0 #6 — Check-in di aplikasi tanpa umpan balik
+
+Pesan sukses/gagal ditulis ke `BookingDetailUiState`, padahal tombol check-in
+ada di **kartu daftar**. Layar daftar tidak pernah membaca state detail → pasien
+menekan tombol dan tidak melihat apa pun.
+
+Perbaikan di
+[`BookingViewModel.kt`](../PetHeal_Android/app/src/main/java/com/christopheraldoo/petheal/ui/screens/booking/BookingViewModel.kt)
+dan
+[`BookingsScreen.kt`](../PetHeal_Android/app/src/main/java/com/christopheraldoo/petheal/ui/screens/booking/BookingsScreen.kt):
+
+- `BookingsUiState` mendapat `checkInLoadingId`, `checkInMessage`, `checkInError`.
+- Snackbar sukses (`SuccessSoft`) berisi nomor antrian + sisa antrian di depan;
+  snackbar gagal (`ErrorSoft`) menampilkan alasan dari server apa adanya.
+- Tombol berubah menjadi **"Memproses check-in…"** dan nonaktif selama request;
+  `checkInBooking()` menolak tap kedua (guard double-submit).
+- Kartu langsung memakai `Booking` hasil check-in tanpa menunggu reload.
+- `clearCheckInNotice()` menutup pesan, bukan menunggu timeout.
+
+### P0 #7 — Dokter tidak bisa mengunggah lampiran rekam medis
+
+Form portal dokter tidak punya `enctype="multipart/form-data"` dan tidak
+merender field lampiran. Berkas tidak pernah terkirim, sementara controller
+sudah siap menyimpannya.
+
+Perbaikan: form dokter memakai `enctype` multipart dan meng-include partial
+`admin/medical-records/partials/attachments-fields` (satu sumber untuk admin &
+dokter, termasuk pesan batas ukuran dan daftar lampiran lama).
+
+### P1 yang ikut dibereskan
+
+| Hal | Perubahan |
+|---|---|
+| Hapus obat | Membedakan **dipakai resep** (`medicine_in_use`) vs **punya riwayat stok lain** (`medicine_has_history`); keduanya menonaktifkan, bukan menghapus |
+| Tanggal papan antrian | `resolveDate()` hanya menerima `Y-m-d`; query string rusak jatuh ke hari ini, bukan 500 |
+| Audit check-in API | `AuditLog::log()` menerima `$userId` eksplisit → aksi pasien tercatat `queue.check_in.patient` meski guard Sanctum tidak mengisi `auth()->id()` |
+| Nomor antrian bentrok | `checkIn()` mengulang maksimal 3× saat unique index `(clinic_id, queue_date, queue_number)` menolak INSERT (dua pasien datang bersamaan) |
+| "Hari ini di klinik" | Memakai `isTodayBooking()` — booking yang **sudah** check-in atau masih `pending` tetap tampil sebagai kunjungan hari ini, tidak tenggelam ke daftar bawah |
+| Strip antrian | Label baris menampilkan status ("Menunggu"/"Dipanggil"), bukan mengulang nomor yang sudah tampil besar di sebelahnya |
+| `currentClinic()` | Cache `static` diganti cache **per request** (request attribute). Cache statis bertahan melewati request sehingga id klinik lama bisa menunjuk baris yang sudah tidak ada — ini yang membuat suite penuh gagal hanya saat urutan test tertentu |
+
+### Batasan yang diketahui (jujur)
+
+Lampiran rekam medis disimpan di disk **`public`**
+(`storage/app/public/medical-records/...`), sehingga siapa pun yang memiliki
+URL dapat membukanya tanpa login. Untuk UKK ini diterima (berkas hanya
+ditautkan dari halaman yang butuh login), tetapi produksi wajib memakai disk
+privat + signed URL berumur pendek. Belum dikerjakan di sesi ini.
+
+### Verifikasi
+
+```
+php artisan test                    → 324 passed (1711 assertions)
+php -l (13 file PHP yang diubah)    → bersih
+php artisan route:list (switch-clinic, queue) → sesuai
+assembleDebug (Android)             → BUILD SUCCESSFUL (6m18s)
+```
+
+Yang **BELUM** dijalankan dan tidak boleh diklaim: uji browser (Playwright/
+Chrome DevTools), Lighthouse, axe-core, dan uji di perangkat — tool-nya tidak
+tersedia di sesi ini.
+
 ## 7. Jebakan teknis yang sudah memakan waktu (baca sebelum debug)
+
+
 
 Ini bukan teori — semuanya benar-benar terjadi hari ini.
 
@@ -368,11 +845,18 @@ Ini bukan teori — semuanya benar-benar terjadi hari ini.
 
 | Item | Status |
 |---|---|
-| Backend test | **247 lulus**, termasuk 18 test `MultiClinicDiscoveryTest` |
-| Android `compileDebugKotlin` | Hijau, tanpa warning baru |
-| Android `assembleDebug` | **Hijau** — `app-debug.apk`, 28,6 MB |
+| Backend test | **324 lulus** (1711 assertions) — seluruh suite, dijalankan ulang tanpa proses lain |
+| Android `compileDebugKotlin` | Hijau, hanya warning lama yang sudah ada sebelumnya |
+| Android `assembleDebug` | **Hijau** — `app-debug.apk` (6m18s) |
 | Uji di perangkat | **BELUM** |
-| Verifikasi visual (screenshot) | **BELUM** — browser tool nonaktif saat pengerjaan |
+| Verifikasi visual (screenshot 1440/375) | **BELUM** — browser tool nonaktif saat pengerjaan |
+| Lighthouse / axe-core | **BELUM** — tool tidak tersedia di sesi ini |
+| Semgrep / Snyk | **BELUM** — tool tidak tersedia di sesi ini |
+
+Catatan kejujuran: satu kali jalan suite penuh sempat menampilkan 34 gagal
+dengan pesan `Table 'pet_heal_test.clinics' doesn't exist`. Penyebabnya dua
+runner test berjalan bersamaan di database yang sama, bukan regresi — setelah
+dijalankan sendiri hasilnya 324 lulus.
 
 Titik panggil parameter baru sudah dicek: semua punya nilai default, jadi tidak ada
 pemanggil lain yang rusak.
@@ -395,7 +879,15 @@ Jangan dianggap bug — ini keputusan sadar.
 
 ---
 
-## 10. Peta file yang berubah (70 file)
+## 10. Peta file yang berubah
+
+Batch yang belum di-commit saat dokumen ini diperbarui: **99 file**
+(58 diubah + 41 baru), **+7.879 baris** — angka dari
+`git status --porcelain --untracked-files=all` dan `git diff --shortstat HEAD`,
+bukan perkiraan. Peta di bawah hanya daftar fitur multi-clinic (sesi awal);
+tujuh bug P0 di §6n menyentuh file backend/Android yang sudah ada di daftar itu
+plus `Admin/{Queue,Medicine}Controller`, `Api/BookingController`,
+`Services/{QueueService,MedicineStockService}`, dan tiga test regresi.
 
 ```
 PetHeal_Backend/
@@ -460,7 +952,7 @@ PetHeal_Android/
 # Backend
 cd PetHeal_Backend
 php artisan serve                 # sudah berjalan di terminal terpisah
-php artisan test                  # 247 test
+php artisan test                  # 324 test
 
 # Android
 cd PetHeal_Android

@@ -90,6 +90,30 @@
             tone="violet" />
     </div>
 
+    {{-- Peringatan stok obat. Dihitung langsung (bukan dari cache) supaya
+         angkanya berubah segera setelah obat dipakai pada resep. --}}
+    @if(($lowStockCount ?? 0) > 0 || ($expiringMedicinesCount ?? 0) > 0)
+        <div class="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 dark:border-amber-900/60 dark:bg-amber-900/20">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <p class="text-sm font-semibold text-amber-900 dark:text-amber-200">Stok obat perlu perhatian</p>
+                    <p class="mt-1 text-xs text-amber-800/80 dark:text-amber-200/70">
+                        @if($lowStockCount > 0)
+                            {{ $lowStockCount }} obat menyentuh batas stok minimum.
+                        @endif
+                        @if($expiringCount > 0)
+                            {{ $expiringCount }} obat kedaluwarsa dalam 30 hari.
+                        @endif
+                    </p>
+                </div>
+                <a href="{{ route('admin.medicines.index', ['low_stock' => 1]) }}" class="admin-btn-secondary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">medication</span>
+                    Buka stok obat
+                </a>
+            </div>
+        </div>
+    @endif
+
     {{-- Pendapatan --}}
     @php
         $growthBadge = function (?float $value) {

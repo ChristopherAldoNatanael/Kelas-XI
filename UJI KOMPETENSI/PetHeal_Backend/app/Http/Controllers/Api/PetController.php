@@ -78,7 +78,9 @@ class PetController extends Controller
             'weight'        => 'nullable|numeric|min:0',
             'gender'        => 'nullable|in:male,female,Male,Female',
             'date_of_birth' => 'nullable|date',
-            'photo'         => 'nullable',
+            // Sebelumnya `nullable` saja: file selain gambar lolos ke
+            // ImageService. Aturan ini sama dengan endpoint upload khusus foto.
+            'photo'         => 'nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
             'notes'         => 'nullable|string',
         ]);
 
@@ -193,7 +195,7 @@ class PetController extends Controller
             'weight'        => 'sometimes|nullable|numeric|min:0',
             'gender'        => 'sometimes|nullable|in:male,female,Male,Female',
             'date_of_birth' => 'sometimes|nullable|date',
-            'photo'         => 'sometimes|nullable',
+            'photo'         => 'sometimes|nullable|image|mimes:jpeg,png,jpg,webp|max:4096',
             'notes'         => 'sometimes|nullable|string',
             'remove_photo'  => 'sometimes|boolean',
         ]);

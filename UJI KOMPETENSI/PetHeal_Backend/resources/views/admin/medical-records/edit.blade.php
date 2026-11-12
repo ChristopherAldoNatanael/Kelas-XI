@@ -42,7 +42,8 @@
     </x-admin.panel>
 
     <x-admin.panel :title="__('admin.documentation_clinical')">
-        <form method="POST" action="{{ route('admin.medical-records.update', $record->id) }}" class="space-y-6">
+        <form method="POST" action="{{ route('admin.medical-records.update', $record->id) }}"
+              enctype="multipart/form-data" class="space-y-6">
             @csrf
             @method('PUT')
 
@@ -72,11 +73,26 @@
                 </div>
             </div>
 
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.soap-fields', ['record' => $record])
+            </div>
+
             <div>
                 <label for="medicine" class="admin-label">{{ __('admin.medicine') }}</label>
                 <textarea name="medicine" id="medicine" rows="2" class="admin-input"
                           placeholder="{{ __('admin.medicine_placeholder') }}">{{ old('medicine', $record->medicine) }}</textarea>
                 @error('medicine') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.prescription-fields', [
+                    'record' => $record,
+                    'medicines' => $medicines ?? collect(),
+                ])
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.attachments-fields', ['record' => $record])
             </div>
 
             <div class="grid grid-cols-1 gap-6 md:grid-cols-3">

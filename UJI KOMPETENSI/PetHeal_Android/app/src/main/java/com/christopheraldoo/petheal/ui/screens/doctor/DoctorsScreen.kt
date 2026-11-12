@@ -133,7 +133,8 @@ private fun DocPhoto(
 @Composable
 fun DoctorsScreen(
     onNavigateBack: () -> Unit,
-    onNavigateToDoctorDetail: (Int) -> Unit,
+    // (doctorId, clinicId) — clinicId = klinik dokter di baris yang diketuk.
+    onNavigateToDoctorDetail: (Int, Int?) -> Unit,
     viewModel: DoctorsViewModel = hiltViewModel()
 ) {
     val state by viewModel.listState.collectAsState()
@@ -289,7 +290,9 @@ fun DoctorsScreen(
                         DoctorCard(
                             listing = listing,
                             showDistance = state.hasLocation,
-                            onClick = { listing.id?.let(onNavigateToDoctorDetail) }
+                            onClick = {
+                                listing.id?.let { onNavigateToDoctorDetail(it, listing.clinicId) }
+                            }
                         )
                     }
                 }
@@ -340,6 +343,8 @@ fun DoctorsScreen(
 fun DoctorDetailScreen(
     doctorId: Int,
     onNavigateBack: () -> Unit,
+    // MULTI-CLINIC: klinik dokter yang diketuk (opsional, 0 = bukan scope).
+    clinicId: Int? = null,
     // PHASE 9: dibuka dari pengingat rating → dialog nilai langsung terbuka.
     autoOpenReview: Boolean = false,
     viewModel: DoctorsViewModel = hiltViewModel()
@@ -349,7 +354,7 @@ fun DoctorDetailScreen(
     // Konsumsi sekali: dialog terbuka otomatis hanya setelah daftar booking
     // yang bisa dinilai termuat (tidak kosong) — rotasi tidak membuka ulang.
     var autoReviewConsumed by remember(autoOpenReview) { mutableStateOf(!autoOpenReview) }
-    LaunchedEffect(doctorId) { viewModel.loadDoctorDetail(doctorId) }
+    LaunchedEffect(doctorId, clinicId) { viewModel.loadDoctorDetail(doctorId, clinicId = clinicId) }
     LaunchedEffect(autoOpenReview, state.reviewableBookings) {
         if (autoOpenReview && !autoReviewConsumed && state.reviewableBookings.isNotEmpty()) {
             autoReviewConsumed = true

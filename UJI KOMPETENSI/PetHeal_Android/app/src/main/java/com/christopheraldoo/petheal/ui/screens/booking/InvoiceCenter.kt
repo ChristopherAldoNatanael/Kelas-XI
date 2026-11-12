@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -354,6 +355,28 @@ private fun InvoiceCard(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // MULTI-CLINIC: tagihan ini milik klinik mana. Tanpa label,
+                // tagihan dari dua klinik terlihat identik di daftar.
+                booking.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.LocalHospital,
+                            contentDescription = null,
+                            tint = TextTertiary,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = clinicName,
+                            fontSize = 11.sp,
+                            color = TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
             }
 
             Divider(color = Outline)
@@ -362,11 +385,16 @@ private fun InvoiceCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                InvoiceAmount(label = "Total", value = booking.totalAmount ?: 0.0, color = OnBackground)
-                InvoiceAmount(label = "Dibayar", value = booking.paidAmount ?: 0.0, color = Success)
+                // Nominal yang tidak dikirim server tampil "—", bukan Rp 0.
+                InvoiceAmount(
+                    label = "Total",
+                    value = booking.totalAmount,
+                    color = OnBackground
+                )
+                InvoiceAmount(label = "Dibayar", value = booking.paidAmount, color = Success)
                 InvoiceAmount(
                     label = if (outstanding) "Sisa" else "Status",
-                    value = if (outstanding) booking.remainingAmount ?: 0.0 else null,
+                    value = if (outstanding) booking.remainingAmount else null,
                     textValue = if (outstanding) null else "Lunas",
                     color = if (outstanding) WarningDeep else Success,
                     alignEnd = true
@@ -441,7 +469,9 @@ private fun InvoiceAmount(
     ) {
         Text(text = label, fontSize = 10.sp, color = TextTertiary)
         Text(
-            text = textValue ?: formatRupiah(value ?: 0.0),
+            // null = server tidak mengirim nominal. Menampilkannya sebagai
+            // Rp 0 berarti mengarang tagihan nol.
+            text = textValue ?: value?.let { formatRupiah(it) } ?: "—",
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             color = color

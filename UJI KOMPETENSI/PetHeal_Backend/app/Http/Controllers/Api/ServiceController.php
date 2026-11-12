@@ -39,11 +39,11 @@ class ServiceController extends Controller
         // MULTI-CLINIC DISCOVERY: pasien = akun global. Katalog lintas klinik
         // dibutuhkan untuk perbandingan harga, jadi akun pasien tanpa
         // `?clinic_slug` mendapat seluruh layanan aktif (read-only, publik).
-        // `users.clinic_id` lama pada akun pasien diabaikan.
+        // `users.clinic_id` lama pada akun pasien DIIABAIKAN — kalau tidak,
+        // pasien lama hanya melihat layanan klinik lamanya dan perbandingan
+        // harga lintas klinik tidak pernah muncul (regresi yang sama dengan
+        // DoctorController::catalogClinicId).
         if ($user && ($user->role ?? null) === 'user') {
-            if ($user->clinic_id && !$request->filled('clinic_slug')) {
-                return [(int) $user->clinic_id, null];
-            }
             if (!$request->filled('clinic_slug')) {
                 return [null, null];
             }

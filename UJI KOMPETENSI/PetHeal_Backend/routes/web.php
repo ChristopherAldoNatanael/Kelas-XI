@@ -119,6 +119,13 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Users
     Route::resource('users', UserController::class);
 
+    // Antrian harian. Rute aksi didaftarkan sebelum resource agar tidak
+    // tertangkap oleh pola /bookings/{id}.
+    Route::get('/queue', [\App\Http\Controllers\Admin\QueueController::class, 'index'])->name('queue.index');
+    Route::post('/queue/call-next', [\App\Http\Controllers\Admin\QueueController::class, 'callNext'])->name('queue.call-next');
+    Route::post('/queue/{id}/check-in', [\App\Http\Controllers\Admin\QueueController::class, 'checkIn'])->name('queue.check-in');
+    Route::post('/queue/{id}/status', [\App\Http\Controllers\Admin\QueueController::class, 'updateStatus'])->name('queue.status');
+
     // Bookings
     Route::get('/schedule', [BookingController::class, 'schedule'])->name('bookings.schedule');
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
@@ -158,11 +165,26 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/services/import', [App\Http\Controllers\Admin\ServiceController::class, 'import'])->name('services.import');
     Route::resource('services', App\Http\Controllers\Admin\ServiceController::class)->except(['show']);
 
+    // Stok obat. Rute aksi khusus didaftarkan SEBELUM resource supaya
+    // `/medicines/{id}/stock-in` tidak tertangkap sebagai {medicine} biasa.
+    Route::get('/medicines/template/csv', [App\Http\Controllers\Admin\MedicineController::class, 'downloadTemplateCsv'])->name('medicines.template.csv');
+    Route::get('/medicines/template/xlsx', [App\Http\Controllers\Admin\MedicineController::class, 'downloadTemplateXlsx'])->name('medicines.template.xlsx');
+    Route::get('/medicines/export/csv', [App\Http\Controllers\Admin\MedicineController::class, 'exportCsv'])->name('medicines.export.csv');
+    Route::get('/medicines/export/xlsx', [App\Http\Controllers\Admin\MedicineController::class, 'exportXlsx'])->name('medicines.export.xlsx');
+    Route::get('/medicines/import/error-report', [App\Http\Controllers\Admin\MedicineController::class, 'downloadImportErrorReport'])->name('medicines.import.error-report');
+    Route::post('/medicines/import', [App\Http\Controllers\Admin\MedicineController::class, 'import'])->name('medicines.import');
+    Route::post('/medicines/{id}/stock-in', [App\Http\Controllers\Admin\MedicineController::class, 'stockIn'])->name('medicines.stock-in');
+    Route::post('/medicines/{id}/adjust', [App\Http\Controllers\Admin\MedicineController::class, 'adjust'])->name('medicines.adjust');
+    Route::get('/medicines/{id}/movements', [App\Http\Controllers\Admin\MedicineController::class, 'movements'])->name('medicines.movements');
+    Route::resource('medicines', App\Http\Controllers\Admin\MedicineController::class)->except(['show']);
+
     // Payments (Midtrans Integration)
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/{id}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
+    // Refund manual: mencatat uang yang sudah dikembalikan ke pasien.
+    Route::post('/payments/{id}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
     Route::post('/payments/{id}/send-reminder', [PaymentController::class, 'sendReminder'])->name('payments.send-reminder');
     Route::get('/export/payments', [PaymentController::class, 'exportPdf'])->name('payments.export');
 });

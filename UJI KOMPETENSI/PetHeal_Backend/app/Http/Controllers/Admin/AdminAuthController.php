@@ -800,6 +800,12 @@ class AdminAuthController extends Controller
             return redirect()->route('admin.bookings.schedule')->with('success', __('clinics.switch_success'));
         }
 
+        // Picker antrian: setelah klinik dipilih, kembali ke papan antrian
+        // (bukan dashboard) supaya admin tidak kehilangan konteks.
+        if ($request->input('return_to') === 'queue') {
+            return redirect()->route('admin.queue.index')->with('success', __('clinics.switch_success'));
+        }
+
         return redirect()->route('admin.dashboard')->with('success', __('clinics.switch_success'));
     }
 

@@ -65,7 +65,7 @@
         @endif
     </x-admin.panel>
 
-    <form method="POST"
+    <form method="POST" enctype="multipart/form-data"
           action="{{ $isEdit ? route('doctor.medical-records.update', $record->id) : route('doctor.medical-records.store') }}">
         @csrf
         @if($isEdit)
@@ -127,6 +127,19 @@
                             Jika diisi, pemilik hewan menerima pengingat kunjungan berikutnya lewat aplikasi.
                         </p>
                     </div>
+                </x-admin.panel>
+
+                <x-admin.panel title="Resep Obat">
+                    @include('admin.medical-records.partials.prescription-fields', [
+                        'record' => $record,
+                        'medicines' => $medicines ?? collect(),
+                    ])
+                </x-admin.panel>
+
+                <x-admin.panel title="Lampiran Pemeriksaan">
+                    @include('admin.medical-records.partials.attachments-fields', [
+                        'record' => $record,
+                    ])
                 </x-admin.panel>
 
                 <x-admin.panel title="Biaya Medis">

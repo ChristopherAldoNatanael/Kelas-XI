@@ -29,6 +29,14 @@ class Booking extends Model
         'service_type',
         'clinic_id',
         'last_reminder_at',
+        // Antrian harian (lihat QueueService). Dipisah dari `status` karena
+        // administrasi booking dan kehadiran fisik adalah dua hal berbeda.
+        'queue_number',
+        'queue_date',
+        'queue_status',
+        'checked_in_at',
+        'called_at',
+        'queue_finished_at',
     ];
 
     protected $casts = [
@@ -41,7 +49,19 @@ class Booking extends Model
         'remaining_amount' => 'decimal:2',
         'payment_date' => 'datetime',
         'last_reminder_at' => 'datetime',
+        'queue_number' => 'integer',
+        'queue_date' => 'date:Y-m-d',
+        'checked_in_at' => 'datetime',
+        'called_at' => 'datetime',
+        'queue_finished_at' => 'datetime',
     ];
+
+    /** Sudah punya nomor antrian hari ini? */
+    public function hasQueueToday(): bool
+    {
+        return $this->queue_number !== null
+            && $this->queue_date?->toDateString() === today()->toDateString();
+    }
 
     /**
      * Always return booking_time as a plain "HH:mm" string.
@@ -122,6 +142,14 @@ class Booking extends Model
     public function service()
     {
         return $this->belongsTo(Service::class);
+    }
+
+    /**
+     * Catatan pengembalian uang (bisa lebih dari satu kali).
+     */
+    public function refunds()
+    {
+        return $this->hasMany(BookingRefund::class);
     }
 
     /**

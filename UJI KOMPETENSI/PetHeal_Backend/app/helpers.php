@@ -5,35 +5,33 @@ use App\Models\Clinic;
 if (!function_exists('currentClinic')) {
     function currentClinic(): ?Clinic
     {
-        // Request-level cache keyed by identity: currentClinic() is called
-        // 5-7x per admin request. Key includes user + session target so the
-        // cache can never leak one user's clinic to another (tests, Octane).
-        static $cached = [];
-        static $resolved = [];
-
+        // Cache per REQUEST (bukan static per proses): currentClinic() dipanggil
+        // 5-7x per request admin, tapi cache static pernah bertahan melewati
+        // request. Setelah `migrate:fresh` atau pergantian user, id yang sama
+        // bisa menunjuk klinik lama yang sudah tidak ada — query jadi bocor
+        // antar klinik/tenant. Request attribute selalu dibuang di akhir request.
         $user = auth()->user();
-        $cacheKey = ($user?->id ?? 'guest') . '|' . ($user->role ?? '') . '|' . (string) session('current_clinic_id');
+        $cacheKey = 'petheal.current_clinic.'
+            . ($user?->id ?? 'guest') . '|'
+            . ($user->role ?? '') . '|'
+            . (string) session('current_clinic_id');
 
-        if (array_key_exists($cacheKey, $resolved)) {
-            return $cached[$cacheKey];
+        $request = request();
+
+        if ($request->attributes->has($cacheKey)) {
+            return $request->attributes->get($cacheKey);
         }
 
-        $resolved[$cacheKey] = true;
-
-        if (!$user) {
+        if ($user && $user->role !== 'super_admin') {
+            $clinic = $user->clinic;
+        } else {
             $clinicId = session('current_clinic_id');
-            $cached[$cacheKey] = $clinicId ? Clinic::find($clinicId) : null;
-            return $cached[$cacheKey];
+            $clinic = $clinicId ? Clinic::find($clinicId) : null;
         }
 
-        if ($user->role === 'super_admin') {
-            $clinicId = session('current_clinic_id');
-            $cached[$cacheKey] = $clinicId ? Clinic::find($clinicId) : null;
-            return $cached[$cacheKey];
-        }
+        $request->attributes->set($cacheKey, $clinic);
 
-        $cached[$cacheKey] = $user->clinic;
-        return $cached[$cacheKey];
+        return $clinic;
     }
 }
 

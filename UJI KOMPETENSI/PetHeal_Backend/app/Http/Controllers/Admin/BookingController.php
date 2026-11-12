@@ -157,7 +157,15 @@ class BookingController extends Controller
         }
         $booking = $query->firstOrFail();
 
-        return view('admin.bookings.show', compact('booking'));
+        // Ringkasan refund: berapa yang sudah dikembalikan dan berapa sisa
+        // dana yang masih bisa dikembalikan. Dihitung di server agar form
+        // tidak menampilkan batas yang salah.
+        $refundService = app(\App\Services\RefundService::class);
+        $refunds = $booking->refunds()->latest()->get();
+        $refundedTotal = $refundService->refundedTotal($booking);
+        $refundable = $refundService->refundableAmount($booking);
+
+        return view('admin.bookings.show', compact('booking', 'refunds', 'refundedTotal', 'refundable'));
     }
 
     /**

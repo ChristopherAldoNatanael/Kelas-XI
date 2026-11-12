@@ -18,15 +18,54 @@ class MedicalRecordController extends Controller
 
     private function serializeRecord(MedicalRecord $record, bool $includeFullRecord = true): array
     {
-        $record->loadMissing(['booking', 'pet', 'doctor']);
+        // `attachments` ikut dimuat supaya lampiran tidak memicu N+1 query.
+        // `booking.clinic` ikut dimuat: satu pasien bisa berobat di beberapa
+        // klinik, jadi identitas klinik harus datang dari rekam medis/booking
+        // yang bersangkutan — bukan dari klinik yang terakhir dipakai.
+        $record->loadMissing(['booking.clinic', 'pet', 'doctor', 'attachments']);
         $canViewFullRecord = $record->can_view_full_record;
+        $clinic = $record->booking?->clinic;
 
         return [
             'id' => $record->id,
             'booking_id' => $record->booking_id,
             'pet_id' => $record->pet_id,
             'doctor_id' => $record->doctor_id,
+            'record_id' => $record->id,
+            // Klinik tempat rekam medis ini dibuat. Null bila booking lama
+            // tidak punya relasi klinik — UI wajib punya tampilan cadangan.
+            'clinic' => $clinic ? [
+                'id' => $clinic->id,
+                'name' => $clinic->name,
+                'slug' => $clinic->slug,
+                'address' => $clinic->address,
+                'phone' => $clinic->phone,
+                'logo_url' => $clinic->logo_url ?? null,
+                'primary_color' => $clinic->primary_color ?? null,
+            ] : null,
             'diagnosis' => $includeFullRecord && $canViewFullRecord ? $record->diagnosis : null,
+            // SOAP — di-gate dengan aturan yang sama seperti diagnosis:
+            // rekam medis terkunci tidak boleh membocorkan isi pemeriksaan.
+            'subjective' => $includeFullRecord && $canViewFullRecord ? $record->subjective : null,
+            'objective' => $includeFullRecord && $canViewFullRecord ? $record->objective : null,
+            'assessment' => $includeFullRecord && $canViewFullRecord ? $record->assessment : null,
+            'plan' => $includeFullRecord && $canViewFullRecord ? $record->plan : null,
+            // Lampiran tanpa URL valid (berkas hilang) dibuang, bukan dikirim
+            // sebagai entri kosong yang membuat UI menampilkan gambar rusak.
+            'attachments' => ($includeFullRecord && $canViewFullRecord)
+                ? $record->attachments
+                    ->map(fn ($attachment) => [
+                        'id' => $attachment->id,
+                        'url' => $attachment->url,
+                        'caption' => $attachment->caption,
+                        'original_name' => $attachment->original_name,
+                        'mime_type' => $attachment->mime_type,
+                        'is_image' => $attachment->isImage(),
+                    ])
+                    ->filter(fn ($item) => !empty($item['url']))
+                    ->values()
+                    ->all()
+                : [],
             'treatment' => $includeFullRecord && $canViewFullRecord ? $record->treatment : null,
             'medicine' => $includeFullRecord && $canViewFullRecord ? $record->medicine : null,
             'notes' => $includeFullRecord && $canViewFullRecord ? $record->notes : null,

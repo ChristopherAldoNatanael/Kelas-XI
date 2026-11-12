@@ -41,11 +41,15 @@ class DashboardController extends Controller
             $userBookingsQuery = Booking::whereHas('pet', fn($q) => $q->where('user_id', $user->id));
             $pendingBookings = (clone $userBookingsQuery)->where('status', 'pending')->count();
             $confirmedBookings = (clone $userBookingsQuery)->where('status', 'confirmed')->count();
+            // Booking batal tidak boleh muncul sebagai tagihan: jadwalnya sudah
+            // dibatalkan, jadi menagih sisanya menyesatkan pasien.
             $paymentAttentionCount = (clone $userBookingsQuery)
+                ->where('status', '!=', 'cancelled')
                 ->where('remaining_amount', '>', 0)
                 ->whereIn('payment_status', ['pending', 'unpaid', 'partial', 'dp_paid', 'failed'])
                 ->count();
             $outstandingAmount = (clone $userBookingsQuery)
+                ->where('status', '!=', 'cancelled')
                 ->where('remaining_amount', '>', 0)
                 ->sum('remaining_amount');
 

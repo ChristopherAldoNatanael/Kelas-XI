@@ -278,6 +278,11 @@ fun PetHealNavHost(
                 onNavigateToDoctor = { doctorId, autoReview ->
                     navController.navigate(Screen.DoctorDetail.createRoute(doctorId, autoReview))
                 },
+                // Baris dokter di Beranda membawa id kliniknya; detail dibuka
+                // dengan scope klinik itu supaya tidak bergantung klinik sesi.
+                onNavigateToDoctorInClinic = { doctorId, clinicId ->
+                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
+                },
                 onNavigateToBookings = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings) },
                 onNavigateToBookingDetail = { bookingId ->
                     navController.navigate(Screen.BookingDetail.createRoute(bookingId))
@@ -343,8 +348,8 @@ fun PetHealNavHost(
         composable(Screen.Doctors.route) {
             DoctorsScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onNavigateToDoctorDetail = { doctorId ->
-                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId))
+                onNavigateToDoctorDetail = { doctorId, clinicId ->
+                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
                 }
             )
         }
@@ -356,13 +361,20 @@ fun PetHealNavHost(
                 navArgument("autoReview") {
                     type = NavType.BoolType
                     defaultValue = false
+                },
+                navArgument("clinicId") {
+                    type = NavType.IntType
+                    defaultValue = 0
                 }
             )
         ) { backStackEntry ->
             val doctorId = backStackEntry.arguments?.getInt("doctorId") ?: return@composable
             val autoReview = backStackEntry.arguments?.getBoolean("autoReview") ?: false
+            val detailClinicId = backStackEntry.arguments?.getInt("clinicId")
+                ?.takeIf { it > 0 }
             DoctorDetailScreen(
                 doctorId = doctorId,
+                clinicId = detailClinicId,
                 autoOpenReview = autoReview,
                 onNavigateBack = { navController.popBackStack() }
             )
@@ -776,9 +788,11 @@ fun PetHealNavHost(
                 status = status,
                 message = message,
                 booking = paymentNavState.booking,
-                clinicName = paymentNavState.clinicName,
-                clinicAddress = paymentNavState.clinicAddress,
-                clinicColor = paymentNavState.clinicColor,
+                // MULTI-CLINIC: kop bukti = klinik transaksi (booking /
+                // rekam medis), bukan klinik aktif di preferensi.
+                clinicName = paymentNavState.receiptClinicName,
+                clinicAddress = paymentNavState.receiptClinicAddress,
+                clinicColor = paymentNavState.receiptClinicColor,
                 medicalRecord = paymentNavState.medicalRecord,
                 paymentMethodLabel = resultMethod,
                 // navigateTab mem-pop PaymentResult (dan sub-layar di atas

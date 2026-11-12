@@ -51,9 +51,12 @@ sealed class Screen(val route: String) {
 
     // ── Doctors ─────────────────────────────────────────────────────────────
     object Doctors      : Screen("doctors")
-    object DoctorDetail : Screen("doctors/{doctorId}?autoReview={autoReview}") {
-        fun createRoute(doctorId: Int, autoReview: Boolean = false) =
-            "doctors/$doctorId?autoReview=$autoReview"
+    // `clinicId` = klinik dokter yang diketuk. MULTI-CLINIC: detail dokter
+    // klinik lain harus dibuka dengan scope kliniknya sendiri, bukan klinik
+    // tersimpan — tanpa itu server bisa menjawab 404 untuk dokter yang sah.
+    object DoctorDetail : Screen("doctors/{doctorId}?autoReview={autoReview}&clinicId={clinicId}") {
+        fun createRoute(doctorId: Int, autoReview: Boolean = false, clinicId: Int? = null) =
+            "doctors/$doctorId?autoReview=$autoReview&clinicId=${clinicId ?: 0}"
     }
 
     // ── Bookings ────────────────────────────────────────────────────────────

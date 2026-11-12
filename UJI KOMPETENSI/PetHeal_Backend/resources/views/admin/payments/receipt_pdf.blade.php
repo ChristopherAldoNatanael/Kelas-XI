@@ -231,6 +231,12 @@
             <td class="muted">{{ __('admin.invoice_paid') }}</td>
             <td class="right" style="color: #087a3a;">{{ $money($booking->paid_amount) }}</td>
         </tr>
+        @if(($refundedTotal ?? 0) > 0)
+            <tr>
+                <td class="muted">{{ __('admin.refund_section') }}</td>
+                <td class="right" style="color: #b42318;">-{{ $money($refundedTotal) }}</td>
+            </tr>
+        @endif
         @if($booking->payment_type === 'dp' && (float) $booking->dp_amount > 0)
             <tr>
                 <td class="muted">{{ __('admin.invoice_dp_required') }}</td>

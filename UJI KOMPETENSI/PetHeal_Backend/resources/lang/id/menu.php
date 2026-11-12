@@ -10,11 +10,13 @@ return [
 
     // Sidebar menu items
     'patients' => 'Pasien',
+    'queue' => 'Antrian',
     'appointments' => 'Janji Temu',
     'appointments_schedule' => 'Janji Temu & Jadwal',
     'schedule' => 'Jadwal Klinik',
     'veterinarians' => 'Dokter Hewan',
     'services' => 'Layanan',
+    'medicines' => 'Stok Obat',
     'medical_records' => 'Rekam Medis',
     'payments' => 'Pembayaran',
     'clinics' => 'Klinik',

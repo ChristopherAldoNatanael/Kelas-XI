@@ -257,8 +257,11 @@ private fun CompareRow(
                         )
                         if (isActiveClinic) {
                             Spacer(Modifier.width(6.dp))
+                            // MULTI-CLINIC: bukan "klinik Anda" (pasien tidak
+                            // terikat satu klinik) — ini klinik yang terakhir
+                            // dipakai untuk booking.
                             Text(
-                                text = "Klinik Anda",
+                                text = "Terakhir dipakai",
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = PrimaryDark,
@@ -364,7 +367,7 @@ private fun CompareRow(
                     Spacer(Modifier.height(6.dp))
                     Text(
                         text = activeClinicName?.let {
-                            "Booking Anda saat ini memakai $it. Buka detail klinik ini untuk melihat dokter dan layanannya."
+                            "Booking terakhir memakai $it. Buka detail klinik ini untuk melihat dokter dan layanannya."
                         } ?: "Klinik booking belum dipilih. Buka detail klinik ini untuk melihat dokter dan layanannya.",
                         fontSize = 10.5.sp,
                         color = TextTertiary,

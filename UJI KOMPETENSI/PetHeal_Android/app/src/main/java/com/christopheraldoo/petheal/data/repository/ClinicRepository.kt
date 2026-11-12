@@ -171,14 +171,21 @@ class ClinicRepository @Inject constructor(
     /**
      * Kontak untuk klinik transaksi TERTENTU (alur booking lintas klinik).
      *
-     * `clinicSlug` = klinik dokter yang dibooking, bukan klinik favorit.
-     * Null/kosong jatuh ke klinik tersimpan — kontaknya tidak pernah dipalsukan.
+     * MULTI-CLINIC (2026-11-11): `clinicSlug` = klinik dokter yang dibooking,
+     * bukan klinik favorit. `fallbackToCurrent = false` dipakai alur
+     * transaksi supaya kontak klinik lain TIDAK PERNAH dipinjam saat slug
+     * klinik tujuan tidak diketahui (pesan bantuan bisa salah kirim).
      */
     suspend fun getSupportContactFor(
         clinicSlug: String?,
-        forceRefresh: Boolean = false
+        forceRefresh: Boolean = false,
+        fallbackToCurrent: Boolean = true
     ): Result<ClinicContact> {
-        val slug = clinicSlug?.takeIf { it.isNotBlank() } ?: currentSlug()
+        val explicit = clinicSlug?.takeIf { it.isNotBlank() }
+        if (explicit == null && !fallbackToCurrent) {
+            return Result.Error("Klinik tujuan belum diketahui. Kontak klinik tidak bisa dimuat.")
+        }
+        val slug = explicit ?: currentSlug()
         if (slug.isNullOrBlank()) {
             return Result.Error("Klinik belum dipilih. Pilih klinik terlebih dahulu.")
         }

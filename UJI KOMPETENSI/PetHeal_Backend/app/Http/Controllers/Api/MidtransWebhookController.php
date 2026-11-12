@@ -62,7 +62,9 @@ class MidtransWebhookController extends Controller
                 $orderId . $statusCode . $grossAmount . $this->midtrans->getServerKey()
             );
 
-            if ($signatureKey !== $expectedSignature) {
+            // hash_equals: perbandingan waktu-tetap, tidak bisa ditebak lewat
+            // perbedaan waktu respons seperti perbandingan string biasa.
+            if (!is_string($signatureKey) || !hash_equals((string) $expectedSignature, $signatureKey)) {
                 Log::warning('Invalid webhook signature', [
                     'order_id' => $orderId,
                     'has_signature' => !empty($signatureKey),

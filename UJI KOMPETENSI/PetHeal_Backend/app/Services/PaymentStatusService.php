@@ -232,6 +232,12 @@ class PaymentStatusService
                     ];
                 }
 
+                // Jumlah yang dikirim Midtrans dicatat apa adanya. Pengecekan
+                // terhadap sisa tagihan dilakukan di bawah, SETELAH event
+                // dicatat, supaya:
+                //  1. event tidak hilang dari payment_events (jejak audit), dan
+                //  2. event duplikat tetap menghasilkan respons yang sama
+                //     (idempoten) saat Midtrans mengirim ulang.
                 $currentPaidAmount = (float) $booking->paid_amount + $gross;
                 $remainingAmount = max(0, (float) $booking->total_amount - $currentPaidAmount);
 

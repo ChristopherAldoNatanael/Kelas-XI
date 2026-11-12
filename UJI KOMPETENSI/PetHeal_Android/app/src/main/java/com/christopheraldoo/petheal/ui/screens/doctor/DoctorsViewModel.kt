@@ -287,12 +287,21 @@ class DoctorsViewModel @Inject constructor(
 
     fun clearNotice() {
         _listState.value = _listState.value.copy(notice = null)
-    }    fun loadDoctorDetail(doctorId: Int) {
+    }
+
+    /**
+     * MULTI-CLINIC (2026-11-11): `clinicId` diambil dari baris dokter yang
+     * diketuk (beranda "Dokter terdekat" / Cari Dokter). Tanpa scope ini
+     * permintaan detail memakai konteks klinik tersimpan, sehingga dokter
+     * klinik lain bisa dijawab 404 dan layar menampilkan "dokter tidak
+     * ditemukan" padahal dokternya sah.
+     */
+    fun loadDoctorDetail(doctorId: Int, clinicId: Int? = null) {
         viewModelScope.launch {
             _detailState.value = DoctorDetailUiState(isLoading = true)
 
             // Load doctor info (akan pakai cache per-ID jika ada — instan)
-            when (val result = doctorRepository.getDoctor(doctorId)) {
+            when (val result = doctorRepository.getDoctor(doctorId, clinicId = clinicId)) {
                 is Result.Success -> _detailState.value = _detailState.value.copy(
                     doctor = result.data, isLoading = false
                 )

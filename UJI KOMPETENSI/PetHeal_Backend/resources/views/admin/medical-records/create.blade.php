@@ -54,7 +54,8 @@
     </x-admin.panel>
 
     <x-admin.panel :title="__('admin.documentation_clinical')">
-        <form method="POST" action="{{ route('admin.medical-records.store') }}" class="space-y-6">
+        <form method="POST" action="{{ route('admin.medical-records.store') }}"
+              enctype="multipart/form-data" class="space-y-6">
             @csrf
             <input type="hidden" name="booking_id" value="{{ $booking->id }}">
 
@@ -84,11 +85,26 @@
                 </div>
             </div>
 
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.soap-fields', ['record' => null])
+            </div>
+
             <div>
                 <label for="medicine" class="admin-label">{{ __('admin.medicine') }}</label>
                 <textarea name="medicine" id="medicine" rows="2" class="admin-input"
                           placeholder="{{ __('admin.medicine_placeholder') }}">{{ old('medicine') }}</textarea>
                 @error('medicine') <p class="admin-error">{{ $message }}</p> @enderror
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.prescription-fields', [
+                    'record' => null,
+                    'medicines' => $medicines ?? collect(),
+                ])
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                @include('admin.medical-records.partials.attachments-fields', ['record' => null])
             </div>
 
             <div class="grid grid-cols-1 gap-6 md:grid-cols-3">

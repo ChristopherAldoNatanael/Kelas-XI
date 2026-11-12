@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\DoctorInviteMail;
 use App\Models\AuditLog;
 use App\Models\Doctor;
+use App\Models\MedicalRecord;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -117,9 +118,13 @@ class DoctorController extends Controller
                     Log::info('Doctor photo stored successfully (compressed): ' . $path);
                 } else {
                     Log::error('Failed to store doctor photo');
+                    $flash = ['error' => __('admin.doctor_photo_failed')];
                 }
             } catch (\Exception $e) {
+                // Dulu kegagalan ini hanya masuk log: admin melihat "berhasil"
+                // padahal foto tidak tersimpan. Sekarang kegagalan dilaporkan.
                 Log::error('Doctor photo upload error: ' . $e->getMessage());
+                $flash = ['error' => __('admin.doctor_photo_failed')];
             }
         }
 
@@ -131,7 +136,7 @@ class DoctorController extends Controller
 
         AuditLog::log('doctor.create', "Created doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', __('admin.doctor_created'));
+        return redirect()->route('admin.doctors.index')->with($flash ?? ['success' => __('admin.doctor_created')]);
     }
 
     /**
@@ -367,9 +372,11 @@ class DoctorController extends Controller
                     Log::info('Doctor photo updated successfully (compressed): ' . $path);
                 } else {
                     Log::error('Failed to update doctor photo');
+                    $flash = ['error' => __('admin.doctor_photo_failed')];
                 }
             } catch (\Exception $e) {
                 Log::error('Doctor photo update error: ' . $e->getMessage());
+                $flash = ['error' => __('admin.doctor_photo_failed')];
             }
         }
 
@@ -391,7 +398,7 @@ class DoctorController extends Controller
 
         AuditLog::log('doctor.update', "Updated doctor {$doctor->name}", $doctor);
 
-        return redirect()->route('admin.doctors.index')->with('success', __('admin.doctor_updated'));
+        return redirect()->route('admin.doctors.index')->with($flash ?? ['success' => __('admin.doctor_updated')]);
     }
 
     /**
@@ -410,6 +417,29 @@ class DoctorController extends Controller
         // tidak meninggalkan user role=doctor tanpa profil praktik.
         if ($doctor->user_id) {
             return back()->with('error', 'Cabut akses portal dokter terlebih dahulu sebelum menghapus profil dokter.');
+        }
+
+        // JANGAN cascade-delete riwayat klinis & keuangan. FK bookings.doctor_id
+        // dan medical_records.doctor_id memakai onDelete('cascade'), jadi
+        // menghapus profil dokter ikut memusnahkan invoice, rekam medis, dan
+        // jejak audit pasien lain. Pola ini sama dengan guard hapus pasien di
+        // Admin\UserController::destroy().
+        $hasHistory = $doctor->bookings()->exists()
+            || MedicalRecord::where('doctor_id', $doctor->id)->exists();
+
+        if ($hasHistory) {
+            $doctor->forceFill(['is_active' => false])->save();
+            $this->refreshDoctorApiCache();
+
+            AuditLog::log(
+                'doctor.deactivate',
+                "Doctor {$doctor->name} hidden instead of deleted — has booking/medical history",
+                $doctor
+            );
+
+            return redirect()
+                ->route('admin.doctors.index')
+                ->with('error', __('admin.cannot_delete_doctor_with_history'));
         }
 
         // Delete photo if exists

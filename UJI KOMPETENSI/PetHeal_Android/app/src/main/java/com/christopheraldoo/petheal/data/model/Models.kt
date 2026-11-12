@@ -19,11 +19,17 @@ data class User(
 
 // ============= CLINIC MODELS (multi-tenant) =============
 // Backend: GET /api/public/clinics(+/{slug}), X-Clinic-Slug header,
-// ?clinic_slug= on anonymous catalog calls. User is bound to exactly one.
+// ?clinic_slug= on anonymous catalog calls.
+//
+// MULTI-CLINIC (2026-11-11): pasien TIDAK terikat satu klinik. Objek ini
+// dipakai sebagai label klinik milik satu transaksi (booking/rekam medis),
+// jadi `address` & `phone` ikut dibaca agar struk mencetak alamat yang benar.
 data class ClinicRef(
     val id: Int? = null,
     val name: String? = null,
     val slug: String? = null,
+    val address: String? = null,
+    val phone: String? = null,
     @SerializedName("logo_url") val logoUrl: String? = null,
     @SerializedName("primary_color") val primaryColor: String? = null
 )
@@ -479,6 +485,21 @@ data class Booking(
     @SerializedName("cancellation_reason") val cancellationReason: String? = null,
     @SerializedName("confirmed_at") val confirmedAt: String? = null,
     @SerializedName("completed_at") val completedAt: String? = null,
+    // Antrian harian klinik. Null = belum check-in; nomor hanya ada setelah
+    // pasien datang dan klinik (atau pasien sendiri) melakukan check-in.
+    @SerializedName("queue_number") val queueNumber: Int? = null,
+    @SerializedName("queue_date") val queueDate: String? = null,
+    @SerializedName("queue_status") val queueStatus: String? = null,
+    @SerializedName("queue_label") val queueLabel: String? = null,
+    /** Jumlah antrian di depan; null bila sudah dilayani/selesai. */
+    @SerializedName("queue_position") val queuePosition: Int? = null,
+    @SerializedName("checked_in_at") val checkedInAt: String? = null,
+    /**
+     * MULTI-CLINIC: klinik milik BOOKING ini. Struk & detail booking wajib
+     * memakai nilai ini, bukan klinik terakhir yang dipakai di aplikasi.
+     */
+    val clinic: ClinicRef? = null,
+    @SerializedName("clinic_id") val clinicId: Int? = null,
     val pet: Pet? = null,
     val doctor: Doctor? = null,
     val service: Service? = null,
@@ -531,6 +552,13 @@ data class MedicalRecord(
     @SerializedName("pet_id") val petId: Int? = null,
     @SerializedName("doctor_id") val doctorId: Int? = null,
     val diagnosis: String? = null,
+    // SOAP — nullable karena rekam medis lama hanya punya diagnosis/treatment.
+    // Null juga berarti "tersembunyi" selama record masih terkunci pembayaran.
+    val subjective: String? = null,
+    val objective: String? = null,
+    val assessment: String? = null,
+    val plan: String? = null,
+    val attachments: List<MedicalRecordAttachment>? = null,
     val treatment: String? = null,
     val medicine: String? = null,
     val notes: String? = null,
@@ -545,11 +573,37 @@ data class MedicalRecord(
     @SerializedName("extra_payment_order_id") val extraPaymentOrderId: String? = null,
     @SerializedName("extra_payment_date") val extraPaymentDate: String? = null,
     @SerializedName("can_view_full_record") val canViewFullRecord: Boolean? = null,
+    /**
+     * Klinik tempat rekam medis ini dibuat (dari booking-nya, bukan klinik
+     * yang terakhir dipakai). Null untuk data lama → UI menampilkan cadangan
+     * netral, bukan nama klinik lain.
+     */
+    val clinic: ClinicRef? = null,
     val booking: Booking? = null,
     val pet: Pet? = null,
     val doctor: Doctor? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
+
+/**
+ * Lampiran rekam medis (rontgen / hasil lab / foto kondisi).
+ *
+ * `url` sudah null di server bila berkas hilang, jadi UI tidak perlu menebak.
+ */
+data class MedicalRecordAttachment(
+    val id: Int? = null,
+    val url: String? = null,
+    val caption: String? = null,
+    @SerializedName("original_name") val originalName: String? = null,
+    @SerializedName("mime_type") val mimeType: String? = null,
+    @SerializedName("is_image") val isImage: Boolean = false
+) {
+    /** Label yang jujur: keterangan dulu, baru nama berkas. */
+    val label: String
+        get() = caption?.takeIf { it.isNotBlank() }
+            ?: originalName?.takeIf { it.isNotBlank() }
+            ?: "Lampiran"
+}
 
 data class MedicalRecordsResponse(
     val success: Boolean,

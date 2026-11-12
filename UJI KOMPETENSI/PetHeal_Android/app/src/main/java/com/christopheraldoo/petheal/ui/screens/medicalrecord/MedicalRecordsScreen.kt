@@ -47,8 +47,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.FilterAlt
@@ -95,12 +99,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.model.MedicalRecordAttachment
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
@@ -341,9 +347,12 @@ fun MedicalRecordDetailScreen(
                     item {
                         MedicalRecordPaymentSection(
                             record = record,
-                            clinicName = state.clinicName,
-                            clinicAddress = state.clinicAddress,
-                            clinicColor = state.clinicColor,
+                            // KlINIK milik rekam medis ini saja. Bila null,
+                            // bukti memakai label netral "Klinik" — tidak
+                            // pernah meminjam klinik sesi yang lain.
+                            clinicName = record.clinic?.name,
+                            clinicAddress = record.clinic?.address,
+                            clinicColor = record.clinic?.primaryColor,
                             onPayClick = { bookingId, amount ->
                                 onNavigateToExtraPayment(bookingId, record.id ?: recordId, amount)
                             }
@@ -768,6 +777,18 @@ private fun MedicalRecordListCard(
                             color = MrTextSecondary,
                             fontSize = 13.sp
                         )
+                        // MULTI-CLINIC: nama klinik penerbit. Tanpa label ini
+                        // pasien tidak bisa membedakan rekam dari klinik mana.
+                        record.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                            Text(
+                                text = clinicName,
+                                color = MrPrimaryDeep,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
 
@@ -970,6 +991,20 @@ private fun MedicalRecordIdentitySection(record: MedicalRecord) {
             accent = MrSky,
             background = MrSkySoft
         )
+
+        // MULTI-CLINIC: pasien bisa berobat di beberapa klinik, jadi klinik
+        // penerbit rekam medis ini wajib disebut. Baris disembunyikan bila
+        // server tidak mengirim klinik — tidak diganti klinik lain.
+        record.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+            Spacer(Modifier.height(12.dp))
+            IdentityCard(
+                icon = Icons.Filled.Business,
+                title = clinicName,
+                subtitle = record.clinic.address?.takeIf { it.isNotBlank() } ?: "Klinik penerbit",
+                accent = MrPrimaryDeep,
+                background = MrPrimarySoft
+            )
+        }
     }
 }
 
@@ -1132,6 +1167,25 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
             title = "Diagnosis",
             body = record.diagnosis ?: "-"
         )
+
+        // SOAP hanya muncul bila dokter mengisinya. Rekam medis lama tidak
+        // menampilkan blok kosong.
+        listOf(
+            Triple("S — Keluhan pemilik", record.subjective, Icons.Filled.Article),
+            Triple("O — Temuan pemeriksaan", record.objective, Icons.Filled.MedicalServices),
+            Triple("A — Penilaian", record.assessment, Icons.Filled.HealthAndSafety),
+            Triple("P — Rencana", record.plan, Icons.Filled.Schedule)
+        ).forEach { (title, body, icon) ->
+            if (!body.isNullOrBlank()) {
+                Spacer(Modifier.height(12.dp))
+                NarrativeBlock(icon = icon, title = title, body = body)
+            }
+        }
+
+        if (!record.attachments.isNullOrEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            AttachmentList(record.attachments)
+        }
 
         Spacer(Modifier.height(12.dp))
 
@@ -1381,6 +1435,90 @@ private fun IdentityCard(
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(title, color = MrTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 Text(subtitle, color = MrTextSecondary, fontSize = 13.sp, lineHeight = 19.sp)
+            }
+        }
+    }
+}
+
+/**
+ * Daftar lampiran pemeriksaan (rontgen/lab/foto).
+ *
+ * Dibuka lewat browser/penampil bawaan sistem — tidak perlu menambah
+ * dependensi penampil PDF hanya untuk ini. Entri tanpa URL tidak pernah
+ * dikirim server, tetapi tetap dijaga di sini.
+ */
+@Composable
+private fun AttachmentList(attachments: List<MedicalRecordAttachment>) {
+    val uriHandler = LocalUriHandler.current
+    val openable = attachments.filter { !it.url.isNullOrBlank() }
+    if (openable.isEmpty()) return
+
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = MrSurfaceAlt,
+        border = BorderStroke(1.dp, MrBorder)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                "Lampiran pemeriksaan",
+                color = MrTextPrimary,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            openable.forEach { attachment ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .clickable { attachment.url?.let(uriHandler::openUri) }
+                        .padding(vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(38.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MrPrimarySoft),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (attachment.isImage) Icons.Filled.Photo else Icons.Filled.Description,
+                            contentDescription = null,
+                            tint = MrPrimary,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            attachment.label,
+                            color = MrTextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Text(
+                            if (attachment.isImage) "Foto · ketuk untuk membuka" else "Dokumen PDF · ketuk untuk membuka",
+                            color = MrTextSecondary,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    Icon(
+                        Icons.Filled.OpenInNew,
+                        contentDescription = null,
+                        tint = MrTextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

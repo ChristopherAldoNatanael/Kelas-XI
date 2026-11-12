@@ -2,6 +2,14 @@
 
 Sistem backend lengkap untuk aplikasi booking klinik hewan dengan Firebase Authentication, FCM Notifications, dan Admin Panel.
 
+> **Status arsitektur (2026-11-09):** platform sudah **multi-klinik**. Pasien
+> adalah akun global yang boleh booking di klinik berbeda; staf tetap terkurung
+> ke kliniknya. Pendaftaran memakai **kode OTP email** (bukan Firebase), dan ada
+> **portal dokter** terpisah. Dokumentasi yang berlaku:
+> [`docs/MULTI_CLINIC_BEFORE_AFTER.md`](../docs/MULTI_CLINIC_BEFORE_AFTER.md).
+> Bagian README di bawah masih menggambarkan model satu-klinik awal — jangan
+> dipakai sebagai acuan alur saat ini.
+
 ## 🚀 Fitur Utama
 
 ### 📱 Mobile API (Android)

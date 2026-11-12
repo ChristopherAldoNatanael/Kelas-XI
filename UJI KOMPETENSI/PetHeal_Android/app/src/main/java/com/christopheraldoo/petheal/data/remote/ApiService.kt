@@ -272,6 +272,10 @@ interface ApiService {
     @POST("bookings")
     suspend fun createBooking(@Body booking: BookingRequest): Response<BookingResponse>
 
+    /** Check-in mandiri: hanya berlaku pada hari jadwal & booking terkonfirmasi. */
+    @POST("bookings/{id}/check-in")
+    suspend fun checkInBooking(@Path("id") id: Int): Response<BookingResponse>
+
     @POST("bookings/{id}/cancel")
     suspend fun cancelBooking(@Path("id") id: Int, @Body reason: Map<String, String>): Response<BookingResponse>
 

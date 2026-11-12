@@ -7,6 +7,7 @@ use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
+use App\Models\Medicine;
 use App\Models\Pet;
 use App\Models\Service;
 use App\Models\User;
@@ -110,10 +111,19 @@ class DashboardController extends Controller
             $paidInFull = (clone $baseBooking())->where('payment_status', 'paid')->count();
             $failedPayments = (clone $baseBooking())->where('payment_status', 'failed')->count();
 
-            $totalCollected = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(paid_amount), 0) as total')
-                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
-                ->value('total') ?? 0;
+            // Formula yang sama dengan PaymentController::paymentStats():
+            // seluruh paid_amount dikurangi refund. Tanpa pengurangan refund,
+            // dashboard menampilkan pendapatan lebih besar dari halaman
+            // pembayaran untuk klinik yang sama.
+            $collectedQuery = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
+
+            $grossCollected = (float) (clone $collectedQuery)->sum('paid_amount');
+            $refundedTotal = (float) \Illuminate\Support\Facades\DB::table('booking_refunds')
+                ->whereIn('booking_id', (clone $collectedQuery)->select('id'))
+                ->sum('amount');
+
+            $totalCollected = $grossCollected - $refundedTotal;
             $totalOutstanding = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
                 ->selectRaw('COALESCE(SUM(remaining_amount), 0) as total')
                 ->where('remaining_amount', '>', 0)
@@ -212,11 +222,31 @@ class DashboardController extends Controller
             ->distinct()
             ->count('booking_id');
 
+        // Stok obat dihitung LIVE (tidak di-cache) supaya setelah obat
+        // dipakai pada resep, peringatan langsung berubah di dashboard.
+        $lowStockMedicines = Medicine::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->lowStock()
+            ->where('is_active', true)
+            ->orderBy('stock')
+            ->limit(5)
+            ->get();
+        $lowStockCount = Medicine::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->lowStock()
+            ->where('is_active', true)
+            ->count();
+        $expiringMedicinesCount = Medicine::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->expiringSoon(60)
+            ->where('is_active', true)
+            ->count();
+
         return view('admin.dashboard', compact(
             'todayBookings',
             'pendingBookings',
             'totalPatients',
             'totalDoctors',
+            'lowStockMedicines',
+            'lowStockCount',
+            'expiringMedicinesCount',
             'todayRevenue',
             'monthlyRevenue',
             'monthlyBookingData',

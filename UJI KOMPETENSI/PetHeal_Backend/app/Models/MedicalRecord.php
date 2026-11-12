@@ -15,6 +15,12 @@ class MedicalRecord extends Model
         // silently dropped `clinic_id` on create and clinic-scoped queries
         // could never match those rows.
         'clinic_id',
+        // SOAP — catatan terstruktur. `diagnosis`/`treatment` tetap dipertahankan
+        // sebagai ringkasan wajib agar rekam medis lama dan ekspor tidak berubah.
+        'subjective',
+        'objective',
+        'assessment',
+        'plan',
         'diagnosis',
         'treatment',
         'medicine',
@@ -96,7 +102,43 @@ class MedicalRecord extends Model
         $this->setAttribute('notes', null);
         $this->setAttribute('next_visit_date', null);
 
+        // SOAP juga data klinis: jangan bocor saat record masih terkunci
+        // pembayaran tambahan.
+        $this->setAttribute('subjective', null);
+        $this->setAttribute('objective', null);
+        $this->setAttribute('assessment', null);
+        $this->setAttribute('plan', null);
+
+        // Lampiran adalah bukti pemeriksaan; sembunyikan saat terkunci.
+        $this->unsetRelation('attachments');
+        $this->setRelation('attachments', collect());
+
         return $this;
+    }
+
+    /**
+     * Lampiran pemeriksaan (rontgen/lab/foto kondisi).
+     */
+    public function attachments()
+    {
+        return $this->hasMany(MedicalRecordAttachment::class, 'medical_record_id');
+    }
+
+    /**
+     * Item resep terstruktur. Menggantikan peran teks bebas `medicine` untuk
+     * keperluan pemotongan stok, tetapi kolom teks lama tetap ada.
+     */
+    public function prescriptionItems()
+    {
+        return $this->hasMany(PrescriptionItem::class, 'medical_record_id');
+    }
+
+    /** Total harga seluruh item resep. */
+    public function getPrescriptionTotalAttribute(): float
+    {
+        return (float) $this->prescriptionItems->sum(
+            fn ($item) => (float) $item->quantity * (float) $item->unit_price
+        );
     }
 
     public function clinic()

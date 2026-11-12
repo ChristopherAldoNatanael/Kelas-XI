@@ -9,6 +9,7 @@ use App\Models\PaymentMethod;
 use App\Models\Service;
 use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
+use App\Services\QueueService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,9 +21,28 @@ class BookingController extends Controller
 
     public function __construct(
         FCMService $fcmService,
-        private readonly DoctorScheduleService $schedule
+        private readonly DoctorScheduleService $schedule,
+        private readonly QueueService $queue
     ) {
         $this->fcmService = $fcmService;
+    }
+
+    /**
+     * Tempelkan label & posisi antrian ke satu booking.
+     *
+     * Nomor mentah (`queue_number`) sudah ada di model, tetapi aplikasi
+     * menampilkan "A-01" dan "X antrian lagi". Tanpa dua field turunan ini
+     * strip antrian hilang setiap kali daftar di-refresh — dulu hanya respons
+     * check-in yang menghitungnya.
+     */
+    private function attachQueueMeta(Booking $booking): Booking
+    {
+        $booking->setAttribute('queue_label', $booking->queue_number
+            ? 'A-' . str_pad((string) $booking->queue_number, 2, '0', STR_PAD_LEFT)
+            : null);
+        $booking->setAttribute('queue_position', $this->queue->positionOf($booking));
+
+        return $booking;
     }
 
     /**
@@ -30,6 +50,8 @@ class BookingController extends Controller
      */
     public function index(Request $request)
     {
+        // `clinic` wajib ikut: aplikasi mencetak struk per booking, dan pasien
+        // bisa punya booking di beberapa klinik sekaligus.
         $bookings = $request->user()->bookings()
             ->with(['pet', 'doctor', 'service', 'clinic'])
             ->orderBy('booking_date', 'desc')
@@ -38,7 +60,9 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $bookings->items(),
+            'data' => collect($bookings->items())
+                ->map(fn (Booking $booking) => $this->attachQueueMeta($booking))
+                ->all(),
             'pagination' => [
                 'current_page' => $bookings->currentPage(),
                 'last_page' => $bookings->lastPage(),
@@ -64,7 +88,9 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $bookings,
+            'data' => $bookings
+                ->map(fn (Booking $booking) => $this->attachQueueMeta($booking))
+                ->all(),
         ]);
     }
 
@@ -91,7 +117,7 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $booking,
+            'data' => $this->attachQueueMeta($booking),
         ]);
     }
 
@@ -317,7 +343,10 @@ class BookingController extends Controller
             ], 409);
         }
 
-        $booking->load(['pet', 'doctor', 'service']);
+        // MULTI-CLINIC (2026-11-11): respons juga membawa klinik transaksi.
+        // Tanpa ini aplikasi harus menebak klinik dari pilihan user, padahal
+        // klinik booking = klinik dokter (bisa berbeda dari klinik favorit).
+        $booking->load(['pet', 'doctor', 'service', 'clinic']);
 
         // Send notification (booking_date is now a plain string via accessor)
         $this->fcmService->sendBookingStatusUpdate(
@@ -335,6 +364,60 @@ class BookingController extends Controller
             'message' => 'Booking created successfully',
             'data' => $booking,
         ], 201);
+    }
+
+    /**
+     * Check-in mandiri: pasien tiba di klinik, mendapat nomor antrian.
+     *
+     * MULTI-CLINIC (2026-11-11): rute ini sebelumnya menunjuk method yang
+     * tidak ada, sehingga tombol check-in di aplikasi selalu 500. Aturan yang
+     * dijaga sama dengan `QueueService`: hanya booking milik pasien, hanya
+     * pada tanggal jadwal (hari ini), hanya status confirmed, dan idempoten.
+     * Nomor unik per klinik per hari — klinik B mulai dari 1 lagi.
+     */
+    public function checkIn(Request $request, $id)
+    {
+        $booking = $request->user()->bookings()->with(['pet', 'doctor', 'service', 'clinic'])->find($id);
+
+        if (!$booking) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Booking tidak ditemukan.',
+            ], 404);
+        }
+
+        // `booking_date` di-cast `date:Y-m-d` (string) untuk Android.
+        $bookingDate = substr((string) $booking->booking_date, 0, 10);
+        if ($bookingDate !== today()->toDateString()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Check-in hanya bisa dilakukan pada hari jadwal.',
+            ], 422);
+        }
+
+        try {
+            $booking = $this->queue->checkIn($booking, $bookingDate, (string) $request->user()->id);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
+        }
+
+        // Field turunan ikut di dalam `data` (bukan hanya level atas) supaya
+        // klien yang memetakan DTO Booking tetap menerima label & posisi.
+        $fresh = $this->attachQueueMeta(
+            $booking->fresh(['pet', 'doctor', 'service', 'clinic'])
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Check-in berhasil.',
+            'data' => $fresh,
+            'queue_number' => $fresh->queue_number,
+            'queue_label' => $fresh->queue_label,
+            'queue_position' => $fresh->queue_position,
+        ]);
     }
 
     /**
@@ -364,8 +447,9 @@ class BookingController extends Controller
             'cancellation_reason' => $request->filled('reason') ? $request->input('reason') : null,
         ]);
 
-        // Invoice/receipt consumers need the service name, not just pet+doctor.
-        $booking->load(['pet', 'doctor', 'service']);
+        // Invoice/receipt consumers need the service name AND the clinic that
+        // owns this booking (pasien bisa booking di klinik berbeda).
+        $booking->load(['pet', 'doctor', 'service', 'clinic']);
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(
@@ -461,7 +545,7 @@ class BookingController extends Controller
             ], 409);
         }
 
-        $booking->load(['pet', 'doctor', 'service']);
+        $booking->load(['pet', 'doctor', 'service', 'clinic']);
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(

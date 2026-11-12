@@ -26,6 +26,8 @@ data class DoctorListing(
     val distanceKm: Double? = null
 ) {
     val id: Int? get() = doctor.id
+    /** Id klinik dokter; dipakai membuka detail dokter lintas klinik. */
+    val clinicId: Int? get() = doctor.clinic?.id
     val hasClinic: Boolean get() = !clinicName.isNullOrBlank() || !clinicSlug.isNullOrBlank()
     /** Label siap tampil; null berarti tidak ada yang jujur untuk ditulis. */
     val clinicLabel: String?

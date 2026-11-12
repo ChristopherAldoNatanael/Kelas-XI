@@ -1,4 +1,8 @@
-# PetHeal Laravel Backend - Implementation Progress
+# PetHeal Backend — Catatan implementasi
+
+> Dokumen ini adalah catatan fase awal (model satu-klinik). Untuk arsitektur
+> yang berlaku sekarang (publik multi-klinik, OTP, rekam medis dokter),
+> baca `../docs/MULTI_CLINIC_BOOKING.md`.
 
 ## ✅ Phase 1: Package Installation & Configuration
 

@@ -121,6 +121,8 @@ fun HomeScreen(
     // MULTI-CLINIC DISCOVERY: masuk ke pencarian/penjelajahan klinik.
     onNavigateToDiscovery: () -> Unit = {},
     onNavigateToDoctor: (doctorId: Int, autoReview: Boolean) -> Unit = { _, _ -> },
+    // MULTI-CLINIC: baris "Dokter terdekat" membawa kliniknya sendiri.
+    onNavigateToDoctorInClinic: (doctorId: Int, clinicId: Int?) -> Unit = { _, _ -> },
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -214,7 +216,7 @@ fun HomeScreen(
 
             NearbyDoctorsSection(
                 state = uiState,
-                onDoctorClick = { doctorId -> onNavigateToDoctor(doctorId, false) },
+                onDoctorClick = { doctorId, clinicId -> onNavigateToDoctorInClinic(doctorId, clinicId) },
                 onSeeAll = onNavigateToDoctors,
                 onEnableLocation = { viewModel.loadNearbyDoctors(forceGps = true) }
             )
@@ -426,12 +428,17 @@ private fun HeaderSection(
                     .border(2.dp, brandColor.copy(alpha = 0.35f), CircleShape)
                     .background(brandColor.copy(alpha = 0.15f))
             ) {
-                // Tenant logo wins; user photo is the fallback; icon last.
-                val logoModel = clinicLogo?.takeIf { it.isNotBlank() } ?: userPhoto
-                if (!logoModel.isNullOrBlank()) {
+                // MULTI-CLINIC (2026-11-11): avatar = FOTO PASIEN. Versi lama
+                // mendahulukan logo klinik terakhir dipakai, sehingga identitas
+                // pasien tergantikan oleh branding satu klinik — salah pada
+                // aplikasi lintas klinik (dan menyamarkan foto profil suntingan
+                // user). Logo klinik tetap dipakai HANYA saat tidak ada foto.
+                val avatarModel = userPhoto?.takeIf { it.isNotBlank() }
+                    ?: clinicLogo?.takeIf { it.isNotBlank() }
+                if (!avatarModel.isNullOrBlank()) {
                     ThumbnailImage(
-                        model = logoModel,
-                        contentDescription = clinicName ?: "Foto Profil",
+                        model = avatarModel,
+                        contentDescription = "Foto Profil",
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(CircleShape)
@@ -450,30 +457,33 @@ private fun HeaderSection(
 
             Column {
                 val firstName = userName.trim().split(" ").firstOrNull { it.isNotBlank() }.orEmpty()
-                // PHASE 7: tenant-aware greeting — "Selamat datang di <Klinik>".
+                // MULTI-CLINIC (2026-11-11): sapaan TIDAK lagi mengklaim pasien
+                // berada "di" satu klinik. Pasien bisa berobat di klinik mana
+                // pun; klinik yang tampil hanya klinik TERAKHIR dipakai dan
+                // diberi label apa adanya, bukan seolah-olah klinik tetap.
                 if (!clinicName.isNullOrBlank()) {
                     Text(
-                        text = "Selamat datang di",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = HomeTextSecondary
-                    )
-                    Text(
-                        text = clinicName,
+                        text = if (firstName.isNotBlank()) "Halo, $firstName!" else "Selamat datang kembali,",
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold,
                         color = HomeTextPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (firstName.isNotBlank()) {
-                        Text(
-                            text = "Halo, $firstName!",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = HomeTextSecondary
-                        )
-                    }
+                    Text(
+                        text = "Klinik terakhir dipakai",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = HomeTextSecondary
+                    )
+                    Text(
+                        text = clinicName,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = brandColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 } else if (firstName.isBlank()) {
                     Text(
                         text = "Selamat datang kembali,",
@@ -776,6 +786,29 @@ private fun UpcomingBookingSection(
                                     color = TextMuted
                                 )
                             }
+
+                            // MULTI-CLINIC: tujuan kunjungan terdekat. Klinik
+                            // booking, bukan klinik terakhir dipakai.
+                            uiState.upcomingBooking?.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Filled.LocalHospital,
+                                        contentDescription = null,
+                                        tint = HomeTextSecondary,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = clinicName,
+                                        fontSize = 12.sp,
+                                        color = HomeTextSecondary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
                         }
 
                         DoctorPhotoCard(photo = uiState.upcomingBooking?.doctor?.photo)
@@ -831,7 +864,7 @@ private fun UpcomingBookingSection(
 @Composable
 private fun NearbyDoctorsSection(
     state: HomeUiState,
-    onDoctorClick: (Int) -> Unit,
+    onDoctorClick: (doctorId: Int, clinicId: Int?) -> Unit,
     onSeeAll: () -> Unit,
     onEnableLocation: () -> Unit
 ) {
@@ -911,7 +944,7 @@ private fun NearbyDoctorsSection(
                 state.nearbyDoctors.forEach { listing ->
                     NearbyDoctorRow(
                         listing = listing,
-                        onClick = { listing.id?.let(onDoctorClick) }
+                        onClick = { listing.id?.let { onDoctorClick(it, listing.clinicId) } }
                     )
                 }
             }
@@ -1177,6 +1210,17 @@ private fun RecentVisitCard(record: MedicalRecord) {
                     Text(text = record.pet?.name ?: "Pasien", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = HomeTextPrimary)
                     Text(text = record.doctor?.name ?: "Dokter", fontSize = 12.sp, color = HomeTextSecondary)
                 }
+            }
+            // MULTI-CLINIC: klinik penerbit rekam medis terakhir.
+            record.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                Text(
+                    text = clinicName,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = HomePrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             Text(
                 text = record.diagnosis?.takeIf { it.isNotBlank() }

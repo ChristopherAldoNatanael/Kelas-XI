@@ -27,10 +27,12 @@ class AuditLog extends Model
         return $this->belongsTo(Clinic::class);
     }
 
-    public static function log($action, $description = null, $model = null)
+    public static function log($action, $description = null, $model = null, $userId = null)
     {
         return static::create([
-            'user_id' => auth()->id(),
+            // `$userId` eksplisit dipakai untuk aksi API (pasien check-in),
+            // karena guard default `auth()->id()` bisa null di request Sanctum.
+            'user_id' => $userId ?: auth()->id(),
             'clinic_id' => currentClinicId(),
             'action' => $action,
             'model_type' => $model ? get_class($model) : null,

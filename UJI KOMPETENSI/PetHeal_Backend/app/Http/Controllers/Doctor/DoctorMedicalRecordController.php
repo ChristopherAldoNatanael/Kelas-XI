@@ -5,7 +5,10 @@ namespace App\Http\Controllers\Doctor;
 use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
+use App\Models\Medicine;
 use App\Services\FCMService;
+use App\Services\MedicalRecordAttachmentService;
+use App\Services\PrescriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -90,6 +93,11 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'doctor' => $doctor,
             'booking' => $booking,
             'record' => null,
+            // Obat aktif klinik dokter ini — sama dengan yang divalidasi server.
+            'medicines' => Medicine::where('clinic_id', $doctor->clinic_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -106,8 +114,28 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ],
             'diagnosis' => 'required|string',
             'treatment' => 'required|string',
+            // SOAP — aturan identik dengan panel admin supaya dokter dan admin
+            // tidak bisa menyimpan bentuk data yang berbeda.
+            'soap' => 'nullable|array',
+            'soap.subjective' => 'nullable|string|max:5000',
+            'soap.objective' => 'nullable|string|max:5000',
+            'soap.assessment' => 'nullable|string|max:5000',
+            'soap.plan' => 'nullable|string|max:5000',
             'medicine' => 'nullable|string',
             'notes' => 'nullable|string',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|mimes:' . implode(',', MedicalRecordAttachmentService::ALLOWED_MIMES)
+                . '|max:' . MedicalRecordAttachmentService::MAX_KB,
+            // Resep terstruktur — hanya obat milik klinik dokter ini.
+            'prescription' => 'nullable|array|max:20',
+            'prescription.*.medicine_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('medicines', 'id')->where('clinic_id', $doctor->clinic_id),
+            ],
+            'prescription.*.quantity' => 'nullable|numeric|min:0',
+            'prescription.*.dose' => 'nullable|string|max:100',
+            'prescription.*.unit_price' => 'nullable|numeric|min:0',
             'next_visit_date' => 'nullable|date|after:today',
             'next_visit_time' => 'nullable|date_format:H:i',
             'cost' => 'nullable|numeric|min:0',
@@ -141,6 +169,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'pet_id' => $booking->pet_id,
             'doctor_id' => $booking->doctor_id,
             'clinic_id' => $booking->clinic_id,
+            'subjective' => $request->input('soap.subjective'),
+            'objective' => $request->input('soap.objective'),
+            'assessment' => $request->input('soap.assessment'),
+            'plan' => $request->input('soap.plan'),
             'diagnosis' => $request->input('diagnosis'),
             'treatment' => $request->input('treatment'),
             'medicine' => $request->input('medicine'),
@@ -152,15 +184,43 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'medicine_cost' => $this->normalizeMoneyInput($request, 'medicine_cost'),
         ]);
 
-        DB::transaction(function () use ($record, $booking) {
-            $record->recalculatePaymentState((float) ($booking->paid_amount ?? 0));
-            $record->save();
+        try {
+            DB::transaction(function () use ($record, $booking, $request) {
+                // Simpan dulu supaya `$record->id` ada: item resep memakai
+                // foreign key NOT NULL ke medical_records. Tanpa ini, dokter
+                // yang mengisi resep saat membuat rekam medis baru kena 500.
+                $record->save();
 
-            $booking->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-            ]);
-        });
+                // Resep diproses berikutnya: stok kurang membatalkan seluruh
+                // transaksi, jadi tidak ada rekam medis setengah jadi.
+                $prescriptionTotal = app(PrescriptionService::class)->syncForRecord(
+                    $record,
+                    (array) $request->input('prescription', [])
+                );
+
+                if ($prescriptionTotal > 0) {
+                    $record->medicine_cost = $prescriptionTotal;
+                }
+
+                $record->recalculatePaymentState((float) ($booking->paid_amount ?? 0));
+                $record->save();
+
+                // Lampiran disimpan sebelum booking ditandai selesai, supaya
+                // kegagalan upload membatalkan semuanya.
+                app(MedicalRecordAttachmentService::class)->storeMany(
+                    $record,
+                    $request->file('attachments', []),
+                    auth()->id()
+                );
+
+                $booking->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+            });
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
@@ -196,7 +256,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
     {
         $doctor = $this->doctor();
 
-        $record = MedicalRecord::with(['pet', 'booking.user', 'doctor'])
+        $record = MedicalRecord::with(['pet', 'booking.user', 'doctor', 'prescriptionItems', 'attachments'])
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $doctor->clinic_id)
             ->findOrFail($id);
@@ -205,6 +265,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'doctor' => $doctor,
             'booking' => $record->booking,
             'record' => $record,
+            'medicines' => Medicine::where('clinic_id', $doctor->clinic_id)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->get(),
         ]);
     }
 
@@ -237,6 +301,25 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'cost' => 'nullable|numeric|min:0',
             'treatment_cost' => 'nullable|numeric|min:0',
             'medicine_cost' => 'nullable|numeric|min:0',
+            'soap' => 'nullable|array',
+            'soap.subjective' => 'nullable|string|max:5000',
+            'soap.objective' => 'nullable|string|max:5000',
+            'soap.assessment' => 'nullable|string|max:5000',
+            'soap.plan' => 'nullable|string|max:5000',
+            'attachments' => 'nullable|array|max:10',
+            'attachments.*' => 'file|mimes:' . implode(',', MedicalRecordAttachmentService::ALLOWED_MIMES)
+                . '|max:' . MedicalRecordAttachmentService::MAX_KB,
+            'remove_attachments' => 'nullable|array',
+            'remove_attachments.*' => 'integer',
+            'prescription' => 'nullable|array|max:20',
+            'prescription.*.medicine_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('medicines', 'id')->where('clinic_id', $doctor->clinic_id),
+            ],
+            'prescription.*.quantity' => 'nullable|numeric|min:0',
+            'prescription.*.dose' => 'nullable|string|max:100',
+            'prescription.*.unit_price' => 'nullable|numeric|min:0',
         ]);
 
         $record->fill($request->only([
@@ -248,11 +331,42 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'next_visit_time',
         ]));
 
+        // SOAP tidak lewat fill() karena input bernama `soap.*`.
+        $record->subjective = $request->input('soap.subjective');
+        $record->objective = $request->input('soap.objective');
+        $record->assessment = $request->input('soap.assessment');
+        $record->plan = $request->input('soap.plan');
+
         $record->cost = $this->normalizeMoneyInput($request, 'cost', (float) ($record->booking?->total_amount ?? 0));
         $record->treatment_cost = $this->normalizeMoneyInput($request, 'treatment_cost');
-        $record->medicine_cost = $this->normalizeMoneyInput($request, 'medicine_cost');
+
+        // Koreksi resep: stok lama dikembalikan lalu dipotong ulang.
+        $manualMedicineCost = $this->normalizeMoneyInput($request, 'medicine_cost');
+        try {
+            $prescriptionTotal = app(PrescriptionService::class)->syncForRecord(
+                $record,
+                (array) $request->input('prescription', [])
+            );
+        } catch (\RuntimeException $e) {
+            return redirect()->back()->withInput()->with('error', $e->getMessage());
+        }
+
+        $record->medicine_cost = $prescriptionTotal > 0 ? $prescriptionTotal : $manualMedicineCost;
         $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
         $record->save();
+
+        // Hapus lampiran yang dicentang dokter. Lewat service agar berkas di
+        // disk ikut terhapus (bukan hanya baris database).
+        $attachmentService = app(MedicalRecordAttachmentService::class);
+        $removeIds = array_filter((array) $request->input('remove_attachments', []));
+        if ($removeIds) {
+            $toRemove = $record->attachments()->whereIn('id', $removeIds)->get();
+            foreach ($toRemove as $attachment) {
+                $attachmentService->delete($attachment);
+            }
+        }
+
+        $attachmentService->storeMany($record, $request->file('attachments', []), auth()->id());
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 

@@ -27,10 +27,60 @@ class PaymentController extends Controller
     private const PAYMENT_TYPES = ['dp', 'full'];
 
     protected FCMService $fcmService;
+    protected \App\Services\RefundService $refunds;
 
-    public function __construct(FCMService $fcmService)
+    public function __construct(FCMService $fcmService, \App\Services\RefundService $refunds)
     {
         $this->fcmService = $fcmService;
+        $this->refunds = $refunds;
+    }
+
+    /**
+     * Catat pengembalian uang untuk booking yang sudah dibatalkan.
+     *
+     * Uang dikembalikan manual oleh admin (transfer/tunai/e-wallet); aksi ini
+     * MENCATAT pengembalian itu. Tanpa pencatatan, laporan akan terus
+     * menghitung uang yang sebenarnya sudah keluar dari kas klinik.
+     */
+    public function refund(Request $request, int $id)
+    {
+        $clinicId = currentClinicId();
+
+        $booking = Booking::query()
+            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->whereKey($id)
+            ->firstOrFail();
+
+        $validated = $request->validate([
+            'amount' => 'required|numeric|min:1',
+            'method' => 'required|in:' . implode(',', array_keys(\App\Models\BookingRefund::METHODS)),
+            'reference' => 'nullable|string|max:100',
+            'reason' => 'required|string|max:500',
+        ], [
+            'amount.required' => __('admin.refund_amount_required'),
+            'reason.required' => __('admin.refund_reason_required'),
+        ]);
+
+        try {
+            $refund = $this->refunds->record(
+                $booking,
+                (float) $validated['amount'],
+                $validated['method'],
+                $validated['reference'] ?? null,
+                $validated['reason']
+            );
+        } catch (\RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        AuditLog::log(
+            'payment.refund',
+            'Refunded Rp ' . number_format((float) $refund->amount, 0, ',', '.')
+                . " for booking #{$booking->id} via {$refund->method}. Reason: {$refund->reason}",
+            $booking
+        );
+
+        return back()->with('success', __('admin.refund_saved'));
     }
 
     /**
@@ -83,8 +133,12 @@ class PaymentController extends Controller
 
     private function paymentStats(Builder $query): array
     {
-        // Cancelled bookings stay in the transaction count but never inflate
-        // the outstanding balance.
+        // Uang yang benar-benar diterima = seluruh `paid_amount` (termasuk
+        // booking yang kemudian dibatalkan, karena uangnya memang sempat
+        // masuk) dikurangi refund yang sudah dicatat. Pembatalan TIDAK lagi
+        // mengecualikan paid_amount: kalau dikeluarkan di sini lalu refund
+        // juga dikurangkan, booking yang direfund penuh menghasilkan angka
+        // negatif dan laporan berbeda dari dashboard.
         $totals = (clone $query)
             ->selectRaw('COUNT(*) as total_transactions')
             ->selectRaw('COALESCE(SUM(paid_amount), 0) as total_collected')
@@ -92,9 +146,19 @@ class PaymentController extends Controller
             ->selectRaw("COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END), 0) as paid_count")
             ->first();
 
+        // Refund mengurangi uang terkumpul: uang yang sudah dikembalikan bukan
+        // pendapatan. Dihitung dari tabel refund untuk booking pada query yang
+        // sama, sehingga filter tanggal/status tetap konsisten.
+        $bookingIds = (clone $query)->select('id');
+
+        $refunded = (float) \Illuminate\Support\Facades\DB::table('booking_refunds')
+            ->whereIn('booking_id', $bookingIds)
+            ->sum('amount');
+
         return [
             'total_transactions' => $totals->total_transactions,
-            'total_collected' => $totals->total_collected,
+            'total_collected' => (float) $totals->total_collected - $refunded,
+            'total_refunded' => $refunded,
             'total_outstanding' => $totals->total_outstanding,
             'paid_count' => $totals->paid_count,
         ];
@@ -213,7 +277,11 @@ class PaymentController extends Controller
         }
         $booking = $query->firstOrFail();
 
-        $html = view('admin.payments.receipt_pdf', compact('booking'))->render();
+        // Invoice harus sepakat dengan panel admin: bila ada refund,
+        // struknya ikut mencantumkannya, bukan hanya menampilkan "dibayar".
+        $refundedTotal = app(\App\Services\RefundService::class)->refundedTotal($booking);
+
+        $html = view('admin.payments.receipt_pdf', compact('booking', 'refundedTotal'))->render();
         $dompdf = new Dompdf();
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');

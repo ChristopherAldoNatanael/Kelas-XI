@@ -149,6 +149,14 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">grid_view</span>
                     <span class="sidebar-text text-sm">{{ __('menu.overview') }}</span>
                 </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.queue.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.queue.index') }}" @if(request()->routeIs('admin.queue.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.queue.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">groups</span>
+                    <span class="sidebar-text">{{ __('menu.queue') }}</span>
+                </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.users.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.users.*'))
@@ -182,6 +190,14 @@
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">price_change</span>
                     <span class="sidebar-text text-sm">{{ __('menu.services') }}</span>
+                </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medicines.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.medicines.index') }}" @if(request()->routeIs('admin.medicines.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.medicines.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medication</span>
+                    <span class="sidebar-text text-sm">{{ __('menu.medicines') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.medical-records.index') }}" @if(request()->routeIs('admin.medical-records.*')) aria-current="page" @endif>

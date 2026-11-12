@@ -130,10 +130,15 @@ data class BookingsUiState(
     // Filter and sort state
     val sortOrder: BookingSortOrder = BookingSortOrder.NEWEST_FIRST,
     val dateFilter: BookingDateFilter = BookingDateFilter.ALL,
-    // Identitas klinik untuk bukti pembayaran (bukan data baru dari API).
-    val clinicName: String? = null,
-    val clinicAddress: String? = null,
-    val clinicColor: String? = null
+    // MULTI-CLINIC (2026-11-11): identitas klinik untuk struk DIHAPUS dari
+    // state ini. Struk membaca `booking.clinic` (klinik milik transaksi),
+    // bukan klinik sesi — pasien bisa punya booking di beberapa klinik.
+
+    // Feedback check-in ditulis ke state DAFTAR (bukan detail): tombolnya ada
+    // di kartu daftar, jadi pesan sukses/gagal harus terlihat di layar itu.
+    val checkInLoadingId: Int? = null,
+    val checkInMessage: String? = null,
+    val checkInError: String? = null
 )
 
 data class BookingDetailUiState(
@@ -245,21 +250,6 @@ class BookingViewModel @Inject constructor(
     private var lastHandledRefreshVersion = 0L
 
     init {
-        viewModelScope.launch {
-            preferencesManager.clinicName.collect { name ->
-                _listState.value = _listState.value.copy(clinicName = name)
-            }
-        }
-        viewModelScope.launch {
-            preferencesManager.clinicAddress.collect { address ->
-                _listState.value = _listState.value.copy(clinicAddress = address)
-            }
-        }
-        viewModelScope.launch {
-            preferencesManager.clinicColor.collect { color ->
-                _listState.value = _listState.value.copy(clinicColor = color)
-            }
-        }
         viewModelScope.launch {
             bookingRefreshManager.refreshVersion.collect { version ->
                 if (version > 0 && version > lastHandledRefreshVersion) {
@@ -493,6 +483,75 @@ class BookingViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Check-in mandiri untuk booking hari ini.
+     *
+     * Label nomor antrian ditaruh di pesan yang terlihat pasien; kalau server
+     * menolak (mis. jadwal ternyata bukan hari ini), pesannya diteruskan apa
+     * adanya supaya pasien tahu alasannya.
+     */
+    fun checkInBooking(id: Int) {
+        // Cegah double-submit: dua tap cepat tidak boleh mengirim dua request.
+        if (_listState.value.checkInLoadingId != null) return
+
+        _listState.value = _listState.value.copy(
+            checkInLoadingId = id,
+            checkInError = null,
+            checkInMessage = null
+        )
+
+        viewModelScope.launch {
+            when (val r = bookingRepository.checkInBooking(id)) {
+                is Result.Success -> {
+                    val booking = r.data
+                    val label = booking.queueLabel
+                        ?: booking.queueNumber?.let { String.format("A-%02d", it) }
+                    val position = booking.queuePosition
+                    val message = buildString {
+                        append(
+                            label?.let { "Check-in berhasil. Nomor antrian Anda $it." }
+                                ?: "Check-in berhasil."
+                        )
+                        if (position != null && position > 0) {
+                            append(" $position antrian lagi.")
+                        } else if (position == 0) {
+                            append(" Giliran Anda.")
+                        }
+                    }
+
+                    _listState.value = _listState.value.copy(
+                        checkInLoadingId = null,
+                        checkInMessage = message,
+                        // Kartu langsung memakai data baru (nomor + posisi)
+                        // tanpa menunggu reload halaman.
+                        bookings = _listState.value.bookings.map {
+                            if (it.id == booking.id) booking else it
+                        },
+                        allBookings = _listState.value.allBookings.map {
+                            if (it.id == booking.id) booking else it
+                        }
+                    )
+                    bookingRefreshManager.requestRefresh()
+                }
+
+                is Result.Error -> _listState.value = _listState.value.copy(
+                    checkInLoadingId = null,
+                    checkInError = r.message
+                )
+
+                else -> _listState.value = _listState.value.copy(checkInLoadingId = null)
+            }
+        }
+    }
+
+    /** Tutup pesan check-in (dipanggil tombol X pada snackbar). */
+    fun clearCheckInNotice() {
+        _listState.value = _listState.value.copy(
+            checkInMessage = null,
+            checkInError = null
+        )
+    }
+
     fun rescheduleBooking(id: Int, newDate: String, newTime: String) {
         viewModelScope.launch {
             _detailState.value = _detailState.value.copy(
@@ -657,10 +716,19 @@ class BookingViewModel @Inject constructor(
         viewModelScope.launch {
             val create = _createState.value
             val userName = preferencesManager.userName.first()
-            // MULTI-CLINIC: bantuan harus menuju klinik DOKTER yang dibooking,
-            // bukan klinik favorit tersimpan — pesan WA-nya akan salah kirim.
+            // MULTI-CLINIC (2026-11-11): bantuan menuju klinik DOKTER yang
+            // dibooking. Fallback ke klinik sesi DIHAPUS — pesan WA/email
+            // bantuan akan salah kirim ke klinik lain, persis kesalahan yang
+            // ingin dicegah. Tanpa klinik dokter, pesan memakai nama klinik
+            // dari kontak yang berhasil dimuat (atau netral).
             val storedClinicName = create.clinicName
-                ?: preferencesManager.clinicName.first()
+            if (create.clinicSlug.isNullOrBlank() && storedClinicName.isNullOrBlank()) {
+                _supportState.value = SupportContactUiState(
+                    message = "",
+                    error = "Klinik tujuan belum diketahui. Muat ulang pilihan dokter lalu coba lagi."
+                )
+                return@launch
+            }
             val message = buildClinicHelpMessage(
                 clinicName = storedClinicName,
                 userName = userName,
@@ -687,7 +755,13 @@ class BookingViewModel @Inject constructor(
 
             // Klinik transaksi (dokter), bukan klinik favorit — kalau tidak,
             // pesan bantuan terkirim ke klinik yang salah.
-            when (val r = clinicRepository.getSupportContactFor(create.clinicSlug, forceRefresh)) {
+            when (
+                val r = clinicRepository.getSupportContactFor(
+                    create.clinicSlug,
+                    forceRefresh,
+                    fallbackToCurrent = false
+                )
+            ) {
                 is Result.Success -> {
                     val contact = r.data.copy(
                         clinicName = r.data.clinicName ?: storedClinicName

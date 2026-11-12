@@ -212,9 +212,14 @@ class Phase6SecurityMatrixTest extends TestCase
 
         $apiA()->getJson('/api/payment/booking/' . $this->bookingB->id)->assertStatus(404);
 
+        // MULTI-CLINIC (2026-11-11): review lintas klinik dijaga oleh
+        // KEPEMILIKAN booking, bukan klinik akun (pasien = akun global).
+        // Booking milik pasien lain ditolak validasi → 422, tanpa baris
+        // review yang tercipta.
         $apiA()->postJson('/api/doctors/' . $this->doctorB->id . '/reviews', [
             'booking_id' => $this->bookingB->id, 'rating' => 5,
-        ])->assertStatus(404);
+        ])->assertStatus(422);
+        $this->assertDatabaseMissing('doctor_reviews', ['booking_id' => $this->bookingB->id]);
     }
 
     public function test_cross_user_notifications_and_tokens_isolated(): void

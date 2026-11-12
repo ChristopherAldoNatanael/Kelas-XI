@@ -49,6 +49,15 @@ class DoctorController extends Controller
             return $requestedClinicId;
         }
 
+        // MULTI-CLINIC (2026-11-11): pasien = akun global. `users.clinic_id`
+        // lama pada akun pasien TIDAK boleh menyempitkan katalog — kalau
+        // dipakai, Cari Dokter dan "Dokter terdekat" hanya berisi klinik lama
+        // dan pasien tidak pernah melihat klinik lain. Staf tetap fail-closed.
+        $role = $user?->role ?? 'guest';
+        if ($role === 'user') {
+            return null;
+        }
+
         return $user?->clinic_id ? (int) $user->clinic_id : null;
     }
 
@@ -132,6 +141,29 @@ class DoctorController extends Controller
     /**
      * Get single doctor details (clinic-scoped)
      */
+    /**
+     * Cakupan klinik untuk endpoint DOKTER SATU-SATUNYA (detail, slot,
+     * review).
+     *
+     * MULTI-CLINIC (2026-11-11): pasien (`role=user`) adalah akun global —
+     * `users.clinic_id` lama TIDAK boleh dipakai sebagai filter, karena
+     * pasien lama akan mendapat 404 saat membuka dokter klinik lain dari
+     * Cari Dokter / Beranda (docs §6l). Staf tetap terkurung ke kliniknya
+     * (fail-closed bila staf tanpa klinik).
+     *
+     * @return array{0: ?int, 1: bool} [clinicId, isScopedStaff]
+     */
+    private function doctorScope(Request $request): array
+    {
+        $user = $request->user() ?? auth('sanctum')->user();
+        $isScopedStaff = (($user?->role ?? null) ?? 'guest') !== 'user';
+        if ($isScopedStaff) {
+            return [$user?->clinic_id ? (int) $user->clinic_id : null, true];
+        }
+
+        return [null, false];
+    }
+
     public function show(Request $request, $id)
     {
         // PHASE 3 (MH-01): withAvg feeds the average_rating accessor.
@@ -140,8 +172,7 @@ class DoctorController extends Controller
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
         // MULTI-CLINIC: pasien global (role `user`) boleh melihat detail dokter
         // klinik mana pun; staf klinik tetap terkurung.
-        $clinicId = auth()->user()->clinic_id ?? null;
-        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
+        [$clinicId, $isScopedStaff] = $this->doctorScope($request);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
         } elseif ($isScopedStaff && !isSuperAdmin()) {
@@ -197,8 +228,7 @@ class DoctorController extends Controller
 
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
         // Slot dokter dipakai pasien klinik mana pun saat booking.
-        $clinicId = auth()->user()->clinic_id ?? null;
-        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
+        [$clinicId, $isScopedStaff] = $this->doctorScope($request);
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
@@ -242,8 +272,7 @@ class DoctorController extends Controller
     {
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
         // Slot dokter dipakai pasien klinik mana pun saat booking.
-        $clinicId = auth()->user()->clinic_id ?? null;
-        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
+        [$clinicId, $isScopedStaff] = $this->doctorScope($request);
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
@@ -329,12 +358,11 @@ class DoctorController extends Controller
         ], 201);
     }
 
-    public function getReviews($id)
+    public function getReviews(Request $request, $id)
     {
         // Clinic isolation (PHASE 1 D3, fail-closed for tenant without clinic).
         // Slot dokter dipakai pasien klinik mana pun saat booking.
-        $clinicId = auth()->user()->clinic_id ?? null;
-        $isScopedStaff = !((auth()->user()?->role ?? null) === 'user');
+        [$clinicId, $isScopedStaff] = $this->doctorScope($request);
         $query = Doctor::where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
@@ -364,7 +392,12 @@ class DoctorController extends Controller
             'success' => true,
             'data' => [
                 'reviews' => $reviews->items(),
-                'average_rating' => $averageRating ? round($averageRating, 1) : 0,
+                // MULTI-CLINIC: null = belum ada ulasan (BUKAN 0). Angka 0
+                // berarti "dinilai 0/5" dan bertentangan dengan aturan
+                // "jangan ganti NULL jadi 0" (MULTI_CLINIC §11).
+                'average_rating' => $averageRating !== null
+                    ? round((float) $averageRating, 1)
+                    : null,
                 'total_reviews' => $totalReviews,
             ],
             'pagination' => [

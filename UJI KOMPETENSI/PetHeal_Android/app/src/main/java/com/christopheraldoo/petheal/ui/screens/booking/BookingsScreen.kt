@@ -62,6 +62,7 @@ import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
 import com.christopheraldoo.petheal.util.isDoctorWorkingDay
 import com.christopheraldoo.petheal.util.toCustomHoursDates
 import com.christopheraldoo.petheal.util.toLeaveDates
+import androidx.compose.material.icons.filled.Info
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -99,6 +100,27 @@ import com.christopheraldoo.petheal.util.formatRupiah
 private const val TAG = "BookingPhoto"
 
 private enum class BookingTab { SCHEDULE, INVOICES }
+
+/**
+ * Nomor antrian bisa diambil pasien bila booking HARI INI sudah dikonfirmasi
+ * dan belum punya nomor. Satu definisi untuk kartu dan daftar, supaya tombol
+ * tidak pernah hilang karena gerbangnya berbeda-beda.
+ */
+private fun canCheckInNow(booking: com.christopheraldoo.petheal.data.model.Booking): Boolean =
+    booking.id != null &&
+        isConfirmedLike(booking.status) &&
+        booking.queueNumber == null &&
+        isToday(booking.bookingDate)
+
+/**
+ * Booking yang jatuh pada hari ini, apa pun status antriannya.
+ *
+ * Section "Hari ini di klinik" memakai ini — bukan `canCheckInNow` — supaya
+ * booking yang SUDAH check-in atau masih menunggu konfirmasi tetap terlihat
+ * sebagai kunjungan hari ini, bukan tenggelam ke daftar bawah.
+ */
+private fun isTodayBooking(booking: com.christopheraldoo.petheal.data.model.Booking): Boolean =
+    booking.id != null && isToday(booking.bookingDate)
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 private val BkPrimary       = Primary
@@ -356,8 +378,36 @@ fun BookingsScreen(
                             }
                         }
                     } else {
+                        // "Hari ini" lebih dulu. Tanpa ini, booking hari ini
+                        // tenggelam di bawah booking mendatang dan tombol
+                        // check-in terasa tidak ada meski kodenya jalan.
+                        val todayItems = state.bookings.filter { isTodayBooking(it) }
+                        val restItems = state.bookings.filterNot { isTodayBooking(it) }
+
+                        if (todayItems.isNotEmpty()) {
+                            item(key = "queue-today-header") {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Hari ini di klinik",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textPrimary
+                                    )
+                                    Text(
+                                        "Kunjungan dan antrian hari ini",
+                                        fontSize = 11.sp,
+                                        color = textSecondary
+                                    )
+                                }
+                            }
+                        }
+
                         items(
-                            items = state.bookings,
+                            items = todayItems + restItems,
                             key = { booking -> booking.id ?: booking.hashCode() }
                         ) { booking ->
                             BookingCard(
@@ -382,7 +432,14 @@ fun BookingsScreen(
                                         remainingAmount,
                                         isRemaining
                                     )
-                                }
+                                },
+                                onCheckIn = { bookingId ->
+                                    // Check-in memakai endpoint booking, bukan
+                                    // detail layar; hasilnya langsung terlihat
+                                    // di kartu setelah daftar disegarkan.
+                                    viewModel.checkInBooking(bookingId)
+                                },
+                                isCheckingIn = state.checkInLoadingId == booking.id
                             )
                         }
                     }
@@ -418,6 +475,34 @@ fun BookingsScreen(
             }
         }
 
+        // Pesan check-in: sukses menampilkan nomor antrian, gagal menampilkan
+        // alasan dari server (mis. jadwal bukan hari ini). Dulu pesan ini
+        // ditulis ke detailState sehingga layar daftar tidak pernah melihatnya.
+        val checkInNotice = state.checkInMessage ?: state.checkInError
+        val isCheckInError = state.checkInError != null
+        if (checkInNotice != null) {
+            Snackbar(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 96.dp),
+                containerColor = if (isCheckInError) ErrorSoft else SuccessSoft,
+                contentColor = if (isCheckInError) ErrorStrong else Success,
+                dismissAction = {
+                    IconButton(onClick = viewModel::clearCheckInNotice) {
+                        Icon(
+                            Icons.Filled.Close,
+                            contentDescription = "Tutup pesan",
+                            tint = if (isCheckInError) ErrorStrong else Success
+                        )
+                    }
+                }
+            ) {
+                Text(checkInNotice)
+            }
+        }
+
         // Filter/Sort Bottom Sheet — memilih tanggal langsung menutup sheet
         // agar daftar yang terfilter segera terlihat (UI langsung memperbarui).
         if (showFilterSheet) {
@@ -435,11 +520,15 @@ fun BookingsScreen(
         }
 
         receiptBooking?.let { booking ->
+            // MULTI-CLINIC (2026-11-11): struk WAJIB membaca klinik milik
+            // booking itu sendiri untuk ketiga field. Versi sebelumnya
+            // mengambil nama dari booking tetapi alamat dari preferensi,
+            // sehingga struk bisa berisi nama Klinik A + alamat Klinik B.
             PaymentReceiptSheet(
                 booking = booking,
-                clinicName = state.clinicName,
-                clinicAddress = state.clinicAddress,
-                clinicColor = state.clinicColor,
+                clinicName = booking.clinic?.name,
+                clinicAddress = booking.clinic?.address,
+                clinicColor = booking.clinic?.primaryColor,
                 onDismiss = { receiptBooking = null }
             )
         }
@@ -824,7 +913,9 @@ private fun BookingCard(
     textPrimary: Color,
     textSecondary: Color,
     onClick: () -> Unit,
-    onPayRemaining: ((Int) -> Unit)? = null // Callback for paying remaining amount
+    onPayRemaining: ((Int) -> Unit)? = null, // Callback for paying remaining amount
+    onCheckIn: ((Int) -> Unit)? = null,      // Ambil nomor antrian hari ini
+    isCheckingIn: Boolean = false            // Request check-in sedang berjalan
 ) {
     val statusColor = when (booking.status?.lowercase()) {
         "confirmed"  -> BkPrimary
@@ -867,6 +958,37 @@ private fun BookingCard(
                     )
                 }
             }
+            // MULTI-CLINIC: klinik transaksi. Pasien bisa booking di beberapa
+            // klinik, jadi baris ini yang membedakan kartu satu dengan
+            // lainnya. Hilang bila server tidak mengirim klinik — tidak
+            // diganti klinik lain.
+            booking.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Business,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Text(
+                        text = clinicName,
+                        fontSize = 12.sp,
+                        color = textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Antrian hanya ditampilkan bila pasien SUDAH punya nomor.
+            // Tanpa nomor, tidak ada angka yang dikarang.
+            if (booking.queueNumber != null) {
+                QueueStrip(booking = booking, textPrimary = textPrimary, textSecondary = textSecondary)
+            }
+
             Divider(color = SurfaceMuted)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {                    // Doctor photo
@@ -898,6 +1020,67 @@ private fun BookingCard(
                     }
                 }
             }
+            // Check-in mandiri: hanya muncul pada hari jadwal untuk booking
+            // yang sudah dikonfirmasi dan belum punya nomor antrian.
+            //
+            // GERBANG INI PERNAH TERLALU KETAT (2026-11-11): status dibandingkan
+            // `== "confirmed"` sehingga staf yang menyimpan "Confirmed" atau
+            // " confirmed " tidak pernah melihat tombol, dan pasien menyimpulkan
+            // fitur antrian tidak ada. Sekarang dibandingkan ternormalisasi.
+            val canCheckIn = onCheckIn != null && canCheckInNow(booking)
+
+            if (canCheckIn) {
+                Divider(color = SurfaceMuted)
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Button(
+                        onClick = { booking.id?.let { id -> onCheckIn?.invoke(id) } },
+                        enabled = !isCheckingIn,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BkPrimary),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Icon(Icons.Filled.HowToReg, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            if (isCheckingIn) "Memproses check-in…" else "Check-in & ambil nomor antrian",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 13.sp
+                        )
+                    }
+                    Text(
+                        "Check-in hanya bisa dilakukan pada hari jadwal.",
+                        fontSize = 11.sp,
+                        color = textSecondary
+                    )
+                }
+            }
+
+            // Booking hari ini yang belum bisa check-in: sebut alasannya di
+            // tempat yang sama, bukan membiarkan pasien menebak.
+            val todayWhyBlocked = when {
+                onCheckIn == null || booking.id == null -> null
+                booking.queueNumber != null -> null
+                !isToday(booking.bookingDate) -> null
+                !isConfirmedLike(booking.status) -> "Menunggu konfirmasi klinik sebelum bisa check-in."
+                else -> null
+            }
+            if (todayWhyBlocked != null) {
+                Divider(color = SurfaceMuted)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.Info,
+                        contentDescription = null,
+                        tint = textSecondary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Text(todayWhyBlocked, fontSize = 11.sp, color = textSecondary)
+                }
+            }
+
             // Payment info
             if (booking.paymentMethodId != null || booking.paymentStatus != null) {
                 Divider(color = SurfaceMuted)
@@ -972,6 +1155,97 @@ private fun BookingCard(
                     Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("Bayar Sisa (Lunas)", fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Apakah tanggal booking (format server `Y-m-d`) adalah hari ini?
+ *
+ * Perbandingan dilakukan pada tanggal yang sudah dinormalisasi: nilai null,
+ * "", atau format dengan jam di belakangnya tidak boleh membuat tombol
+ * check-in hilang tanpa penjelasan.
+ */
+private fun isToday(date: String?): Boolean {
+    val raw = date?.trim().orEmpty()
+    if (raw.isBlank()) return false
+
+    return try {
+        // Ambil bagian tanggal saja (server bisa mengirim "2026-11-11" atau
+        // ISO lengkap "2026-11-11T00:00:00.000000Z").
+        LocalDate.parse(raw.take(10)) == LocalDate.now()
+    } catch (_: Exception) {
+        false
+    }
+}
+
+/**
+ * Status booking dianggap "sudah dikonfirmasi" meski staf menyimpannya dengan
+ * huruf besar, spasi, atau garis bawah. Sebelumnya hanya `== "confirmed"` yang
+ * lolos, sehingga tombol check-in bisa tidak pernah tampil.
+ */
+private fun isConfirmedLike(status: String?): Boolean =
+    status?.trim()?.lowercase()?.replace(" ", "_") == "confirmed"
+
+/**
+ * Nomor antrian pasien + posisi tunggu.
+ *
+ * Hanya dirender bila pasien sudah punya nomor. Ketika posisi null (sudah
+ * dipanggil/ditangani/selesai), angka "di depan Anda" disembunyikan supaya
+ * tidak menampilkan "0 antrian" yang menyesatkan.
+ */
+@Composable
+private fun QueueStrip(booking: Booking, textPrimary: Color, textSecondary: Color) {
+    // Baris label menampilkan STATUS, bukan `queueLabel` ("A-01"): nomornya
+    // sudah tampil besar di kotak sebelah kiri, dulu jadi dobel.
+    val statusLabel = when (booking.queueStatus) {
+        "waiting" -> "Menunggu"
+        "called" -> "Dipanggil"
+        "in_service" -> "Sedang ditangani"
+        "done" -> "Selesai"
+        "no_show" -> "Tidak datang"
+        else -> "Menunggu"
+    }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = BkPrimary.copy(alpha = 0.08f),
+        border = BorderStroke(1.dp, BkPrimary.copy(alpha = 0.2f))
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(BkPrimary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${booking.queueNumber}",
+                        color = Color.White,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Nomor antrian", fontSize = 11.sp, color = textSecondary)
+                    Text(statusLabel, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
+                }
+            }
+
+    booking.queuePosition?.let { position ->
+                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Di depan Anda", fontSize = 11.sp, color = textSecondary)
+                    Text(
+                        if (position == 0) "Giliran Anda" else "$position antrian lagi",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BkPrimary
+                    )
                 }
             }
         }
@@ -1280,6 +1554,49 @@ fun BookingDetailScreen(
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text(booking?.doctor?.name ?: "–", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                         Text(booking?.doctor?.specialization ?: "Veterinarian", fontSize = 15.sp, color = textSecondary)
+                    }
+
+                    // MULTI-CLINIC: klinik tempat janji temu ini berlangsung.
+                    // Tanpa baris ini pasien yang berobat di beberapa klinik
+                    // harus mengingat sendiri tujuan kedatangannya.
+                    booking?.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                        Surface(
+                            shape = RoundedCornerShape(14.dp),
+                            color = BkPrimary.copy(alpha = 0.08f),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    Icons.Filled.LocalHospital,
+                                    contentDescription = null,
+                                    tint = BkPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text(
+                                        text = clinicName,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = textPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    booking.clinic.address?.takeIf { it.isNotBlank() }?.let { address ->
+                                        Text(
+                                            text = address,
+                                            fontSize = 12.sp,
+                                            color = textSecondary,
+                                            maxLines = 2,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     // Detail cards
@@ -2146,7 +2463,9 @@ fun CreateBookingScreen(
                             Text(
                                 text = if (state.isLoading) "Memuat metode pembayaran..."
                                 else state.paymentMethodsError
-                                    ?: "Metode pembayaran belum tersedia. Hubungi klinik Anda.",
+                                    ?: state.clinicName?.let {
+                                        "Metode pembayaran $it belum tersedia. Hubungi klinik tujuan."
+                                    } ?: "Metode pembayaran belum tersedia. Hubungi klinik tujuan.",
                                 fontSize = 14.sp,
                                 color = textSecondary,
                                 textAlign = TextAlign.Center

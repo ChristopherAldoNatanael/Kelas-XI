@@ -42,6 +42,70 @@
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->treatment }}</p>
                     </div>
 
+                    {{-- SOAP hanya dirender bila diisi; rekam medis lama tetap
+                         tampil seperti sebelumnya tanpa blok kosong. --}}
+                    @foreach([
+                        'subjective' => 'S — Subjective',
+                        'objective' => 'O — Objective',
+                        'assessment' => 'A — Assessment',
+                        'plan' => 'P — Plan',
+                    ] as $soapKey => $soapLabel)
+                        @if(filled($record->{$soapKey}))
+                            <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $soapLabel }}</p>
+                                <p class="mt-2 text-sm leading-6 whitespace-pre-line text-slate-700 dark:text-slate-300">{{ $record->{$soapKey} }}</p>
+                            </div>
+                        @endif
+                    @endforeach
+
+                    @if($record->attachments->isNotEmpty())
+                        <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lampiran pemeriksaan</p>
+                            <ul class="mt-2 space-y-1.5">
+                                @foreach($record->attachments as $attachment)
+                                    <li class="flex items-center gap-2 text-sm">
+                                        <span class="material-symbols-outlined text-[16px] text-slate-400" aria-hidden="true">
+                                            {{ $attachment->isImage() ? 'image' : 'picture_as_pdf' }}
+                                        </span>
+                                        @if($attachment->url)
+                                            <a href="{{ $attachment->url }}" target="_blank" rel="noopener"
+                                               class="truncate text-slate-700 underline-offset-2 hover:underline dark:text-slate-300">
+                                                {{ $attachment->caption ?: $attachment->original_name }}
+                                            </a>
+                                        @else
+                                            <span class="truncate text-rose-600 dark:text-rose-400">
+                                                {{ $attachment->original_name }} — berkas hilang
+                                            </span>
+                                        @endif
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
+                    @if($record->prescriptionItems->isNotEmpty())
+                        <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resep obat</p>
+                            <ul class="mt-2 space-y-1.5">
+                                @foreach($record->prescriptionItems as $item)
+                                    <li class="flex items-baseline justify-between gap-3 text-sm">
+                                        <span class="text-slate-700 dark:text-slate-300">
+                                            {{ $item->medicine_name }}
+                                            @if($item->dose)
+                                                <span class="text-xs text-slate-500">({{ $item->dose }})</span>
+                                            @endif
+                                        </span>
+                                        <span class="whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400">
+                                            {{ rtrim(rtrim(number_format((float) $item->quantity, 2, ',', '.'), '0'), ',') }}
+                                            {{ $item->unit }}
+                                            · Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                        </span>
+                                    </li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                     @if($record->medicine)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.medicine') }}</p>

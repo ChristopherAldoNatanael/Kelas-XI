@@ -137,35 +137,69 @@ class Phase1TenantIsolationTest extends TestCase
     }
 
     // ---------- D3: cross-clinic reads ----------
+    //
+    // MULTI-CLINIC (2026-11-11): pasien (`role=user`) adalah akun GLOBAL.
+    // Doctor A dan doctor B di sini dibuat sebagai AKUN PASIEN yang masih
+    // membawa `users.clinic_id` lama (data era satu-klinik). Dulu test ini
+    // menuntut 404 untuk dokter klinik lain; aturan itu sudah sengaja
+    // dicabut (docs §3, §11) karena membuat pasien lama tidak bisa berobat
+    // di klinik lain. Yang diuji sekarang: pasien lintas klinik BOLEH
+    // membaca, sedangkan staf tetap terkurung.
 
-    public function test_a_cannot_read_b_doctor(): void
+    public function test_patient_may_read_another_clinic_doctor(): void
     {
-        $this->apiAs($this->userA)->getJson('/api/doctors/' . $this->doctorB->id)
-            ->assertStatus(404);
+        $res = $this->apiAs($this->userA)->getJson('/api/doctors/' . $this->doctorB->id)
+            ->assertOk();
+
+        $this->assertSame($this->clinicB->id, $res->json('data.clinic_id'));
     }
 
-    public function test_b_cannot_read_a_doctor(): void
+    public function test_patient_may_read_either_clinic_doctor(): void
     {
         $this->apiAs($this->userB)->getJson('/api/doctors/' . $this->doctorA->id)
-            ->assertStatus(404);
+            ->assertOk();
     }
 
-    public function test_doctor_index_is_scoped_per_tenant(): void
+    public function test_patient_catalog_covers_both_clinics(): void
     {
-        $resA = $this->apiAs($this->userA)->getJson('/api/doctors?limit=100')->assertOk();
-        $idsA = collect($resA->json('data'))->pluck('id')->all();
-        $this->assertContains($this->doctorA->id, $idsA);
-        $this->assertNotContains($this->doctorB->id, $idsA);
+        $res = $this->apiAs($this->userA)->getJson('/api/doctors?limit=100')->assertOk();
+        $ids = collect($res->json('data'))->pluck('id')->all();
 
-        $resB = $this->apiAs($this->userB)->getJson('/api/doctors?limit=100')->assertOk();
-        $idsB = collect($resB->json('data'))->pluck('id')->all();
-        $this->assertContains($this->doctorB->id, $idsB);
-        $this->assertNotContains($this->doctorA->id, $idsB);
+        $this->assertContains($this->doctorA->id, $ids);
+        $this->assertContains($this->doctorB->id, $ids);
     }
 
-    public function test_a_cannot_use_b_slots(): void
+    public function test_patient_catalog_can_be_forced_to_one_clinic(): void
+    {
+        $res = $this->apiAs($this->userA)
+            ->getJson('/api/doctors?limit=100&clinic_id=' . $this->clinicB->id)
+            ->assertOk();
+        $ids = collect($res->json('data'))->pluck('id')->all();
+
+        $this->assertContains($this->doctorB->id, $ids);
+        $this->assertNotContains($this->doctorA->id, $ids);
+    }
+
+    public function test_patient_may_read_another_clinic_slots(): void
     {
         $this->apiAs($this->userA)
+            ->getJson('/api/doctors/' . $this->doctorB->id . '/slots?date=' . $this->bookingDate())
+            ->assertOk();
+    }
+
+    public function test_clinic_staff_cannot_read_another_clinic_doctor(): void
+    {
+        $staffA = User::create([
+            'name' => 'staffA ' . $this->suffix,
+            'email' => 'staffa-' . $this->suffix . '@audit.test',
+            'password' => Hash::make('password123'),
+            'role' => 'doctor',
+            'clinic_id' => $this->clinicA->id,
+        ]);
+
+        $this->apiAs($staffA)->getJson('/api/doctors/' . $this->doctorB->id)
+            ->assertStatus(404);
+        $this->apiAs($staffA)
             ->getJson('/api/doctors/' . $this->doctorB->id . '/slots?date=' . $this->bookingDate())
             ->assertStatus(404);
     }
@@ -208,11 +242,13 @@ class Phase1TenantIsolationTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_a_cannot_review_b_doctor(): void
+    public function test_a_cannot_review_b_doctor_with_someone_elses_booking(): void
     {
-        // Real completed booking owned by B for doctor B: A still must get
-        // 404 because doctor B is outside A's clinic (validation passes, so
-        // the clinic scope is what rejects).
+        // MULTI-CLINIC (2026-11-11): yang menjaga review lintas klinik bukan
+        // lagi klinik pemilik akun, melainkan KEPEMILIKAN booking. Pasien A
+        // boleh membuka dokter klinik B (akun global), tetapi tidak boleh
+        // menilai memakai booking milik pasien B. Hasilnya 422 (validasi
+        // eksistensi ter-scope), bukan 404.
         $bookingB = Booking::create([
             'user_id' => $this->userB->id, 'pet_id' => $this->petB->id,
             'doctor_id' => $this->doctorB->id, 'service_id' => $this->serviceB->id,
@@ -223,7 +259,11 @@ class Phase1TenantIsolationTest extends TestCase
 
         $this->apiAs($this->userA)->postJson('/api/doctors/' . $this->doctorB->id . '/reviews', [
             'booking_id' => $bookingB->id, 'rating' => 5,
-        ])->assertStatus(404);
+        ])->assertStatus(422);
+
+        $this->assertDatabaseMissing('doctor_reviews', [
+            'booking_id' => $bookingB->id,
+        ]);
     }
 
     // ---------- D1: null-clinic fail-closed ----------
@@ -368,13 +408,32 @@ class Phase1TenantIsolationTest extends TestCase
             ->assertStatus(404);
     }
 
-    public function test_authenticated_services_still_filtered_by_user_clinic(): void
+    public function test_patient_services_catalog_is_global(): void
     {
-        // Backward compat: Android sends Bearer only, no slug.
+        // MULTI-CLINIC (2026-11-11): pasien = akun global. Katalog layanan
+        // lintas klinik adalah DASAR perbandingan harga; `users.clinic_id`
+        // lama tidak boleh menyempitkannya. Staf tetap terkurung (diuji
+        // terpisah di bawah).
         $res = $this->apiAs($this->userA)->getJson('/api/services')->assertOk();
         $ids = collect($res->json('data'))->pluck('id')->all();
         $this->assertContains($this->serviceA->id, $ids);
-        $this->assertNotContains($this->serviceB->id, $ids);
+        $this->assertContains($this->serviceB->id, $ids);
+    }
+
+    public function test_clinic_staff_services_are_still_filtered_by_clinic(): void
+    {
+        $staffB = User::create([
+            'name' => 'staffB ' . $this->suffix,
+            'email' => 'staffb-' . $this->suffix . '@audit.test',
+            'password' => Hash::make('password123'),
+            'role' => 'clinic_admin',
+            'clinic_id' => $this->clinicB->id,
+        ]);
+
+        $res = $this->apiAs($staffB)->getJson('/api/services')->assertOk();
+        $ids = collect($res->json('data'))->pluck('id')->all();
+        $this->assertContains($this->serviceB->id, $ids);
+        $this->assertNotContains($this->serviceA->id, $ids);
     }
 
     // ---------- C4: mass assignment ----------

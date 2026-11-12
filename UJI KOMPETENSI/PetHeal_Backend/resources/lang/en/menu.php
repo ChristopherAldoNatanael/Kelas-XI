@@ -10,11 +10,13 @@ return [
 
     // Sidebar menu items
     'patients' => 'Patients',
+    'queue' => 'Queue',
     'appointments' => 'Appointments',
     'appointments_schedule' => 'Appointments & Schedule',
     'schedule' => 'Clinic Schedule',
     'veterinarians' => 'Veterinarians',
     'services' => 'Services',
+    'medicines' => 'Medicine Stock',
     'medical_records' => 'Medical Records',
     'payments' => 'Payments',
     'clinics' => 'Clinics',

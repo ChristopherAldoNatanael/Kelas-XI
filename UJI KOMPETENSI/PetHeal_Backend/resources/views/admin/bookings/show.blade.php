@@ -244,6 +244,87 @@
                         </a>
                     </div>
 
+                    @if($refundable > 0 || $refundedTotal > 0)
+                        <div class="mt-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <p class="text-xs font-bold text-slate-600 dark:text-slate-300">{{ __('admin.refund_section') }}</p>
+                                <p class="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                                    {{ __('admin.refund_refunded') }}:
+                                    <span class="font-semibold text-slate-700 dark:text-slate-200">{{ $currency($refundedTotal) }}</span>
+                                </p>
+                            </div>
+
+                            {{-- Riwayat refund: bukti keuangan, tidak bisa diedit. --}}
+                            @if($refunds->isNotEmpty())
+                                <ul class="mt-3 space-y-2">
+                                    @foreach($refunds as $refund)
+                                        <li class="flex items-start justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                                                    {{ $currency($refund->amount) }} · {{ $refund->method_label }}
+                                                </p>
+                                                <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">
+                                                    {{ $refund->reason }}
+                                                    @if($refund->reference)
+                                                        · ref {{ $refund->reference }}
+                                                    @endif
+                                                </p>
+                                            </div>
+                                            <span class="whitespace-nowrap text-[11px] text-slate-400">
+                                                {{ $refund->created_at?->format('d M Y H:i') }}
+                                            </span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                            @endif
+
+                            @if($refundable > 0)
+                                <details class="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-900/20">
+                                    <summary class="cursor-pointer text-xs font-bold text-amber-800 dark:text-amber-300">
+                                        {{ __('admin.refund_record') }} ({{ $currency($refundable) }} {{ __('admin.refund_available') }})
+                                    </summary>
+                                    <p class="mt-2 text-[11px] leading-5 text-amber-800/80 dark:text-amber-200/80">
+                                        {{ __('admin.refund_help') }}
+                                    </p>
+                                    <form method="POST" action="{{ route('admin.payments.refund', $booking->id) }}" class="mt-3 space-y-3">
+                                        @csrf
+                                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                                            <div>
+                                                <label for="refund-amount" class="admin-label">{{ __('admin.refund_amount') }}</label>
+                                                <input id="refund-amount" type="number" name="amount" step="0.01"
+                                                       min="1" max="{{ (int) $refundable }}" value="{{ (int) $refundable }}" required
+                                                       class="admin-input tabular-nums">
+                                            </div>
+                                            <div>
+                                                <label for="refund-method" class="admin-label">{{ __('admin.refund_method') }}</label>
+                                                <select id="refund-method" name="method" class="admin-input">
+                                                    @foreach(\App\Models\BookingRefund::METHODS as $value => $label)
+                                                        <option value="{{ $value }}">{{ $label }}</option>
+                                                    @endforeach
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label for="refund-reference" class="admin-label">{{ __('admin.refund_reference') }}</label>
+                                                <input id="refund-reference" type="text" name="reference" maxlength="100"
+                                                       class="admin-input" placeholder="{{ __('admin.refund_reference_placeholder') }}">
+                                            </div>
+                                            <div>
+                                                <label for="refund-reason" class="admin-label">{{ __('admin.refund_reason') }} <span class="text-rose-500">*</span></label>
+                                                <input id="refund-reason" type="text" name="reason" maxlength="500" required
+                                                       class="admin-input" placeholder="{{ __('admin.refund_reason_placeholder') }}">
+                                            </div>
+                                        </div>
+                                        <button type="submit" class="admin-btn-secondary"
+                                                onclick="return confirm('{{ __('admin.refund_confirm') }}')">
+                                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">undo</span>
+                                            {{ __('admin.refund_save') }}
+                                        </button>
+                                    </form>
+                                </details>
+                            @endif
+                        </div>
+                    @endif
+
                     @if($booking->payment_status !== 'paid' && $booking->remaining_amount > 0)
                         <details class="mt-4 rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
                             <summary class="cursor-pointer text-xs font-bold text-slate-600 dark:text-slate-300">
