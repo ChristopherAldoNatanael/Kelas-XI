@@ -94,9 +94,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'booking' => $booking,
             'record' => null,
             // Obat aktif klinik dokter ini — sama dengan yang divalidasi server.
+            // Kedaluwarsa dikecualikan: dokter tidak boleh memilih obat lewat tanggal.
             'medicines' => Medicine::where('clinic_id', $doctor->clinic_id)
-                ->where('is_active', true)
-                ->orderBy('name')
+                ->dispensable()
+                ->fefo()
                 ->get(),
         ]);
     }
@@ -266,8 +267,8 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'booking' => $record->booking,
             'record' => $record,
             'medicines' => Medicine::where('clinic_id', $doctor->clinic_id)
-                ->where('is_active', true)
-                ->orderBy('name')
+                ->dispensable()
+                ->fefo()
                 ->get(),
         ]);
     }

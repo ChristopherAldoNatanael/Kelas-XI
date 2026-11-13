@@ -54,25 +54,35 @@ class MedicineController extends Controller
             $query->lowStock();
         }
         if ($request->boolean('expiring')) {
-            $query->expiringSoon(60);
+            $query->expiringSoon(60)->notDisposed();
+        }
+        if ($request->boolean('expired')) {
+            $query->expired()->notDisposed();
+        }
+        if ($request->boolean('disposed')) {
+            $query->disposed();
         }
         if ($request->filled('q')) {
             $term = trim((string) $request->input('q'));
             $query->where('name', 'like', '%' . $term . '%');
         }
 
-        $medicines = $query->orderBy('name')->paginate(20)->withQueryString();
+        // Urut FEFO: obat paling cepat kedaluwarsa di atas, supaya admin
+        // melihat apa yang harus dipakai/dimusnahkan lebih dulu.
+        $medicines = $query->fefo()->paginate(20)->withQueryString();
 
-        // Ringkasan kecil di atas tabel: jumlah obat menipis dan kedaluwarsa
-        // dekat. Dihitung terpisah dari query tabel agar filter tidak
-        // mengubah arti angka ringkasan.
+        // Ringkasan kecil di atas tabel: jumlah obat menipis, kedaluwarsa,
+        // dan yang sudah dimusnahkan. Dihitung terpisah dari query tabel agar
+        // filter tidak mengubah arti angka ringkasan.
         $summaryBase = fn () => Medicine::query()
             ->when(currentClinicId(), fn ($q) => $q->where('clinic_id', currentClinicId()));
 
         return view('admin.medicines.index', [
             'medicines' => $medicines,
-            'lowStockCount' => $summaryBase()->lowStock()->count(),
-            'expiringCount' => $summaryBase()->expiringSoon(60)->count(),
+            'lowStockCount' => $summaryBase()->active()->notDisposed()->lowStock()->count(),
+            'expiringCount' => $summaryBase()->active()->notDisposed()->expiringSoon(60)->count(),
+            'expiredCount' => $summaryBase()->notDisposed()->expired()->count(),
+            'disposedCount' => $summaryBase()->disposed()->count(),
         ]);
     }
 
@@ -115,7 +125,12 @@ class MedicineController extends Controller
 
         return view('admin.medicines.edit', [
             'medicine' => $medicine,
-            'movements' => $medicine->movements()->latest()->limit(30)->get(),
+            'batches' => $medicine->batches()
+                ->orderByRaw('expiry_date IS NULL')
+                ->orderBy('expiry_date')
+                ->get(),
+            'movements' => $medicine->movements()->with('batch')->latest()->limit(30)->get(),
+            'warningDays' => medicine_expiry_warning_days(),
         ]);
     }
 
@@ -142,14 +157,18 @@ class MedicineController extends Controller
         $request->validate([
             'quantity' => 'required|numeric|min:0.01',
             'reason' => 'nullable|string|max:255',
+            'batch_number' => 'nullable|string|max:80',
+            'expiry_date' => 'nullable|date',
         ], [
             'quantity.min' => __('admin.medicine_quantity_min'),
         ]);
 
         try {
-            $movement = $this->stock->stockIn(
+            $movement = $this->stock->stockInBatch(
                 $medicine,
                 (float) $request->input('quantity'),
+                $request->input('batch_number'),
+                $request->input('expiry_date'),
                 $request->input('reason')
             );
         } catch (RuntimeException $e) {
@@ -214,7 +233,7 @@ class MedicineController extends Controller
 
         return view('admin.medicines.movements', [
             'medicine' => $medicine,
-            'movements' => $medicine->movements()->latest()->paginate(50),
+            'movements' => $medicine->movements()->with(['batch', 'transaction'])->latest()->paginate(50),
         ]);
     }
 
@@ -228,33 +247,260 @@ class MedicineController extends Controller
     public function destroy(int $id)
     {
         $medicine = $this->findScoped($id);
+        $result = $this->deleteOrDeactivate($medicine);
 
-        // Resep memakai mutasi `out`: itu bukti obat benar-benar diberikan.
-        if ($medicine->movements()->where('type', MedicineStockMovement::TYPE_OUT)->exists()) {
-            $medicine->update(['is_active' => false]);
+        return redirect()->route('admin.medicines.index')
+            ->with($result['status'], $result['message']);
+    }
 
-            AuditLog::log('medicine.deactivate', "Deactivated medicine {$medicine->name}", $medicine);
+    /**
+     * Hapus obat yang dicentang di daftar.
+     *
+     * Memakai guard yang sama dengan `destroy()`: obat dengan riwayat resep
+     * atau riwayat stok tidak dihapus, hanya dinonaktifkan. Hasil per obat
+     * dirangkum ke satu pesan supaya admin tahu apa yang sebenarnya terjadi.
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ], [
+            'ids.required' => __('admin.medicine_bulk_none_selected'),
+        ]);
 
+        return $this->runBulk(
+            (array) $request->input('ids'),
+            fn (Medicine $medicine) => $this->deleteOrDeactivate($medicine),
+            'medicine.bulk_delete'
+        );
+    }
+
+    /**
+     * Hapus SEMUA obat klinik aktif.
+     *
+     * Operasi destruktif, jadi wajib konfirmasi ketik "HAPUS". Tanpa itu
+     * salah klik di halaman daftar akan mengosongkan master obat klinik.
+     */
+    public function destroyAll(Request $request)
+    {
+        $request->validate([
+            'confirmation' => 'required|string',
+        ]);
+
+        if (strtoupper(trim((string) $request->input('confirmation'))) !== 'HAPUS') {
             return redirect()->route('admin.medicines.index')
-                ->with('warning', __('admin.medicine_in_use'));
+                ->with('error', __('admin.medicine_delete_all_confirmation_mismatch'));
         }
+
+        if (!currentClinicId()) {
+            return redirect()->route('admin.medicines.index')
+                ->with('error', __('admin.medicine_select_clinic'));
+        }
+
+        $ids = $this->scopedQuery()->pluck('id')->all();
+
+        if (empty($ids)) {
+            return redirect()->route('admin.medicines.index')
+                ->with('error', __('admin.medicine_delete_all_empty'));
+        }
+
+        return $this->runBulk(
+            $ids,
+            fn (Medicine $medicine) => $this->deleteOrDeactivate($medicine),
+            'medicine.delete_all'
+        );
+    }
+
+    /**
+     * Musnahkan sisa stok satu obat kedaluwarsa.
+     *
+     * Ini jawaban atas "obat kedaluwarsa lalu bagaimana": stok dikeluarkan
+     * lewat mutasi `disposal`, obat dinonaktifkan, dan alasannya tercatat
+     * untuk berita acara.
+     */
+    public function dispose(Request $request, int $id)
+    {
+        $medicine = $this->findScoped($id);
+
+        $validated = $request->validate([
+            'quantity' => 'nullable|numeric|min:0.01',
+            'method' => 'required|in:' . implode(',', Medicine::DISPOSAL_METHODS),
+            'reason' => 'required|string|max:255',
+        ], [
+            'method.required' => __('admin.medicine_disposal_method_required'),
+            'reason.required' => __('admin.medicine_disposal_reason_required'),
+        ]);
+
+        try {
+            $movement = $this->stock->dispose(
+                $medicine,
+                isset($validated['quantity']) ? (float) $validated['quantity'] : null,
+                (string) $validated['method'],
+                (string) $validated['reason']
+            );
+        } catch (RuntimeException $e) {
+            return back()->with('error', $e->getMessage());
+        }
+
+        AuditLog::log(
+            'medicine.dispose',
+            "Disposed {$medicine->name}: {$movement->quantity} {$medicine->unit} via {$validated['method']}. Reason: {$validated['reason']}",
+            $medicine
+        );
+
+        $disposedQuantity = $validated['quantity'] ?? (float) $medicine->fresh()->stock;
+
+        return redirect()->route('admin.medicines.index')
+            ->with('success', __('admin.medicine_disposed', [
+                'name' => $medicine->name,
+                'quantity' => rtrim(rtrim(number_format(abs((float) $disposedQuantity), 2, ',', '.'), '0'), ','),
+                'unit' => $medicine->unit,
+            ]));
+    }
+
+    /**
+     * Musnahkan banyak obat terpilih sekaligus (mis. satu batch kedaluwarsa).
+     */
+    public function bulkDispose(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+            'method' => 'required|in:' . implode(',', Medicine::DISPOSAL_METHODS),
+            'reason' => 'required|string|max:255',
+        ], [
+            'ids.required' => __('admin.medicine_bulk_none_selected'),
+            'reason.required' => __('admin.medicine_disposal_reason_required'),
+        ]);
+
+        $ids = $this->scopedQuery()->whereIn('id', (array) $request->input('ids'))->pluck('id')->all();
+
+        $disposed = 0;
+        $failed = [];
+
+        foreach (Medicine::whereIn('id', $ids)->get() as $medicine) {
+            try {
+                $this->stock->dispose(
+                    $medicine,
+                    null,
+                    (string) $request->input('method'),
+                    (string) $request->input('reason')
+                );
+                $disposed++;
+            } catch (RuntimeException $e) {
+                // Obat dengan stok 0 memang tidak perlu dimusnahkan; jangan
+                // gagalkan seluruh batch karena satu baris kosong.
+                $failed[] = $medicine->name;
+            }
+        }
+
+        AuditLog::log(
+            'medicine.bulk_dispose',
+            "Disposed {$disposed} medicines via {$request->input('method')}. Reason: {$request->input('reason')}"
+            . ($failed ? '. Skipped: ' . implode(', ', $failed) : '')
+        );
+
+        if ($disposed === 0) {
+            return redirect()->route('admin.medicines.index')
+                ->with('error', __('admin.medicine_bulk_dispose_none'));
+        }
+
+        return redirect()->route('admin.medicines.index')
+            ->with('success', __('admin.medicine_bulk_disposed', ['count' => $disposed]));
+    }
+
+    /**
+     * Halaman berita acara lama tidak lagi punya tampilan sendiri.
+     *
+     * Semua pemusnahan dan retur sekarang dibaca dari satu tempat: riwayat
+     * mutasi stok dengan filter jenis Pemusnahan/Retur supplier. Redirect ini
+     * menjaga tautan dan bookmark lama tetap bekerja.
+     */
+    public function disposals(Request $request)
+    {
+        return redirect()->route('admin.medicines.mutations.index');
+    }
+
+    /**
+     * Guard bersama: hapus permanen hanya bila belum pernah dipakai.
+     * Selain itu nonaktifkan (soft state), karena riwayat harus tetap utuh.
+     *
+     * @return array{status: string, message: string}
+     */
+    private function deleteOrDeactivate(Medicine $medicine): array
+    {
+        // Resep memakai mutasi `out`: itu bukti obat benar-benar diberikan.
+        $usedInPrescription = $medicine->movements()
+            ->where('type', MedicineStockMovement::TYPE_OUT)
+            ->exists();
 
         // Riwayat stok lain (stok awal, pembelian, opname) bukan pemakaian
         // resep, tetapi tetap harus dipertahankan agar saldo bisa diaudit.
-        if ($medicine->movements()->exists()) {
+        $hasHistory = $usedInPrescription || $medicine->movements()->exists();
+
+        if ($hasHistory) {
             $medicine->update(['is_active' => false]);
 
             AuditLog::log('medicine.deactivate', "Deactivated medicine {$medicine->name}", $medicine);
 
-            return redirect()->route('admin.medicines.index')
-                ->with('warning', __('admin.medicine_has_history'));
+            return [
+                'status' => 'warning',
+                'message' => $usedInPrescription
+                    ? __('admin.medicine_in_use')
+                    : __('admin.medicine_has_history'),
+            ];
         }
 
         AuditLog::log('medicine.delete', "Deleted medicine {$medicine->name}", $medicine);
         $medicine->delete();
 
+        return [
+            'status' => 'success',
+            'message' => __('admin.medicine_deleted'),
+        ];
+    }
+
+    /**
+     * Jalankan aksi massal per obat dan rangkum hasilnya.
+     *
+     * @param  array<int, int>  $ids
+     * @param  callable(Medicine): array{status: string, message: string}  $action
+     */
+    private function runBulk(array $ids, callable $action, string $auditAction)
+    {
+        $ids = $this->scopedQuery()->whereIn('id', $ids)->pluck('id')->all();
+
+        if (empty($ids)) {
+            return redirect()->route('admin.medicines.index')
+                ->with('error', __('admin.medicine_bulk_none_selected'));
+        }
+
+        $deleted = 0;
+        $deactivated = 0;
+
+        foreach (Medicine::whereIn('id', $ids)->orderBy('name')->get() as $medicine) {
+            $result = $action($medicine);
+
+            if ($result['status'] === 'success') {
+                $deleted++;
+            } else {
+                $deactivated++;
+            }
+        }
+
+        AuditLog::log(
+            $auditAction,
+            "Bulk medicine action: {$deleted} deleted, {$deactivated} deactivated",
+        );
+
+        $message = __('admin.medicine_bulk_result', [
+            'deleted' => $deleted,
+            'deactivated' => $deactivated,
+        ]);
+
         return redirect()->route('admin.medicines.index')
-            ->with('success', __('admin.medicine_deleted'));
+            ->with($deleted > 0 ? 'success' : 'warning', $message);
     }
 
     /**

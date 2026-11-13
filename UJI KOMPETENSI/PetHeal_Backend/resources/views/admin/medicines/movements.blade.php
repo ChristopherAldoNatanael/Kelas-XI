@@ -12,12 +12,8 @@
         :description="__('admin.medicines_movements_desc')">
         <x-slot:actions>
             <a href="{{ route('admin.medicines.edit', $medicine->id) }}" class="admin-btn-secondary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                {{ __('admin.edit_medicine') }}
-            </a>
-            <a href="{{ route('admin.medicines.index') }}" class="admin-btn-secondary">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
-                {{ __('admin.back') }}
+                {{ __('admin.back_to_medicine') }}
             </a>
         </x-slot:actions>
     </x-admin.page-header>

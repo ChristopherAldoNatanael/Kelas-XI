@@ -92,7 +92,7 @@
 
     {{-- Peringatan stok obat. Dihitung langsung (bukan dari cache) supaya
          angkanya berubah segera setelah obat dipakai pada resep. --}}
-    @if(($lowStockCount ?? 0) > 0 || ($expiringMedicinesCount ?? 0) > 0)
+    @if(($lowStockCount ?? 0) > 0 || ($expiringMedicinesCount ?? 0) > 0 || ($expiredMedicinesCount ?? 0) > 0)
         <div class="rounded-2xl border border-amber-200 bg-amber-50/70 p-5 dark:border-amber-900/60 dark:bg-amber-900/20">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div>
@@ -101,15 +101,28 @@
                         @if($lowStockCount > 0)
                             {{ $lowStockCount }} obat menyentuh batas stok minimum.
                         @endif
-                        @if($expiringCount > 0)
-                            {{ $expiringCount }} obat kedaluwarsa dalam 30 hari.
+                        @if($expiringMedicinesCount > 0)
+                            {{ $expiringMedicinesCount }} obat hampir kedaluwarsa (60 hari).
+                        @endif
+                        @if(($expiredMedicinesCount ?? 0) > 0)
+                            <span class="font-semibold text-rose-700 dark:text-rose-300">
+                                {{ $expiredMedicinesCount }} obat sudah kedaluwarsa dan harus dimusnahkan.
+                            </span>
                         @endif
                     </p>
                 </div>
-                <a href="{{ route('admin.medicines.index', ['low_stock' => 1]) }}" class="admin-btn-secondary">
-                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">medication</span>
-                    Buka stok obat
-                </a>
+                <div class="flex flex-wrap gap-2">
+                    @if(($expiredMedicinesCount ?? 0) > 0)
+                        <a href="{{ route('admin.medicines.index', ['expired' => 1]) }}" class="admin-btn-danger">
+                            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete_forever</span>
+                            Tangani obat kedaluwarsa
+                        </a>
+                    @endif
+                    <a href="{{ route('admin.medicines.index', ['low_stock' => 1]) }}" class="admin-btn-secondary">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">medication</span>
+                        Buka stok obat
+                    </a>
+                </div>
             </div>
         </div>
     @endif

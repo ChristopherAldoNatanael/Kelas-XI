@@ -12,6 +12,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // Backend berjalan di belakang reverse proxy (ngrok) yang mengakhiri TLS,
+        // sehingga request dari browser sebenarnya HTTPS tetapi PHP hanya melihat
+        // HTTP. Tanpa ini route()/url() menghasilkan http://... dan Chrome
+        // menampilkan "informasi yang akan dikirim tidak aman" setiap submit form.
+        // Mempercayai header X-Forwarded-* membuat skema terdeteksi benar: https
+        // saat diakses lewat ngrok, tetap http saat diakses lokal 127.0.0.1:8000.
+        $middleware->trustProxies(at: '*');
+
         // Register custom middleware aliases
         $middleware->alias([
             'admin.auth' => \App\Http\Middleware\AdminAuth::class,

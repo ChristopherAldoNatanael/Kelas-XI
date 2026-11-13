@@ -14,6 +14,17 @@ class MedicineStockMovement extends Model
     public const TYPE_OUT = 'out';
     public const TYPE_ADJUSTMENT = 'adjustment';
     public const TYPE_RETURN = 'return';
+    /** Pemusnahan obat kedaluwarsa / rusak. Quantity selalu negatif. */
+    public const TYPE_DISPOSAL = 'disposal';
+    /** Retur ke supplier (stok keluar permanen). */
+    public const TYPE_RETURN_SUPPLIER = 'return_supplier';
+    /** Pemisahan stok ke karantina (available → quarantine). */
+    public const TYPE_QUARANTINE = 'quarantine';
+    /** Obat rusak yang langsung dikeluarkan dari stok tersedia. */
+    public const TYPE_DAMAGED = 'damaged';
+
+    public const STOCK_STATE_AVAILABLE = 'available';
+    public const STOCK_STATE_QUARANTINE = 'quarantine';
 
     /**
      * `quantity` dan `stock_after` WAJIB fillable: keduanya ditulis lewat
@@ -21,9 +32,12 @@ class MedicineStockMovement extends Model
      * nilai default 0 dan saldo stok tidak pernah bertambah.
      */
     protected $fillable = [
+        'transaction_id',
         'medicine_id',
+        'batch_id',
         'clinic_id',
         'type',
+        'stock_state',
         'quantity',
         'stock_after',
         'reason',
@@ -46,6 +60,28 @@ class MedicineStockMovement extends Model
         return $this->belongsTo(MedicalRecord::class);
     }
 
+    public function batch()
+    {
+        return $this->belongsTo(MedicineBatch::class, 'batch_id');
+    }
+
+    public function transaction()
+    {
+        return $this->belongsTo(MedicineStockTransaction::class, 'transaction_id');
+    }
+
+    public function isQuarantineMovement(): bool
+    {
+        return $this->stock_state === self::STOCK_STATE_QUARANTINE;
+    }
+
+    public function stockStateLabel(): string
+    {
+        return $this->isQuarantineMovement()
+            ? __('inventory.stock_state_quarantine')
+            : __('inventory.stock_state_available');
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class, 'created_by');
@@ -59,6 +95,10 @@ class MedicineStockMovement extends Model
             self::TYPE_OUT => 'Pemakaian',
             self::TYPE_RETURN => 'Pengembalian',
             self::TYPE_ADJUSTMENT => 'Koreksi',
+            self::TYPE_DISPOSAL => 'Pemusnahan',
+            self::TYPE_RETURN_SUPPLIER => 'Retur supplier',
+            self::TYPE_QUARANTINE => 'Karantina',
+            self::TYPE_DAMAGED => 'Obat rusak',
             default => ucfirst($this->type),
         };
     }

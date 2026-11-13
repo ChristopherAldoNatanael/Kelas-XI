@@ -191,14 +191,45 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">price_change</span>
                     <span class="sidebar-text text-sm">{{ __('menu.services') }}</span>
                 </a>
-                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medicines.*') ? 'active-nav-item' : '' }} relative"
-                   href="{{ route('admin.medicines.index') }}" @if(request()->routeIs('admin.medicines.*')) aria-current="page" @endif>
-                    @if(request()->routeIs('admin.medicines.*'))
-                    <div class="active-indicator" aria-hidden="true"></div>
-                    @endif
-                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medication</span>
-                    <span class="sidebar-text text-sm">{{ __('menu.medicines') }}</span>
-                </a>
+                {{-- Stok obat adalah satu area kerja: daftar obat, monitoring
+                     kedaluwarsa, dan mutasi stok hidup di bawah satu parent agar
+                     tidak terlihat sebagai tiga menu yang saling terpisah. --}}
+                @php
+                    $inventoryActive = request()->routeIs('admin.medicines.*');
+                    $inventoryListActive = $inventoryActive
+                        && !request()->routeIs('admin.medicines.expiry', 'admin.medicines.mutations.*');
+                @endphp
+                <div class="sidebar-nav-group" data-nav-group>
+                    <button type="button"
+                            class="nav-link flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ $inventoryActive ? 'active-nav-item' : '' }} relative"
+                            data-nav-group-toggle
+                            aria-expanded="{{ $inventoryActive ? 'true' : 'false' }}"
+                            aria-controls="nav-inventory">
+                        @if($inventoryActive)
+                        <div class="active-indicator" aria-hidden="true"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medication</span>
+                        <span class="sidebar-text flex-1 text-left text-sm">{{ __('menu.medicines') }}</span>
+                        <span class="sidebar-text material-symbols-outlined nav-group-chevron text-[18px] {{ $inventoryActive ? 'is-open' : '' }}" aria-hidden="true">expand_more</span>
+                    </button>
+                    <div id="nav-inventory" class="sidebar-submenu {{ $inventoryActive ? '' : 'hidden' }}">
+                        <a href="{{ route('admin.medicines.index') }}"
+                           class="sidebar-sublink {{ $inventoryListActive ? 'is-active' : '' }}"
+                           @if($inventoryListActive) aria-current="page" @endif>
+                            {{ __('menu.medicines_list') }}
+                        </a>
+                        <a href="{{ route('admin.medicines.expiry') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.medicines.expiry') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.medicines.expiry')) aria-current="page" @endif>
+                            {{ __('menu.medicines_expiry') }}
+                        </a>
+                        <a href="{{ route('admin.medicines.mutations.index') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.medicines.mutations.*') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.medicines.mutations.*')) aria-current="page" @endif>
+                            {{ __('menu.medicine_mutations') }}
+                        </a>
+                    </div>
+                </div>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.medical-records.index') }}" @if(request()->routeIs('admin.medical-records.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.medical-records.*'))
@@ -430,6 +461,27 @@
             if (backdrop) backdrop.addEventListener('click', function () { setDrawer(false); });
             if (toggleBtn) toggleBtn.addEventListener('click', function () {
                 setCollapsed(!sidebar.classList.contains('sidebar-collapsed'));
+            });
+
+            sidebar.querySelectorAll('[data-nav-group-toggle]').forEach(function (btn) {
+                var group = btn.closest('[data-nav-group]');
+                var submenu = group ? group.querySelector('.sidebar-submenu') : null;
+                if (!submenu) return;
+
+                btn.addEventListener('click', function () {
+                    // Saat rail diciutkan submenu tidak punya ruang; buka sidebar
+                    // dulu agar anak menu tetap bisa dijangkau.
+                    if (sidebar.classList.contains('sidebar-collapsed')) {
+                        setCollapsed(false);
+                        submenu.classList.remove('hidden');
+                    } else {
+                        submenu.classList.toggle('hidden');
+                    }
+
+                    var open = !submenu.classList.contains('hidden');
+                    btn.setAttribute('aria-expanded', String(open));
+                    btn.querySelector('.nav-group-chevron')?.classList.toggle('is-open', open);
+                });
             });
 
             sidebar.querySelectorAll('a[href]').forEach(function (link) {

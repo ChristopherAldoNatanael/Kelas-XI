@@ -173,6 +173,26 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/medicines/export/xlsx', [App\Http\Controllers\Admin\MedicineController::class, 'exportXlsx'])->name('medicines.export.xlsx');
     Route::get('/medicines/import/error-report', [App\Http\Controllers\Admin\MedicineController::class, 'downloadImportErrorReport'])->name('medicines.import.error-report');
     Route::post('/medicines/import', [App\Http\Controllers\Admin\MedicineController::class, 'import'])->name('medicines.import');
+    // Aksi massal & pemusnahan. Harus SEBELUM resource supaya
+    // `/medicines/bulk-destroy` tidak dicocokkan sebagai `{medicine}`.
+    Route::get('/medicines/disposals', [App\Http\Controllers\Admin\MedicineController::class, 'disposals'])->name('medicines.disposals');
+    Route::post('/medicines/bulk-destroy', [App\Http\Controllers\Admin\MedicineController::class, 'bulkDestroy'])->name('medicines.bulk-destroy');
+    Route::delete('/medicines/destroy-all', [App\Http\Controllers\Admin\MedicineController::class, 'destroyAll'])->name('medicines.destroy-all');
+    Route::post('/medicines/bulk-dispose', [App\Http\Controllers\Admin\MedicineController::class, 'bulkDispose'])->name('medicines.bulk-dispose');
+
+    // Monitoring kedaluwarsa per batch & mutasi stok berstatus. Didaftarkan
+    // sebelum resource agar `/medicines/expiry` tidak dianggap {medicine}.
+    Route::get('/medicines/expiry', [\App\Http\Controllers\Admin\MedicineStockController::class, 'expiry'])->name('medicines.expiry');
+    Route::get('/medicines/mutations', [\App\Http\Controllers\Admin\MedicineStockController::class, 'mutations'])->name('medicines.mutations.index');
+    Route::get('/medicines/mutations/create', [\App\Http\Controllers\Admin\MedicineStockController::class, 'createMutation'])->name('medicines.mutations.create');
+    Route::post('/medicines/mutations', [\App\Http\Controllers\Admin\MedicineStockController::class, 'storeMutation'])->name('medicines.mutations.store');
+    Route::get('/medicines/mutations/{mutation}', [\App\Http\Controllers\Admin\MedicineStockController::class, 'showMutation'])->name('medicines.mutations.show');
+    Route::post('/medicines/mutations/{mutation}/process', [\App\Http\Controllers\Admin\MedicineStockController::class, 'processMutation'])->name('medicines.mutations.process');
+    Route::post('/medicines/mutations/{mutation}/complete', [\App\Http\Controllers\Admin\MedicineStockController::class, 'completeMutation'])->name('medicines.mutations.complete');
+    Route::post('/medicines/mutations/{mutation}/cancel', [\App\Http\Controllers\Admin\MedicineStockController::class, 'cancelMutation'])->name('medicines.mutations.cancel');
+    Route::post('/medicines/mutations/{mutation}/reverse', [\App\Http\Controllers\Admin\MedicineStockController::class, 'reverseMutation'])->name('medicines.mutations.reverse');
+    Route::get('/medicines/mutations/{mutation}/document/{field}', [\App\Http\Controllers\Admin\MedicineStockController::class, 'downloadDocument'])->name('medicines.mutations.document');
+    Route::post('/medicines/{id}/dispose', [App\Http\Controllers\Admin\MedicineController::class, 'dispose'])->name('medicines.dispose');
     Route::post('/medicines/{id}/stock-in', [App\Http\Controllers\Admin\MedicineController::class, 'stockIn'])->name('medicines.stock-in');
     Route::post('/medicines/{id}/adjust', [App\Http\Controllers\Admin\MedicineController::class, 'adjust'])->name('medicines.adjust');
     Route::get('/medicines/{id}/movements', [App\Http\Controllers\Admin\MedicineController::class, 'movements'])->name('medicines.movements');

@@ -132,9 +132,11 @@ class MedicalRecordController extends Controller
         return view('admin.medical-records.create', [
             'booking' => $booking,
             // Obat aktif klinik booking — server memvalidasi hal yang sama.
+            // Obat kedaluwarsa sengaja tidak ditampilkan: resep obat lewat
+            // tanggal adalah kesalahan klinis, bukan sekadar data usang.
             'medicines' => Medicine::where('clinic_id', $booking->clinic_id)
-                ->where('is_active', true)
-                ->orderBy('name')
+                ->dispensable()
+                ->fefo()
                 ->get(),
         ]);
     }
@@ -335,8 +337,8 @@ class MedicalRecordController extends Controller
         return view('admin.medical-records.edit', [
             'record' => $record,
             'medicines' => Medicine::where('clinic_id', $record->clinic_id)
-                ->where('is_active', true)
-                ->orderBy('name')
+                ->dispensable()
+                ->fefo()
                 ->get(),
         ]);
     }

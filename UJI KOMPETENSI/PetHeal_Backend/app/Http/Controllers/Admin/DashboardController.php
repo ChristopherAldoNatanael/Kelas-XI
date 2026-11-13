@@ -237,6 +237,12 @@ class DashboardController extends Controller
         $expiringMedicinesCount = Medicine::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
             ->expiringSoon(60)
             ->where('is_active', true)
+            ->notDisposed()
+            ->count();
+        // Obat lewat tanggal: bukan sekadar info, ini yang harus dimusnahkan.
+        $expiredMedicinesCount = Medicine::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->expired()
+            ->notDisposed()
             ->count();
 
         return view('admin.dashboard', compact(
@@ -247,6 +253,7 @@ class DashboardController extends Controller
             'lowStockMedicines',
             'lowStockCount',
             'expiringMedicinesCount',
+            'expiredMedicinesCount',
             'todayRevenue',
             'monthlyRevenue',
             'monthlyBookingData',

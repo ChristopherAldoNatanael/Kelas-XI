@@ -42,6 +42,26 @@ if (!function_exists('currentClinicId')) {
     }
 }
 
+if (!function_exists('medicine_expiry_warning_days')) {
+    /**
+     * Ambang peringatan kedaluwarsa (hari).
+     *
+     * Prioritas: AppSetting runtime → config/medicines.php → env default 60.
+     * Satu sumber nilai ini dipakai model, controller, dan view supaya badge
+     * "hampir kedaluwarsa" tidak pernah berbeda antar halaman.
+     */
+    function medicine_expiry_warning_days(): int
+    {
+        $setting = \App\Models\AppSetting::getValue('medicine_expiry_warning_days');
+
+        if ($setting !== null && is_numeric($setting) && (int) $setting > 0) {
+            return (int) $setting;
+        }
+
+        return max(1, (int) config('medicines.expiry_warning_days', 60));
+    }
+}
+
 if (!function_exists('isSuperAdmin')) {
     /**
      * PHASE 1 (D1): centralized role check.

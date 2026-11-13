@@ -62,9 +62,31 @@ class PrescriptionService
                     continue;
                 }
 
+                if (!$medicine->is_active) {
+                    throw new RuntimeException(
+                        "Obat {$medicine->name} sudah dinonaktifkan (dimusnahkan atau dihentikan) "
+                        . "dan tidak bisa diresepkan."
+                    );
+                }
+
                 $quantity = (float) ($row['quantity'] ?? 0);
                 if ($quantity <= 0) {
                     continue;
+                }
+
+                // Batch kedaluwarsa TIDAK boleh dipakai. Cek stok layak pakai
+                // di sini agar pesan errornya jelas sebelum item disimpan;
+                // `consumePrescription` tetap memvalidasi ulang saat memotong.
+                $dispensable = $medicine->dispensableStock();
+                if ($dispensable + 0.0001 < $quantity) {
+                    throw new RuntimeException(
+                        "Stok layak pakai {$medicine->name} tidak cukup. Tersedia "
+                        . rtrim(rtrim(number_format($dispensable, 2, ',', '.'), '0'), ',')
+                        . " {$medicine->unit}, diminta "
+                        . rtrim(rtrim(number_format($quantity, 2, ',', '.'), '0'), ',')
+                        . " {$medicine->unit}. Batch kedaluwarsa tidak boleh dipakai; "
+                        . 'karantina lalu musnahkan batch tersebut.'
+                    );
                 }
 
                 $unitPrice = (float) ($row['unit_price'] ?? $medicine->price);

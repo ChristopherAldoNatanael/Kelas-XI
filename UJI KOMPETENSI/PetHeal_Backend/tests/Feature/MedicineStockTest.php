@@ -293,4 +293,251 @@ class MedicineStockTest extends TestCase
 
         $this->assertDatabaseMissing('medicines', ['id' => $spare->id]);
     }
+
+    // ---------- Penanganan obat kedaluwarsa ----------
+
+    /**
+     * Label "kedaluwarsa" saja tidak boleh jadi akhir alur: stok harus
+     * keluar lewat mutasi `disposal`, dan obat harus nonaktif.
+     */
+    public function test_disposal_zeroes_stock_records_ledger_and_deactivates(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Expired ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 12);
+
+        $movement = $this->stockService()->dispose(
+            $expired,
+            null,
+            Medicine::DISPOSAL_DESTROYED,
+            'Kedaluwarsa, ditemukan saat opname'
+        );
+
+        $fresh = $expired->fresh();
+
+        $this->assertSame(0.0, (float) $fresh->stock);
+        $this->assertFalse($fresh->is_active);
+        $this->assertNotNull($fresh->disposed_at);
+        $this->assertSame(Medicine::DISPOSAL_DESTROYED, $fresh->disposal_method);
+        $this->assertSame(12.0, (float) $fresh->disposed_quantity);
+        $this->assertSame(-12.0, (float) $movement->quantity);
+        $this->assertSame('disposal', $movement->type);
+        $this->assertSame('Pemusnahan', $movement->type_label);
+    }
+
+    /** Sebagian batch rusak: hanya sebagian yang dikeluarkan. */
+    public function test_partial_disposal_keeps_the_rest_of_the_stock(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Partial ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 10);
+
+        $this->stockService()->dispose($expired, 4, Medicine::DISPOSAL_DESTROYED, 'Sebagian rusak');
+
+        $this->assertSame(6.0, (float) $expired->fresh()->stock);
+        $this->assertSame(4.0, (float) $expired->fresh()->disposed_quantity);
+    }
+
+    /** Musnahkan melebihi stok harus ditolak, bukan dipotong diam-diam. */
+    public function test_disposal_above_stock_is_rejected(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Over ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 3);
+
+        $this->expectException(RuntimeException::class);
+        $this->stockService()->dispose($expired, 10, Medicine::DISPOSAL_DESTROYED, 'Salah input');
+    }
+
+    /**
+     * Obat kedaluwarsa TIDAK boleh memotong stok lewat resep. Tanpa guard
+     * ini, penanganan kedaluwarsa hanya kosmetik.
+     */
+    public function test_expired_medicine_cannot_be_prescribed(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'NoPrescribe ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 10);
+
+        $this->expectException(RuntimeException::class);
+
+        $this->prescriptions()->syncForRecord($this->record, [
+            ['medicine_id' => $expired->id, 'quantity' => 2],
+        ]);
+
+        $this->assertSame(10.0, (float) $expired->fresh()->stock);
+    }
+
+    /** Obat kedaluwarsa tidak muncul di form resep (filter server-side). */
+    public function test_expired_medicine_is_hidden_from_prescription_list(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Hidden ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+
+        $options = Medicine::where('clinic_id', $this->clinicA->id)
+            ->where('is_active', true)
+            ->notExpired()
+            ->fefo()
+            ->get();
+
+        $this->assertFalse($options->contains('id', $expired->id));
+        $this->assertTrue($options->contains('id', $this->medicine->id));
+    }
+
+    /** Stok masuk baru setelah dimusnahkan = batch baru, penanda direset. */
+    public function test_stock_in_after_disposal_revives_the_medicine(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Revive ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 5);
+        $this->stockService()->dispose($expired, null, Medicine::DISPOSAL_DESTROYED, 'Kedaluwarsa');
+
+        $this->stockService()->stockIn($expired, 8, 'Batch baru', null);
+
+        $fresh = $expired->fresh();
+        $this->assertSame(8.0, (float) $fresh->stock);
+        $this->assertFalse($fresh->isDisposed());
+        $this->assertTrue($fresh->is_active);
+    }
+
+    /** Hapus terpilih: yang punya riwayat nonaktif, yang baru hilang. */
+    public function test_bulk_delete_deactivates_used_and_deletes_unused(): void
+    {
+        $spare = Medicine::create([
+            'clinic_id' => $this->clinicA->id, 'name' => 'BulkSpare ' . Str::random(5),
+            'unit' => 'botol', 'min_stock' => 0, 'price' => 1000,
+        ]);
+
+        $this->prescriptions()->syncForRecord($this->record, [
+            ['medicine_id' => $this->medicine->id, 'quantity' => 1],
+        ]);
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/medicines/bulk-destroy', [
+                'ids' => [$this->medicine->id, $spare->id],
+            ])
+            ->assertRedirect(route('admin.medicines.index'));
+
+        $this->assertDatabaseHas('medicines', ['id' => $this->medicine->id, 'is_active' => false]);
+        $this->assertDatabaseMissing('medicines', ['id' => $spare->id]);
+    }
+
+    /** Bulk delete tanpa pilihan harus ditolak dengan pesan, bukan 500. */
+    public function test_bulk_delete_requires_at_least_one_id(): void
+    {
+        $this->actingAs($this->adminA)
+            ->post('/admin/medicines/bulk-destroy', ['ids' => []])
+            ->assertSessionHasErrors('ids');
+    }
+
+    /** Bulk delete tidak boleh menyentuh obat klinik lain. */
+    public function test_bulk_delete_is_clinic_scoped(): void
+    {
+        $this->actingAs($this->adminA)
+            ->post('/admin/medicines/bulk-destroy', [
+                'ids' => [$this->medicineB->id],
+            ])
+            ->assertRedirect(route('admin.medicines.index'));
+
+        $this->assertDatabaseHas('medicines', ['id' => $this->medicineB->id]);
+    }
+
+    /** "Hapus semua" wajib konfirmasi ketik HAPUS. */
+    public function test_delete_all_requires_confirmation_word(): void
+    {
+        $this->actingAs($this->adminA)
+            ->delete('/admin/medicines/destroy-all', ['confirmation' => 'ya'])
+            ->assertRedirect(route('admin.medicines.index'))
+            ->assertSessionHas('error');
+
+        $this->assertDatabaseHas('medicines', ['id' => $this->medicine->id]);
+    }
+
+    /** "Hapus semua" dengan konfirmasi benar menghapus/nonaktifkan seluruh klinik. */
+    public function test_delete_all_handles_every_medicine_in_the_clinic(): void
+    {
+        $spare = Medicine::create([
+            'clinic_id' => $this->clinicA->id, 'name' => 'AllSpare ' . Str::random(5),
+            'unit' => 'botol', 'min_stock' => 0, 'price' => 1000,
+        ]);
+
+        $this->actingAs($this->adminA)
+            ->delete('/admin/medicines/destroy-all', ['confirmation' => 'HAPUS'])
+            ->assertRedirect(route('admin.medicines.index'));
+
+        // Punya riwayat stok (stok awal) → nonaktif, bukan dihapus.
+        $this->assertDatabaseHas('medicines', ['id' => $this->medicine->id, 'is_active' => false]);
+        // Tanpa riwayat → benar-benar hilang.
+        $this->assertDatabaseMissing('medicines', ['id' => $spare->id]);
+        // Klinik lain tidak tersentuh.
+        $this->assertDatabaseHas('medicines', ['id' => $this->medicineB->id]);
+    }
+
+    /**
+     * Berita acara lama sudah menyatu ke riwayat mutasi: tautan lama
+     * diarahkan ke daftar mutasi berfilter retur/pemusnahan, dan catatan
+     * pemusnahan lama tetap bisa ditemukan di sana.
+     */
+    public function test_legacy_disposal_report_redirects_to_unified_mutation_history(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Reported ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+        $this->stockService()->setOpeningStock($expired, 6);
+        $this->stockService()->dispose($expired, null, Medicine::DISPOSAL_RETURNED, 'Retur ke distributor');
+
+        $this->actingAs($this->adminA)
+            ->get('/admin/medicines/disposals')
+            ->assertRedirect(route('admin.medicines.mutations.index'));
+
+        $this->actingAs($this->adminA)
+            ->get('/admin/medicines/mutations')
+            ->assertOk()
+            ->assertSee($expired->name)
+            ->assertSee('Retur supplier');
+    }
+
+    /** Filter "kedaluwarsa" di daftar hanya menampilkan obat yang sudah lewat. */
+    public function test_expired_filter_only_lists_past_expiry_medicines(): void
+    {
+        $expired = Medicine::create([
+            'clinic_id' => $this->clinicA->id,
+            'name' => 'Filtered ' . Str::random(5),
+            'unit' => 'tablet', 'min_stock' => 0, 'price' => 1000,
+            'expiry_date' => Carbon::yesterday()->format('Y-m-d'),
+        ]);
+
+        $this->actingAs($this->adminA)
+            ->get('/admin/medicines?expired=1')
+            ->assertOk()
+            ->assertSee($expired->name)
+            ->assertDontSee($this->medicine->name);
+    }
 }
