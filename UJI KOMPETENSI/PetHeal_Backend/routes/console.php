@@ -23,3 +23,15 @@ Schedule::call(function () {
         ->where('expires_at', '<', now()->subDay())
         ->delete();
 })->daily()->name('prune-otp-codes');
+
+// Pet Shop: lepas reservasi stok yang kedaluwarsa setiap 5 menit.
+Schedule::command('petshop:expire-orders')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->name('expire-pet-shop-orders');
+
+// Payment: rekonsiliasi status pending secara berkala (bukan di request user).
+Schedule::command('payments:reconcile --limit=50')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->name('reconcile-payments');

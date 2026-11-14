@@ -207,6 +207,52 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/payments/{id}/refund', [PaymentController::class, 'refund'])->name('payments.refund');
     Route::post('/payments/{id}/send-reminder', [PaymentController::class, 'sendReminder'])->name('payments.send-reminder');
     Route::get('/export/payments', [PaymentController::class, 'exportPdf'])->name('payments.export');
+
+    // ── Pet Shop (Penjualan Produk) ─────────────────────────────────────────
+    // Domain terpisah dari layanan medis & stok obat. Semua query dibatasi
+    // clinic_id oleh controller (bukan hanya menu yang disembunyikan).
+    Route::prefix('pet-shop')->name('pet-shop.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\PetShopDashboardController::class, 'index'])->name('dashboard');
+
+        Route::get('/products', [\App\Http\Controllers\Admin\PetShopProductController::class, 'index'])->name('products.index');
+        Route::get('/products/create', [\App\Http\Controllers\Admin\PetShopProductController::class, 'create'])->name('products.create');
+        Route::post('/products', [\App\Http\Controllers\Admin\PetShopProductController::class, 'store'])->name('products.store');
+
+        // Rute statis import/template HARUS di atas `/products/{product}`,
+        // kalau tidak `products/import` akan dibaca sebagai id produk.
+        Route::post('/products/import', [\App\Http\Controllers\Admin\PetShopProductController::class, 'import'])->name('products.import');
+        Route::get('/products/import/error-report', [\App\Http\Controllers\Admin\PetShopProductController::class, 'downloadImportErrorReport'])->name('products.import.error-report');
+        Route::get('/products/template/csv', [\App\Http\Controllers\Admin\PetShopProductController::class, 'downloadTemplateCsv'])->name('products.template.csv');
+        Route::get('/products/template/xlsx', [\App\Http\Controllers\Admin\PetShopProductController::class, 'downloadTemplateXlsx'])->name('products.template.xlsx');
+        Route::get('/products/export/csv', [\App\Http\Controllers\Admin\PetShopProductController::class, 'exportCsv'])->name('products.export.csv');
+        Route::get('/products/export/xlsx', [\App\Http\Controllers\Admin\PetShopProductController::class, 'exportXlsx'])->name('products.export.xlsx');
+
+        Route::get('/products/{product}', [\App\Http\Controllers\Admin\PetShopProductController::class, 'show'])->name('products.show');
+        Route::get('/products/{product}/edit', [\App\Http\Controllers\Admin\PetShopProductController::class, 'edit'])->name('products.edit');
+        Route::put('/products/{product}', [\App\Http\Controllers\Admin\PetShopProductController::class, 'update'])->name('products.update');
+        Route::delete('/products/{product}', [\App\Http\Controllers\Admin\PetShopProductController::class, 'destroy'])->name('products.destroy');
+        Route::post('/products/{product}/toggle', [\App\Http\Controllers\Admin\PetShopProductController::class, 'toggle'])->name('products.toggle');
+        Route::post('/variants/{variant}/stock', [\App\Http\Controllers\Admin\PetShopProductController::class, 'adjustStock'])->name('variants.stock');
+
+        Route::get('/orders', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'index'])->name('orders.index');
+        Route::get('/orders/{order}', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'show'])->name('orders.show');
+        Route::post('/orders/{order}/transition', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'transition'])->name('orders.transition');
+        Route::post('/refunds/{refund}/confirm', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'confirmRefund'])->name('refunds.confirm');
+
+        Route::get('/sales', [\App\Http\Controllers\Admin\PetShopSalesController::class, 'index'])->name('sales.index');
+        Route::get('/sales/export', [\App\Http\Controllers\Admin\PetShopSalesController::class, 'export'])->name('sales.export');
+
+        // Kategori global & konfigurasi merchant hanya untuk super_admin.
+        Route::middleware('super_admin')->group(function () {
+            Route::get('/categories', [\App\Http\Controllers\Admin\PetShopCategoryController::class, 'index'])->name('categories.index');
+            Route::post('/categories', [\App\Http\Controllers\Admin\PetShopCategoryController::class, 'store'])->name('categories.store');
+            Route::put('/categories/{category}', [\App\Http\Controllers\Admin\PetShopCategoryController::class, 'update'])->name('categories.update');
+            Route::delete('/categories/{category}', [\App\Http\Controllers\Admin\PetShopCategoryController::class, 'destroy'])->name('categories.destroy');
+
+            Route::get('/merchants', [\App\Http\Controllers\Admin\PetShopMerchantController::class, 'index'])->name('merchants.index');
+            Route::put('/merchants/{clinic}', [\App\Http\Controllers\Admin\PetShopMerchantController::class, 'update'])->name('merchants.update');
+        });
+    });
 });
 
 /*

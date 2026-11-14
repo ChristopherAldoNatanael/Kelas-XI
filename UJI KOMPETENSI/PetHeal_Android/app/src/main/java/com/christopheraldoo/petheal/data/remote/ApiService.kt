@@ -346,4 +346,48 @@ interface ApiService {
 
     @GET("payment/booking/{bookingId}")
     suspend fun getBookingPaymentStatus(@Path("bookingId") bookingId: Int): Response<BookingPaymentStatusResponse>
+
+    // ============= PET SHOP =============
+    // Katalog lintas klinik: setiap produk membawa klinik penjualnya. Harga,
+    // stok, dan total pesanan dihitung server; aplikasi tidak pernah mengirim
+    // nominal ke endpoint pesanan.
+    @GET("pet-shop/categories")
+    suspend fun getPetShopCategories(): Response<ApiResponse<List<PetShopCategory>>>
+
+    @GET("pet-shop/sellers")
+    suspend fun getPetShopSellers(): Response<ApiResponse<List<PetShopSeller>>>
+
+    @GET("pet-shop/products")
+    suspend fun getPetShopProducts(
+        @Query("search") search: String? = null,
+        @Query("category") category: String? = null,
+        @Query("clinic_id") clinicId: Int? = null,
+        @Query("sort") sort: String? = null,
+        @Query("page") page: Int = 1,
+        @Query("per_page") perPage: Int = 20
+    ): Response<PetShopProductsResponse>
+
+    @GET("pet-shop/products/{id}")
+    suspend fun getPetShopProduct(@Path("id") id: Int): Response<ApiResponse<PetShopProduct>>
+
+    @GET("pet-shop/orders")
+    suspend fun getPetShopOrders(@Query("page") page: Int = 1): Response<PetShopOrdersResponse>
+
+    @POST("pet-shop/orders")
+    suspend fun createPetShopOrder(@Body request: PetShopOrderRequest): Response<PetShopOrderResponse>
+
+    @GET("pet-shop/orders/{id}")
+    suspend fun getPetShopOrder(@Path("id") id: Int): Response<PetShopOrderResponse>
+
+    @POST("pet-shop/orders/{id}/cancel")
+    suspend fun cancelPetShopOrder(
+        @Path("id") id: Int,
+        @Body body: Map<String, String>
+    ): Response<PetShopOrderResponse>
+
+    @POST("pet-shop/orders/{id}/pay")
+    suspend fun payPetShopOrder(@Path("id") id: Int): Response<PetShopPaymentResponse>
+
+    @GET("pet-shop/orders/{id}/payment-status")
+    suspend fun getPetShopPaymentStatus(@Path("id") id: Int): Response<PetShopPaymentStatusResponse>
 }

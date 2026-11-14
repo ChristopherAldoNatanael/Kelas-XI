@@ -171,6 +171,24 @@ class Clinic extends Model
         return $this->hasMany(DoctorScheduleException::class);
     }
 
+    /**
+     * Produk Pet Shop milik klinik. Domain terpisah dari stok obat.
+     */
+    public function products()
+    {
+        return $this->hasMany(ClinicProduct::class);
+    }
+
+    public function productOrders()
+    {
+        return $this->hasMany(ProductOrder::class);
+    }
+
+    public function merchantConfig()
+    {
+        return $this->hasOne(ClinicMerchantConfig::class);
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

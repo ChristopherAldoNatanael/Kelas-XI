@@ -247,6 +247,59 @@
                     <span class="sidebar-text">{{ __('menu.payments') }}</span>
                 </a>
                 @endif
+
+                {{-- Pet Shop: domain penjualan produk, terpisah dari layanan
+                     medis & stok obat. Satu parent agar navigasi tetap ringkas. --}}
+                @php($petShopActive = request()->routeIs('admin.pet-shop.*'))
+                <div class="sidebar-nav-group" data-nav-group>
+                    <button type="button"
+                            class="nav-link flex w-full items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ $petShopActive ? 'active-nav-item' : '' }} relative"
+                            data-nav-group-toggle
+                            aria-expanded="{{ $petShopActive ? 'true' : 'false' }}"
+                            aria-controls="nav-petshop">
+                        @if($petShopActive)
+                        <div class="active-indicator" aria-hidden="true"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">shopping_bag</span>
+                        <span class="sidebar-text flex-1 text-left text-sm">{{ __('menu.pet_shop') }}</span>
+                        <span class="sidebar-text material-symbols-outlined nav-group-chevron text-[18px] {{ $petShopActive ? 'is-open' : '' }}" aria-hidden="true">expand_more</span>
+                    </button>
+                    <div id="nav-petshop" class="sidebar-submenu {{ $petShopActive ? '' : 'hidden' }}">
+                        <a href="{{ route('admin.pet-shop.dashboard') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.dashboard') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.pet-shop.dashboard')) aria-current="page" @endif>
+                            {{ __('menu.pet_shop_dashboard') }}
+                        </a>
+                        <a href="{{ route('admin.pet-shop.products.index') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.products.*') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.pet-shop.products.*')) aria-current="page" @endif>
+                            {{ __('menu.pet_shop_products') }}
+                        </a>
+                        <a href="{{ route('admin.pet-shop.orders.index') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.orders.*') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.pet-shop.orders.*')) aria-current="page" @endif>
+                            {{ __('menu.pet_shop_orders') }}
+                        </a>
+                        <a href="{{ route('admin.pet-shop.sales.index') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.sales.*') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.pet-shop.sales.*')) aria-current="page" @endif>
+                            {{ __('menu.pet_shop_sales') }}
+                        </a>
+                        @if($isSuperAdmin)
+                            <a href="{{ route('admin.pet-shop.categories.index') }}"
+                               class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.categories.*') ? 'is-active' : '' }}"
+                               @if(request()->routeIs('admin.pet-shop.categories.*')) aria-current="page" @endif>
+                                {{ __('menu.pet_shop_categories') }}
+                            </a>
+                            <a href="{{ route('admin.pet-shop.merchants.index') }}"
+                               class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.merchants.*') ? 'is-active' : '' }}"
+                               @if(request()->routeIs('admin.pet-shop.merchants.*')) aria-current="page" @endif>
+                                {{ __('menu.pet_shop_merchants') }}
+                            </a>
+                        @endif
+                    </div>
+                </div>
+
                 <div class="pt-8">
                     <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">{{ __('menu.administration') }}</p>
                     @if($isSuperAdmin)

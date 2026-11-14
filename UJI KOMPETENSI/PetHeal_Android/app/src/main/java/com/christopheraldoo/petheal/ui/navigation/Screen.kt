@@ -49,6 +49,20 @@ sealed class Screen(val route: String) {
         }
     }
 
+    // ── Pet Shop ────────────────────────────────────────────────────────────
+    // Katalog produk dari klinik mitra. Detail produk & pesanan memakai id
+    // numerik dari backend, bukan slug, agar produk yang namanya berubah tetap
+    // bisa dibuka ulang.
+    object PetShop : Screen("pet-shop")
+    object PetShopProduct : Screen("pet-shop/product/{productId}") {
+        fun createRoute(productId: Int) = "pet-shop/product/$productId"
+    }
+    object PetShopCheckout : Screen("pet-shop/checkout")
+    object PetShopOrders : Screen("pet-shop/orders")
+    object PetShopOrderDetail : Screen("pet-shop/orders/{orderId}") {
+        fun createRoute(orderId: Int) = "pet-shop/orders/$orderId"
+    }
+
     // ── Doctors ─────────────────────────────────────────────────────────────
     object Doctors      : Screen("doctors")
     // `clinicId` = klinik dokter yang diketuk. MULTI-CLINIC: detail dokter

@@ -81,6 +81,32 @@ return [
         'api_url' => filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
             ? 'https://api.midtrans.com/v2'
             : 'https://api.sandbox.midtrans.com/v2',
+
+        // Environment logis untuk snapshot transaksi & gating merchant klinik.
+        'environment' => filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
+            ? 'production'
+            : 'sandbox',
+
+        /*
+         * Midtrans Partner Solutions.
+         *
+         * Default NONAKTIF. Pembayaran online Pet Shop hanya dibuat bila
+         * partner mode aktif DAN merchant klinik berstatus active+verified.
+         * Kredensial partner TIDAK PERNAH dikirim ke Android.
+         */
+        'partner' => [
+            'enabled' => filter_var(env('MIDTRANS_PARTNER_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
+            'partner_id' => env('MIDTRANS_PARTNER_ID'),
+            'server_key' => env('MIDTRANS_PARTNER_SERVER_KEY'),
+            'client_key' => env('MIDTRANS_PARTNER_CLIENT_KEY'),
+            'platform_merchant_id' => env('MIDTRANS_PARTNER_MERCHANT_ID'),
+            'snap_url' => env('MIDTRANS_PARTNER_SNAP_URL') ?: (filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
+                ? 'https://app.midtrans.com/snap/v1/transactions'
+                : 'https://app.sandbox.midtrans.com/snap/v1/transactions'),
+            'api_url' => env('MIDTRANS_PARTNER_API_URL') ?: (filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
+                ? 'https://api.midtrans.com/v2'
+                : 'https://api.sandbox.midtrans.com/v2'),
+        ],
     ],
 
 ];

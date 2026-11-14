@@ -10,12 +10,14 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
 use App\Services\MidtransService;
+use App\Services\PaymentService;
 use App\Services\PaymentStatusService;
 
 class PaymentController extends Controller
 {
     public function __construct(
-        private readonly MidtransService $midtrans
+        private readonly MidtransService $midtrans,
+        private readonly PaymentService $payments
     ) {}
 
     private function parsePaymentOrderId(string $orderId): ?array
@@ -247,6 +249,16 @@ class PaymentController extends Controller
                     'amount' => $validated['transaction_details']['gross_amount'],
                     'transaction_id' => $data['transaction_id'] ?? null,
                 ]);
+
+                // Write-through payment domain: konsultasi tercatat di tabel
+                // `payments` yang sama dengan Pet Shop, tanpa mengubah respons
+                // atau perilaku booking lama.
+                $this->payments->recordConsultationPayment(
+                    $booking,
+                    (string) $validated['transaction_details']['order_id'],
+                    $requestedAmount,
+                    $validated['payment_type'] ?? null
+                );
 
                 return response()->json([
                     'success' => true,
@@ -704,6 +716,13 @@ class PaymentController extends Controller
 
             if ($result['success']) {
                 $data = $result['data'];
+
+                $this->payments->recordConsultationPayment(
+                    $booking,
+                    $orderId,
+                    (int) round($remainingAmount),
+                    null
+                );
 
                 Log::info('Snap token created successfully for remaining payment', [
                     'booking_id' => $bookingId,

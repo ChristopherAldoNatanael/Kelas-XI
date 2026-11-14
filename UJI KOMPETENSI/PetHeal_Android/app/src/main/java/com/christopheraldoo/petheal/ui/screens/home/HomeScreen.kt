@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.Button
@@ -120,6 +121,8 @@ fun HomeScreen(
     onNavigateToNotifications: () -> Unit = {},
     // MULTI-CLINIC DISCOVERY: masuk ke pencarian/penjelajahan klinik.
     onNavigateToDiscovery: () -> Unit = {},
+    // Pet Shop: katalog produk lintas klinik mitra.
+    onNavigateToPetShop: () -> Unit = {},
     onNavigateToDoctor: (doctorId: Int, autoReview: Boolean) -> Unit = { _, _ -> },
     // MULTI-CLINIC: baris "Dokter terdekat" membawa kliniknya sendiri.
     onNavigateToDoctorInClinic: (doctorId: Int, clinicId: Int?) -> Unit = { _, _ -> },
@@ -228,6 +231,8 @@ fun HomeScreen(
                 onNavigateToMedicalRecords = onNavigateToMedicalRecords,
                 onNavigateToDiscovery = onNavigateToDiscovery
             )
+
+            PetShopEntryCard(onClick = onNavigateToPetShop)
 
             RecentActivitySection(recentVisits = uiState.recentVisits)
         }
@@ -1089,6 +1094,60 @@ private fun QuickActionsSection(
             QuickActionItem(Icons.Filled.CalendarMonth, "Buat\nBooking", InfoSoft, StatusCompleted, onNavigateToBookingStart)
             QuickActionItem(Icons.Filled.Article, "Rekam\nMedis", WarningSoft, WarningDeep, onNavigateToMedicalRecords)
             QuickActionItem(Icons.Filled.MedicalServices, "Cari\nDokter", Color(0xFFFFE4E6), Color(0xFFDB2777), onNavigateToDoctors)
+        }
+    }
+}
+
+@Composable
+private fun PetShopEntryCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 24.dp, vertical = 14.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = PrimaryWash),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Primary.copy(alpha = 0.18f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Primary),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.Storefront,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(22.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    "Pet Shop",
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = HomeTextPrimary
+                )
+                Text(
+                    "Makanan, obat, dan aksesoris dari klinik mitra",
+                    fontSize = 11.sp,
+                    color = HomeTextSecondary
+                )
+            }
+            Icon(
+                Icons.Filled.ChevronRight,
+                contentDescription = null,
+                tint = Primary,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }

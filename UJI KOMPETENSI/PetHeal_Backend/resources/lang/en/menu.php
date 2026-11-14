@@ -30,4 +30,12 @@ return [
     'notifications' => 'Notifications',
     'logout' => 'Logout',
     'users' => 'Users',
+
+    'pet_shop' => 'Product Sales',
+    'pet_shop_dashboard' => 'Pet Shop Overview',
+    'pet_shop_products' => 'Pet Shop Products',
+    'pet_shop_orders' => 'Pet Shop Orders',
+    'pet_shop_sales' => 'Sales History',
+    'pet_shop_categories' => 'Product Categories',
+    'pet_shop_merchants' => 'Clinic Merchants',
 ];

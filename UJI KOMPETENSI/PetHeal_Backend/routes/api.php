@@ -154,4 +154,23 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     Route::post('/payment/sync-status', [App\Http\Controllers\Api\PaymentController::class, 'syncPaymentStatus'])->middleware('throttle:payment');
     Route::post('/payment/remaining/{bookingId}', [App\Http\Controllers\Api\PaymentController::class, 'createRemainingPaymentSnapToken'])->middleware('throttle:payment');
     Route::get('/payment/booking/{bookingId}', [App\Http\Controllers\Api\PaymentController::class, 'getBookingPaymentStatus']);
+
+    // Pet Shop: katalog + pesanan pasien.
+    // Satu pesanan hanya boleh dari satu klinik (divalidasi backend).
+    Route::prefix('pet-shop')->group(function () {
+        Route::get('/categories', [App\Http\Controllers\Api\PetShopController::class, 'categories']);
+        Route::get('/sellers', [App\Http\Controllers\Api\PetShopController::class, 'sellers']);
+        Route::get('/products', [App\Http\Controllers\Api\PetShopController::class, 'products']);
+        Route::get('/products/{id}', [App\Http\Controllers\Api\PetShopController::class, 'show'])->whereNumber('id');
+
+        Route::get('/orders', [App\Http\Controllers\Api\PetShopOrderController::class, 'index']);
+        Route::post('/orders', [App\Http\Controllers\Api\PetShopOrderController::class, 'store'])
+            ->middleware('throttle:payment');
+        Route::get('/orders/{id}', [App\Http\Controllers\Api\PetShopOrderController::class, 'show'])->whereNumber('id');
+        Route::post('/orders/{id}/cancel', [App\Http\Controllers\Api\PetShopOrderController::class, 'cancel'])->whereNumber('id');
+        Route::post('/orders/{id}/pay', [App\Http\Controllers\Api\PetShopOrderController::class, 'pay'])
+            ->whereNumber('id')
+            ->middleware('throttle:payment');
+        Route::get('/orders/{id}/payment-status', [App\Http\Controllers\Api\PetShopOrderController::class, 'paymentStatus'])->whereNumber('id');
+    });
 });

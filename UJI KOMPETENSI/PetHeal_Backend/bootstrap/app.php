@@ -32,6 +32,9 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
         ]);
 
+        // Selaraskan origin aset dengan host request saat ASSET_URL masih
+        // menunjuk loopback (mis. dibuka lewat ngrok).
+        $middleware->append(\App\Http\Middleware\UseRequestAssetOrigin::class);
         $middleware->append(\App\Http\Middleware\CacheStaticAssets::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -45,6 +45,11 @@ import com.christopheraldoo.petheal.ui.screens.pet.AddPetScreen
 import com.christopheraldoo.petheal.ui.screens.pet.EditPetScreen
 import com.christopheraldoo.petheal.ui.screens.pet.PetDetailScreen
 import com.christopheraldoo.petheal.ui.screens.pet.PetsScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopCheckoutScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopOrderDetailScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopOrdersScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopProductScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopScreen
 import com.christopheraldoo.petheal.ui.screens.notification.NotificationsScreen
 import com.christopheraldoo.petheal.ui.screens.profile.EditProfileScreen
 import com.christopheraldoo.petheal.ui.screens.profile.ProfileScreen
@@ -266,6 +271,71 @@ fun PetHealNavHost(
             )
         }
 
+        // ── PET SHOP ─────────────────────────────────────────────────────────
+        composable(Screen.PetShop.route) {
+            PetShopScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenProduct = { productId ->
+                    navController.navigate(Screen.PetShopProduct.createRoute(productId))
+                },
+                onOpenCart = { navController.navigate(Screen.PetShopCheckout.route) },
+                onOpenOrders = { navController.navigate(Screen.PetShopOrders.route) }
+            )
+        }
+
+        composable(
+            route = Screen.PetShopProduct.route,
+            arguments = listOf(navArgument("productId") { type = NavType.IntType })
+        ) {
+            PetShopProductScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenCart = { navController.navigate(Screen.PetShopCheckout.route) },
+                onOpenOrders = { navController.navigate(Screen.PetShopOrders.route) }
+            )
+        }
+
+        composable(Screen.PetShopCheckout.route) {
+            PetShopCheckoutScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onContinueShopping = {
+                    navController.popBackStack(Screen.PetShop.route, inclusive = false)
+                },
+                onOrderCreated = { orderId ->
+                    // Keranjang sudah dikosongkan repository; buang layar
+                    // checkout agar tombol kembali tidak membuka keranjang kosong.
+                    navController.navigate(Screen.PetShopOrderDetail.createRoute(orderId)) {
+                        popUpTo(Screen.PetShopCheckout.route) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        composable(Screen.PetShopOrders.route) {
+            PetShopOrdersScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenOrder = { orderId ->
+                    navController.navigate(Screen.PetShopOrderDetail.createRoute(orderId))
+                },
+                onBrowseProducts = {
+                    // Kembali ke katalog yang sudah ada di stack, bukan menumpuk
+                    // layar Pet Shop kedua di atas daftar pesanan.
+                    navController.navigate(Screen.PetShop.route) {
+                        popUpTo(Screen.PetShop.route) { inclusive = false }
+                        launchSingleTop = true
+                    }
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PetShopOrderDetail.route,
+            arguments = listOf(navArgument("orderId") { type = NavType.IntType })
+        ) {
+            PetShopOrderDetailScreen(
+                onNavigateBack = { navController.popBackStack() }
+            )
+        }
+
         // Main Screens
         composable(Screen.Home.route) {
             HomeScreen(
@@ -290,6 +360,7 @@ fun PetHealNavHost(
                 onNavigateToMedicalRecords = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Records) },
                 onNavigateToProfile = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Profile) },
                 onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                onNavigateToPetShop = { navController.navigate(Screen.PetShop.route) },
                 onTabSelected = navigateTab
             )
         }
