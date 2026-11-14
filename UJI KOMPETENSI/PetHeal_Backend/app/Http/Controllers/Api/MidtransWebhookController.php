@@ -7,8 +7,10 @@ use App\Models\Booking;
 use App\Models\MedicalRecord;
 use App\Models\Payment;
 use App\Models\PaymentNotification;
+use App\Services\MidtransAccountGateway;
 use App\Services\MidtransPartnerGateway;
-use App\Services\MidtransService;
+use App\Services\PaymentAccountResolver;
+use App\Services\PaymentRoutingException;
 use App\Services\PaymentService;
 use App\Services\PaymentStatusService;
 use Illuminate\Http\JsonResponse;
@@ -30,9 +32,10 @@ use Illuminate\Support\Facades\Log;
 class MidtransWebhookController extends Controller
 {
     public function __construct(
-        private readonly MidtransService $midtrans,
         private readonly MidtransPartnerGateway $partnerGateway,
-        private readonly PaymentService $payments
+        private readonly PaymentService $payments,
+        private readonly PaymentAccountResolver $resolver,
+        private readonly MidtransAccountGateway $accountGateway
     ) {}
 
     public function handle(Request $request, PaymentStatusService $paymentStatusService): JsonResponse
@@ -60,9 +63,12 @@ class MidtransWebhookController extends Controller
         }
 
         $isPartnerNotification = !empty($payload['partner_id']);
-        $signatureValid = $this->verifySignature($payload, (string) $orderId, (string) $statusCode, (string) $grossAmount, $signatureKey, $isPartnerNotification);
+        $payment = Payment::with('credentialVersion')->where('provider_order_id', $orderId)->first();
 
-        $payment = Payment::where('provider_order_id', $orderId)->first();
+        // Signature diverifikasi memakai kredensial yang tercatat pada
+        // transaksi, bukan Server Key "saat ini". Rotasi kredensial tidak
+        // boleh membuat notifikasi transaksi lama ditolak.
+        $signatureValid = $this->verifySignature($payload, $payment, (string) $signatureKey, $isPartnerNotification);
         $notification = $this->payments->logNotification(
             $payload,
             $signatureValid,
@@ -85,7 +91,7 @@ class MidtransWebhookController extends Controller
             }
 
             if (preg_match('/^MEDREC-(\d+)-/', $orderId, $matches)) {
-                return $this->handleMedicalRecord($notification, $matches[1], $orderId, $transactionStatus, $paymentType, $grossAmount, $payload, $paymentStatusService);
+                return $this->handleMedicalRecord($notification, $payment, $matches[1], $orderId, $transactionStatus, $paymentType, $grossAmount, $payload, $paymentStatusService);
             }
 
             if (preg_match('/^BOOKING-(\d+)/', $orderId, $matches)) {
@@ -163,6 +169,7 @@ class MidtransWebhookController extends Controller
 
     private function handleMedicalRecord(
         PaymentNotification $notification,
+        ?Payment $payment,
         string $recordId,
         string $orderId,
         ?string $transactionStatus,
@@ -179,6 +186,43 @@ class MidtransWebhookController extends Controller
             return response()->json(['error' => 'Medical record not found'], 404);
         }
 
+        // Payment row modern: validasi merchant/gross/currency lalu biarkan
+        // PaymentService menulis ke payment DAN rekam medis (satu jalur).
+        if ($payment !== null) {
+            if (isset($payload['merchant_id']) && filled($payment->merchant_id)
+                && (string) $payload['merchant_id'] !== (string) $payment->merchant_id) {
+                $notification->forceFill(['processing_note' => 'Merchant ID tidak cocok'])->save();
+
+                return response()->json(['error' => 'Merchant mismatch'], 422);
+            }
+
+            if (isset($payload['gross_amount'])
+                && (int) round((float) $payload['gross_amount']) !== (int) $payment->gross_amount) {
+                $notification->forceFill(['processing_note' => 'Gross amount tidak cocok'])->save();
+
+                return response()->json(['error' => 'Gross amount mismatch'], 422);
+            }
+
+            if (isset($payload['currency'])
+                && strtoupper((string) $payload['currency']) !== strtoupper((string) $payment->currency)) {
+                $notification->forceFill(['processing_note' => 'Currency tidak cocok'])->save();
+
+                return response()->json(['error' => 'Currency mismatch'], 422);
+            }
+
+            $result = $this->payments->applyProviderNotification($payment, $payload, 'webhook');
+
+            $notification->forceFill([
+                'payment_id' => $payment->id,
+                'processed' => true,
+                'processing_note' => $result['changed'] ? 'Status rekam medis diperbarui' : 'Tidak ada perubahan (idempoten)',
+            ])->save();
+
+            return response()->json(['status' => 'ok']);
+        }
+
+        // Transaksi MEDREC legacy (dibuat sebelum routing per klinik) tidak
+        // punya baris Payment; jalur lama tetap dipakai agar histori sah.
         $result = $paymentStatusService->applyMedicalRecordTransactionStatus(
             $record,
             $orderId,
@@ -214,6 +258,30 @@ class MidtransWebhookController extends Controller
             return response()->json(['error' => 'Booking not found'], 404);
         }
 
+        $payment = Payment::where('provider_order_id', $orderId)->first();
+
+        // Notifikasi hanya boleh mengubah transaksi milik merchant yang sama.
+        if ($payment !== null && isset($payload['merchant_id']) && filled($payment->merchant_id)
+            && (string) $payload['merchant_id'] !== (string) $payment->merchant_id) {
+            $notification->forceFill(['processing_note' => 'Merchant ID tidak cocok'])->save();
+
+            return response()->json(['error' => 'Merchant mismatch'], 422);
+        }
+
+        if ($payment !== null && isset($payload['gross_amount'])
+            && (int) round((float) $payload['gross_amount']) !== (int) $payment->gross_amount) {
+            $notification->forceFill(['processing_note' => 'Gross amount tidak cocok'])->save();
+
+            return response()->json(['error' => 'Gross amount mismatch'], 422);
+        }
+
+        if ($payment !== null && isset($payload['currency'])
+            && strtoupper((string) $payload['currency']) !== strtoupper((string) $payment->currency)) {
+            $notification->forceFill(['processing_note' => 'Currency tidak cocok'])->save();
+
+            return response()->json(['error' => 'Currency mismatch'], 422);
+        }
+
         $result = $paymentStatusService->applyTransactionStatus(
             $booking,
             $orderId,
@@ -225,7 +293,6 @@ class MidtransWebhookController extends Controller
 
         // Write-through ke payment domain: transaksi konsultasi kini punya
         // jejak yang sama tanpa mengubah alur booking lama.
-        $payment = Payment::where('provider_order_id', $orderId)->first();
         if ($payment) {
             $this->payments->applyProviderNotification($payment, $payload, 'webhook');
         }
@@ -240,22 +307,61 @@ class MidtransWebhookController extends Controller
 
     private function verifySignature(
         array $payload,
-        string $orderId,
-        string $statusCode,
-        string $grossAmount,
-        mixed $signatureKey,
+        ?Payment $payment,
+        string $signatureKey,
         bool $partnerNotification
     ): bool {
-        if (!is_string($signatureKey) || $signatureKey === '') {
+        if ($signatureKey === '') {
             return false;
         }
 
+        // 1. Payment dengan route terkunci (klinik/fallback pusat).
+        if ($payment !== null && $payment->routing_source !== null) {
+            try {
+                $account = $this->resolver->resolveLocked($payment);
+            } catch (PaymentRoutingException $e) {
+                Log::warning('Webhook route cannot be resolved', [
+                    'payment_id' => $payment->id,
+                    'reason' => $e->reason,
+                ]);
+
+                return false;
+            }
+
+            if ($account !== null) {
+                return $this->accountGateway->verifySignature($account, $payload);
+            }
+        }
+
+        // 2. Legacy Partner (pekerjaan sebelumnya, tetap didukung).
         if ($partnerNotification) {
             return $this->partnerGateway->verifyNotification($payload);
         }
 
-        $expected = hash('sha512', $orderId . $statusCode . $grossAmount . $this->midtrans->getServerKey());
+        // 3. Transaksi legacy tanpa route: Server Key pusat, apa pun status
+        //    fallback saat ini, supaya notifikasi lama tetap tervalidasi.
+        $environment = (string) config('services.midtrans.environment', 'sandbox');
+        $centralKey = (string) (config("services.midtrans.central.{$environment}.server_key")
+            ?: config('services.midtrans.server_key', ''));
 
-        return hash_equals($expected, $signatureKey);
+        if ($centralKey === '') {
+            return false;
+        }
+
+        // Transaksi lama bisa dibuat dengan key env sebelum blok central ada;
+        // terima keduanya (tetap hash SHA512, bukan longgar).
+        $legacyKey = (string) config('services.midtrans.server_key', '');
+        $keys = array_values(array_unique(array_filter([$centralKey, $legacyKey])));
+        $base = (string) ($payload['order_id'] ?? '')
+            . (string) ($payload['status_code'] ?? '')
+            . (string) ($payload['gross_amount'] ?? '');
+
+        foreach ($keys as $key) {
+            if (hash_equals(hash('sha512', $base . $key), $signatureKey)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

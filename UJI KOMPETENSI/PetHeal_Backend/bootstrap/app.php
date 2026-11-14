@@ -38,6 +38,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(\App\Http\Middleware\CacheStaticAssets::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Midtrans Server Key tidak boleh ikut ter-flash ke session saat
+        // validasi form gagal (mis. Merchant ID salah format).
+        $exceptions->dontFlash(['server_key']);
+
         // PHASE 2 (contract freeze): single canonical 401 for all API auth
         // failures. Behavior unchanged (still 401); only the message text is
         // unified. Android branches on status code, never on this string.

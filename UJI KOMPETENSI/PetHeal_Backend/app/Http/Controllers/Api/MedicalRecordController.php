@@ -3,17 +3,18 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use App\Models\Booking;
 use App\Models\MedicalRecord;
-use App\Services\MidtransService;
-use App\Services\PaymentStatusService;
+use App\Services\PaymentGatewayException;
+use App\Services\PaymentRoutingException;
+use App\Services\PaymentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use RuntimeException;
 
 class MedicalRecordController extends Controller
 {
     public function __construct(
-        private readonly MidtransService $midtrans
+        private readonly PaymentService $payments
     ) {}
 
     private function serializeRecord(MedicalRecord $record, bool $includeFullRecord = true): array
@@ -260,87 +261,53 @@ class MedicalRecordController extends Controller
                 ], 400);
             }
 
-            if (!$this->midtrans->isConfigured()) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Midtrans configuration is incomplete. Please contact support.',
-                ], 500);
-            }
+            // Akun merchant, nominal, dan order id diputuskan server. Endpoint
+            // ini tidak lagi memakai Server Key pusat secara langsung.
+            $payment = $this->payments->createMedicalRecordPayment($record);
+            $payment->loadMissing('credentialVersion');
 
-            // PHASE 3 (B17): millis instead of time() — same-second double
-            // taps collided on unique extra_payment_order_id (500).
-            $orderId = 'MEDREC-' . $record->id . '-' . (int) (microtime(true) * 1000);
-            $user = $request->user();
-            $petName = $record->pet?->name ?: 'Pet';
-            $snapPayload = [
-                'transaction_details' => [
-                    'order_id' => $orderId,
-                    'gross_amount' => (int) round($remainingAmount),
-                ],
-                'customer_details' => [
-                    'first_name' => $user->name,
-                    'email' => $user->email,
-                ],
-                'item_details' => [
-                    [
-                        'id' => "MEDREC-{$record->id}",
-                        'price' => (int) round($remainingAmount),
-                        'quantity' => 1,
-                        'name' => "Extra Medical Cost - {$petName}",
-                    ],
-                ],
-                'callbacks' => [
-                    'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
-                ],
-                'enabled_payments' => [
-                    'credit_card',
-                    'gopay',
-                    'shopeepay',
-                    'bca_va',
-                    'bni_va',
-                    'bri_va',
-                    'mandiri_va',
-                    'permata_va',
-                    'cimb_va',
-                    'qris',
-                ],
-                'credit_card' => [
-                    'secure' => true,
-                ],
-            ];
-
-            $result = $this->midtrans->createSnapToken($snapPayload);
-
-            if (!$result['success']) {
-                Log::error('Midtrans Snap API error for medical extra payment', [
-                    'medical_record_id' => $record->id,
-                    'status' => $result['status'] ?? 'unknown',
-                ]);
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to create extra medical payment token',
-                ], $result['status'] ?? 502);
-            }
-
-            $data = $result['data'];
-
-            $record->update([
-                'extra_payment_status' => 'pending',
-                'extra_payment_order_id' => $orderId,
+            Log::info('Medical record payment created with routed account', [
+                'medical_record_id' => $record->id,
+                'payment_id' => $payment->id,
+                'routing_source' => $payment->routing_source,
+                'environment' => $payment->environment,
+                'amount' => $payment->gross_amount,
             ]);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Extra medical payment token created successfully',
                 'data' => [
-                    'token' => $data['token'],
-                    'redirect_url' => $data['redirect_url'],
-                    'transaction_id' => $data['transaction_id'] ?? null,
-                    'order_id' => $orderId,
+                    'token' => $payment->snap_token,
+                    'redirect_url' => $payment->redirect_url,
+                    'transaction_id' => $payment->provider_transaction_id,
+                    'order_id' => $payment->provider_order_id,
+                    'payment_id' => $payment->id,
+                    'gross_amount' => $payment->gross_amount,
+                    'client_key' => $payment->credentialVersion?->client_key
+                        ?: config("services.midtrans.central.{$payment->environment}.client_key"),
+                    'environment' => $payment->environment,
+                    'routing_source' => $payment->routing_source,
                     'medical_record' => $this->serializeRecord($record->fresh()),
                 ],
             ]);
+        } catch (PaymentRoutingException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'code' => 'online_payment_unavailable',
+                'reason' => $e->reason,
+            ], $e->httpStatus);
+        } catch (PaymentGatewayException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create extra medical payment token: ' . $e->getMessage(),
+            ], 502);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             Log::error('MedicalRecord createExtraPayment error', [
                 'medical_record_id' => $id,

@@ -19,7 +19,13 @@ data class PetShopCheckoutUiState(
     val notes: String = "",
     val phone: String = "",
     val paymentMethod: String = PetShopOrder.METHOD_PAY_AT_CLINIC,
-    val isOnlineAvailable: Boolean = false,
+    /**
+     * true  = klinik punya Midtrans sendiri (atau central fallback aktif).
+     * false = server eksplisit menolak online payment untuk klinik ini
+     *         (misalnya: konfigurasi klinik bermasalah & fallback dimatikan).
+     * Default true: Android tidak tahu kondisi server sampai order gagal.
+     */
+    val isOnlineAvailable: Boolean = true,
     val isSubmitting: Boolean = false,
     val error: String? = null,
     val notice: String? = null,
@@ -46,18 +52,14 @@ class PetShopCheckoutViewModel @Inject constructor(
         viewModelScope.launch {
             repository.cart.collect { lines ->
                 _uiState.update { state ->
-                    val onlineAvailable = lines.firstOrNull()?.onlinePaymentAvailable == true
                     state.copy(
                         lines = lines,
-                        isOnlineAvailable = onlineAvailable,
-                        // Online dipilih lebih dulu HANYA bila klinik siap;
-                        // bila tidak, satu-satunya metode sah adalah bayar di
-                        // klinik (tidak ada fallback diam-diam ke merchant lain).
-                        paymentMethod = when {
-                            !onlineAvailable -> PetShopOrder.METHOD_PAY_AT_CLINIC
-                            !paymentMethodChosen -> PetShopOrder.METHOD_ONLINE
-                            else -> state.paymentMethod
-                        }
+                        // isOnlineAvailable tetap true (default). Akan diset false
+                        // hanya bila server mengembalikan code=online_payment_unavailable
+                        // di placeOrder(). Klinik tanpa Midtrans sendiri tetap bisa
+                        // bayar online via akun pusat (central fallback).
+                        paymentMethod = if (!paymentMethodChosen) PetShopOrder.METHOD_ONLINE
+                        else state.paymentMethod
                     )
                 }
             }
@@ -73,7 +75,6 @@ class PetShopCheckoutViewModel @Inject constructor(
     }
 
     fun onPaymentMethodSelected(method: String) {
-        if (method == PetShopOrder.METHOD_ONLINE && !_uiState.value.isOnlineAvailable) return
         paymentMethodChosen = true
         _uiState.update { it.copy(paymentMethod = method) }
     }
@@ -105,8 +106,21 @@ class PetShopCheckoutViewModel @Inject constructor(
                 is Result.Success -> _uiState.update {
                     it.copy(isSubmitting = false, placedOrder = result.data)
                 }
-                is Result.Error -> _uiState.update {
-                    it.copy(isSubmitting = false, error = result.message)
+                is Result.Error -> {
+                    if (result.code == "online_payment_unavailable") {
+                        // Server menolak online payment → paksa ke bayar di klinik
+                        // dan beritahu user dengan pesan yang jelas.
+                        _uiState.update {
+                            it.copy(
+                                isSubmitting = false,
+                                isOnlineAvailable = false,
+                                paymentMethod = PetShopOrder.METHOD_PAY_AT_CLINIC,
+                                notice = "Pembayaran online tidak tersedia untuk klinik ini. Metode diubah ke bayar di klinik."
+                            )
+                        }
+                    } else {
+                        _uiState.update { it.copy(isSubmitting = false, error = result.message) }
+                    }
                 }
                 else -> _uiState.update { it.copy(isSubmitting = false) }
             }

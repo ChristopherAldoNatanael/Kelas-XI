@@ -27,6 +27,7 @@ return [
     'join_requests' => 'Join Requests',
     'audit_logs' => 'Audit Logs',
     'settings' => 'Settings',
+    'payment_settings' => 'Payment Settings',
     'notifications' => 'Notifications',
     'logout' => 'Logout',
     'users' => 'Users',

@@ -246,3 +246,14 @@ cd PetHeal_Backend
 php artisan test --filter=PetShopTest
 php artisan test --filter=PaymentSplitCalculatorTest
 ```
+
+---
+
+## 11. Addendum Midtrans multi-klinik (14 November 2026)
+
+- **Routing penuh**: booking DP/lunas/pelunasan, Pet Shop, dan biaya tambahan rekam medis (`MEDREC-*`) memakai `PaymentAccountResolver` → `MidtransAccountGateway`. `MedicalRecordController` tidak lagi memakai `MidtransService` pusat.
+- **Webhook & rekonsiliasi**: merchant/gross/currency divalidasi; status provider ditulis ke `payments` dan domain payable. Rekonsiliasi memakai akun terkunci transaksi, bukan key pusat, dan route tidak valid tidak fallback diam-diam.
+- **VCMS**: panel Sandbox/Production, salin Notification URL, monitor routing + signature invalid, jejak audit, konfirmasi password 15 menit untuk aksi production.
+- **Verifikasi**: `ClinicPaymentRoutingTest` 21/129; regresi PetShop 12/89, AdminConsoleSmoke 7/141, Refund 11/16, PaymentSplitCalculator 6/91 (total 36/337). `view:cache` sukses.
+- **Panduan**: `PetHeal_Backend/docs/MIDTRANS_CLINIC_ADMIN_GUIDE.md`; detail teknis `PetHeal_Backend/docs/phases/MULTI_CLINIC_MIDTRANS_ROUTING.md`.
+- **Sisa**: refund MEDREC belum lewat gateway; VCMS belum diuji browser/Lighthouse/axe.

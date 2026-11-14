@@ -184,6 +184,11 @@ class Clinic extends Model
         return $this->hasMany(ProductOrder::class);
     }
 
+    public function paymentAccount()
+    {
+        return $this->hasOne(ClinicPaymentAccount::class);
+    }
+
     public function merchantConfig()
     {
         return $this->hasOne(ClinicMerchantConfig::class);

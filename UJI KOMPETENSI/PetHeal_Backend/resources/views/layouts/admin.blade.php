@@ -338,6 +338,14 @@
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">history</span>
                         <span class="sidebar-text">{{ __('menu.audit_logs') }}</span>
                     </a>
+                    <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.payment-settings.*') ? 'active-nav-item' : '' }} relative"
+                       href="{{ route('admin.payment-settings.index') }}" @if(request()->routeIs('admin.payment-settings.*')) aria-current="page" @endif>
+                        @if(request()->routeIs('admin.payment-settings.*'))
+                        <div class="active-indicator" aria-hidden="true"></div>
+                        @endif
+                        <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">account_balance_wallet</span>
+                        <span class="sidebar-text">{{ __('menu.payment_settings') }}</span>
+                    </a>
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.settings') ? 'active-nav-item' : '' }} relative"
                        href="{{ route('admin.settings') }}" @if(request()->routeIs('admin.settings')) aria-current="page" @endif>
                         @if(request()->routeIs('admin.settings'))
@@ -406,7 +414,7 @@
                             aria-label="{{ __('admin.open_global_search') }}" aria-haspopup="dialog" aria-controls="commandPalette">
                         <span class="material-symbols-outlined text-lg" aria-hidden="true">search</span>
                         <span class="hidden md:inline text-xs font-semibold">{{ __('admin.search_short') }}</span>
-                        <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-bold text-slate-400">Ctrl K</kbd>
+                        <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-bold text-slate-500 dark:text-slate-400">Ctrl K</kbd>
                     </button>
                     @endunless
                     @if($isSuperAdmin)
@@ -435,10 +443,10 @@
                     {{-- Language switcher preserves the current query string (filters, dates). --}}
                     <div class="flex items-center gap-1" aria-label="{{ __('admin.choose_language') }}">
                         <a href="{{ request()->fullUrlWithQuery(['lang' => 'id']) }}"
-                           class="px-2 py-1 rounded text-[10px] font-bold transition-all {{ app()->getLocale() === 'id' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600' }}"
+                           class="px-2 py-1 rounded text-[10px] font-bold ring-1 transition-all {{ app()->getLocale() === 'id' ? 'bg-slate-900 text-white ring-primary dark:bg-white dark:text-slate-900' : 'text-slate-500 ring-transparent hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}"
                            @if(app()->getLocale() === 'id') aria-current="true" @endif>ID</a>
                         <a href="{{ request()->fullUrlWithQuery(['lang' => 'en']) }}"
-                           class="px-2 py-1 rounded text-[10px] font-bold transition-all {{ app()->getLocale() === 'en' ? 'bg-primary text-white' : 'text-slate-400 hover:text-slate-600' }}"
+                           class="px-2 py-1 rounded text-[10px] font-bold ring-1 transition-all {{ app()->getLocale() === 'en' ? 'bg-slate-900 text-white ring-primary dark:bg-white dark:text-slate-900' : 'text-slate-500 ring-transparent hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}"
                            @if(app()->getLocale() === 'en') aria-current="true" @endif>EN</a>
                     </div>
                     <button id="darkModeToggle" class="flex items-center justify-center w-9 h-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"

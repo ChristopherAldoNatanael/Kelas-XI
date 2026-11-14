@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Booking;
 use App\Models\Clinic;
 use App\Models\ClinicMerchantConfig;
+use App\Models\MedicalRecord;
 use App\Models\Payment;
 use App\Models\PaymentNotification;
 use App\Models\PaymentRefund;
@@ -18,25 +19,171 @@ use RuntimeException;
 /**
  * Payment Service terpusat.
  *
- * Melayani `consultation` dan `pet_shop` dengan satu tabel `payments`, tetapi
- * efek samping tetap dijalankan pada domain masing-masing. Tidak ada
- * kesimpulan "lunas" dari redirect frontend: status hanya berubah dari
- * notifikasi provider yang tervalidasi atau rekonsiliasi server-to-server.
+ * Semua transaksi online (booking DP/lunas/pelunasan dan Pet Shop) memakai
+ * satu jalur: PaymentAccountResolver menentukan akun Midtrans, lalu
+ * MidtransAccountGateway membuat transaksi dengan kredensial akun tersebut.
+ *
+ * Tidak ada token yang dibuat dengan Server Key global tanpa keputusan
+ * routing eksplisit, sehingga dana tidak pernah berpindah ke merchant yang
+ * salah hanya karena konfigurasi klinik belum lengkap.
  */
 class PaymentService
 {
     public function __construct(
-        private readonly PaymentSplitCalculator $splitCalculator,
         private readonly MidtransPartnerGateway $partnerGateway,
-        private readonly MerchantConfigurationService $merchants,
         private readonly ProductStockService $stock,
         private readonly PaymentStatusService $bookingPaymentStatus,
-        private readonly ProductOrderService $orders
+        private readonly ProductOrderService $orders,
+        private readonly PaymentAccountResolver $resolver,
+        private readonly MidtransAccountGateway $gateway
     ) {}
 
+    /**
+     * Ketersediaan pembayaran online sebuah klinik.
+     *
+     * @return array{available:bool, reason:?string, provider:?string, environment:string, source:?string, merchant_label:?string, commission_percent:float}
+     */
     public function onlineAvailability(Clinic $clinic): array
     {
-        return $this->merchants->onlineAvailability($clinic, $this->partnerGateway);
+        $availability = $this->resolver->availability($clinic);
+        $config = ClinicMerchantConfig::where('clinic_id', $clinic->id)->first();
+
+        return $availability + [
+            'commission_percent' => (float) ($config?->commission_percent ?? 0),
+        ];
+    }
+
+    /**
+     * Buat transaksi online untuk booking (DP, lunas, atau pelunasan).
+     *
+     * Nominal SELALU dihitung dari kolom booking di database, bukan dari
+     * request. `$requestedOrderId` hanya dipakai bila formatnya cocok dengan
+     * booking & jenis pembayaran; selain itu server membuat order id sendiri.
+     */
+    public function createBookingPayment(
+        Booking $booking,
+        string $kind,
+        ?string $requestedOrderId = null
+    ): Payment {
+        $booking->loadMissing(['pet', 'user']);
+
+        if (in_array($booking->status, ['cancelled', 'completed'], true)) {
+            throw new RuntimeException(__('payments.booking_not_payable'));
+        }
+
+        if ($booking->payment_status === 'paid') {
+            throw new RuntimeException(__('payments.booking_already_paid'));
+        }
+
+        $amount = $this->bookingAmountFor($booking, $kind);
+
+        $reusable = $this->findReusableBookingPayment($booking, $amount);
+
+        if ($reusable) {
+            return $reusable;
+        }
+
+        // Idempotensi: request ulang dengan order id yang sama tidak membuat
+        // transaksi (dan tagihan) kedua.
+        if ($requestedOrderId !== null && $requestedOrderId !== '') {
+            $existing = Payment::where('provider_order_id', $requestedOrderId)->first();
+
+            if ($existing
+                && $existing->payable_type === Booking::class
+                && (int) $existing->payable_id === (int) $booking->id
+                && (int) $existing->gross_amount === $amount
+                && in_array($existing->status, [Payment::STATUS_UNPAID, Payment::STATUS_PENDING], true)) {
+                return $existing;
+            }
+        }
+
+        $lockedPayment = $kind === 'remaining'
+            ? $this->resolver->lockedRouteForBooking($booking->id)
+            : null;
+
+        try {
+            $account = $this->resolver->resolve($booking->clinic_id, $lockedPayment);
+        } catch (PaymentRoutingException $e) {
+            $this->resolver->logRouting(
+                $booking->clinic_id,
+                [],
+                \App\Models\PaymentRoutingLog::OUTCOME_REJECTED,
+                $e->reason,
+                null,
+                Booking::class,
+                $booking->id
+            );
+
+            throw $e;
+        }
+
+        $orderId = $this->bookingOrderId($booking, $kind, $requestedOrderId);
+
+        $payment = Payment::create([
+            'payment_code' => Payment::generatePaymentCode(),
+            'provider' => 'midtrans',
+            'payment_type' => Payment::TYPE_CONSULTATION,
+            'clinic_id' => $booking->clinic_id,
+            'user_id' => $booking->user_id,
+            'payable_type' => Booking::class,
+            'payable_id' => $booking->id,
+            'provider_order_id' => $orderId,
+            'payment_account_id' => $account->paymentAccountId,
+            'payment_credential_version_id' => $account->credentialVersionId,
+            'routing_source' => $account->routingSource,
+            'merchant_id' => $account->merchantId,
+            'environment' => $account->environment,
+            'gross_amount' => $amount,
+            'currency' => 'IDR',
+            'status' => Payment::STATUS_UNPAID,
+            'provider_status' => 'created',
+            'expires_at' => now()->addMinutes(30),
+            'metadata' => [
+                'booking_id' => $booking->id,
+                'intent' => $kind,
+                'gateway' => 'midtrans_' . $account->routingSource,
+                'merchant_label' => $account->label,
+            ],
+        ]);
+
+        $this->recordHistory($payment, null, Payment::STATUS_UNPAID, 'system', 'Payment booking dibuat');
+
+        $this->resolver->logRouting(
+            $booking->clinic_id,
+            $account->toLogContext(),
+            \App\Models\PaymentRoutingLog::OUTCOME_RESOLVED,
+            null,
+            $payment,
+            Booking::class,
+            $booking->id
+        );
+
+        $result = $this->gateway->createTransaction(
+            $account,
+            $this->bookingSnapPayload($booking, $payment, $kind)
+        );
+
+        if (!($result['success'] ?? false)) {
+            $payment->update([
+                'status' => Payment::STATUS_FAILED,
+                'provider_status' => 'create_failed',
+            ]);
+            $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_FAILED, 'system', $result['message'] ?? 'Gagal membuat transaksi');
+
+            throw new PaymentGatewayException($result['message'] ?? __('payments.gateway_failed'));
+        }
+
+        $payment->update([
+            'status' => Payment::STATUS_PENDING,
+            'provider_status' => 'pending',
+            'snap_token' => $result['data']['token'] ?? null,
+            'redirect_url' => $result['data']['redirect_url'] ?? null,
+            'provider_transaction_id' => $result['data']['transaction_id'] ?? null,
+        ]);
+
+        $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_PENDING, 'system', 'Menunggu pembayaran');
+
+        return $payment->fresh();
     }
 
     /**
@@ -49,10 +196,21 @@ class PaymentService
         }
 
         $order->loadMissing('clinic');
-        $availability = $this->onlineAvailability($order->clinic);
 
-        if (!$availability['available']) {
-            throw new RuntimeException('Pembayaran online belum tersedia untuk klinik ini.');
+        try {
+            $account = $this->resolver->resolve($order->clinic_id);
+        } catch (PaymentRoutingException $e) {
+            $this->resolver->logRouting(
+                $order->clinic_id,
+                [],
+                \App\Models\PaymentRoutingLog::OUTCOME_REJECTED,
+                $e->reason,
+                null,
+                ProductOrder::class,
+                $order->id
+            );
+
+            throw $e;
         }
 
         $existing = $order->payments()
@@ -66,15 +224,6 @@ class PaymentService
             return $existing;
         }
 
-        $merchantConfig = ClinicMerchantConfig::where('clinic_id', $order->clinic_id)->firstOrFail();
-
-        $split = $this->splitCalculator->calculate(
-            (int) $order->total_amount,
-            (float) $merchantConfig->commission_percent,
-            (string) $merchantConfig->merchant_id,
-            $this->partnerGateway->platformMerchantId()
-        );
-
         $payment = Payment::create([
             'payment_code' => Payment::generatePaymentCode(),
             'provider' => 'midtrans',
@@ -84,28 +233,41 @@ class PaymentService
             'payable_type' => ProductOrder::class,
             'payable_id' => $order->id,
             'provider_order_id' => $this->makeProviderOrderId($order),
-            'partner_id' => $this->partnerGateway->partnerId(),
-            'merchant_id' => $merchantConfig->merchant_id,
-            'environment' => (string) config('services.midtrans.environment', 'sandbox'),
+            'payment_account_id' => $account->paymentAccountId,
+            'payment_credential_version_id' => $account->credentialVersionId,
+            'routing_source' => $account->routingSource,
+            'merchant_id' => $account->merchantId,
+            'environment' => $account->environment,
             'gross_amount' => (int) $order->total_amount,
             'currency' => 'IDR',
             'status' => Payment::STATUS_UNPAID,
+            'provider_status' => 'created',
             'expires_at' => now()->addMinutes((int) config('petshop.online_reservation_minutes', 30)),
-            'split_settings' => $split['settings'],
             'metadata' => [
                 'order_number' => $order->order_number,
                 'customer_name' => $order->customer_name,
                 'customer_phone' => $order->customer_phone,
-                'commission_percent' => $split['commission_percent'],
-                'clinic_amount' => $split['clinic_amount'],
-                'platform_amount' => $split['platform_amount'],
-                'gateway' => 'midtrans_partner',
+                'gateway' => 'midtrans_' . $account->routingSource,
+                'merchant_label' => $account->label,
             ],
         ]);
 
         $this->recordHistory($payment, null, Payment::STATUS_UNPAID, 'system', 'Payment dibuat');
 
-        $result = $this->partnerGateway->createTransaction($payment);
+        $this->resolver->logRouting(
+            $order->clinic_id,
+            $account->toLogContext(),
+            \App\Models\PaymentRoutingLog::OUTCOME_RESOLVED,
+            null,
+            $payment,
+            ProductOrder::class,
+            $order->id
+        );
+
+        $result = $this->gateway->createTransaction(
+            $account,
+            $this->petShopSnapPayload($order, $payment)
+        );
 
         if (!($result['success'] ?? false)) {
             $payment->update([
@@ -114,15 +276,15 @@ class PaymentService
             ]);
             $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_FAILED, 'system', $result['message'] ?? 'Gagal membuat transaksi');
 
-            throw new RuntimeException($result['message'] ?? 'Gagal membuat transaksi pembayaran.');
+            throw new PaymentGatewayException($result['message'] ?? 'Gagal membuat transaksi pembayaran.');
         }
 
         $payment->update([
             'status' => Payment::STATUS_PENDING,
             'provider_status' => 'pending',
-            'snap_token' => $result['token'] ?? null,
-            'redirect_url' => $result['redirect_url'] ?? null,
-            'provider_transaction_id' => $result['transaction_id'] ?? null,
+            'snap_token' => $result['data']['token'] ?? null,
+            'redirect_url' => $result['data']['redirect_url'] ?? null,
+            'provider_transaction_id' => $result['data']['transaction_id'] ?? null,
         ]);
 
         $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_PENDING, 'system', 'Menunggu pembayaran');
@@ -130,6 +292,144 @@ class PaymentService
         if ($order->payment_status === ProductOrder::PAYMENT_UNPAID) {
             $order->forceFill(['payment_status' => ProductOrder::PAYMENT_PENDING])->save();
         }
+
+        return $payment->fresh();
+    }
+
+    /**
+     * Buat (atau pakai ulang) pembayaran online biaya tambahan rekam medis.
+     *
+     * Sebelumnya endpoint MEDREC memanggil `MidtransService` dengan Server Key
+     * pusat, sehingga biaya tambahan klinik masuk ke merchant pusat. Sekarang
+     * transaksi mengikuti jalur yang sama dengan booking/Pet Shop:
+     * resolver menentukan akun, gateway membuat transaksi, dan baris Payment
+     * menyimpan route tersebut untuk webhook & rekonsiliasi.
+     */
+    public function createMedicalRecordPayment(MedicalRecord $record): Payment
+    {
+        $record->loadMissing(['pet', 'booking.user', 'booking.clinic']);
+
+        if (in_array($record->extra_payment_status, ['paid', 'not_required'], true)) {
+            throw new RuntimeException(__('payments.medical_record_not_payable'));
+        }
+
+        $amount = (int) round(max(
+            0,
+            (float) $record->extra_payment_amount - (float) $record->extra_payment_paid_amount
+        ));
+
+        if ($amount <= 0) {
+            throw new RuntimeException(__('payments.medical_record_nothing_to_pay'));
+        }
+
+        $booking = $record->booking;
+
+        if ($booking === null) {
+            throw new RuntimeException(__('payments.medical_record_booking_missing'));
+        }
+
+        $reusable = Payment::where('payable_type', MedicalRecord::class)
+            ->where('payable_id', $record->id)
+            ->where('gross_amount', $amount)
+            ->where('status', Payment::STATUS_PENDING)
+            ->whereNotNull('redirect_url')
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
+
+        if ($reusable) {
+            return $reusable;
+        }
+
+        $clinicId = $record->clinic_id ?? $booking->clinic_id;
+
+        try {
+            $account = $this->resolver->resolve($clinicId);
+        } catch (PaymentRoutingException $e) {
+            $this->resolver->logRouting(
+                $clinicId,
+                [],
+                \App\Models\PaymentRoutingLog::OUTCOME_REJECTED,
+                $e->reason,
+                null,
+                MedicalRecord::class,
+                $record->id
+            );
+
+            throw $e;
+        }
+
+        $orderId = $this->medicalRecordOrderId($record);
+
+        $payment = Payment::create([
+            'payment_code' => Payment::generatePaymentCode(),
+            'provider' => 'midtrans',
+            'payment_type' => Payment::TYPE_MEDICAL_RECORD,
+            'clinic_id' => $clinicId,
+            'user_id' => $booking->user_id,
+            'payable_type' => MedicalRecord::class,
+            'payable_id' => $record->id,
+            'provider_order_id' => $orderId,
+            'payment_account_id' => $account->paymentAccountId,
+            'payment_credential_version_id' => $account->credentialVersionId,
+            'routing_source' => $account->routingSource,
+            'merchant_id' => $account->merchantId,
+            'environment' => $account->environment,
+            'gross_amount' => $amount,
+            'currency' => 'IDR',
+            'status' => Payment::STATUS_UNPAID,
+            'provider_status' => 'created',
+            'expires_at' => now()->addMinutes(30),
+            'metadata' => [
+                'medical_record_id' => $record->id,
+                'booking_id' => $booking->id,
+                'intent' => 'medical_record_extra',
+                'gateway' => 'midtrans_' . $account->routingSource,
+                'merchant_label' => $account->label,
+            ],
+        ]);
+
+        $this->recordHistory($payment, null, Payment::STATUS_UNPAID, 'system', 'Payment biaya tambahan dibuat');
+
+        $this->resolver->logRouting(
+            $clinicId,
+            $account->toLogContext(),
+            \App\Models\PaymentRoutingLog::OUTCOME_RESOLVED,
+            null,
+            $payment,
+            MedicalRecord::class,
+            $record->id
+        );
+
+        $result = $this->gateway->createTransaction(
+            $account,
+            $this->medicalRecordSnapPayload($record, $payment)
+        );
+
+        if (!($result['success'] ?? false)) {
+            $payment->update([
+                'status' => Payment::STATUS_FAILED,
+                'provider_status' => 'create_failed',
+            ]);
+            $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_FAILED, 'system', $result['message'] ?? 'Gagal membuat transaksi');
+
+            throw new PaymentGatewayException($result['message'] ?? __('payments.gateway_failed'));
+        }
+
+        $payment->update([
+            'status' => Payment::STATUS_PENDING,
+            'provider_status' => 'pending',
+            'snap_token' => $result['data']['token'] ?? null,
+            'redirect_url' => $result['data']['redirect_url'] ?? null,
+            'provider_transaction_id' => $result['data']['transaction_id'] ?? null,
+        ]);
+
+        $this->recordHistory($payment, Payment::STATUS_UNPAID, Payment::STATUS_PENDING, 'system', 'Menunggu pembayaran');
+
+        $record->forceFill([
+            'extra_payment_status' => 'pending',
+            'extra_payment_order_id' => $orderId,
+        ])->save();
 
         return $payment->fresh();
     }
@@ -173,53 +473,6 @@ class PaymentService
         if ($order->payment_status !== ProductOrder::PAYMENT_PAID) {
             $order->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
         }
-
-        return $payment;
-    }
-
-    /**
-     * Write-through: transaksi konsultasi lama tetap berjalan, tetapi kini
-     * tercatat di domain payment yang sama.
-     */
-    public function recordConsultationPayment(
-        Booking $booking,
-        string $providerOrderId,
-        int $grossAmount,
-        ?string $paymentMethod = null
-    ): Payment {
-        $existing = Payment::where('provider_order_id', $providerOrderId)->first();
-        if ($existing) {
-            return $existing;
-        }
-
-        $merchantConfig = ClinicMerchantConfig::where('clinic_id', $booking->clinic_id)->first();
-
-        $payment = Payment::create([
-            'payment_code' => Payment::generatePaymentCode(),
-            'provider' => 'midtrans',
-            'payment_type' => Payment::TYPE_CONSULTATION,
-            'clinic_id' => $booking->clinic_id,
-            'user_id' => $booking->user_id,
-            'payable_type' => Booking::class,
-            'payable_id' => $booking->id,
-            'provider_order_id' => $providerOrderId,
-            'merchant_id' => $merchantConfig?->merchant_id,
-            'partner_id' => $merchantConfig?->partner_id,
-            'environment' => (string) config('services.midtrans.environment', 'sandbox'),
-            'gross_amount' => max(0, $grossAmount),
-            'currency' => 'IDR',
-            'payment_method' => $paymentMethod,
-            'status' => Payment::STATUS_PENDING,
-            'provider_status' => 'pending',
-            'metadata' => [
-                'booking_id' => $booking->id,
-                // Konsultasi masih memakai merchant yang sudah terpasang.
-                // Migrasi ke merchant klinik menunggu onboarding Partner.
-                'gateway' => $merchantConfig?->isReadyForOnlinePayment() ? 'midtrans_partner' : 'legacy_merchant',
-            ],
-        ]);
-
-        $this->recordHistory($payment, null, Payment::STATUS_PENDING, 'system', 'Token pembayaran konsultasi dibuat');
 
         return $payment;
     }
@@ -343,9 +596,8 @@ class PaymentService
             return $refund;
         });
 
-        // Tunai/legacy tidak punya endpoint refund otomatis di sini: refund
-        // harus dikonfirmasi manual setelah dana benar-benar dikembalikan.
-        if ($payment->provider !== 'midtrans' || blank($payment->partner_id)) {
+        // Tunai/legacy tanpa route terkunci: refund dikonfirmasi manual.
+        if ($payment->provider !== 'midtrans' || ($payment->partner_id === null && $payment->routing_source === null)) {
             $refund->forceFill([
                 'note' => 'Refund manual: konfirmasi setelah dana dikembalikan ke pembeli.',
             ])->save();
@@ -353,7 +605,14 @@ class PaymentService
             return ['success' => true, 'message' => null, 'refund' => $refund->fresh()];
         }
 
-        $result = $this->partnerGateway->refund($payment->fresh(), $amount, $reason);
+        if ($payment->partner_id !== null) {
+            $result = $this->partnerGateway->refund($payment->fresh(), $amount, $reason);
+        } else {
+            $account = $this->resolver->resolveLocked($payment->fresh());
+            $result = $account
+                ? $this->gateway->refund($account, (string) $payment->provider_order_id, $amount, $reason)
+                : ['success' => false, 'message' => 'Route pembayaran tidak ditemukan.'];
+        }
 
         if ($result['success'] ?? false) {
             $refund->forceFill([
@@ -493,6 +752,204 @@ class PaymentService
         };
     }
 
+    private function bookingAmountFor(Booking $booking, string $kind): int
+    {
+        $paid = (float) $booking->paid_amount;
+
+        return match ($kind) {
+            'dp' => $this->dpAmount($booking),
+            'full' => $this->fullAmount($booking, $paid),
+            'remaining' => $this->remainingAmount($booking, $paid),
+            default => throw new RuntimeException(__('payments.invalid_payment_intent')),
+        };
+    }
+
+    private function dpAmount(Booking $booking): int
+    {
+        if ($booking->payment_type !== 'dp' || (float) $booking->dp_amount <= 0) {
+            throw new RuntimeException(__('payments.not_dp_booking'));
+        }
+
+        if ((float) $booking->paid_amount > 0) {
+            throw new RuntimeException(__('payments.dp_already_recorded'));
+        }
+
+        return max(0, (int) round((float) $booking->dp_amount));
+    }
+
+    private function fullAmount(Booking $booking, float $paid): int
+    {
+        if ($paid > 0) {
+            throw new RuntimeException(__('payments.partial_already_recorded'));
+        }
+
+        $amount = (int) round((float) $booking->total_amount - $paid);
+
+        if ($amount <= 0) {
+            throw new RuntimeException(__('payments.nothing_to_pay'));
+        }
+
+        return $amount;
+    }
+
+    private function remainingAmount(Booking $booking, float $paid): int
+    {
+        if ($booking->payment_type !== 'dp') {
+            throw new RuntimeException(__('payments.not_dp_booking'));
+        }
+
+        if ($paid <= 0) {
+            throw new RuntimeException(__('payments.complete_first_payment'));
+        }
+
+        $amount = (int) round(max(0, (float) ($booking->remaining_amount ?? 0)));
+
+        if ($amount <= 0) {
+            throw new RuntimeException(__('payments.nothing_to_pay'));
+        }
+
+        return $amount;
+    }
+
+    private function findReusableBookingPayment(Booking $booking, int $amount): ?Payment
+    {
+        return Payment::where('payable_type', Booking::class)
+            ->where('payable_id', $booking->id)
+            ->where('gross_amount', $amount)
+            ->where('status', Payment::STATUS_PENDING)
+            ->whereNotNull('redirect_url')
+            ->where('expires_at', '>', now())
+            ->latest('id')
+            ->first();
+    }
+
+    private function bookingOrderId(Booking $booking, string $kind, ?string $requested): string
+    {
+        $millis = (int) (microtime(true) * 1000);
+
+        if ($requested !== null && $requested !== '') {
+            $pattern = $kind === 'remaining'
+                ? '/^BOOKING-' . $booking->id . '-REMAINING-\\d+$/'
+                : '/^BOOKING-' . $booking->id . '-\\d+$/';
+
+            if (preg_match($pattern, $requested)) {
+                return $requested;
+            }
+        }
+
+        return $kind === 'remaining'
+            ? 'BOOKING-' . $booking->id . '-REMAINING-' . $millis
+            : 'BOOKING-' . $booking->id . '-' . $millis;
+    }
+
+    private function bookingSnapPayload(Booking $booking, Payment $payment, string $kind): array
+    {
+        $petName = $booking->pet?->name ?: 'Pet';
+        $label = match ($kind) {
+            'dp' => 'DP Booking',
+            'remaining' => 'Pelunasan Booking',
+            default => 'Pembayaran Booking',
+        };
+
+        return [
+            'transaction_details' => [
+                'order_id' => $payment->provider_order_id,
+                'gross_amount' => (int) $payment->gross_amount,
+            ],
+            'customer_details' => [
+                'first_name' => $booking->user?->name ?? 'Pelanggan',
+                'email' => $booking->user?->email,
+            ],
+            'item_details' => [[
+                'id' => ($kind === 'remaining' ? 'REMAINING-' : 'BOOKING-') . $booking->id,
+                'price' => (int) $payment->gross_amount,
+                'quantity' => 1,
+                'name' => $label . ' - ' . $petName,
+            ]],
+            'callbacks' => [
+                'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
+            ],
+            'enabled_payments' => $this->enabledPayments(),
+            'credit_card' => ['secure' => true],
+        ];
+    }
+
+    private function medicalRecordOrderId(MedicalRecord $record): string
+    {
+        // Milidetik menjaga dua tap bersamaan tidak menabrak kolom unik
+        // `extra_payment_order_id` / `payment_events.order_id`.
+        return 'MEDREC-' . $record->id . '-' . (int) (microtime(true) * 1000);
+    }
+
+    private function medicalRecordSnapPayload(MedicalRecord $record, Payment $payment): array
+    {
+        $petName = $record->pet?->name ?: 'Pet';
+        $booking = $record->booking;
+
+        return [
+            'transaction_details' => [
+                'order_id' => $payment->provider_order_id,
+                'gross_amount' => (int) $payment->gross_amount,
+            ],
+            'customer_details' => [
+                'first_name' => $booking?->user?->name ?? 'Pelanggan',
+                'email' => $booking?->user?->email,
+            ],
+            'item_details' => [[
+                'id' => 'MEDREC-' . $record->id,
+                'price' => (int) $payment->gross_amount,
+                'quantity' => 1,
+                'name' => 'Biaya Tambahan - ' . $petName,
+            ]],
+            'callbacks' => [
+                'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
+            ],
+            'enabled_payments' => $this->enabledPayments(),
+            'credit_card' => ['secure' => true],
+        ];
+    }
+
+    private function petShopSnapPayload(ProductOrder $order, Payment $payment): array
+    {
+        return [
+            'transaction_details' => [
+                'order_id' => $payment->provider_order_id,
+                'gross_amount' => (int) $payment->gross_amount,
+            ],
+            'customer_details' => [
+                'first_name' => $order->customer_name ?: 'Pelanggan',
+                'phone' => $order->customer_phone ?: null,
+            ],
+            'item_details' => [[
+                'id' => 'SHOP-' . $order->id,
+                'price' => (int) $payment->gross_amount,
+                'quantity' => 1,
+                'name' => 'Pesanan ' . $order->order_number,
+            ]],
+            'callbacks' => [
+                'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
+            ],
+            'enabled_payments' => $this->enabledPayments(),
+            'credit_card' => ['secure' => true],
+        ];
+    }
+
+    private function enabledPayments(): array
+    {
+        return [
+            'credit_card',
+            'gopay',
+            'shopeepay',
+            'bca_va',
+            'bni_va',
+            'bri_va',
+            'mandiri_va',
+            'permata_va',
+            'cimb_va',
+            'qris',
+        ];
+    }
+
     private function applyToPayable(Payment $payment, string $internalStatus, array $payload): void
     {
         if ($payment->payable_type === ProductOrder::class) {
@@ -561,6 +1018,29 @@ class PaymentService
             if ($internalStatus === Payment::STATUS_CHARGEBACK) {
                 $order->forceFill(['payment_status' => ProductOrder::PAYMENT_CHARGEBACK])->save();
             }
+
+            return;
+        }
+
+        if ($payment->payable_type === MedicalRecord::class) {
+            $record = MedicalRecord::whereKey($payment->payable_id)->lockForUpdate()->first();
+
+            if (!$record) {
+                Log::warning('Payment has no matching medical record', ['payment_id' => $payment->id]);
+                return;
+            }
+
+            // Aturan dana tambahan tetap sama (event unik per order id,
+            // status tidak mundur). Payment row sekarang menjadi sumber
+            // status yang sama dengan domain lain.
+            $this->bookingPaymentStatus->applyMedicalRecordTransactionStatus(
+                $record,
+                (string) $payment->provider_order_id,
+                (string) ($payload['transaction_status'] ?? $payment->provider_status ?? ''),
+                $payment->payment_method,
+                $payload['gross_amount'] ?? $payment->gross_amount,
+                $payload
+            );
 
             return;
         }

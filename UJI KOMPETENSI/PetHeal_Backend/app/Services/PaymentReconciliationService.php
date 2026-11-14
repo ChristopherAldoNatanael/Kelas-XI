@@ -16,7 +16,9 @@ class PaymentReconciliationService
     public function __construct(
         private readonly PaymentService $payments,
         private readonly MidtransPartnerGateway $partnerGateway,
-        private readonly MidtransService $midtrans
+        private readonly MidtransService $midtrans,
+        private readonly PaymentAccountResolver $resolver,
+        private readonly MidtransAccountGateway $gateway
     ) {}
 
     /**
@@ -24,9 +26,31 @@ class PaymentReconciliationService
      */
     public function sync(Payment $payment): array
     {
-        $result = $payment->partner_id !== null
-            ? $this->partnerGateway->fetchStatus($payment)
-            : $this->midtrans->getTransactionStatus($payment->provider_order_id);
+        if ($payment->partner_id !== null) {
+            $result = $this->partnerGateway->fetchStatus($payment);
+        } else {
+            try {
+                $account = $this->resolver->resolveLocked($payment);
+            } catch (PaymentRoutingException $e) {
+                $payment->forceFill([
+                    'last_reconciled_at' => now(),
+                    'reconcile_note' => $e->getMessage(),
+                ])->save();
+
+                return [
+                    'checked' => false,
+                    'changed' => false,
+                    'note' => $e->getMessage(),
+                ];
+            }
+
+            // Payment dengan route (klinik/fallback pusat) wajib ditanyakan
+            // ke akun yang sama; hanya transaksi legacy tanpa route yang
+            // memakai kredensial pusat lama.
+            $result = $account !== null
+                ? $this->gateway->getTransactionStatus($account, (string) $payment->provider_order_id)
+                : $this->midtrans->getTransactionStatus($payment->provider_order_id);
+        }
 
         $payment->forceFill(['last_reconciled_at' => now()])->save();
 

@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 class Payment extends Model
 {
     public const TYPE_CONSULTATION = 'consultation';
+    public const TYPE_MEDICAL_RECORD = 'medical_record';
     public const TYPE_PET_SHOP = 'pet_shop';
 
     public const STATUS_UNPAID = 'unpaid';
@@ -52,6 +53,9 @@ class Payment extends Model
         'provider_order_id',
         'provider_transaction_id',
         'partner_id',
+        'payment_account_id',
+        'payment_credential_version_id',
+        'routing_source',
         'merchant_id',
         'environment',
         'gross_amount',
@@ -93,6 +97,16 @@ class Payment extends Model
     public function payable(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function paymentAccount(): BelongsTo
+    {
+        return $this->belongsTo(ClinicPaymentAccount::class, 'payment_account_id');
+    }
+
+    public function credentialVersion(): BelongsTo
+    {
+        return $this->belongsTo(PaymentCredentialVersion::class, 'payment_credential_version_id');
     }
 
     public function statusHistories(): HasMany

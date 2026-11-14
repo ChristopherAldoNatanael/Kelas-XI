@@ -22,50 +22,24 @@ class MerchantConfigurationService
     }
 
     /**
+     * Ketersediaan pembayaran online kini mengikuti PaymentAccountResolver
+     * (kredensial klinik → fallback pusat → tolak). Config merchant Partner
+     * lama tetap disimpan untuk histori, tetapi tidak lagi menjadi gerbang
+     * utama pembayaran online.
+     *
      * @return array{available:bool, reason:?string, provider:?string, environment:string, commission_percent:float}
      */
-    public function onlineAvailability(Clinic $clinic, ?MidtransPartnerGateway $gateway = null): array
+    public function onlineAvailability(Clinic $clinic): array
     {
-        $gateway ??= app(MidtransPartnerGateway::class);
-        $environment = (string) config('services.midtrans.environment', 'sandbox');
+        $availability = app(PaymentAccountResolver::class)->availability($clinic);
         $config = $this->forClinic($clinic->id);
 
-        if (!config('services.midtrans.partner.enabled')) {
-            return [
-                'available' => false,
-                'reason' => 'partner_mode_disabled',
-                'provider' => null,
-                'environment' => $environment,
-                'commission_percent' => (float) ($config?->commission_percent ?? 0),
-            ];
-        }
-
-        if (!$gateway->isConfigured()) {
-            return [
-                'available' => false,
-                'reason' => 'partner_credentials_missing',
-                'provider' => null,
-                'environment' => $environment,
-                'commission_percent' => (float) ($config?->commission_percent ?? 0),
-            ];
-        }
-
-        if (!$config || !$config->isReadyForOnlinePayment()) {
-            return [
-                'available' => false,
-                'reason' => $config?->onlinePaymentBlockReason() ?? 'merchant_not_registered',
-                'provider' => 'midtrans',
-                'environment' => $environment,
-                'commission_percent' => (float) ($config?->commission_percent ?? 0),
-            ];
-        }
-
         return [
-            'available' => true,
-            'reason' => null,
-            'provider' => 'midtrans',
-            'environment' => $environment,
-            'commission_percent' => (float) $config->commission_percent,
+            'available' => $availability['available'],
+            'reason' => $availability['reason'],
+            'provider' => $availability['provider'],
+            'environment' => $availability['environment'],
+            'commission_percent' => (float) ($config?->commission_percent ?? 0),
         ];
     }
 

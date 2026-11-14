@@ -184,9 +184,9 @@ fun PetShopCheckoutScreen(
                 PaymentMethodOption(
                     title = "Bayar online",
                     description = if (uiState.isOnlineAvailable) {
-                        "Bayar aman lewat Midtrans. Stok ditahan sampai pembayaran diterima."
+                        "Bayar aman lewat Midtrans (transfer bank, QRIS, e-wallet, kartu kredit)."
                     } else {
-                        "Belum tersedia untuk klinik ini."
+                        "Tidak tersedia saat ini. Gunakan bayar di klinik."
                     },
                     icon = Icons.Filled.AccountBalanceWallet,
                     selected = uiState.paymentMethod == PetShopOrder.METHOD_ONLINE,

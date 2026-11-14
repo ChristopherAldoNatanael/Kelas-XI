@@ -1,5 +1,7 @@
 <?php
 
+$midtransIsProduction = filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN);
+
 return [
 
     /*
@@ -83,9 +85,44 @@ return [
             : 'https://api.sandbox.midtrans.com/v2',
 
         // Environment logis untuk snapshot transaksi & gating merchant klinik.
-        'environment' => filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
-            ? 'production'
-            : 'sandbox',
+        'environment' => $midtransIsProduction ? 'production' : 'sandbox',
+
+        /*
+         * Akun Midtrans Pusat (fallback).
+         *
+         * Kredensial TIDAK diisi dari database dan tidak dapat diubah oleh
+         * Clinic Admin. Nilai lama MIDTRANS_SERVER_KEY / MIDTRANS_CLIENT_KEY
+         * tetap dipakai sebagai default supaya instalasi yang sudah berjalan
+         * tidak putus.
+         */
+        'central' => [
+            'sandbox' => [
+                'merchant_id' => env('MIDTRANS_CENTRAL_SANDBOX_MERCHANT_ID', env('MIDTRANS_MERCHANT_ID')),
+                'client_key' => env('MIDTRANS_CENTRAL_SANDBOX_CLIENT_KEY', env('MIDTRANS_CLIENT_KEY')),
+                'server_key' => env('MIDTRANS_CENTRAL_SANDBOX_SERVER_KEY', env('MIDTRANS_SERVER_KEY')),
+            ],
+            'production' => [
+                'merchant_id' => env('MIDTRANS_CENTRAL_PRODUCTION_MERCHANT_ID', env('MIDTRANS_MERCHANT_ID')),
+                'client_key' => env('MIDTRANS_CENTRAL_PRODUCTION_CLIENT_KEY', env('MIDTRANS_CLIENT_KEY')),
+                'server_key' => env('MIDTRANS_CENTRAL_PRODUCTION_SERVER_KEY', env('MIDTRANS_SERVER_KEY')),
+            ],
+        ],
+
+        /*
+         * Fallback ke akun pusat HANYA untuk klinik yang belum pernah
+         * mengonfigurasi pembayaran online. Default: aktif di sandbox,
+         * nonaktif di production (butuh persetujuan eksplisit).
+         */
+        'central_fallback' => [
+            'enabled' => filter_var(
+                env('MIDTRANS_CENTRAL_FALLBACK_ENABLED', !$midtransIsProduction),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+            'production_approved' => filter_var(
+                env('MIDTRANS_CENTRAL_FALLBACK_PRODUCTION_APPROVED', false),
+                FILTER_VALIDATE_BOOLEAN
+            ),
+        ],
 
         /*
          * Midtrans Partner Solutions.

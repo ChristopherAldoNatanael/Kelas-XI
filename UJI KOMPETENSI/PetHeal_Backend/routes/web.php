@@ -208,6 +208,23 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/payments/{id}/send-reminder', [PaymentController::class, 'sendReminder'])->name('payments.send-reminder');
     Route::get('/export/payments', [PaymentController::class, 'exportPdf'])->name('payments.export');
 
+    // Pengaturan pembayaran Midtrans per klinik (VCMS).
+    // Clinic Admin hanya dapat mengelola kliniknya sendiri; super_admin
+    // memilih klinik terlebih dahulu lewat session context yang sama.
+    Route::prefix('payment-settings')->name('payment-settings.')->group(function () {
+        Route::get('/', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'index'])->name('index');
+        Route::post('/select-clinic', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'selectClinic'])
+            ->middleware('super_admin')->name('select-clinic');
+        Route::post('/credentials', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'storeCredentials'])->name('credentials.store');
+        Route::post('/credentials/{version}/test', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'testConnection'])
+            ->whereNumber('version')->name('credentials.test');
+        Route::post('/credentials/{version}/activate', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'activate'])
+            ->whereNumber('version')->name('credentials.activate');
+        Route::post('/deactivate', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'deactivate'])->name('deactivate');
+        Route::post('/production-approval', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'approveProduction'])
+            ->middleware('super_admin')->name('production.approve');
+    });
+
     // ── Pet Shop (Penjualan Produk) ─────────────────────────────────────────
     // Domain terpisah dari layanan medis & stok obat. Semua query dibatasi
     // clinic_id oleh controller (bukan hanya menu yang disembunyikan).

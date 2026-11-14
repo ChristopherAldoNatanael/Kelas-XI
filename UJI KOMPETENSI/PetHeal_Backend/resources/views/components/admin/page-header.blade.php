@@ -19,7 +19,7 @@
 <div class="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
     <div class="min-w-0">
         @if($eyebrow)
-            <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+            <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
                 @if($icon)
                     <span class="material-symbols-outlined text-[14px]" aria-hidden="true">{{ $icon }}</span>
                 @endif

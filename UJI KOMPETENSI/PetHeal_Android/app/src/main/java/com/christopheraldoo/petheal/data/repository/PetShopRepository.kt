@@ -222,12 +222,33 @@ class PetShopRepository @Inject constructor(
         val response = apiService.createPetShopOrder(request)
         val body = response.body()
         if (response.isSuccessful && body?.success == true && body.data != null) {
-            // Keranjang baru dikosongkan setelah server benar-benar membuat
-            // pesanan — kegagalan stok/harga tidak menghapus pilihan user.
             clearCart()
             Result.Success(body.data)
         } else {
-            Result.Error(errorMessage(response, "Pesanan gagal dibuat."))
+            val raw = runCatching { response.errorBody()?.string() }.getOrNull()
+            val parsed = runCatching {
+                if (raw.isNullOrBlank()) null
+                else {
+                    val json = org.json.JSONObject(raw)
+                    val code = json.optString("code").takeIf { it.isNotBlank() }
+                    val message = json.optString("message").takeIf { it.isNotBlank() }
+                    if (code != null) {
+                        return@call Result.Error(message ?: "Pesanan gagal dibuat.", code)
+                    }
+                    message
+                }
+            }.getOrNull()
+
+            Result.Error(
+                parsed ?: when {
+                    response.code() == 401 -> "Sesi Anda berakhir. Silakan masuk kembali."
+                    response.code() == 404 -> "Data tidak ditemukan."
+                    response.code() == 422 -> "Pesanan gagal dibuat."
+                    response.code() == 429 -> "Terlalu banyak permintaan. Coba lagi sebentar lagi."
+                    response.code() >= 500 -> "Server sedang bermasalah. Coba lagi beberapa saat lagi."
+                    else -> "Pesanan gagal dibuat."
+                }
+            )
         }
     }
 

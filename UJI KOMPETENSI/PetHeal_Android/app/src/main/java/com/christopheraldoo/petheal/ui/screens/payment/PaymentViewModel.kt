@@ -81,15 +81,12 @@ class PaymentViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
+            // Preflight hanya informasi: sejak kredensial Midtrans per klinik,
+            // akun yang dipakai ditentukan backend per transaksi. Jangan blokir
+            // pembayaran di sini — penolakan routing muncul dari snap-token
+            // dengan pesan yang spesifik.
             when (val preflight = paymentRepository.checkPaymentPreflight()) {
-                is Result.Success -> Unit
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = preflight.message
-                    )
-                    return@launch
-                }
+                is Result.Error -> Log.w(TAG, "Payment preflight not ready: ${preflight.message}")
                 else -> Unit
             }
 
@@ -166,16 +163,19 @@ class PaymentViewModel @Inject constructor(
                     val token = result.data.token
                     val redirectUrl = result.data.redirectUrl
                     val transactionId = result.data.transactionId
-                    Log.d(TAG, "Snap token created for orderId: $orderId")
+                    // Backend adalah sumber kebenaran order id (dipakai untuk
+                    // webhook & sinkronisasi status), bukan id lokal.
+                    val backendOrderId = result.data.orderId ?: orderId
+                    Log.d(TAG, "Snap token created for orderId: $backendOrderId")
 
                     // Store the order ID so it can be used when the payment callback is received
-                    currentOrderId = orderId
+                    currentOrderId = backendOrderId
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
                         snapToken = token,
                         snapRedirectUrl = redirectUrl,
                         transactionId = transactionId,
-                        orderId = orderId // Store in UI state for WebView to use
+                        orderId = backendOrderId // Store in UI state for WebView to use
                     )
                 }
                 is Result.Error -> {
@@ -194,15 +194,9 @@ class PaymentViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
 
+            // Preflight bersifat informasi (lihat initiatePayment).
             when (val preflight = paymentRepository.checkPaymentPreflight()) {
-                is Result.Success -> Unit
-                is Result.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = preflight.message
-                    )
-                    return@launch
-                }
+                is Result.Error -> Log.w(TAG, "Payment preflight not ready: ${preflight.message}")
                 else -> Unit
             }
 

@@ -102,6 +102,14 @@ Status: **10/10 fase selesai** (kode, UI, test, dokumentasi). Pembayaran online 
 - URL aset lewat tunnel: middleware `UseRequestAssetOrigin` mengganti origin @vite/logo/storage dari loopback ke host ngrok saat perlu; test `TunnelAssetOriginTest`.
 - Verifikasi: `PetShopProductImportTest` **11 passed / 52 assertions**, `TunnelAssetOriginTest` **1 passed / 4 assertions**, `php artisan view:cache` sukses, `php -l` bersih.
 
+## Tambahan — Midtrans MEDREC, rekonsiliasi, & VCMS (14 November 2026)
+- Biaya tambahan rekam medis (`MEDREC-*`) sekarang ikut routing per klinik lewat `PaymentService::createMedicalRecordPayment()`; tidak ada lagi pemakaian Server Key pusat langsung dari `MedicalRecordController`.
+- Webhook MEDREC/booking/Pet Shop memvalidasi merchant, gross, dan currency; MEDREC menulis ke `payments` + `extra_payment_*` dalam satu alur. Rekonsiliasi dan sync-status manual memakai akun yang terkunci pada transaksi.
+- VCMS: panel Sandbox/Production terpisah, salin Notification URL, monitor routing + signature invalid, jejak audit, dan konfirmasi password untuk aksi production.
+- Verifikasi: `ClinicPaymentRoutingTest` **21 passed / 129 assertions**; regresi `PetShopTest` 12/89, `AdminConsoleSmokeTest` 7/141, `RefundTest` 11/16, `PaymentSplitCalculatorTest` 6/91 → **36 passed / 337 assertions**; `view:cache` sukses.
+- Panduan admin klinik: `PetHeal_Backend/docs/MIDTRANS_CLINIC_ADMIN_GUIDE.md`.
+- Sisa: refund MEDREC belum lewat gateway; halaman VCMS belum diuji browser/Lighthouse/axe.
+
 ## Sisa pekerjaan / limitasi
 - Kredensial Midtrans Partner belum tersedia → pembayaran online nonaktif by design; perlu onboarding merchant tiap klinik lewat menu *Merchant Klinik*.
 - Header `X-Partner-Id` mengikuti dokumentasi Partner, wajib dicek ulang saat onboarding resmi.

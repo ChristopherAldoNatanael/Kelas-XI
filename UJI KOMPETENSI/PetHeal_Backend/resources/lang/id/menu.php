@@ -27,6 +27,7 @@ return [
     'join_requests' => 'Permintaan Gabung',
     'audit_logs' => 'Log Audit',
     'settings' => 'Pengaturan',
+    'payment_settings' => 'Pengaturan Pembayaran',
     'notifications' => 'Notifikasi',
     'logout' => 'Keluar',
     'users' => 'Pengguna',

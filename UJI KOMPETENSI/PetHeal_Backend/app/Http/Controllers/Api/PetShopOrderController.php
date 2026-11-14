@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Models\ProductOrder;
+use App\Models\ProductVariant;
 use App\Services\PaymentService;
 use App\Services\ProductOrderService;
 use Illuminate\Http\Request;
@@ -59,6 +60,33 @@ class PetShopOrderController extends Controller
 
         $user = $request->user();
 
+        // Validasi ketersediaan pembayaran online SEBELUM membuat pesanan
+        // agar tidak ada pesanan yang dibuat lalu langsung dibatalkan.
+        // Klinik tanpa Midtrans sendiri tetap bisa bayar online via akun pusat
+        // (central fallback sandbox selalu aktif bila MIDTRANS_SERVER_KEY terisi).
+        if ($validated['payment_method'] === ProductOrder::METHOD_ONLINE) {
+            // Pre-check ketersediaan online payment sebelum membuat pesanan.
+            // Satu query dengan eager load — tidak pakai lockForUpdate di sini.
+            $firstVariantId = (int) ($validated['items'][0]['variant_id'] ?? 0);
+            $preClinic = \App\Models\ProductVariant::with('product.clinic')
+                ->where('id', $firstVariantId)
+                ->first()
+                ?->product
+                ?->clinic;
+
+            if ($preClinic) {
+                $availability = $this->payments->onlineAvailability($preClinic);
+                if (!$availability['available']) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Pembayaran online belum tersedia untuk klinik ini. Silakan pilih bayar di klinik.',
+                        'code' => 'online_payment_unavailable',
+                        'reason' => $availability['reason'],
+                    ], 422);
+                }
+            }
+        }
+
         try {
             $order = $this->orders->placeOrder(
                 $user,
@@ -73,24 +101,6 @@ class PetShopOrderController extends Controller
                 'message' => $e->getMessage(),
                 'code' => 'insufficient_stock',
             ], 422);
-        }
-
-        if ($validated['payment_method'] === ProductOrder::METHOD_ONLINE) {
-            $availability = $this->payments->onlineAvailability($order->clinic);
-
-            // Pesanan online hanya boleh dibuat bila klinik benar-benar siap
-            // menerima dana. Jika tidak, pesanan dibatalkan — bukan menyimpan
-            // pesanan yang tidak bisa dibayar.
-            if (!$availability['available']) {
-                $this->orders->transition($order, ProductOrder::STATUS_CANCELLED, 'system', null, 'Pembayaran online tidak tersedia');
-
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Pembayaran online belum tersedia untuk klinik ini. Silakan pilih bayar di klinik.',
-                    'code' => 'online_payment_unavailable',
-                    'reason' => $availability['reason'],
-                ], 422);
-            }
         }
 
         return response()->json([
@@ -157,6 +167,18 @@ class PetShopOrderController extends Controller
 
         try {
             $payment = $this->payments->createPetShopPayment($order);
+        } catch (\App\Services\PaymentRoutingException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'code' => 'online_payment_unavailable',
+                'reason' => $e->reason,
+            ], 422);
+        } catch (\App\Services\PaymentGatewayException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 502);
         } catch (RuntimeException $e) {
             return response()->json([
                 'success' => false,
@@ -184,6 +206,8 @@ class PetShopOrderController extends Controller
                 'gross_amount' => (int) $payment->gross_amount,
                 'snap_token' => $payment->snap_token,
                 'redirect_url' => $payment->redirect_url,
+                'environment' => $payment->environment,
+                'routing_source' => $payment->routing_source,
                 'expires_at' => $payment->expires_at?->toIso8601String(),
             ],
         ]);

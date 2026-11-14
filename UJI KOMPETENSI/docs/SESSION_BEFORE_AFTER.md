@@ -406,3 +406,40 @@ tidak tersedia di sesi ini) — jangan diklaim lulus.
 | Nomor antrian dipesan jauh hari | Nomor hanya bermakna di hari kedatangan |
 | Stok obat multi-gudang / transfer antar klinik | Di luar cakupan UKK; sudah ada fondasi tabel mutasi |
 | Upload database klaim/lab PDF otomatis terbaca | Lampiran sekarang disimpan & ditampilkan, bukan di-OCR |
+
+## 8. Addendum — Midtrans multi-klinik (14 November 2026)
+
+### Sebelum
+
+- Booking dan Pet Shop sudah punya `PaymentAccountResolver`, tetapi biaya
+  tambahan rekam medis (`MEDREC-*`) masih memanggil `MidtransService` dengan
+  Server Key pusat.
+- Rekonsiliasi payment ber-route masih memakai kredensial pusat.
+- Webhook MEDREC belum memvalidasi merchant/gross/currency dan tidak menulis
+  baris `payments`.
+- VCMS belum memisahkan panel Sandbox/Production, belum punya salin URL,
+  monitor routing, jejak audit, atau konfirmasi password production.
+
+### Sesudah
+
+- `PaymentService::createMedicalRecordPayment()` merutekan MEDREC ke akun klinik;
+  nominal, merchant, dan order id diputuskan server.
+- Webhook MEDREC/booking/Pet Shop memvalidasi merchant, gross, currency; MEDREC
+  menulis status payment + `extra_payment_*` dalam satu alur.
+- Rekonsiliasi dan sync manual memakai akun terkunci transaksi.
+- VCMS punya panel per environment, salin Notification URL, monitor routing +
+  signature invalid, audit trail, dan re-auth password untuk aksi production.
+- Panduan admin: `PetHeal_Backend/docs/MIDTRANS_CLINIC_ADMIN_GUIDE.md`.
+
+### Verifikasi
+
+```
+php artisan test --filter=ClinicPaymentRoutingTest    → 21 passed (129 assertions)
+php artisan test --filter="PetShopTest|PaymentSplitCalculatorTest|AdminConsoleSmokeTest|RefundTest"
+                                                      → 36 passed (337 assertions)
+php artisan view:cache                                → sukses
+php -l (file PHP diubah)                              → bersih
+```
+
+Browser, Lighthouse, axe-core, dan uji perangkat **belum** dijalankan pada sesi
+ini; jangan diklaim lulus.

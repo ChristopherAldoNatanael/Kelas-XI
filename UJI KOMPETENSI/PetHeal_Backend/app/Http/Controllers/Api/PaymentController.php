@@ -5,11 +5,15 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use App\Models\Booking;
 use App\Models\MedicalRecord;
+use App\Models\Payment;
 use App\Services\MidtransService;
+use App\Services\MidtransAccountGateway;
+use App\Services\PaymentAccountResolver;
+use App\Services\PaymentGatewayException;
+use App\Services\PaymentRoutingException;
 use App\Services\PaymentService;
 use App\Services\PaymentStatusService;
 
@@ -17,7 +21,9 @@ class PaymentController extends Controller
 {
     public function __construct(
         private readonly MidtransService $midtrans,
-        private readonly PaymentService $payments
+        private readonly PaymentService $payments,
+        private readonly PaymentAccountResolver $resolver,
+        private readonly MidtransAccountGateway $gateway
     ) {}
 
     private function parsePaymentOrderId(string $orderId): ?array
@@ -52,64 +58,64 @@ class PaymentController extends Controller
         return null;
     }
 
+    /**
+     * Kesiapan pembayaran online untuk pengguna yang sedang login.
+     *
+     * Sejak routing multi-klinik, kredensial pusat BUKAN lagi syarat utama:
+     * preflight harus mengikuti akun yang akan dipakai transaksi (klinik milik
+     * pengguna, atau fallback pusat bila klinik belum pernah konfigurasi).
+     * Tidak ada panggilan jaringan ke Midtrans di sini supaya preflight tidak
+     * gagal hanya karena key pusat belum diisi. Kegagalan provider tetap
+     * dilaporkan saat Snap token dibuat.
+     */
     public function preflight()
     {
         try {
-            $mode = config('services.midtrans.is_production') ? 'production' : 'sandbox';
+            $mode = $this->resolver->environment();
+            $clinic = Auth::user()?->clinic;
+            $availability = $this->resolver->availability($clinic);
+
             $checks = [
-                'server_key' => [
-                    'status' => !empty($this->midtrans->getServerKey()) ? 'ok' : 'failed',
-                    'message' => !empty($this->midtrans->getServerKey()) ? 'Server key configured' : 'MIDTRANS_SERVER_KEY is missing',
-                ],
-                'snap_url' => [
-                    'status' => !empty($this->midtrans->getSnapUrl()) ? 'ok' : 'failed',
-                    'message' => $this->midtrans->getSnapUrl() ?: 'Snap URL is missing',
-                ],
-                'api_url' => [
-                    'status' => !empty($this->midtrans->getApiUrl()) ? 'ok' : 'failed',
-                    'message' => $this->midtrans->getApiUrl() ?: 'API URL is missing',
-                ],
                 'mode' => [
                     'status' => 'ok',
                     'message' => $mode,
                 ],
+                'clinic' => [
+                    'status' => $clinic !== null ? 'ok' : 'skipped',
+                    'message' => $clinic?->name ?? 'No clinic context',
+                ],
+                'routing' => [
+                    'status' => $availability['available'] ? 'ok' : 'failed',
+                    'message' => $availability['available']
+                        ? ($availability['merchant_label'] ?? 'Midtrans account ready')
+                        : ($availability['reason'] ?? 'No usable Midtrans account'),
+                ],
             ];
 
-            if (!$this->midtrans->isConfigured()) {
+            if (!$availability['available']) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Payment setup is incomplete. Check Midtrans environment values.',
+                    'message' => __('payments.routing_unavailable'),
+                    'code' => 'online_payment_unavailable',
+                    'reason' => $availability['reason'],
                     'data' => [
                         'ready' => false,
                         'mode' => $mode,
                         'checks' => $checks,
                     ],
-                ], 500);
+                ], 422);
             }
 
-            $probe = Http::timeout(10)->withHeaders([
-                'Authorization' => 'Basic ' . base64_encode($this->midtrans->getServerKey() . ':'),
-                'Accept' => 'application/json',
-            ])->get($this->midtrans->getApiUrl() . '/PETHEAL-PREFLIGHT-CHECK/status');
-
-            $midtransReachable = in_array($probe->status(), [200, 404], true);
-            $checks['midtrans_account'] = [
-                'status' => $midtransReachable ? 'ok' : 'failed',
-                'message' => $midtransReachable
-                    ? 'Midtrans API is reachable with the configured server key'
-                    : 'Midtrans rejected the configured server key or endpoint',
-                'status_code' => $probe->status(),
-            ];
-
             return response()->json([
-                'success' => $midtransReachable,
-                'message' => $midtransReachable ? 'Payment setup ready' : 'Payment setup failed. Check Midtrans credentials.',
+                'success' => true,
+                'message' => 'Payment setup ready',
                 'data' => [
-                    'ready' => $midtransReachable,
+                    'ready' => true,
                     'mode' => $mode,
+                    'source' => $availability['source'],
                     'checks' => $checks,
                 ],
-            ], $midtransReachable ? 200 : 502);
+            ]);
         } catch (\Throwable $e) {
             Log::error('Exception in payment preflight', [
                 'message' => $e->getMessage(),
@@ -146,18 +152,6 @@ class PaymentController extends Controller
                     'success' => false,
                     'message' => 'Unauthenticated.'
                 ], 401);
-            }
-
-            if (!$this->midtrans->isConfigured()) {
-                Log::error('Midtrans configuration is missing', [
-                    'server_key_set' => !empty($this->midtrans->getServerKey()),
-                    'snap_url' => $this->midtrans->getSnapUrl(),
-                    'api_url' => $this->midtrans->getApiUrl(),
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Midtrans configuration is incomplete. Please set MIDTRANS_SERVER_KEY and MIDTRANS_IS_PRODUCTION correctly.',
-                ], 500);
             }
 
             // Validate request
@@ -221,57 +215,44 @@ class PaymentController extends Controller
                 'gross_amount' => $validated['transaction_details']['gross_amount'],
             ]);
 
-            // Prepare request payload with callbacks
-            $snapPayload = $validated;
+            // Nominal, order id, dan akun merchant diputuskan server.
+            $kind = $booking->payment_type === 'dp' ? 'dp' : 'full';
+            $payment = $this->payments->createBookingPayment(
+                $booking,
+                $kind,
+                (string) $validated['transaction_details']['order_id']
+            );
 
-            // Add callback URL if not present
-            if (!isset($snapPayload['callbacks'])) {
-                $snapPayload['callbacks'] = [
-                    // Use HTTP URL that WebView can intercept and redirect to custom scheme
-                    // The app will handle this redirect in the WebView's URL loading
-                    'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
-                ];
-            }
-
-            Log::info('Calling Midtrans Snap API', [
-                'url' => $this->midtrans->getSnapUrl(),
-                'order_id' => $snapPayload['transaction_details']['order_id'],
+            Log::info('Booking payment created with routed account', [
+                'booking_id' => $booking->id,
+                'payment_id' => $payment->id,
+                'routing_source' => $payment->routing_source,
+                'environment' => $payment->environment,
+                'amount' => $payment->gross_amount,
             ]);
 
-            // Call Midtrans Snap API
-            $result = $this->midtrans->createSnapToken($snapPayload);
-
-            if ($result['success']) {
-                $data = $result['data'];
-
-                Log::info('Snap token created successfully', [
-                    'order_id' => $validated['transaction_details']['order_id'],
-                    'amount' => $validated['transaction_details']['gross_amount'],
-                    'transaction_id' => $data['transaction_id'] ?? null,
-                ]);
-
-                // Write-through payment domain: konsultasi tercatat di tabel
-                // `payments` yang sama dengan Pet Shop, tanpa mengubah respons
-                // atau perilaku booking lama.
-                $this->payments->recordConsultationPayment(
-                    $booking,
-                    (string) $validated['transaction_details']['order_id'],
-                    $requestedAmount,
-                    $validated['payment_type'] ?? null
-                );
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Snap token created successfully',
-                    'data' => $data,
-                ]);
-            }
-
+            return response()->json([
+                'success' => true,
+                'message' => 'Snap token created successfully',
+                'data' => $this->paymentResponseData($payment),
+            ]);
+        } catch (PaymentRoutingException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create snap token: ' . $result['message'],
-                'errors' => ['upstream' => $result['detail'] ?? $result['message']],
-            ], $result['status']);
+                'message' => $e->getMessage(),
+                'code' => 'online_payment_unavailable',
+                'reason' => $e->reason,
+            ], $e->httpStatus);
+        } catch (PaymentGatewayException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create snap token: ' . $e->getMessage(),
+            ], 502);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Validation error in createSnapToken', [
                 'errors' => $e->errors(),
@@ -351,7 +332,7 @@ class PaymentController extends Controller
                 'order_id' => $orderId,
             ]);
 
-            $result = $this->midtrans->getTransactionStatus($orderId);
+            $result = $this->fetchProviderStatus($orderId);
 
             if ($result['success']) {
                 $data = $result['data'];
@@ -458,7 +439,7 @@ class PaymentController extends Controller
                 ], 404);
             }
 
-            $result = $this->midtrans->getTransactionStatus($orderId);
+            $result = $this->fetchProviderStatus($orderId);
 
             if (!$result['success']) {
                 return response()->json([
@@ -479,6 +460,17 @@ class PaymentController extends Controller
                 'transaction_status' => $transactionStatus,
                 'fraud_status' => $fraudStatus,
             ]);
+
+            // Payment row (booking/MEDREC) diperbarui lewat PaymentService
+            // supaya status, jejak history, dan domain payable selalu sinkron.
+            // Transaksi legacy tanpa Payment row tetap memakai jalur lama.
+            $paymentRow = Payment::where('provider_order_id', $orderId)->first();
+            $paymentRowChanged = false;
+
+            if ($paymentRow !== null) {
+                $paymentRowChanged = (bool) $this->payments
+                    ->applyProviderNotification($paymentRow, $data, 'sync')['changed'];
+            }
 
             if ($paymentTarget instanceof Booking) {
                 $updateResult = $paymentStatusService->applyTransactionStatus(
@@ -540,9 +532,9 @@ class PaymentController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => ($updateResult['duplicate'] ?? false)
-                    ? 'Payment status already synchronized'
-                    : 'Payment status synchronized successfully',
+                'message' => ($paymentRowChanged || !($updateResult['duplicate'] ?? false))
+                    ? 'Payment status synchronized successfully'
+                    : 'Payment status already synchronized',
                 'data' => $responseData,
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
@@ -581,18 +573,6 @@ class PaymentController extends Controller
                     'success' => false,
                     'message' => 'User not authenticated'
                 ], 401);
-            }
-
-            if (!$this->midtrans->isConfigured()) {
-                Log::error('Midtrans configuration is missing for remaining payment', [
-                    'server_key_set' => !empty($this->midtrans->getServerKey()),
-                    'snap_url' => $this->midtrans->getSnapUrl(),
-                    'api_url' => $this->midtrans->getApiUrl(),
-                ]);
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Midtrans configuration is incomplete. Please set MIDTRANS_SERVER_KEY and MIDTRANS_IS_PRODUCTION correctly.',
-                ], 500);
             }
 
             // Find booking
@@ -650,9 +630,6 @@ class PaymentController extends Controller
                 ], 400);
             }
 
-            // Get pet name safely
-            $petName = $booking->pet ? $booking->pet->name : 'Pet';
-
             Log::info('Creating snap token for remaining payment', [
                 'user_id' => $user->id,
                 'booking_id' => $bookingId,
@@ -661,99 +638,47 @@ class PaymentController extends Controller
                 'paid_amount' => $booking->paid_amount,
             ]);
 
-            // Generate order ID for remaining payment.
-            // PHASE 3 (B17): millis instead of time() — two tokens minted in
-            // the same second previously collided on the unique order id.
-            // Still numeric so sync-status parsing (^BOOKING-\d+-REMAINING-\d+$) holds.
-            $orderId = 'BOOKING-' . $bookingId . '-REMAINING-' . (int) (microtime(true) * 1000);
+            // Pelunasan mengikuti route pembayaran pertama booking ini.
+            $payment = $this->payments->createBookingPayment($booking, 'remaining');
+            $fresh = $booking->fresh();
 
-            // Build Snap payload
-            $snapPayload = [
-                'transaction_details' => [
-                    'order_id' => $orderId,
-                    'gross_amount' => (int) $remainingAmount,
-                ],
-                'customer_details' => [
-                    'first_name' => $user->name,
-                    'email' => $user->email,
-                ],
-                'item_details' => [
-                    [
-                        'id' => "REMAINING-{$bookingId}",
-                        'price' => (int) $remainingAmount,
-                        'quantity' => 1,
-                        'name' => "Remaining Payment - {$petName}",
-                    ],
-                ],
-                'callbacks' => [
-                    'finish' => 'https://app.sandbox.midtrans.com/payment/finish',
-                ],
-                'enabled_payments' => [
-                    'credit_card',
-                    'gopay',
-                    'shopeepay',
-                    'bca_va',
-                    'bni_va',
-                    'bri_va',
-                    'mandiri_va',
-                    'permata_va',
-                    'cimb_va',
-                    'qris',
-                ],
-                'credit_card' => [
-                    'secure' => true,
-                ],
-            ];
-
-            Log::info('Calling Midtrans Snap API for remaining payment', [
-                'url' => $this->midtrans->getSnapUrl(),
-                'order_id' => $orderId,
-                'amount' => $remainingAmount,
+            Log::info('Remaining payment created with routed account', [
+                'booking_id' => $bookingId,
+                'payment_id' => $payment->id,
+                'routing_source' => $payment->routing_source,
+                'amount' => $payment->gross_amount,
             ]);
 
-            // Call Midtrans Snap API
-            $result = $this->midtrans->createSnapToken($snapPayload);
-
-            if ($result['success']) {
-                $data = $result['data'];
-
-                $this->payments->recordConsultationPayment(
-                    $booking,
-                    $orderId,
-                    (int) round($remainingAmount),
-                    null
-                );
-
-                Log::info('Snap token created successfully for remaining payment', [
-                    'booking_id' => $bookingId,
-                    'order_id' => $orderId,
-                    'amount' => $remainingAmount,
-                ]);
-
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Snap token created successfully for remaining payment',
-                    'data' => [
-                        'token' => $data['token'],
-                        'redirect_url' => $data['redirect_url'],
-                        'transaction_id' => $data['transaction_id'] ?? null,
-                        'order_id' => $orderId,
-                        'booking' => [
-                            'id' => $booking->id,
-                            'total_amount' => $booking->total_amount,
-                            'paid_amount' => $booking->paid_amount,
-                            'remaining_amount' => $remainingAmount,
-                            'payment_status' => $booking->payment_status,
-                        ],
-                    ]
-                ]);
-            }
-
+            return response()->json([
+                'success' => true,
+                'message' => 'Snap token created successfully for remaining payment',
+                'data' => $this->paymentResponseData($payment) + [
+                    'booking' => [
+                        'id' => $fresh->id,
+                        'total_amount' => $fresh->total_amount,
+                        'paid_amount' => $fresh->paid_amount,
+                        'remaining_amount' => $fresh->remaining_amount,
+                        'payment_status' => $fresh->payment_status,
+                    ],
+                ],
+            ]);
+        } catch (PaymentRoutingException $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to create snap token: ' . $result['message'],
-                'errors' => ['upstream' => $result['detail'] ?? $result['message']],
-            ], $result['status']);
+                'message' => $e->getMessage(),
+                'code' => 'online_payment_unavailable',
+                'reason' => $e->reason,
+            ], $e->httpStatus);
+        } catch (PaymentGatewayException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create snap token: ' . $e->getMessage(),
+            ], 502);
+        } catch (\RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Throwable $e) {
             Log::error('Exception in createRemainingPaymentSnapToken', [
                 'booking_id' => $bookingId,
@@ -766,6 +691,57 @@ class PaymentController extends Controller
                 'message' => 'Internal server error: ' . $e->getMessage(),
             ], 500);
         }
+    }
+
+    /**
+     * Ambil status dari akun yang tercatat pada payment.
+     * Payment legacy tanpa route tetap memakai kredensial pusat.
+     */
+    private function fetchProviderStatus(string $orderId): array
+    {
+        $payment = Payment::where('provider_order_id', $orderId)->first();
+
+        if ($payment === null) {
+            return $this->midtrans->getTransactionStatus($orderId);
+        }
+
+        try {
+            $account = $this->resolver->resolveLocked($payment);
+        } catch (PaymentRoutingException $e) {
+            return [
+                'success' => false,
+                'message' => $e->getMessage(),
+                'status' => $e->httpStatus === 409 ? 404 : 503,
+            ];
+        }
+
+        if ($account === null) {
+            return $this->midtrans->getTransactionStatus($orderId);
+        }
+
+        return $this->gateway->getTransactionStatus($account, $orderId);
+    }
+
+    /**
+     * Bentuk respons token yang kompatibel dengan Android lama
+     * (`token`, `redirect_url`, `transaction_id`) + metadata routing.
+     */
+    private function paymentResponseData(Payment $payment): array
+    {
+        $clientKey = $payment->credentialVersion?->client_key
+            ?: config("services.midtrans.central.{$payment->environment}.client_key");
+
+        return [
+            'token' => $payment->snap_token,
+            'redirect_url' => $payment->redirect_url,
+            'transaction_id' => $payment->provider_transaction_id,
+            'order_id' => $payment->provider_order_id,
+            'payment_id' => $payment->id,
+            'gross_amount' => $payment->gross_amount,
+            'client_key' => $clientKey,
+            'environment' => $payment->environment,
+            'routing_source' => $payment->routing_source,
+        ];
     }
 
     /**
