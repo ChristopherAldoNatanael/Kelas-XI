@@ -78,7 +78,9 @@ data class PetShopProduct(
     @SerializedName("total_available_stock") val totalAvailableStock: Int = 0,
     @SerializedName("is_available") val isAvailable: Boolean = false,
     @SerializedName("sold_count") val soldCount: Int = 0,
-    val variants: List<PetShopVariant> = emptyList()
+    val variants: List<PetShopVariant> = emptyList(),
+    /** Klinik yang menjual produk sama, terurut jarak (Click & Collect). */
+    @SerializedName("pickup_clinics") val pickupClinics: List<PetShopClinicAvailability> = emptyList()
 ) {
     val hasPriceRange: Boolean
         get() = priceMin != null && priceMax != null && priceMin != priceMax
@@ -150,6 +152,9 @@ data class PetShopOrder(
     @SerializedName("created_at") val createdAt: String? = null,
     val items: List<PetShopOrderItem> = emptyList(),
     @SerializedName("can_cancel") val canCancel: Boolean = false,
+    @SerializedName("receipt_available") val receiptAvailable: Boolean = false,
+    @SerializedName("pickup_pass_available") val pickupPassAvailable: Boolean = false,
+    @SerializedName("picked_up_at") val pickedUpAt: String? = null,
     val timeline: List<PetShopTimelineEntry> = emptyList()
 ) {
     val isOnline: Boolean get() = paymentMethod == METHOD_ONLINE
@@ -242,4 +247,179 @@ data class PetShopOrderRequest(
     @SerializedName("payment_method") val paymentMethod: String,
     val notes: String? = null,
     @SerializedName("customer_phone") val customerPhone: String? = null
+)
+
+// ============= KLINIK TERDEKAT (CLICK & COLLECT) =============
+
+data class PetShopClinicProductAvailability(
+    @SerializedName("clinic_product_id") val clinicProductId: Int = 0,
+    @SerializedName("is_available") val isAvailable: Boolean = false,
+    @SerializedName("can_fulfil_quantity") val canFulfilQuantity: Boolean = false,
+    @SerializedName("available_stock") val availableStock: Int = 0,
+    @SerializedName("total_available_stock") val totalAvailableStock: Int = 0,
+    @SerializedName("price_min") val priceMin: Long = 0,
+    @SerializedName("price_max") val priceMax: Long = 0,
+    @SerializedName("selected_variant_id") val selectedVariantId: Int? = null,
+    val variants: List<PetShopVariant> = emptyList()
+)
+
+/**
+ * Satu klinik yang bisa dijadikan tempat pengambilan.
+ * `distanceKm == null` berarti koordinat belum tersedia / lokasi ditolak — UI
+ * tidak boleh menampilkan angka jarak palsu.
+ */
+data class PetShopClinicAvailability(
+    val id: Int = 0,
+    val name: String = "",
+    val slug: String? = null,
+    val address: String? = null,
+    val city: String? = null,
+    val district: String? = null,
+    @SerializedName("postal_code") val postalCode: String? = null,
+    val phone: String? = null,
+    @SerializedName("logo_url") val logoUrl: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null,
+    @SerializedName("pickup_enabled") val pickupEnabled: Boolean = true,
+    @SerializedName("is_open_now") val isOpenNow: Boolean? = null,
+    @SerializedName("distance_km") val distanceKm: Double? = null,
+    @SerializedName("distance_label") val distanceLabel: String? = null,
+    val product: PetShopClinicProductAvailability? = null
+)
+
+data class PetShopClinicFilters(
+    val cities: List<String> = emptyList(),
+    val districts: List<String> = emptyList(),
+    @SerializedName("pickup_clinics_total") val pickupClinicsTotal: Int = 0
+)
+
+// ============= BUKTI PEMBAYARAN =============
+
+data class PetShopReceiptCustomer(
+    val name: String? = null,
+    val phone: String? = null
+)
+
+data class PetShopReceiptClinic(
+    val name: String? = null,
+    val address: String? = null,
+    val phone: String? = null,
+    @SerializedName("logo_url") val logoUrl: String? = null,
+    @SerializedName("primary_color") val primaryColor: String? = null
+)
+
+data class PetShopReceiptPickup(
+    @SerializedName("clinic_name") val clinicName: String? = null,
+    @SerializedName("clinic_address") val clinicAddress: String? = null,
+    @SerializedName("clinic_phone") val clinicPhone: String? = null,
+    val note: String? = null
+)
+
+data class PetShopReceiptItem(
+    @SerializedName("product_name") val productName: String = "",
+    @SerializedName("variant_name") val variantName: String? = null,
+    val sku: String? = null,
+    @SerializedName("unit_price") val unitPrice: Long = 0,
+    @SerializedName("discount_price") val discountPrice: Long? = null,
+    val quantity: Int = 0,
+    val subtotal: Long = 0
+)
+
+data class PetShopReceiptTotals(
+    val subtotal: Long = 0,
+    @SerializedName("discount_total") val discountTotal: Long = 0,
+    @SerializedName("total_amount") val totalAmount: Long = 0,
+    @SerializedName("paid_amount") val paidAmount: Long = 0,
+    @SerializedName("refunded_amount") val refundedAmount: Long = 0,
+    @SerializedName("outstanding_amount") val outstandingAmount: Long = 0,
+    val currency: String = "IDR"
+)
+
+data class PetShopReceiptPayment(
+    val method: String = "",
+    @SerializedName("method_label") val methodLabel: String? = null,
+    val status: String = "",
+    @SerializedName("receipt_status") val receiptStatus: String? = null,
+    @SerializedName("receipt_status_label") val receiptStatusLabel: String? = null,
+    @SerializedName("payment_code") val paymentCode: String? = null,
+    @SerializedName("provider_transaction_id") val providerTransactionId: String? = null,
+    @SerializedName("paid_at") val paidAt: String? = null,
+    @SerializedName("merchant_label") val merchantLabel: String? = null,
+    @SerializedName("merchant_id") val merchantId: String? = null
+)
+
+data class PetShopReceiptTimeline(
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("paid_at") val paidAt: String? = null,
+    @SerializedName("ready_at") val readyAt: String? = null,
+    @SerializedName("completed_at") val completedAt: String? = null
+)
+
+data class PetShopReceipt(
+    @SerializedName("receipt_number") val receiptNumber: String = "",
+    @SerializedName("order_number") val orderNumber: String = "",
+    @SerializedName("is_settled") val isSettled: Boolean = false,
+    @SerializedName("status_label") val statusLabel: String? = null,
+    val customer: PetShopReceiptCustomer? = null,
+    val clinic: PetShopReceiptClinic? = null,
+    val pickup: PetShopReceiptPickup? = null,
+    val items: List<PetShopReceiptItem> = emptyList(),
+    val totals: PetShopReceiptTotals? = null,
+    val payment: PetShopReceiptPayment? = null,
+    val timeline: PetShopReceiptTimeline? = null
+)
+
+// ============= QR PICKUP PASS =============
+
+data class PetShopPickupPassClinic(
+    val id: Int = 0,
+    val name: String? = null,
+    val address: String? = null,
+    val phone: String? = null,
+    val latitude: Double? = null,
+    val longitude: Double? = null
+)
+
+data class PetShopPickupPass(
+    @SerializedName("order_number") val orderNumber: String = "",
+    val status: String = "",
+    @SerializedName("status_label") val statusLabel: String? = null,
+    @SerializedName("qr_payload") val qrPayload: String? = null,
+    @SerializedName("manual_code") val manualCode: String? = null,
+    @SerializedName("expires_at") val expiresAt: String? = null,
+    val clinic: PetShopPickupPassClinic? = null,
+    @SerializedName("payment_status") val paymentStatus: String? = null,
+    @SerializedName("payment_status_label") val paymentStatusLabel: String? = null,
+    val instructions: String? = null,
+    val items: List<PetShopPickupPassItem> = emptyList()
+)
+
+data class PetShopPickupPassItem(
+    @SerializedName("product_name") val productName: String = "",
+    @SerializedName("variant_name") val variantName: String? = null,
+    val quantity: Int = 0
+)
+
+data class PetShopReceiptResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: PetShopReceipt? = null
+)
+
+data class PetShopPickupPassResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: PetShopPickupPass? = null
+)
+
+data class PetShopClinicsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: List<PetShopClinicAvailability>? = null
+)
+
+data class PetShopClinicFiltersResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: PetShopClinicFilters? = null
 )

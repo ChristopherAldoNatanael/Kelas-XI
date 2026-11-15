@@ -118,6 +118,11 @@ return [
     // Lokasi & jam operasional (multi-clinic discovery, 2026-11-09).
     // Koordinat wajib agar klinik bisa muncul di pencarian "terdekat" di app.
     'location_title' => 'Lokasi & jam operasional',
+    'city' => 'Kota / Kabupaten',
+    'district' => 'Kecamatan',
+    'postal_code' => 'Kode pos',
+    'pickup_enabled' => 'Melayani ambil di klinik (Click & Collect)',
+    'pickup_enabled_hint' => 'Jika dimatikan, klinik ini tidak ditawarkan sebagai tempat pengambilan produk Pet Shop.',
     'location_hint' => 'Lokasi klinik membuat pasien melihat jarak dari tempatnya, jadi klinik lebih mudah ditemukan. Jam operasional menentukan status "Buka/Tutup" di aplikasi.',
     'latitude' => 'Latitude',
     'longitude' => 'Longitude',

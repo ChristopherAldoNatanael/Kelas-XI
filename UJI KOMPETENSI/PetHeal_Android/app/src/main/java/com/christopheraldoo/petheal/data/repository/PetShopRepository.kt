@@ -2,13 +2,17 @@ package com.christopheraldoo.petheal.data.repository
 
 import android.util.Log
 import com.christopheraldoo.petheal.data.model.PetShopCategory
+import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
+import com.christopheraldoo.petheal.data.model.PetShopClinicFilters
 import com.christopheraldoo.petheal.data.model.PetShopMeta
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.model.PetShopOrderLineRequest
 import com.christopheraldoo.petheal.data.model.PetShopOrderRequest
 import com.christopheraldoo.petheal.data.model.PetShopPayment
 import com.christopheraldoo.petheal.data.model.PetShopPaymentStatusData
+import com.christopheraldoo.petheal.data.model.PetShopPickupPass
 import com.christopheraldoo.petheal.data.model.PetShopProduct
+import com.christopheraldoo.petheal.data.model.PetShopReceipt
 import com.christopheraldoo.petheal.data.model.PetShopSeller
 import com.christopheraldoo.petheal.data.model.PetShopVariant
 import com.christopheraldoo.petheal.data.remote.ApiService
@@ -107,13 +111,123 @@ class PetShopRepository @Inject constructor(
         }
     }
 
-    suspend fun loadProduct(id: Int): Result<PetShopProduct> = call {
-        val response = apiService.getPetShopProduct(id)
+    /**
+     * Detail produk. Koordinat hanya dipakai server untuk menghitung jarak
+     * klinik pickup; aplikasi tidak pernah menghitung/mengirim jarak sendiri.
+     */
+    suspend fun loadProduct(
+        id: Int,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        variantId: Int? = null,
+        quantity: Int? = null
+    ): Result<PetShopProduct> = call {
+        val response = apiService.getPetShopProduct(
+            id = id,
+            latitude = latitude,
+            longitude = longitude,
+            variantId = variantId,
+            quantity = quantity
+        )
         val body = response.body()
         if (response.isSuccessful && body?.success == true && body.data != null) {
             Result.Success(body.data)
         } else {
             Result.Error(errorMessage(response, "Detail produk tidak ditemukan."))
+        }
+    }
+
+    suspend fun loadProductClinics(
+        id: Int,
+        latitude: Double? = null,
+        longitude: Double? = null,
+        variantId: Int? = null,
+        quantity: Int? = null
+    ): Result<List<PetShopClinicAvailability>> = call {
+        val response = apiService.getPetShopProductClinics(
+            id = id,
+            latitude = latitude,
+            longitude = longitude,
+            variantId = variantId,
+            quantity = quantity
+        )
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true) {
+            Result.Success(body.data ?: emptyList())
+        } else {
+            Result.Error(errorMessage(response, "Klinik pickup gagal dimuat."))
+        }
+    }
+
+    suspend fun loadNearbyClinics(
+        latitude: Double? = null,
+        longitude: Double? = null,
+        city: String? = null,
+        district: String? = null,
+        search: String? = null
+    ): Result<List<PetShopClinicAvailability>> = call {
+        val response = apiService.getPetShopNearbyClinics(
+            latitude = latitude,
+            longitude = longitude,
+            city = city?.takeIf { it.isNotBlank() },
+            district = district?.takeIf { it.isNotBlank() },
+            search = search?.takeIf { it.isNotBlank() }
+        )
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true) {
+            Result.Success(body.data ?: emptyList())
+        } else {
+            Result.Error(errorMessage(response, "Klinik terdekat gagal dimuat."))
+        }
+    }
+
+    suspend fun loadClinicFilters(): Result<PetShopClinicFilters> = call {
+        val response = apiService.getPetShopClinicFilters()
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true && body.data != null) {
+            Result.Success(body.data)
+        } else {
+            Result.Error(errorMessage(response, "Pilihan wilayah gagal dimuat."))
+        }
+    }
+
+    suspend fun loadReceipt(orderId: Int): Result<PetShopReceipt> = call {
+        val response = apiService.getPetShopReceipt(orderId)
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true && body.data != null) {
+            Result.Success(body.data)
+        } else {
+            Result.Error(errorMessage(response, "Bukti pembayaran belum tersedia."))
+        }
+    }
+
+    suspend fun downloadReceiptPdf(orderId: Int): Result<ByteArray> = call {
+        val response = apiService.downloadPetShopReceiptPdf(orderId)
+        val body = response.body()
+        if (response.isSuccessful && body != null) {
+            Result.Success(body.bytes())
+        } else {
+            Result.Error(errorMessage(response, "Bukti pembayaran PDF gagal diunduh."))
+        }
+    }
+
+    suspend fun loadPickupPass(orderId: Int): Result<PetShopPickupPass> = call {
+        val response = apiService.getPetShopPickupPass(orderId)
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true && body.data != null) {
+            Result.Success(body.data)
+        } else {
+            Result.Error(errorMessage(response, "Kode pengambilan belum tersedia."))
+        }
+    }
+
+    suspend fun loadPickupQr(orderId: Int): Result<ByteArray> = call {
+        val response = apiService.getPetShopPickupPassQr(orderId)
+        val body = response.body()
+        if (response.isSuccessful && body != null) {
+            Result.Success(body.bytes())
+        } else {
+            Result.Error(errorMessage(response, "QR pengambilan gagal dimuat."))
         }
     }
 
@@ -297,6 +411,23 @@ class PetShopRepository @Inject constructor(
             Result.Success(body.data)
         } else {
             Result.Error(errorMessage(response, "Pembayaran tidak dapat dibuat."))
+        }
+    }
+
+    /**
+     * Sinkronkan status pembayaran pesanan dengan Midtrans.
+     *
+     * Dipanggil setelah user selesai membayar di halaman Snap (in-app
+     * WebView) supaya pesanan langsung berstatus lunas tanpa menunggu
+     * webhook. Status SELALU dibaca dari provider — tidak pernah diasumsikan.
+     */
+    suspend fun syncPayment(orderId: Int): Result<PetShopPaymentStatusData> = call {
+        val response = apiService.syncPetShopPayment(orderId)
+        val body = response.body()
+        if (response.isSuccessful && body?.success == true && body.data != null) {
+            Result.Success(body.data)
+        } else {
+            Result.Error(errorMessage(response, "Status pembayaran gagal diperiksa."))
         }
     }
 

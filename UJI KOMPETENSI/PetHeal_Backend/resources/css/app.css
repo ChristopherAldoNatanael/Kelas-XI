@@ -493,6 +493,70 @@
         @apply transition-colors hover:bg-slate-50/60 dark:hover:bg-slate-800/20;
     }
 
+    /* ── Pemindai QR Pickup Pass ───────────────────────────────────────────
+       Panel kamera untuk verifikasi pengambilan barang. Prinsipnya:
+       memindai adalah jalur utama, mengetik kode adalah jalur cadangan.
+       Gaya memakai token admin yang sama supaya konsisten di light/dark. */
+    .pickup-scan {
+        @apply relative overflow-hidden rounded-2xl bg-slate-950;
+    }
+
+    .pickup-scan__viewport {
+        @apply relative aspect-4/3 w-full overflow-hidden bg-slate-950 sm:aspect-16/10;
+    }
+
+    .pickup-scan__video {
+        @apply absolute inset-0 h-full w-full object-cover;
+    }
+
+    /* Bingkai bidik: empat sudut, bukan garis penuh, supaya isi QR tetap
+       terbaca dan tampilan tidak terasa seperti "overlay滤镜". */
+    .pickup-scan__frame {
+        @apply pointer-events-none absolute left-1/2 top-1/2 h-[64%] w-[72%] -translate-x-1/2 -translate-y-1/2;
+    }
+
+    .pickup-scan__corner {
+        @apply absolute h-7 w-7 border-white/90;
+    }
+
+    .pickup-scan__corner--tl { @apply -left-px -top-px rounded-tl-xl border-l-2 border-t-2; }
+    .pickup-scan__corner--tr { @apply -right-px -top-px rounded-tr-xl border-r-2 border-t-2; }
+    .pickup-scan__corner--bl { @apply -bottom-px -left-px rounded-bl-xl border-b-2 border-l-2; }
+    .pickup-scan__corner--br { @apply -bottom-px -right-px rounded-br-xl border-b-2 border-r-2; }
+
+    .pickup-scan__beam {
+        @apply absolute inset-x-1 h-[2px] rounded-full bg-emerald-400/90;
+        box-shadow: 0 0 12px rgba(52, 211, 153, 0.75);
+        animation: pickup-scan-beam 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+    }
+
+    @keyframes pickup-scan-beam {
+        0%, 100% { top: 6%; opacity: 0.35; }
+        50% { top: 92%; opacity: 1; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .pickup-scan__beam {
+            animation: none;
+            top: 50%;
+            opacity: 0.8;
+        }
+    }
+
+    .pickup-scan__chip {
+        @apply inline-flex items-center gap-1.5 rounded-full bg-slate-950/70 px-3 py-1.5 text-[11px] font-semibold text-white backdrop-blur;
+    }
+
+    .pickup-scan__chip--warn {
+        @apply bg-amber-950/80 text-amber-100;
+    }
+
+    /* Utilitas untuk element yang disembunyikan lewat JS (display:none
+       mengalahkan display:flex/inline-flex dari utility Tailwind). */
+    .is-hidden {
+        display: none !important;
+    }
+
     /* ── Pemilih hari kerja ────────────────────────────────────────────────
        Dipakai di form dokter (create/edit). Memakai select[multiple] bawaan
        browser: tampilannya polos di desktop (daftar teks panjang) dan

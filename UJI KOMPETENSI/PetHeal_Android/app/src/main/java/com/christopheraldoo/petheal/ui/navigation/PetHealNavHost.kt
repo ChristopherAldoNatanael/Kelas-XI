@@ -49,6 +49,7 @@ import com.christopheraldoo.petheal.ui.screens.petshop.PetShopCheckoutScreen
 import com.christopheraldoo.petheal.ui.screens.petshop.PetShopOrderDetailScreen
 import com.christopheraldoo.petheal.ui.screens.petshop.PetShopOrdersScreen
 import com.christopheraldoo.petheal.ui.screens.petshop.PetShopProductScreen
+import com.christopheraldoo.petheal.ui.screens.petshop.PetShopReceiptScreen
 import com.christopheraldoo.petheal.ui.screens.petshop.PetShopScreen
 import com.christopheraldoo.petheal.ui.screens.notification.NotificationsScreen
 import com.christopheraldoo.petheal.ui.screens.profile.EditProfileScreen
@@ -332,6 +333,18 @@ fun PetHealNavHost(
             arguments = listOf(navArgument("orderId") { type = NavType.IntType })
         ) {
             PetShopOrderDetailScreen(
+                onNavigateBack = { navController.popBackStack() },
+                onOpenReceipt = { orderId ->
+                    navController.navigate(Screen.PetShopReceipt.createRoute(orderId))
+                }
+            )
+        }
+
+        composable(
+            route = Screen.PetShopReceipt.route,
+            arguments = listOf(navArgument("orderId") { type = NavType.IntType })
+        ) {
+            PetShopReceiptScreen(
                 onNavigateBack = { navController.popBackStack() }
             )
         }

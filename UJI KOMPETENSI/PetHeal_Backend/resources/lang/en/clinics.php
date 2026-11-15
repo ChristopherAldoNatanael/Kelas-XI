@@ -117,6 +117,11 @@ return [
 
     // Location & operating hours (multi-clinic discovery, 2026-11-09).
     'location_title' => 'Location & operating hours',
+    'city' => 'City / Regency',
+    'district' => 'District',
+    'postal_code' => 'Postal code',
+    'pickup_enabled' => 'Supports in-clinic pickup (Click & Collect)',
+    'pickup_enabled_hint' => 'When disabled, this clinic is not offered as a Pet Shop pickup location.',
     'location_hint' => 'The clinic location lets patients see the distance from where they are, so the clinic is easier to find. Operating hours set the "Open/Closed" status in the app.',
     'latitude' => 'Latitude',
     'longitude' => 'Longitude',

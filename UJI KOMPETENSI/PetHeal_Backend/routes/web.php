@@ -251,9 +251,16 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/products/{product}/toggle', [\App\Http\Controllers\Admin\PetShopProductController::class, 'toggle'])->name('products.toggle');
         Route::post('/variants/{variant}/stock', [\App\Http\Controllers\Admin\PetShopProductController::class, 'adjustStock'])->name('variants.stock');
 
+        // Verifikasi pengambilan (Click & Collect): QR / kode manual / nomor pesanan.
+        Route::get('/pickups', [\App\Http\Controllers\Admin\PetShopPickupController::class, 'index'])->name('pickups.index');
+        Route::get('/pickups/history', [\App\Http\Controllers\Admin\PetShopPickupController::class, 'history'])->name('pickups.history');
+        Route::post('/pickups/{order}/confirm', [\App\Http\Controllers\Admin\PetShopPickupController::class, 'confirm'])->name('pickups.confirm');
+
         Route::get('/orders', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'index'])->name('orders.index');
         Route::get('/orders/{order}', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'show'])->name('orders.show');
         Route::post('/orders/{order}/transition', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'transition'])->name('orders.transition');
+        Route::post('/orders/{order}/payment', [\App\Http\Controllers\Admin\PetShopPickupController::class, 'recordPayment'])->name('orders.payment');
+        Route::get('/orders/{order}/receipt', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'receipt'])->name('orders.receipt');
         Route::post('/refunds/{refund}/confirm', [\App\Http\Controllers\Admin\PetShopOrderController::class, 'confirmRefund'])->name('refunds.confirm');
 
         Route::get('/sales', [\App\Http\Controllers\Admin\PetShopSalesController::class, 'index'])->name('sales.index');

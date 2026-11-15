@@ -117,3 +117,16 @@ Status: **10/10 fase selesai** (kode, UI, test, dokumentasi). Pembayaran online 
 - Belum ada test instrumentasi Android; verifikasi Android sebatas kompilasi + review kode.
 - Ekspor penjualan baru CSV, belum Excel/PDF.
 - Full backend suite tidak selesai dalam 10 menit, jadi tidak diklaim lulus seluruhnya.
+
+## Tambahan — Click & Collect, bukti pembayaran & QR pickup (15 November 2026)
+
+- **Fix 500 pembayaran**: relasi pickup pass memakai `product_order_id` (default Eloquent) padahal kolom DB `order_id`; detail pesanan setelah bayar melempar SQLSTATE[42S22]. Relasi dibuat eksplisit (`ProductOrder::pickupPass`), migration `product_pickup_passes` dibuat ulang.
+- **Nearby clinic**: service `ClinicDiscoveryService` (Haversine, klinik tanpa koordinat, pencarian kota/kecamatan), API `clinics/nearby`, `products/{id}/clinics`, `clinics/filters`; detail produk kini membawa `pickup_clinics`.
+- **Bukti pembayaran**: `ReceiptService` + view PDF `receipts/pet-shop.blade.php`; endpoint JSON & PDF (hanya untuk pembayaran lunas); nominal/status dari snapshot order item + payments.
+- **Pickup pass**: `PickupPassService` (token acak 64, kode manual 8 tanpa karakter ambigu, terbit saat `ready_for_pickup`, sekali pakai), QR PNG via `chillerlan/php-qrcode`; endpoint pass + QR.
+- **Pembayaran offline**: `PaymentService::recordOfflinePayment` (nominal wajib sama dengan sisa tagihan, dicatat di `payments` + status order), form di VCMS.
+- **Serah terima**: `PickupPassService::confirmHandover` → lock order, cek status/pembayaran/pass, transisi `completed`, commit stok sekali, isi `picked_up_at/by`, simpan `product_pickup_handovers` (unique per order), cabut pass; konfirmasi ganda idempoten.
+- **VCMS**: halaman Verifikasi Pengambilan (BarcodeDetector + kode manual + pesanan siap), riwayat pengambilan, tombol unduh bukti pembayaran, form klinik: kota/kecamatan/kode pos + toggle pickup.
+- **Android**: pemilih klinik “Ambil di Klinik” + izin lokasi eksplisit (tanpa background tracking), layar bukti pembayaran (simpan/bagikan PNG, unduh/bagikan PDF nyata), kartu QR Pickup Pass + kode manual di detail pesanan, route baru.
+- **Verifikasi**: `PetShopPickupTest` 12 passed/81 assertions; regresi gabungan 56 passed + 2 gagal lama (central fallback vs test); `view:cache` sukses; `assembleDebug` BUILD SUCCESSFUL; uji manual API nearby/pass/QR/PDF.
+- **Dokumentasi**: `PetHeal_Backend/docs/PETSHOP_CLICK_AND_COLLECT.md`, `PHASE-STATUS-PETSHOP.md` §12.

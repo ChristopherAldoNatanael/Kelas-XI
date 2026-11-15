@@ -257,3 +257,42 @@ php artisan test --filter=PaymentSplitCalculatorTest
 - **Verifikasi**: `ClinicPaymentRoutingTest` 21/129; regresi PetShop 12/89, AdminConsoleSmoke 7/141, Refund 11/16, PaymentSplitCalculator 6/91 (total 36/337). `view:cache` sukses.
 - **Panduan**: `PetHeal_Backend/docs/MIDTRANS_CLINIC_ADMIN_GUIDE.md`; detail teknis `PetHeal_Backend/docs/phases/MULTI_CLINIC_MIDTRANS_ROUTING.md`.
 - **Sisa**: refund MEDREC belum lewat gateway; VCMS belum diuji browser/Lighthouse/axe.
+
+---
+
+## 12. Addendum Click & Collect, bukti pembayaran, dan QR pickup (15 November 2026)
+
+Detail teknis lengkap: `PetHeal_Backend/docs/PETSHOP_CLICK_AND_COLLECT.md`.
+
+### Perbaikan error 500 saat bayar online
+Penyebab: relasi pickup pass memakai foreign key default `product_order_id`, sedangkan tabel
+`product_pickup_passes` memakai `order_id` → detail pesanan setelah pembayaran melempar
+`SQLSTATE[42S22]` (500). Relasi sekarang dideklarasikan eksplisit dan migration pass dibuat ulang.
+
+### Yang ditambahkan
+- **Nearby clinic**: `GET /api/pet-shop/clinics/nearby`, `/products/{id}/clinics`, `/clinics/filters`;
+  jarak Haversine (label `<10 m`, `m`, `km`), klinik tanpa koordinat tetap bisa ditemukan via kota/kecamatan.
+- **Product detail/cart/checkout**: `pickup_clinics` per produk; memilih klinik memuat ulang harga/varian/stok
+  klinik tersebut. Aturan satu klinik per pesanan tidak berubah.
+- **Bukti pembayaran**: `GET /orders/{id}/receipt` (snapshot) + `/receipt/pdf` (hanya bila lunas).
+  Android: layar bukti pembayaran dengan simpan PNG, bagikan PNG, unduh PDF, bagikan PDF (file nyata, FileProvider).
+- **QR Pickup Pass**: token 64 karakter + kode manual 8 karakter, terbit hanya saat `ready_for_pickup`,
+  sekali pakai, dapat dicabut; QR PNG dirender server (chillerlan/php-qrcode).
+- **VCMS**: menu *Verifikasi Pengambilan* (scan QR via BarcodeDetector + kode manual + daftar pesanan siap),
+  catat pembayaran offline dengan validasi nominal, konfirmasi serah terima idempoten, riwayat pengambilan.
+  Form klinik mendapat kota/kecamatan/kode pos + toggle pickup.
+- **Database**: 4 migration (2 dibuat ulang sesuai DB yang sudah ada + 2 baru), model
+  `ProductPickupPass`, `ProductPickupHandover`, kolom handover di `product_orders`.
+
+### Verifikasi
+- `php artisan test --filter=PetShopPickupTest` → **12 passed / 81 assertions**.
+- Regresi gabungan (PetShop, PaymentSplitCalculator, AdminConsoleSmoke, ClinicPaymentRouting, Refund)
+  → **56 passed**, 2 gagal yang **sudah ada sebelum perubahan** (asumsi lama bahwa pembayaran online
+  selalu nonaktif tanpa Partner, padahal kode memakai central fallback sandbox).
+- `view:cache` sukses; `route:list` API 17 & admin 33; `./gradlew.bat assembleDebug` **BUILD SUCCESSFUL**.
+- Uji manual: nearby (jarak & label), pickup pass + QR PNG, receipt PDF 26 KB untuk pesanan lunas.
+
+### Sisa
+- QR scanner VCMS butuh `BarcodeDetector` + HTTPS; fallback kode manual selalu ada.
+- Belum ada test instrumentasi Android; verifikasi sebatas kompilasi.
+- Perlu keputusan produk soal central fallback vs. test lama PetShopTest.

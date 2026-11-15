@@ -29,6 +29,10 @@ class ClinicController extends Controller
             // mentah seperti "longitude field is required".
             'latitude' => 'nullable|numeric|between:-90,90',
             'longitude' => 'nullable|numeric|between:-180,180',
+            'city' => 'nullable|string|max:100',
+            'district' => 'nullable|string|max:100',
+            'postal_code' => 'nullable|string|max:12',
+            'pickup_enabled' => 'nullable|boolean',
             'opening_time' => 'nullable|date_format:H:i',
             'closing_time' => 'nullable|date_format:H:i|after:opening_time',
             'operating_days' => 'nullable|array',
@@ -78,6 +82,20 @@ class ClinicController extends Controller
         ];
     }
 
+    /**
+     * Detail alamat + izin pickup untuk pencarian klinik manual.
+     */
+    private function pickupData(Request $request): array
+    {
+        return [
+            'city' => $request->filled('city') ? trim((string) $request->input('city')) : null,
+            'district' => $request->filled('district') ? trim((string) $request->input('district')) : null,
+            'postal_code' => $request->filled('postal_code') ? trim((string) $request->input('postal_code')) : null,
+            // Checkbox tidak terkirim saat tidak dicentang → false.
+            'pickup_enabled' => $request->boolean('pickup_enabled'),
+        ];
+    }
+
     public function index()
     {
         $clinics = Clinic::withCount([
@@ -121,7 +139,7 @@ class ClinicController extends Controller
         ])->toArray();
         // MULTI-DISCOVERY: koordinat & jam operasional ikut disimpan agar
         // klinik bisa diurutkan berdasarkan jarak di aplikasi.
-        $data = array_merge($data, $this->operatingData($request));
+        $data = array_merge($data, $this->operatingData($request), $this->pickupData($request));
         // Filled() dengan null dipakai agar koordinat bisa dikosongkan lagi.
         $data['latitude'] = $request->filled('latitude') ? (float) $request->input('latitude') : null;
         $data['longitude'] = $request->filled('longitude') ? (float) $request->input('longitude') : null;
@@ -194,7 +212,7 @@ class ClinicController extends Controller
         $data = collect($validated)->only([
             'name', 'slug', 'address', 'phone', 'email', 'primary_color', 'description',
         ])->toArray();
-        $data = array_merge($data, $this->operatingData($request));
+        $data = array_merge($data, $this->operatingData($request), $this->pickupData($request));
         $data['latitude'] = $request->filled('latitude') ? (float) $request->input('latitude') : null;
         $data['longitude'] = $request->filled('longitude') ? (float) $request->input('longitude') : null;
         // PHASE 5 (SA-05): see store().
@@ -300,9 +318,9 @@ class ClinicController extends Controller
         $this->guardCoordinates($request);
 
         $data = collect($validated)->only(['name', 'address', 'phone', 'email', 'primary_color', 'description'])->toArray();
-        // Profil klinik (clinic_admin) juga wajib bisa memperbaiki lokasi &
-        // jam operasional — tanpa slug/status, sesuai kewenangannya.
-        $data = array_merge($data, $this->operatingData($request));
+        // Profil klinik (clinic_admin) juga wajib bisa memperbaiki lokasi,
+        // jam operasional, dan izin pickup — tanpa slug/status.
+        $data = array_merge($data, $this->operatingData($request), $this->pickupData($request));
         $data['latitude'] = $request->filled('latitude') ? (float) $request->input('latitude') : null;
         $data['longitude'] = $request->filled('longitude') ? (float) $request->input('longitude') : null;
 

@@ -37,6 +37,7 @@ return [
     'pet_shop_dashboard' => 'Ringkasan Pet Shop',
     'pet_shop_products' => 'Produk Pet Shop',
     'pet_shop_orders' => 'Pesanan Pet Shop',
+    'pet_shop_pickups' => 'Verifikasi Pengambilan',
     'pet_shop_sales' => 'Riwayat Penjualan',
     'pet_shop_categories' => 'Kategori Produk',
     'pet_shop_merchants' => 'Merchant Klinik',

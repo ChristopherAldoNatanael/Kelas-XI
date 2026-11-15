@@ -4,10 +4,15 @@ namespace App\Http\Controllers\Api;
 
 use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
+use App\Models\Payment;
 use App\Models\ProductOrder;
 use App\Models\ProductVariant;
+use App\Services\MidtransAccountGateway;
+use App\Services\PaymentAccountResolver;
 use App\Services\PaymentService;
+use App\Services\PickupPassService;
 use App\Services\ProductOrderService;
+use App\Services\ReceiptService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
@@ -23,7 +28,9 @@ class PetShopOrderController extends Controller
 {
     public function __construct(
         private readonly ProductOrderService $orders,
-        private readonly PaymentService $payments
+        private readonly PaymentService $payments,
+        private readonly ReceiptService $receipts,
+        private readonly PickupPassService $pickupPasses
     ) {}
 
     public function index(Request $request)
@@ -112,7 +119,12 @@ class PetShopOrderController extends Controller
 
     public function show(Request $request, int $id)
     {
-        $order = ProductOrder::with(['clinic:id,name,slug,address,phone,email,logo_path', 'items', 'statusHistories'])
+        $order = ProductOrder::with([
+            'clinic:id,name,slug,address,phone,email,logo_path,primary_color,latitude,longitude',
+            'items',
+            'statusHistories',
+            'payments',
+        ])
             ->where('user_id', $request->user()->id)
             ->find($id);
 
@@ -121,6 +133,121 @@ class PetShopOrderController extends Controller
         }
 
         return response()->json(['success' => true, 'data' => $this->orderPayload($order, detailed: true)]);
+    }
+
+    /**
+     * Bukti pembayaran (JSON). Status TIDAK pernah disimpulkan dari client:
+     * `is_settled` hanya true bila backend mencatat pembayaran lunas.
+     */
+    public function receipt(Request $request, int $id)
+    {
+        $order = $this->ownedOrder($request, $id);
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->receipts->payload($order),
+        ]);
+    }
+
+    /**
+     * PDF bukti pembayaran. Hanya diterbitkan untuk pembayaran yang sudah
+     * lunas — struk "lunas palsu" tidak pernah dibuat untuk pembayaran pending.
+     */
+    public function receiptPdf(Request $request, int $id)
+    {
+        $order = $this->ownedOrder($request, $id);
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        if (!$this->receipts->canIssue($order)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Bukti pembayaran belum tersedia karena pembayaran belum lunas.',
+                'code' => 'payment_not_settled',
+            ], 422);
+        }
+
+        $pdf = $this->receipts->renderPdf($order);
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $this->receipts->fileName($order) . '"',
+            'Cache-Control' => 'private, no-store',
+        ]);
+    }
+
+    /**
+     * QR Pickup Pass. Hanya tersedia setelah pesanan siap diambil dan hanya
+     * untuk pemilik pesanan.
+     */
+    public function pickupPass(Request $request, int $id)
+    {
+        $order = $this->ownedOrder($request, $id);
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        if ($order->status === ProductOrder::STATUS_COMPLETED) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Pesanan sudah diselesaikan.',
+                'code' => 'already_completed',
+            ], 422);
+        }
+
+        if ($order->status !== ProductOrder::STATUS_READY_FOR_PICKUP) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Kode pengambilan tersedia setelah pesanan siap diambil.',
+                'code' => 'pickup_not_ready',
+            ], 422);
+        }
+
+        $pass = $this->pickupPasses->passForOwner($order)
+            ?? $this->pickupPasses->issue($order);
+
+        return response()->json([
+            'success' => true,
+            'data' => $this->pickupPasses->payload($order->loadMissing('items', 'clinic'), $pass),
+        ]);
+    }
+
+    /**
+     * Gambar QR untuk pickup pass. Token tidak di-log dan tidak di-cache publik.
+     */
+    public function pickupPassQr(Request $request, int $id)
+    {
+        $order = $this->ownedOrder($request, $id);
+
+        if (!$order || $order->status !== ProductOrder::STATUS_READY_FOR_PICKUP) {
+            return response()->json(['success' => false, 'message' => 'Kode pengambilan belum tersedia.'], 404);
+        }
+
+        $pass = $this->pickupPasses->passForOwner($order)
+            ?? $this->pickupPasses->issue($order);
+
+        $options = new \chillerlan\QRCode\QROptions([
+            'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_IMAGE_PNG,
+            'eccLevel' => \chillerlan\QRCode\QRCode::ECC_M,
+            'scale' => 8,
+            'outputBase64' => false,
+            'imageTransparent' => false,
+        ]);
+
+        $png = (new \chillerlan\QRCode\QRCode($options))->render($pass->token);
+
+        return response($png, 200, [
+            'Content-Type' => 'image/png',
+            'Content-Disposition' => 'inline; filename="pickup-pass-' . $order->order_number . '.png"',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     public function cancel(Request $request, int $id)
@@ -213,6 +340,89 @@ class PetShopOrderController extends Controller
         ]);
     }
 
+    /**
+     * Sinkronkan status pembayaran pesanan dengan Midtrans.
+     *
+     * Dipanggil aplikasi setelah user selesai membayar di halaman Snap
+     * (in-app WebView). Tujuannya: status pesanan langsung berubah menjadi
+     * "paid" tanpa harus menunggu webhook Midtrans sampai diterima.
+     * Status tetap dibaca dari provider — tidak pernah diasumsikan lunas.
+     */
+    public function syncPayment(Request $request, int $id, PaymentAccountResolver $resolver, MidtransAccountGateway $gateway)
+    {
+        $order = ProductOrder::with(['payments', 'clinic'])
+            ->where('user_id', $request->user()->id)
+            ->find($id);
+
+        if (!$order) {
+            return response()->json(['success' => false, 'message' => 'Pesanan tidak ditemukan.'], 404);
+        }
+
+        $payment = $order->payments()->latest('id')->first();
+
+        if (!$payment) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Belum ada pembayaran untuk pesanan ini.',
+            ], 422);
+        }
+
+        // Sudah lunas: tidak perlu memanggil provider lagi.
+        if ($order->payment_status === ProductOrder::PAYMENT_PAID) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran sudah tercatat.',
+                'data' => $this->paymentStatusPayload($order, $payment),
+            ]);
+        }
+
+        try {
+            $account = $resolver->resolveLocked($payment);
+        } catch (\App\Services\PaymentRoutingException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'code' => 'routing_unavailable',
+            ], 409);
+        }
+
+        if (!$account) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Status pembayaran tidak dapat diperiksa saat ini.',
+                'code' => 'routing_unavailable',
+            ], 422);
+        }
+
+        $result = $gateway->getTransactionStatus($account, (string) $payment->provider_order_id);
+
+        if (!($result['success'] ?? false)) {
+            Log::warning('Pet shop payment sync failed', [
+                'order_id' => $order->id,
+                'payment_id' => $payment->id,
+                'message' => $result['message'] ?? null,
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => $result['message'] ?? 'Gagal mengambil status transaksi.',
+            ], 502);
+        }
+
+        $payload = (array) ($result['data'] ?? []);
+
+        $this->payments->applyProviderNotification($payment, $payload, 'app_sync');
+
+        $order->refresh();
+        $payment->refresh();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Status pembayaran diperbarui.',
+            'data' => $this->paymentStatusPayload($order, $payment),
+        ]);
+    }
+
     public function paymentStatus(Request $request, int $id)
     {
         $order = ProductOrder::with('payments')
@@ -227,20 +437,35 @@ class PetShopOrderController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => [
-                'order_id' => $order->id,
-                'order_status' => $order->status,
-                'payment_status' => $order->payment_status,
-                'payment_method' => $order->payment_method,
-                'payment' => $payment ? [
-                    'payment_code' => $payment->payment_code,
-                    'status' => $payment->status,
-                    'gross_amount' => (int) $payment->gross_amount,
-                    'refunded_amount' => (int) $payment->refunded_amount,
-                    'paid_at' => $payment->paid_at?->toIso8601String(),
-                ] : null,
-            ],
+            'data' => $this->paymentStatusPayload($order, $payment),
         ]);
+    }
+
+    /**
+     * Bentuk respons status pembayaran (dipakai oleh payment-status & sync).
+     */
+    private function paymentStatusPayload(ProductOrder $order, ?Payment $payment): array
+    {
+        return [
+            'order_id' => $order->id,
+            'order_status' => $order->status,
+            'payment_status' => $order->payment_status,
+            'payment_method' => $order->payment_method,
+            'payment' => $payment ? [
+                'payment_code' => $payment->payment_code,
+                'status' => $payment->status,
+                'gross_amount' => (int) $payment->gross_amount,
+                'refunded_amount' => (int) $payment->refunded_amount,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+            ] : null,
+        ];
+    }
+
+    private function ownedOrder(Request $request, int $id): ?ProductOrder
+    {
+        return ProductOrder::with(['clinic', 'items', 'payments'])
+            ->where('user_id', $request->user()->id)
+            ->find($id);
     }
 
     private function orderPayload(ProductOrder $order, bool $detailed = false): array
@@ -290,6 +515,11 @@ class PetShopOrderController extends Controller
                 ProductOrder::STATUS_PENDING_PAYMENT,
                 ProductOrder::STATUS_AWAITING_CONFIRMATION,
             ], true) && !$order->isPaid(),
+            // Bukti pembayaran hanya untuk transaksi yang benar-benar lunas.
+            'receipt_available' => $order->hasSettledPayment(),
+            // Kode pengambilan baru dikirim setelah pesanan siap diambil.
+            'pickup_pass_available' => $order->status === ProductOrder::STATUS_READY_FOR_PICKUP,
+            'picked_up_at' => $order->picked_up_at?->toIso8601String(),
         ];
 
         if ($detailed) {

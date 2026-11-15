@@ -1,8 +1,8 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
-import android.content.Intent
-import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Phone
+import androidx.compose.material.icons.filled.QrCode2
+import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
@@ -53,7 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.model.PetShopOrderItem
+import com.christopheraldoo.petheal.data.model.PetShopPickupPass
 import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
@@ -83,10 +86,10 @@ import com.christopheraldoo.petheal.util.formatRupiah
 @Composable
 fun PetShopOrderDetailScreen(
     onNavigateBack: () -> Unit,
+    onOpenReceipt: (Int) -> Unit,
     viewModel: PetShopOrderDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -97,21 +100,27 @@ fun PetShopOrderDetailScreen(
         }
     }
 
-    LaunchedEffect(uiState.paymentUrl) {
-        uiState.paymentUrl?.let { url ->
-            viewModel.consumePaymentUrl()
-            val opened = runCatching {
-                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-            }.isSuccess
-
-            snackbarHostState.showSnackbar(
-                if (opened) {
-                    "Selesaikan pembayaran di browser, lalu kembali dan cek status."
-                } else {
-                    "Browser tidak tersedia. Buka tautan pembayaran dari perangkat lain."
-                }
+    // Pembayaran online dibuka IN-APP (WebView Midtrans). Setelah user selesai
+    // membayar, status diverifikasi ke server lalu pesanan dimuat ulang —
+    // user tetap di halaman detail pesanan dengan status pembayaran terbaru.
+    val paymentUrl = uiState.paymentUrl
+    if (paymentUrl != null) {
+        BackHandler {
+            viewModel.verifyPayment()
+        }
+        Box(modifier = Modifier.fillMaxSize()) {
+            PetShopPaymentWebView(
+                url = paymentUrl,
+                isSyncing = uiState.isSyncingPayment,
+                onCompleted = { viewModel.verifyPayment() },
+                onClose = { viewModel.dismissPayment() }
+            )
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
+        return
     }
 
     if (showCancelDialog) {
@@ -179,6 +188,12 @@ fun PetShopOrderDetailScreen(
                         item { PetShopInlineError(uiState.error.orEmpty()) }
                     }
 
+                    // QR Pickup Pass hanya muncul setelah pesanan siap diambil.
+                    if (uiState.pickupPass != null) {
+                        item { SectionTitle("Kode pengambilan") }
+                        item { PickupPassCard(uiState.pickupPass!!, uiState.pickupQr, uiState.isLoadingPass) }
+                    }
+
                     item { SectionTitle("Item pesanan") }
                     item { ItemsCard(order.items) }
 
@@ -187,6 +202,21 @@ fun PetShopOrderDetailScreen(
 
                     item { SectionTitle("Pembayaran") }
                     item { PaymentCard(order) }
+
+                    if (order.receiptAvailable) {
+                        item {
+                            OutlinedButton(
+                                onClick = { onOpenReceipt(order.id) },
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(PetHealRadius.md),
+                                border = BorderStroke(1.dp, Primary)
+                            ) {
+                                Icon(Icons.Filled.ReceiptLong, contentDescription = null, tint = Primary, modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Lihat Bukti Pembayaran", fontSize = 12.sp, color = Primary, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
 
                     if (order.timeline.isNotEmpty()) {
                         item { SectionTitle("Riwayat status") }
@@ -635,4 +665,114 @@ private fun CancelOrderDialog(onDismiss: () -> Unit, onConfirm: (String?) -> Uni
         },
         containerColor = Surface
     )
+}
+
+/**
+ * QR Pickup Pass + kode manual. Kode manual adalah fallback resmi saat kamera
+ * klinik tidak bisa membaca QR.
+ */
+@Composable
+private fun PickupPassCard(
+    pass: PetShopPickupPass,
+    qr: android.graphics.Bitmap?,
+    isLoading: Boolean
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Surface),
+        shape = RoundedCornerShape(PetHealRadius.lg),
+        border = BorderStroke(1.dp, Primary),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.QrCode2, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    pass.statusLabel ?: "Siap diambil",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Primary
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (qr != null) {
+                Surface(
+                    shape = RoundedCornerShape(PetHealRadius.md),
+                    border = BorderStroke(1.dp, Outline),
+                    color = Color.White
+                ) {
+                    Image(
+                        bitmap = qr.asImageBitmap(),
+                        contentDescription = "QR Code pengambilan",
+                        modifier = Modifier.size(190.dp).padding(10.dp)
+                    )
+                }
+            } else if (isLoading) {
+                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+            } else {
+                Text(
+                    "QR belum dapat dimuat. Gunakan kode pengambilan di bawah.",
+                    fontSize = 11.sp,
+                    color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text("Kode pengambilan", fontSize = 10.sp, color = TextTertiary)
+            Text(
+                pass.manualCode ?: "-",
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = OnBackground,
+                letterSpacing = 4.sp
+            )
+
+            Spacer(Modifier.height(6.dp))
+            Text(
+                pass.instructions
+                    ?: "Silakan datang ke klinik dan tunjukkan QR Code atau kode pengambilan kepada petugas.",
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = TextSecondary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+            )
+
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = TextTertiary, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    pass.clinic?.name ?: "",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = OnBackground
+                )
+            }
+            if (!pass.clinic?.address.isNullOrBlank()) {
+                Text(
+                    pass.clinic?.address.orEmpty(),
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp,
+                    color = TextSecondary,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Status pembayaran: ${pass.paymentStatusLabel ?: "-"}",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = if (pass.paymentStatus == PetShopOrder.PAYMENT_PAID) Primary else WarningText
+            )
+        }
+    }
 }

@@ -212,6 +212,17 @@ class ProductOrderService
                 ]);
             }
 
+            // Pesanan online tidak boleh selesai sebelum dana benar-benar
+            // diterima. Pembayaran "bayar di klinik" tetap dicatat lewat
+            // alur kas (recordCashPayment) saat barang diserahkan.
+            if ($toStatus === ProductOrder::STATUS_COMPLETED
+                && !$locked->isPaid()
+                && !$locked->isPayAtClinic()) {
+                throw ValidationException::withMessages([
+                    'payment' => 'Pembayaran belum lunas; pesanan tidak dapat diselesaikan.',
+                ]);
+            }
+
             $from = $locked->status;
             $attributes = ['status' => $toStatus];
 
@@ -262,6 +273,18 @@ class ProductOrderService
 
             $locked->forceFill($attributes)->save();
             $this->log($locked, $from, $toStatus, $source, $actor?->id, $note ?? $reason);
+
+            // Pickup pass diterbitkan hanya setelah pesanan benar-benar siap;
+            // pass lama dicabut saat pesanan selesai/dibatalkan/kedaluwarsa.
+            // Service di-resolve lazy untuk menghindari dependensi melingkar
+            // (PickupPassService memakai service ini untuk menyelesaikan order).
+            $pickupPasses = app(\App\Services\PickupPassService::class);
+
+            if ($toStatus === ProductOrder::STATUS_READY_FOR_PICKUP) {
+                $pickupPasses->issue($locked);
+            } elseif ($locked->isFinal()) {
+                $pickupPasses->revoke($locked);
+            }
 
             return $locked->fresh(['items', 'statusHistories', 'clinic']);
         });

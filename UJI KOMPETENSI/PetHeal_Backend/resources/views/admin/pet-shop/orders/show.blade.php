@@ -177,6 +177,51 @@
                         <p class="pt-2 text-xs italic text-slate-500 dark:text-slate-400">“{{ $order->notes }}”</p>
                     @endif
                 </div>
+
+                {{-- Pickup pass: hanya tampil setelah pesanan siap diambil. --}}
+                @if($order->pickupPass && $order->pickupPass->isUsable())
+                    <div class="mt-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.pickup_pass') }}</p>
+                        <p class="mt-1 font-mono text-base font-bold tracking-widest text-slate-900 dark:text-white">
+                            {{ substr($order->pickupPass->manual_code, 0, 4) }}-{{ substr($order->pickupPass->manual_code, 4) }}
+                        </p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">
+                            {{ __('petshop.pickup_pass_expires', ['date' => $order->pickupPass->expires_at?->format('d M Y H:i') ?? '-']) }}
+                        </p>
+                        <a href="{{ route('admin.pet-shop.pickups.index', ['code' => substr($order->pickupPass->manual_code, 0, 4) . '-' . substr($order->pickupPass->manual_code, 4)]) }}"
+                           class="admin-btn-secondary mt-3 w-full justify-center">{{ __('petshop.pickup_open_verification') }}</a>
+                    </div>
+                @endif
+
+                {{-- Catat pembayaran offline. Nominal divalidasi backend. --}}
+                @if(! $order->isPaid() && ! $order->isFinal())
+                    <form method="POST" action="{{ route('admin.pet-shop.orders.payment', $order) }}"
+                          class="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
+                        @csrf
+                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('petshop.pickup_record_payment_title') }}</p>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_record_payment_hint', ['amount' => 'Rp ' . number_format((int) $order->total_amount, 0, ',', '.')]) }}</p>
+                        <input type="number" name="amount_received" min="1" step="1" required class="admin-input"
+                               value="{{ (int) $order->total_amount }}" aria-label="{{ __('petshop.pickup_amount_received') }}">
+                        <select name="payment_method" class="admin-input" required aria-label="{{ __('petshop.pickup_payment_method') }}">
+                            <option value="cash">Tunai</option>
+                            <option value="debit_card">Kartu debit</option>
+                            <option value="credit_card">Kartu kredit</option>
+                            <option value="bank_transfer">Transfer bank</option>
+                            <option value="qris">QRIS</option>
+                        </select>
+                        <input type="text" name="payment_reference" maxlength="100" class="admin-input"
+                               placeholder="{{ __('petshop.pickup_payment_reference') }}">
+                        <button type="submit" class="admin-btn-secondary w-full justify-center">{{ __('petshop.pickup_record_payment') }}</button>
+                    </form>
+                @endif
+
+                @if($order->hasSettledPayment())
+                    <a href="{{ route('admin.pet-shop.orders.receipt', $order) }}"
+                       class="admin-btn-ghost mt-3 w-full justify-center">
+                        <span class="material-symbols-outlined text-[17px]" aria-hidden="true">picture_as_pdf</span>
+                        {{ __('petshop.download_receipt') }}
+                    </a>
+                @endif
             </x-admin.panel>
         </div>
     </div>

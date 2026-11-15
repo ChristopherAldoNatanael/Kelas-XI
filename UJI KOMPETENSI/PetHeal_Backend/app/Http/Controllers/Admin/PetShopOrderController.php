@@ -8,6 +8,7 @@ use App\Models\PaymentRefund;
 use App\Models\ProductOrder;
 use App\Services\PaymentService;
 use App\Services\ProductOrderService;
+use App\Services\ReceiptService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Throwable;
@@ -18,7 +19,8 @@ class PetShopOrderController extends Controller
 
     public function __construct(
         private readonly ProductOrderService $orders,
-        private readonly PaymentService $payments
+        private readonly PaymentService $payments,
+        private readonly ReceiptService $receipts
     ) {}
 
     public function index(Request $request)
@@ -64,9 +66,30 @@ class PetShopOrderController extends Controller
             'user:id,name,email',
             'clinic:id,name,address,phone',
             'payments.refunds',
+            'pickupPass',
+            'handover.staff',
         ]);
 
         return view('admin.pet-shop.orders.show', compact('order'));
+    }
+
+    /**
+     * Bukti pembayaran versi staf klinik. Hanya untuk pesanan lunas; struk
+     * tidak pernah dibuat dari status pesanan saja.
+     */
+    public function receipt(ProductOrder $order)
+    {
+        $this->authorizeOrder($order);
+
+        abort_unless($this->receipts->canIssue($order), 404);
+
+        $pdf = $this->receipts->renderPdf($order);
+
+        return response($pdf->output(), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $this->receipts->fileName($order) . '"',
+            'Cache-Control' => 'private, no-store',
+        ]);
     }
 
     public function transition(Request $request, ProductOrder $order)

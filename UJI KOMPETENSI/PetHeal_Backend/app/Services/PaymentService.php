@@ -478,6 +478,101 @@ class PaymentService
     }
 
     /**
+     * Catat pembayaran offline (tunai/EDC/transfer di klinik) untuk Pet Shop.
+     *
+     * Nominal divalidasi di server: harus sama dengan sisa tagihan. Tidak ada
+     * cara bagi client untuk menandai lunas dengan nominal lebih kecil, dan
+     * pesanan tidak pernah menjadi `paid` hanya karena admin membuka halaman.
+     *
+     * @return array{payment:Payment,outstanding_before:int}
+     */
+    public function recordOfflinePayment(
+        ProductOrder $order,
+        int $amountReceived,
+        string $method,
+        ?string $reference,
+        User $actor,
+        ?string $paidAt = null
+    ): array {
+        $allowed = ['cash', 'debit_card', 'credit_card', 'bank_transfer', 'qris'];
+
+        if (!in_array($method, $allowed, true)) {
+            throw new RuntimeException('Metode pembayaran tidak dikenal.');
+        }
+
+        return DB::transaction(function () use ($order, $amountReceived, $method, $reference, $actor, $paidAt) {
+            /** @var ProductOrder $locked */
+            $locked = ProductOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
+
+            if ($locked->isFinal()) {
+                throw new RuntimeException('Pesanan sudah selesai/dibatalkan; pembayaran tidak dapat dicatat.');
+            }
+
+            if ($locked->payment_status === ProductOrder::PAYMENT_PAID) {
+                throw new RuntimeException('Pesanan ini sudah lunas.');
+            }
+
+            if ($locked->payment_method === ProductOrder::METHOD_ONLINE) {
+                $settled = $locked->payments()->where('status', Payment::STATUS_PAID)->exists();
+
+                if ($settled) {
+                    throw new RuntimeException('Pembayaran online sudah diterima; tidak perlu mencatat pembayaran manual.');
+                }
+            }
+
+            $total = (int) $locked->total_amount;
+            $outstanding = $total;
+
+            if ($amountReceived !== $outstanding) {
+                throw new RuntimeException(sprintf(
+                    'Nominal diterima harus sama dengan sisa tagihan: Rp %s.',
+                    number_format($outstanding, 0, ',', '.')
+                ));
+            }
+
+            $paidAtValue = $paidAt !== null ? \Illuminate\Support\Carbon::parse($paidAt) : now();
+
+            $payment = Payment::create([
+                'payment_code' => Payment::generatePaymentCode(),
+                'provider' => 'cash',
+                'payment_type' => Payment::TYPE_PET_SHOP,
+                'clinic_id' => $locked->clinic_id,
+                'user_id' => $locked->user_id,
+                'payable_type' => ProductOrder::class,
+                'payable_id' => $locked->id,
+                'provider_order_id' => 'OFFLINE-' . $locked->order_number,
+                'environment' => (string) config('services.midtrans.environment', 'sandbox'),
+                'gross_amount' => $amountReceived,
+                'currency' => 'IDR',
+                'payment_method' => $method,
+                'status' => Payment::STATUS_PAID,
+                'provider_status' => 'paid_at_clinic',
+                'paid_at' => $paidAtValue,
+                'metadata' => [
+                    'order_number' => $locked->order_number,
+                    'gateway' => 'offline',
+                    'amount_received' => $amountReceived,
+                    'payment_reference' => $reference,
+                    'recorded_by' => $actor->id,
+                    'recorded_by_name' => $actor->name,
+                ],
+            ]);
+
+            $this->recordHistory($payment, null, Payment::STATUS_PAID, 'clinic_admin', 'Pembayaran di klinik dicatat', $actor->id);
+
+            $locked->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
+
+            if ($locked->status === ProductOrder::STATUS_PENDING_PAYMENT) {
+                $from = $locked->status;
+                $locked->forceFill(['status' => ProductOrder::STATUS_AWAITING_CONFIRMATION])->save();
+                $this->orders->log($locked, $from, ProductOrder::STATUS_AWAITING_CONFIRMATION, 'clinic_admin', $actor->id, 'Pembayaran di klinik dicatat');
+            }
+
+            return ['payment' => $payment, 'outstanding_before' => $outstanding];
+        });
+    }
+
+    /**
      * Terapkan status provider ke payment + domain terkait.
      *
      * @return array{changed:bool, status:string}

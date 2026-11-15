@@ -28,4 +28,9 @@ return [
 
     // Batas aman jumlah baris yang diproses scheduler rekonsiliasi per jalan.
     'reconciliation_batch' => (int) env('PETSHOP_RECON_BATCH', 50),
+
+    // Masa berlaku QR Pickup Pass. Setelah lewat, petugas harus meminta
+    // pelanggan membuka aplikasi lagi (pass baru diterbitkan untuk pesanan
+    // yang masih ready_for_pickup).
+    'pickup_pass_days' => (int) env('PETSHOP_PICKUP_PASS_DAYS', 14),
 ];

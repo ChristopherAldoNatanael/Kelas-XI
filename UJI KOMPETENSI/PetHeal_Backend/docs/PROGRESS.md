@@ -639,6 +639,32 @@ fitur baru dan tanpa perubahan skema database.
 - **Performa**: FCP/LCP 1,22 s, DOMContentLoaded 1,18 s, transfer awal 65 KB (Playwright lokal). Lighthouse tidak dijalankan karena halaman butuh login admin dan tool Lighthouse MCP tidak bisa memakai sesi.
 - **Sisa**: `admin-btn-primary` (putih di atas `--color-primary` klinik) masih < 4,5:1 untuk warna klinik terang; temuan ini global (dasbor `/admin` menghasilkan 19 temuan serupa) dan menunggu keputusan design system.
 
+## 2026-11-15 - Pet Shop: sinkronisasi pembayaran online (bukan webhook saja)
+- **Ruang lingkup**: pembayaran online Pet Shop kini bisa diverifikasi langsung dari aplikasi, tanpa menunggu webhook Midtrans diterima.
+- **API**: `POST /api/pet-shop/orders/{id}/payment/sync` (`PetShopOrderController::syncPayment`). Membaca route terkunci payment (`PaymentAccountResolver::resolveLocked`), mengambil status transaksi dari Midtrans (`MidtransAccountGateway::getTransactionStatus`), lalu menerapkannya lewat `PaymentService::applyProviderNotification($payment, $payload, 'app_sync')`. Status tetap dibaca dari provider — tidak pernah diasumsikan lunas dari sisi klien. `paymentStatus` & `sync` memakai payload yang sama (`paymentStatusPayload`).
+- **Otorisasi**: hanya pemilik pesanan yang bisa menyinkronkan; pesanan milik user lain dibalas 404.
+- **Android**: halaman pembayaran Pet Shop pindah dari browser luar (ACTION_VIEW) ke WebView in-app (`PetShopPaymentWebView.kt`); setelah callback/finish, aplikasi memverifikasi ke server lalu langsung kembali ke halaman detail pesanan dengan status pembayaran terbaru.
+- **Test**: `PetShopPaymentSyncTest` **4 passed / 18 assertions** (status provider settlement -> order paid + status lanjut ke awaiting_confirmation; provider pending -> belum lunas; isolasi pemilik pesanan; provider gagal -> 502 tanpa mengubah status). `php -l` bersih, `route:list` menampilkan route baru. Regresi `PetShopTest` 2 kegagalan yang sudah ada sebelumnya (fallback pusat aktif di `.env` lokal) — tidak terkait perubahan ini.
+- **Sisa**: belum ada uji visual di perangkat untuk WebView Midtrans (butuh emulator + login sandbox).
+
+## 2026-11-15 - VCMS Pengambilan: kamera jadi jalur utama, kode manual jadi cadangan
+- **Ruang lingkup**: halaman `/admin/pet-shop/pickups` diubah supaya **memindai QR dengan kamera adalah cara pertama**, dan kode/token manual hanya dipakai sebagai cadangan (kamera tidak ada, izin ditolak, atau QR tidak terbaca karena layar gelap).
+- **UI/UX**: panel kiri diganti jadi panel kamera: bingkai bidik empat sudut + garis pemindaian, label status live, tombol senter (lampu) bila perangkat mendukung, tombol hentikan, dan tombol "Aktifkan Kamera" untuk kondisi gagal. Jalur kode manual berupa bagian yang tersembunyi (`is-hidden`) dan terbuka otomatis saat kamera tidak bisa dipakai / QR belum terbaca dalam ~9 detik, dengan pesan yang menjelaskan penyebab (konteks aman, browser tidak mendukung, izin ditolak, kamera tidak ditemukan, kamera dipakai aplikasi lain).
+- **Perilaku**: kamera dinyalakan otomatis saat halaman dibuka, dinyalakan ulang saat tab dikembalikan, dimatikan saat tab ditinggalkan. Hasil pindai dinormalisasi (token 64 karakter, kode 8 karakter `TQ42-UZMU`, JSON, atau URL `?code=`) sebelum diverifikasi. Tombol "Hentikan" tidak memicu hidupkan otomatis.
+- **Jejak**: query `via=qr|manual` dipakai untuk membedakan cara verifikasi; nilainya disimpan pada `product_pickup_handover.verification_method` dan ditampilkan pada pesan hasil verifikasi.
+- **Teknis**: gaya baru di `resources/css/app.css` (prefix `pickup-scan-`, keyframes `pickup-scan-beam` dengan `prefers-reduced-motion`), utilitas `.is-hidden` untuk element yang disembunyikan lewat JS; aset dibangun ulang (`npm run build`).
+- **Test**: `PetShopPickupTest` **14 passed / 102 assertions** (2 test baru: panel kamera jadi prioritas dengan kode manual sebagai cadangan; `via=qr` tercatat berbeda dari manual). `php -l` bersih, `php artisan view:cache` sukses, sintaks JS dicek dengan `node --check`.
+- **Sisa**: belum ada uji kamera sungguhan di perangkat (butuh HP dengan kamera + HTTPS); alur fallback manual sudah ter-cover test.
+
+## 2026-11-15 - VCMS Pengambilan: decode QR tanpa BarcodeDetector (jsQR) + unggah foto
+- **Masalah**: di Chrome desktop `BarcodeDetector` tidak ada sama sekali, sehingga kamera selalu ditolak dengan pesan "Browser ini belum mendukung pemindaian QR" — padahal klinik memakai PC/laptop.
+- **Perbaikan**: logika pemindai dipindah ke modul `resources/js/pickup-scanner.js` (diimpor `resources/js/app.js`). Decode memakai dua mesin: `BarcodeDetector` bila tersedia (Android/ChromeOS, paling cepat) dan **jsQR** sebagai pengganti. jsQR dimuat dengan `import()` dinamis → jadi chunk terpisah (130 KB / 47 KB gzip) yang hanya diambil di halaman pengambilan, bukan di semua halaman admin.
+- **Tambahan**: fallback "unggah foto QR" (input file) untuk memotret layar pelanggan lalu didekode di perangkat — dipakai kalau kamera tidak bisa dipakai sama sekali.
+- **Struktur**: teks UI dipindahkan dari inline `<script>` ke `data-scan-strings` (JSON) pada elemen `data-scan-root`, supaya tidak ada logika bisnis di JavaScript. `@json([...])` tidak dipakai karena Blade salah memotong array dengan `__()` di dalamnya.
+- **Aset**: `npm run build` → `app-*.js` 266 KB + `jsQR-*.js` 131 KB (chunk terpisah).
+- **Test**: `PetShopPickupTest` **14 passed / 106 assertions** (test diperbarui: cek `data-scan-strings`/`data-scan-file` di halaman + modul scanner memakai `import('jsqr')`, `getUserMedia`, `startCamera()`). `node --check` modul JS OK, `php artisan view:cache` sukses.
+- **Sisa**: uji kamera sungguhan di perangkat belum dilakukan (butuh HP/PC dengan kamera + HTTPS ngrok).
+
 ## Cara Update File Ini
 - Setiap selesai fase di PLAN.md: tambah seksi `## YYYY-MM-DD — Fase N ...`, isi: file diubah, keputusan, hasil tes (curl/http code), masalah tersisa.
 - Contoh: `- Ubah Admin/BookingController.php:12 tambah where clinic_id. Tes: admin A /admin/bookings hanya 5 data A. Sisa: export PDF belum filter.`

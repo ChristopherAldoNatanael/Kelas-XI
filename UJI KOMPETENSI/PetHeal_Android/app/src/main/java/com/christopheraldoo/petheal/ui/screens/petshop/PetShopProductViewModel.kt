@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.ui.screens.petshop
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.data.model.PetShopProduct
 import com.christopheraldoo.petheal.data.model.PetShopVariant
 import com.christopheraldoo.petheal.data.repository.PetShopRepository
@@ -23,13 +24,34 @@ data class PetShopProductUiState(
     val quantity: Int = 1,
     val cartCount: Int = 0,
     val notice: String? = null,
-    val addedToCart: Boolean = false
+    val addedToCart: Boolean = false,
+    /** Klinik yang bisa dipilih sebagai tempat pengambilan, terurut jarak. */
+    val pickupClinics: List<PetShopClinicAvailability> = emptyList(),
+    val selectedClinicId: Int? = null,
+    val isSwitchingClinic: Boolean = false,
+    /** true = pengguna menolak izin lokasi; jarak tidak ditampilkan. */
+    val locationDenied: Boolean = false,
+    /** true = koordinat pengguna sudah dipakai untuk menghitung jarak. */
+    val hasLocation: Boolean = false
 ) {
     val selectedVariant: PetShopVariant?
         get() = product?.variants?.firstOrNull { it.id == selectedVariantId }
 
+    val selectedClinic: PetShopClinicAvailability?
+        get() = pickupClinics.firstOrNull { it.id == selectedClinicId }
+
+    /**
+     * Add to cart hanya aktif bila varian yang dipilih pada klinik yang dipilih
+     * benar-benar punya stok cukup. Klinik tanpa produk/stok tidak bisa dibeli.
+     */
     val canAddToCart: Boolean
-        get() = selectedVariant?.let { it.isAvailable && it.availableStock >= quantity } == true
+        get() {
+            val variant = selectedVariant ?: return false
+            val availability = selectedClinic?.product
+            val stock = availability?.variants?.firstOrNull { it.id == variant.id }?.availableStock
+                ?: variant.availableStock
+            return variant.isAvailable && stock >= quantity && quantity > 0
+        }
 }
 
 @HiltViewModel
@@ -44,6 +66,9 @@ class PetShopProductViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(PetShopProductUiState())
     val uiState: StateFlow<PetShopProductUiState> = _uiState.asStateFlow()
+
+    private var latitude: Double? = null
+    private var longitude: Double? = null
 
     init {
         viewModelScope.launch {
@@ -62,23 +87,140 @@ class PetShopProductViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            when (val result = repository.loadProduct(productId)) {
-                is Result.Success -> {
-                    val product = result.data
-                    val first = product.purchasableVariants.firstOrNull() ?: product.variants.firstOrNull()
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            product = product,
-                            selectedVariantId = first?.id,
-                            quantity = 1
-                        )
-                    }
-                }
+            when (val result = repository.loadProduct(
+                id = productId,
+                latitude = latitude,
+                longitude = longitude,
+                quantity = _uiState.value.quantity
+            )) {
+                is Result.Success -> applyProduct(result.data, keepClinicId = null)
                 is Result.Error -> _uiState.update {
                     it.copy(isLoading = false, error = result.message)
                 }
                 else -> _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    /** Dipanggil layar setelah izin lokasi diberikan dan fix didapat. */
+    fun onLocationAvailable(lat: Double, lng: Double) {
+        if (latitude == lat && longitude == lng && _uiState.value.hasLocation) return
+        latitude = lat
+        longitude = lng
+        _uiState.update { it.copy(hasLocation = true, locationDenied = false) }
+        reload()
+    }
+
+    /** Pengguna menolak izin: Pet Shop tetap bisa dipakai, jarak disembunyikan. */
+    fun onLocationDenied() {
+        latitude = null
+        longitude = null
+        _uiState.update { it.copy(locationDenied = true, hasLocation = false) }
+        reload()
+    }
+
+    private fun reload() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            when (val result = repository.loadProduct(
+                id = productId,
+                latitude = latitude,
+                longitude = longitude,
+                quantity = _uiState.value.quantity
+            )) {
+                is Result.Success -> applyProduct(result.data, keepClinicId = _uiState.value.selectedClinicId)
+                is Result.Error -> _uiState.update { it.copy(isLoading = false, error = result.message) }
+                else -> _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private fun applyProduct(product: PetShopProduct, keepClinicId: Int?) {
+        val clinics = product.pickupClinics.ifEmpty {
+            // Backend mengirim daftar klinik pickup; bila kosong, tetap pakai
+            // klinik penjual agar UI tidak kehilangan konteks pengambilan.
+            val seller = product.clinic ?: return@ifEmpty emptyList()
+            listOf(
+                PetShopClinicAvailability(
+                    id = seller.id ?: 0,
+                    name = seller.name.orEmpty(),
+                    slug = seller.slug,
+                    address = seller.address,
+                    phone = seller.phone,
+                    logoUrl = seller.logoUrl,
+                    product = null
+                )
+            )
+        }
+
+        val clinicId = keepClinicId?.takeIf { id -> clinics.any { it.id == id } }
+            ?: product.clinic?.id
+            ?: clinics.firstOrNull()?.id
+
+        val availableVariantIds = clinics
+            .firstOrNull { it.id == clinicId }
+            ?.product
+            ?.variants
+            ?.filter { it.isAvailable && it.availableStock > 0 }
+            ?.map { it.id }
+            .orEmpty()
+
+        val current = _uiState.value
+        val variant = product.purchasableVariants.firstOrNull { it.id == current.selectedVariantId }
+            ?: product.purchasableVariants.firstOrNull { availableVariantIds.isEmpty() || it.id in availableVariantIds }
+            ?: product.purchasableVariants.firstOrNull()
+            ?: product.variants.firstOrNull()
+
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                product = product,
+                pickupClinics = clinics,
+                selectedClinicId = clinicId,
+                selectedVariantId = variant?.id,
+                quantity = 1,
+                isSwitchingClinic = false
+            )
+        }
+    }
+
+    /**
+     * Pilih klinik pengambilan. Data harga/varian/stok WAJIB diambil ulang dari
+     * produk klinik tersebut — bukan hanya mengganti label.
+     */
+    fun selectClinic(clinic: PetShopClinicAvailability) {
+        val state = _uiState.value
+        if (state.isSwitchingClinic || state.selectedClinicId == clinic.id) return
+
+        val targetProductId = clinic.product?.clinicProductId ?: clinic.id
+
+        if (targetProductId == state.product?.id || targetProductId <= 0) {
+            // Klinik yang sama dengan produk yang sedang dibuka: cukup perbarui
+            // pilihan; stok/harga sudah berasal dari satu produk ini.
+            _uiState.update { it.copy(selectedClinicId = clinic.id) }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSwitchingClinic = true, notice = null) }
+            when (val result = repository.loadProduct(
+                id = targetProductId,
+                latitude = latitude,
+                longitude = longitude,
+                quantity = state.quantity
+            )) {
+                is Result.Success -> {
+                    applyProduct(result.data, keepClinicId = clinic.id)
+                    _uiState.update {
+                        it.copy(
+                            notice = "Klinik pengambilan diubah ke ${clinic.name}. Harga & stok diperbarui."
+                        )
+                    }
+                }
+                is Result.Error -> _uiState.update {
+                    it.copy(isSwitchingClinic = false, notice = result.message)
+                }
+                else -> _uiState.update { it.copy(isSwitchingClinic = false) }
             }
         }
     }
@@ -109,6 +251,13 @@ class PetShopProductViewModel @Inject constructor(
         val state = _uiState.value
         val product = state.product ?: return
         val variant = state.selectedVariant ?: return
+
+        if (!state.canAddToCart) {
+            _uiState.update {
+                it.copy(notice = "Stok di klinik ini tidak mencukupi untuk jumlah yang dipilih.")
+            }
+            return
+        }
 
         val error = repository.addToCart(product, variant, state.quantity)
         _uiState.update {

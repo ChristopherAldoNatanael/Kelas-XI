@@ -125,6 +125,41 @@
         </details>
     </div>
 
+    {{-- Wilayah untuk pencarian manual (tanpa GPS) + izin ambil di klinik. --}}
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div>
+            <label for="city" class="admin-label">{{ __('clinics.city') }}</label>
+            <input type="text" name="city" id="city" maxlength="100"
+                   value="{{ old('city', $clinic?->city) }}"
+                   class="admin-input @error('city') admin-input-error @enderror" placeholder="Jakarta Pusat">
+            @error('city') <p class="admin-error">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <label for="district" class="admin-label">{{ __('clinics.district') }}</label>
+            <input type="text" name="district" id="district" maxlength="100"
+                   value="{{ old('district', $clinic?->district) }}"
+                   class="admin-input @error('district') admin-input-error @enderror" placeholder="Menteng">
+            @error('district') <p class="admin-error">{{ $message }}</p> @enderror
+        </div>
+        <div>
+            <label for="postal_code" class="admin-label">{{ __('clinics.postal_code') }}</label>
+            <input type="text" name="postal_code" id="postal_code" maxlength="12" inputmode="numeric"
+                   value="{{ old('postal_code', $clinic?->postal_code) }}"
+                   class="admin-input @error('postal_code') admin-input-error @enderror" placeholder="10320">
+            @error('postal_code') <p class="admin-error">{{ $message }}</p> @enderror
+        </div>
+    </div>
+
+    <label class="flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 px-4 py-3 text-sm dark:border-slate-700">
+        <input type="checkbox" name="pickup_enabled" value="1"
+               class="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary"
+               {{ old('pickup_enabled', $clinic?->pickup_enabled ?? true) ? 'checked' : '' }}>
+        <span>
+            <span class="font-semibold text-slate-800 dark:text-slate-100">{{ __('clinics.pickup_enabled') }}</span>
+            <span class="admin-hint block">{{ __('clinics.pickup_enabled_hint') }}</span>
+        </span>
+    </label>
+
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
             <label for="opening_time" class="admin-label">{{ __('clinics.opening_time') }}</label>

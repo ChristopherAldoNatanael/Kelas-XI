@@ -7,6 +7,7 @@ use App\Models\Clinic;
 use App\Models\ClinicProduct;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
+use App\Services\ClinicDiscoveryService;
 use App\Services\MerchantConfigurationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -22,7 +23,10 @@ class PetShopController extends Controller
     /** @var array<int, bool> */
     private array $onlineAvailability = [];
 
-    public function __construct(private readonly MerchantConfigurationService $merchants) {}
+    public function __construct(
+        private readonly MerchantConfigurationService $merchants,
+        private readonly ClinicDiscoveryService $discovery
+    ) {}
 
     public function categories()
     {
@@ -148,8 +152,26 @@ class PetShopController extends Controller
         ]);
     }
 
-    public function show(int $id)
+    public function show(Request $request, int $id)
     {
+        $validated = $request->validate([
+            'latitude' => 'nullable|numeric|between:-90,90',
+            'longitude' => 'nullable|numeric|between:-180,180',
+            'variant_id' => 'nullable|integer|min:1',
+            'quantity' => 'nullable|integer|min:1|max:20',
+        ]);
+
+        $hasLat = isset($validated['latitude']) && $validated['latitude'] !== null;
+        $hasLng = isset($validated['longitude']) && $validated['longitude'] !== null;
+
+        if ($hasLat !== $hasLng) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Latitude dan longitude harus dikirim bersama.',
+                'code' => 'invalid_coordinates',
+            ], 422);
+        }
+
         $product = ClinicProduct::query()
             ->with([
                 'category:id,name,slug',
@@ -167,9 +189,23 @@ class PetShopController extends Controller
             return response()->json(['success' => false, 'message' => 'Produk tidak ditemukan.'], 404);
         }
 
+        $payload = $this->productPayload($product, withVariants: true);
+
+        // Pemilihan "Ambil di Klinik": klinik lain yang menjual produk yang
+        // sama, lengkap dengan jarak, harga, dan stok per klinik. Perubahan
+        // klinik harus mengambil harga/stok dari data klinik tersebut, bukan
+        // memakai ulang angka klinik sebelumnya.
+        $payload['pickup_clinics'] = $this->discovery->clinicsSellingProduct(
+            $product,
+            $hasLat ? (float) $validated['latitude'] : null,
+            $hasLng ? (float) $validated['longitude'] : null,
+            isset($validated['variant_id']) ? (int) $validated['variant_id'] : null,
+            (int) ($validated['quantity'] ?? 1)
+        );
+
         return response()->json([
             'success' => true,
-            'data' => $this->productPayload($product, withVariants: true),
+            'data' => $payload,
         ]);
     }
 

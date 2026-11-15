@@ -162,6 +162,12 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
         Route::get('/sellers', [App\Http\Controllers\Api\PetShopController::class, 'sellers']);
         Route::get('/products', [App\Http\Controllers\Api\PetShopController::class, 'products']);
         Route::get('/products/{id}', [App\Http\Controllers\Api\PetShopController::class, 'show'])->whereNumber('id');
+        Route::get('/products/{id}/clinics', [App\Http\Controllers\Api\PetShopClinicController::class, 'productClinics'])->whereNumber('id');
+
+        // Penemuan klinik untuk Click & Collect. Koordinat hanya dipakai untuk
+        // menghitung jarak pada request ini dan tidak disimpan.
+        Route::get('/clinics/nearby', [App\Http\Controllers\Api\PetShopClinicController::class, 'nearby']);
+        Route::get('/clinics/filters', [App\Http\Controllers\Api\PetShopClinicController::class, 'filters']);
 
         Route::get('/orders', [App\Http\Controllers\Api\PetShopOrderController::class, 'index']);
         Route::post('/orders', [App\Http\Controllers\Api\PetShopOrderController::class, 'store'])
@@ -172,5 +178,16 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
             ->whereNumber('id')
             ->middleware('throttle:payment');
         Route::get('/orders/{id}/payment-status', [App\Http\Controllers\Api\PetShopOrderController::class, 'paymentStatus'])->whereNumber('id');
+        Route::post('/orders/{id}/payment/sync', [App\Http\Controllers\Api\PetShopOrderController::class, 'syncPayment'])
+            ->whereNumber('id')
+            ->middleware('throttle:payment');
+        Route::get('/orders/{id}/receipt', [App\Http\Controllers\Api\PetShopOrderController::class, 'receipt'])->whereNumber('id');
+        Route::get('/orders/{id}/receipt/pdf', [App\Http\Controllers\Api\PetShopOrderController::class, 'receiptPdf'])
+            ->whereNumber('id')
+            ->middleware('throttle:payment');
+        Route::get('/orders/{id}/pickup-pass', [App\Http\Controllers\Api\PetShopOrderController::class, 'pickupPass'])->whereNumber('id');
+        Route::get('/orders/{id}/pickup-pass/qr', [App\Http\Controllers\Api\PetShopOrderController::class, 'pickupPassQr'])
+            ->whereNumber('id')
+            ->middleware('throttle:payment');
     });
 });

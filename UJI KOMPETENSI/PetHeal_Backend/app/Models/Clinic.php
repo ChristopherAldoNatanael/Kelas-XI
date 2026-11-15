@@ -17,6 +17,10 @@ class Clinic extends Model
         'primary_color',
         'description',
         'is_active',
+        'pickup_enabled',
+        'city',
+        'district',
+        'postal_code',
         'latitude',
         'longitude',
         'rating',
@@ -30,6 +34,7 @@ class Clinic extends Model
 
     protected $casts = [
         'is_active'       => 'boolean',
+        'pickup_enabled'  => 'boolean',
         'latitude'        => 'decimal:7',
         'longitude'       => 'decimal:7',
         'rating'          => 'decimal:2',
@@ -197,5 +202,21 @@ class Clinic extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    /**
+     * Klinik yang boleh melayani pengambilan produk Pet Shop.
+     * Klinik lama tanpa nilai eksplisit dianggap melayani pickup.
+     */
+    public function scopePickupEnabled($query)
+    {
+        return $query->where(function ($inner) {
+            $inner->where('pickup_enabled', true)->orWhereNull('pickup_enabled');
+        });
+    }
+
+    public function pickupPasses()
+    {
+        return $this->hasMany(ProductPickupPass::class);
     }
 }

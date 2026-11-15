@@ -5,6 +5,7 @@ import com.christopheraldoo.petheal.data.model.SnapTokenRequest
 import com.christopheraldoo.petheal.data.model.SnapTokenResponse
 import com.christopheraldoo.petheal.data.model.TransactionStatusResponse
 import okhttp3.MultipartBody
+import okhttp3.ResponseBody
 import retrofit2.Response
 import retrofit2.http.*
 
@@ -368,7 +369,38 @@ interface ApiService {
     ): Response<PetShopProductsResponse>
 
     @GET("pet-shop/products/{id}")
-    suspend fun getPetShopProduct(@Path("id") id: Int): Response<ApiResponse<PetShopProduct>>
+    suspend fun getPetShopProduct(
+        @Path("id") id: Int,
+        @Query("latitude") latitude: Double? = null,
+        @Query("longitude") longitude: Double? = null,
+        @Query("variant_id") variantId: Int? = null,
+        @Query("quantity") quantity: Int? = null
+    ): Response<ApiResponse<PetShopProduct>>
+
+    // Ketersediaan produk yang sama di klinik lain (Click & Collect).
+    @GET("pet-shop/products/{id}/clinics")
+    suspend fun getPetShopProductClinics(
+        @Path("id") id: Int,
+        @Query("latitude") latitude: Double? = null,
+        @Query("longitude") longitude: Double? = null,
+        @Query("variant_id") variantId: Int? = null,
+        @Query("quantity") quantity: Int? = null
+    ): Response<PetShopClinicsResponse>
+
+    @GET("pet-shop/clinics/nearby")
+    suspend fun getPetShopNearbyClinics(
+        @Query("latitude") latitude: Double? = null,
+        @Query("longitude") longitude: Double? = null,
+        @Query("city") city: String? = null,
+        @Query("district") district: String? = null,
+        @Query("search") search: String? = null,
+        @Query("product_id") productId: Int? = null,
+        @Query("variant_id") variantId: Int? = null,
+        @Query("quantity") quantity: Int? = null
+    ): Response<PetShopClinicsResponse>
+
+    @GET("pet-shop/clinics/filters")
+    suspend fun getPetShopClinicFilters(): Response<PetShopClinicFiltersResponse>
 
     @GET("pet-shop/orders")
     suspend fun getPetShopOrders(@Query("page") page: Int = 1): Response<PetShopOrdersResponse>
@@ -390,4 +422,24 @@ interface ApiService {
 
     @GET("pet-shop/orders/{id}/payment-status")
     suspend fun getPetShopPaymentStatus(@Path("id") id: Int): Response<PetShopPaymentStatusResponse>
+
+    // Sinkronkan status pembayaran dengan Midtrans setelah user selesai bayar
+    // di halaman Snap (in-app WebView). Status dibaca dari provider.
+    @POST("pet-shop/orders/{id}/payment/sync")
+    suspend fun syncPetShopPayment(@Path("id") id: Int): Response<PetShopPaymentStatusResponse>
+
+    // Bukti pembayaran & QR pickup pass.
+    @GET("pet-shop/orders/{id}/receipt")
+    suspend fun getPetShopReceipt(@Path("id") id: Int): Response<PetShopReceiptResponse>
+
+    @Streaming
+    @GET("pet-shop/orders/{id}/receipt/pdf")
+    suspend fun downloadPetShopReceiptPdf(@Path("id") id: Int): Response<ResponseBody>
+
+    @GET("pet-shop/orders/{id}/pickup-pass")
+    suspend fun getPetShopPickupPass(@Path("id") id: Int): Response<PetShopPickupPassResponse>
+
+    @Streaming
+    @GET("pet-shop/orders/{id}/pickup-pass/qr")
+    suspend fun getPetShopPickupPassQr(@Path("id") id: Int): Response<ResponseBody>
 }

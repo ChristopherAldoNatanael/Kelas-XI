@@ -280,6 +280,11 @@
                            @if(request()->routeIs('admin.pet-shop.orders.*')) aria-current="page" @endif>
                             {{ __('menu.pet_shop_orders') }}
                         </a>
+                        <a href="{{ route('admin.pet-shop.pickups.index') }}"
+                           class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.pickups.*') ? 'is-active' : '' }}"
+                           @if(request()->routeIs('admin.pet-shop.pickups.*')) aria-current="page" @endif>
+                            {{ __('menu.pet_shop_pickups') }}
+                        </a>
                         <a href="{{ route('admin.pet-shop.sales.index') }}"
                            class="sidebar-sublink {{ request()->routeIs('admin.pet-shop.sales.*') ? 'is-active' : '' }}"
                            @if(request()->routeIs('admin.pet-shop.sales.*')) aria-current="page" @endif>

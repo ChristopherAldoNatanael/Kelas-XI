@@ -1,5 +1,8 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,6 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ShoppingCart
@@ -41,9 +45,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -52,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Background
@@ -67,7 +75,10 @@ import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.util.LocationHelper
+import com.christopheraldoo.petheal.util.LocationResult
 import com.christopheraldoo.petheal.util.formatRupiah
+import kotlinx.coroutines.launch
 
 @Composable
 fun PetShopProductScreen(
@@ -78,6 +89,25 @@ fun PetShopProductScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val product = uiState.product
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    // Izin lokasi hanya diminta ketika pengguna menekan tombol, dengan
+    // penjelasan. Menolak izin tidak memblokir Pet Shop.
+    val locationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.none { it }) {
+            viewModel.onLocationDenied()
+        } else {
+            scope.launch {
+                when (val result = LocationHelper.currentLocation(context)) {
+                    is LocationResult.Success -> viewModel.onLocationAvailable(result.latitude, result.longitude)
+                    else -> viewModel.onLocationDenied()
+                }
+            }
+        }
+    }
 
     LaunchedEffect(uiState.notice) {
         uiState.notice?.let { viewModel.consumeNotice() }
@@ -211,6 +241,25 @@ fun PetShopProductScreen(
                             }
                             Spacer(Modifier.height(20.dp))
                         }
+
+                        PickupClinicSection(
+                            clinics = uiState.pickupClinics,
+                            selectedClinicId = uiState.selectedClinicId,
+                            quantity = uiState.quantity,
+                            hasLocation = uiState.hasLocation,
+                            locationDenied = uiState.locationDenied,
+                            isSwitching = uiState.isSwitchingClinic,
+                            onRequestLocation = {
+                                locationLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            },
+                            onSelect = viewModel::selectClinic
+                        )
+                        Spacer(Modifier.height(20.dp))
 
                         SellerCard(product)
                         Spacer(Modifier.height(12.dp))
@@ -404,6 +453,178 @@ private fun SellerCard(product: com.christopheraldoo.petheal.data.model.PetShopP
             if (clinic.onlinePaymentAvailable) {
                 PetShopPill("Online", PrimaryLight, Primary)
             }
+        }
+    }
+}
+
+@Composable
+private fun PickupClinicSection(
+    clinics: List<PetShopClinicAvailability>,
+    selectedClinicId: Int?,
+    quantity: Int,
+    hasLocation: Boolean,
+    locationDenied: Boolean,
+    isSwitching: Boolean,
+    onRequestLocation: () -> Unit,
+    onSelect: (PetShopClinicAvailability) -> Unit
+) {
+    if (clinics.isEmpty()) return
+
+    Text(
+        "Ambil di Klinik",
+        fontSize = 14.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = OnBackground
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        "Pesanan diambil langsung di klinik. Harga dan stok mengikuti klinik yang dipilih.",
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        color = TextSecondary
+    )
+    Spacer(Modifier.height(10.dp))
+
+    if (!hasLocation) {
+        Surface(
+            color = SurfaceMuted,
+            shape = RoundedCornerShape(PetHealRadius.md),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(modifier = Modifier.padding(12.dp)) {
+                Text(
+                    if (locationDenied) "Lokasi tidak diaktifkan" else "Aktifkan lokasi untuk melihat jarak klinik",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = OnBackground
+                )
+                Text(
+                    if (locationDenied) {
+                        "Anda tetap bisa memilih klinik di bawah secara manual. Jarak tidak ditampilkan."
+                    } else {
+                        "Lokasi hanya dipakai sekali untuk menghitung jarak — tidak dilacak di latar belakang."
+                    },
+                    fontSize = 10.sp,
+                    lineHeight = 15.sp,
+                    color = TextSecondary
+                )
+                if (!locationDenied) {
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = onRequestLocation,
+                        colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                        shape = RoundedCornerShape(PetHealRadius.md),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text("Izinkan lokasi", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        clinics.forEach { clinic ->
+            val availability = clinic.product
+            val availableStock = availability?.variants
+                ?.filter { it.isAvailable }
+                ?.maxOfOrNull { it.availableStock }
+                ?: 0
+            val canServe = availability == null || availableStock >= quantity
+            val selected = clinic.id == selectedClinicId
+            val price = availability?.variants
+                ?.filter { it.isAvailable && it.availableStock > 0 }
+                ?.minOfOrNull { it.effectivePrice }
+
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(PetHealRadius.md))
+                    .clickable(enabled = !isSwitching) { onSelect(clinic) },
+                shape = RoundedCornerShape(PetHealRadius.md),
+                color = when {
+                    !canServe -> SurfaceMuted
+                    selected -> PrimaryLight
+                    else -> Surface
+                },
+                border = BorderStroke(1.dp, if (selected) Primary else Outline)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.LocalHospital,
+                        contentDescription = null,
+                        tint = if (canServe) Primary else TextTertiary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            clinic.name,
+                            fontSize = 13.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (canServe) OnBackground else TextTertiary
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                clinic.distanceLabel ?: "Jarak belum tersedia",
+                                fontSize = 10.sp,
+                                color = TextSecondary
+                            )
+                            Text(" · ", fontSize = 10.sp, color = TextTertiary)
+                            Text(
+                                when {
+                                    availability == null -> "Stok mengikuti klinik"
+                                    availableStock <= 0 -> "Stok habis"
+                                    !canServe -> "Stok tersisa $availableStock"
+                                    else -> "Stok tersedia"
+                                },
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = if (canServe) Primary else WarningText
+                            )
+                        }
+                        if (!clinic.address.isNullOrBlank()) {
+                            Text(
+                                clinic.address,
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp,
+                                color = TextSecondary,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    if (price != null) {
+                        Text(
+                            formatRupiah(price.toDouble()),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (canServe) Primary else TextTertiary
+                        )
+                    }
+                    if (selected) {
+                        Spacer(Modifier.width(6.dp))
+                        Icon(
+                            Icons.Filled.CheckCircle,
+                            contentDescription = "Klinik dipilih",
+                            tint = Primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (isSwitching) {
+        Spacer(Modifier.height(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Memuat harga & stok klinik…", fontSize = 10.sp, color = TextSecondary)
         }
     }
 }

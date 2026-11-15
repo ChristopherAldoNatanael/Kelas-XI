@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 /**
@@ -101,6 +102,8 @@ class ProductOrder extends Model
         'confirmed_at',
         'ready_at',
         'completed_at',
+        'picked_up_at',
+        'picked_up_by',
         'cancelled_at',
         'cancellation_reason',
     ];
@@ -116,6 +119,7 @@ class ProductOrder extends Model
         'confirmed_at' => 'datetime',
         'ready_at' => 'datetime',
         'completed_at' => 'datetime',
+        'picked_up_at' => 'datetime',
         'cancelled_at' => 'datetime',
     ];
 
@@ -142,6 +146,30 @@ class ProductOrder extends Model
     public function payments(): MorphMany
     {
         return $this->morphMany(Payment::class, 'payable');
+    }
+
+    /**
+     * Pickup pass. Kolom foreign key adalah `order_id`, bukan default
+     * `product_order_id`, jadi harus dideklarasikan eksplisit.
+     */
+    public function pickupPass(): HasOne
+    {
+        return $this->hasOne(ProductPickupPass::class, 'order_id');
+    }
+
+    public function handover(): HasOne
+    {
+        return $this->hasOne(ProductPickupHandover::class, 'product_order_id');
+    }
+
+    public function pickedUpBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'picked_up_by');
+    }
+
+    public function hasBeenPickedUp(): bool
+    {
+        return $this->picked_up_at !== null;
     }
 
     public function latestPayment(): ?Payment
@@ -177,6 +205,20 @@ class ProductOrder extends Model
     public function isPayAtClinic(): bool
     {
         return $this->payment_method === self::METHOD_PAY_AT_CLINIC;
+    }
+
+    /**
+     * Receipt (bukti pembayaran) hanya boleh terbit setelah dana benar-benar
+     * diterima: pembayaran online lunas, atau admin klinik mencatat pembayaran
+     * tunai. Status pesanan saja tidak cukup.
+     */
+    public function hasSettledPayment(): bool
+    {
+        return $this->payment_status === self::PAYMENT_PAID
+            || in_array($this->payment_status, [
+                self::PAYMENT_PARTIALLY_REFUNDED,
+                self::PAYMENT_REFUNDED,
+            ], true);
     }
 
     /**
