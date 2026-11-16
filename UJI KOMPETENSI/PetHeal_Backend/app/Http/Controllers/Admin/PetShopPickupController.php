@@ -166,7 +166,8 @@ class PetShopPickupController extends Controller
             'amount_received' => 'required|integer|min:1',
             'payment_method' => 'required|in:cash,debit_card,credit_card,bank_transfer,qris',
             'payment_reference' => 'nullable|string|max:100',
-            'paid_at' => 'nullable|date',
+            'paid_at' => 'nullable|date|before_or_equal:now',
+            'notes' => 'nullable|string|max:255',
         ]);
 
         try {
@@ -176,7 +177,8 @@ class PetShopPickupController extends Controller
                 $validated['payment_method'],
                 $validated['payment_reference'] ?? null,
                 $request->user(),
-                $validated['paid_at'] ?? null
+                $validated['paid_at'] ?? null,
+                $validated['notes'] ?? null
             );
         } catch (Throwable $e) {
             return back()->with('error', $e->getMessage());

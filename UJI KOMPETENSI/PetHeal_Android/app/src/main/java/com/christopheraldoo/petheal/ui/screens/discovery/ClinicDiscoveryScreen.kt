@@ -1,8 +1,5 @@
 package com.christopheraldoo.petheal.ui.screens.discovery
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +36,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +56,7 @@ import androidx.compose.runtime.collectAsState
 import com.christopheraldoo.petheal.data.model.ClinicCard
 import com.christopheraldoo.petheal.data.model.ServiceCategoryDto
 import com.christopheraldoo.petheal.data.repository.DiscoveryRepository.DiscoverySort
+import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
 import com.christopheraldoo.petheal.ui.components.ClinicDiscoveryCard
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.EmptyState
@@ -97,11 +96,12 @@ fun ClinicDiscoveryScreen(
     val state by viewModel.uiState.collectAsState()
     var showFilters by remember { mutableStateOf(false) }
 
-    val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { granted ->
-        val anyGranted = granted.values.any { it }
-        if (anyGranted) viewModel.requestGpsLocation() else viewModel.dismissLocationStatus()
+    // Izin lokasi satu pintu: bila sudah diberikan tidak ada dialog lagi, dan
+    // izin yang dicabut/diberikan lewat Settings langsung terbaca saat layar
+    // aktif kembali.
+    val locationPermission = rememberLocationPermission()
+    LaunchedEffect(locationPermission.isGranted) {
+        if (locationPermission.isGranted) viewModel.requestGpsLocation()
     }
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -117,13 +117,15 @@ fun ClinicDiscoveryScreen(
                     LocationBar(
                         state = state,
                         onUseGps = {
-                            permissionLauncher.launch(
-                                arrayOf(
-                                    Manifest.permission.ACCESS_FINE_LOCATION,
-                                    Manifest.permission.ACCESS_COARSE_LOCATION
-                                )
-                            )
+                            if (locationPermission.isGranted) {
+                                viewModel.requestGpsLocation()
+                            } else {
+                                locationPermission.request()
+                                viewModel.dismissLocationStatus()
+                            }
                         },
+                        canRequestPermission = locationPermission.canRequest,
+                        onOpenSettings = locationPermission::openSettings,
                         onManual = { showFilters = false; onComparePrices() },
                         onClear = viewModel::clearLocation
                     )
@@ -207,13 +209,19 @@ fun ClinicDiscoveryScreen(
 private fun LocationBar(
     state: DiscoveryUiState,
     onUseGps: () -> Unit,
+    canRequestPermission: Boolean,
+    onOpenSettings: () -> Unit,
     onManual: () -> Unit,
     onClear: () -> Unit
 ) {
     val (title, subtitle) = when (state.locationStatus) {
         LocationUiStatus.Loading -> "Mencari lokasi…" to "Mengambil titik GPS terakhir."
         LocationUiStatus.PermissionDenied ->
-            "Izin lokasi ditolak" to "Anda tetap bisa memakai aplikasi. Aktifkan lokasi untuk melihat jarak klinik."
+            "Izin lokasi ditolak" to if (canRequestPermission) {
+                "Anda tetap bisa memakai aplikasi. Aktifkan lokasi untuk melihat jarak klinik."
+            } else {
+                "Izin dimatikan untuk aplikasi ini. Buka pengaturan aplikasi untuk mengaktifkannya kembali."
+            }
         LocationUiStatus.ServicesDisabled ->
             "GPS nonaktif" to "Nyalakan GPS di pengaturan HP, atau gunakan lokasi manual."
         LocationUiStatus.Failed ->
@@ -253,8 +261,13 @@ private fun LocationBar(
                     Icon(Icons.Filled.Close, contentDescription = "Hapus lokasi", tint = TextTertiary)
                 }
             } else {
-                TextButton(onClick = onUseGps) {
-                    Text("Aktifkan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Primary)
+                TextButton(onClick = if (canRequestPermission) onUseGps else onOpenSettings) {
+                    Text(
+                        if (canRequestPermission) "Aktifkan" else "Pengaturan",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
+                    )
                 }
             }
         }

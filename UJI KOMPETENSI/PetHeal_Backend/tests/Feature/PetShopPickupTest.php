@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Clinic;
 use App\Models\ClinicProduct;
+use App\Models\Payment;
 use App\Models\ProductCategory;
 use App\Models\ProductOrder;
 use App\Models\ProductPickupHandover;
@@ -471,6 +472,54 @@ class PetShopPickupTest extends TestCase
         );
 
         $this->assertSame(ProductOrder::PAYMENT_PAID, $order->fresh()->payment_status);
+    }
+
+    public function test_offline_payment_stores_received_amount_change_and_notes(): void
+    {
+        $order = $this->orderAtClinicA(1);
+        $total = (int) $order->total_amount;
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/pet-shop/orders/' . $order->id . '/payment', [
+                'amount_received' => $total + 15000,
+                'payment_method' => 'cash',
+                'payment_reference' => 'STRUK-77',
+                'notes' => 'Dibayar langsung oleh pemilik',
+            ])->assertRedirect();
+
+        $payment = Payment::where('payable_type', ProductOrder::class)
+            ->where('payable_id', $order->id)
+            ->latest('id')
+            ->firstOrFail();
+
+        // Pendapatan = total tagihan; uang diterima & kembalian disimpan terpisah.
+        $this->assertSame($total, (int) $payment->gross_amount);
+        $this->assertSame($total + 15000, (int) $payment->amount_received);
+        $this->assertSame(15000, (int) $payment->change_amount);
+        $this->assertSame('Dibayar langsung oleh pemilik', $payment->metadata['notes']);
+        $this->assertSame($this->adminA->id, $payment->metadata['recorded_by']);
+        $this->assertSame(ProductOrder::PAYMENT_PAID, $order->fresh()->payment_status);
+    }
+
+    public function test_offline_payment_cannot_be_recorded_twice_for_the_same_order(): void
+    {
+        $order = $this->orderAtClinicA(1);
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/pet-shop/orders/' . $order->id . '/payment', [
+                'amount_received' => (int) $order->total_amount,
+                'payment_method' => 'cash',
+            ])->assertRedirect();
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/pet-shop/orders/' . $order->id . '/payment', [
+                'amount_received' => (int) $order->total_amount,
+                'payment_method' => 'cash',
+            ])->assertSessionHas('error');
+
+        $this->assertSame(1, Payment::where('payable_type', ProductOrder::class)
+            ->where('payable_id', $order->id)
+            ->count());
     }
 
     public function test_vcms_pickup_page_and_history_are_scoped_to_the_admin_clinic(): void

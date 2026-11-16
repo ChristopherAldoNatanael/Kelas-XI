@@ -193,26 +193,13 @@
                     </div>
                 @endif
 
-                {{-- Catat pembayaran offline. Nominal divalidasi backend. --}}
+                {{-- Catat pembayaran offline. Form & pratinjau kembalian dipakai
+                     bersama dengan halaman verifikasi pengambilan. --}}
                 @if(! $order->isPaid() && ! $order->isFinal())
-                    <form method="POST" action="{{ route('admin.pet-shop.orders.payment', $order) }}"
-                          class="mt-4 space-y-3 border-t border-slate-100 pt-4 dark:border-slate-800">
-                        @csrf
-                        <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('petshop.pickup_record_payment_title') }}</p>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_record_payment_hint', ['amount' => 'Rp ' . number_format((int) $order->total_amount, 0, ',', '.')]) }}</p>
-                        <input type="number" name="amount_received" min="1" step="1" required class="admin-input"
-                               value="{{ (int) $order->total_amount }}" aria-label="{{ __('petshop.pickup_amount_received') }}">
-                        <select name="payment_method" class="admin-input" required aria-label="{{ __('petshop.pickup_payment_method') }}">
-                            <option value="cash">Tunai</option>
-                            <option value="debit_card">Kartu debit</option>
-                            <option value="credit_card">Kartu kredit</option>
-                            <option value="bank_transfer">Transfer bank</option>
-                            <option value="qris">QRIS</option>
-                        </select>
-                        <input type="text" name="payment_reference" maxlength="100" class="admin-input"
-                               placeholder="{{ __('petshop.pickup_payment_reference') }}">
-                        <button type="submit" class="admin-btn-secondary w-full justify-center">{{ __('petshop.pickup_record_payment') }}</button>
-                    </form>
+                    <div class="mt-4 border-t border-slate-100 pt-4 dark:border-slate-800">
+                        <p class="mb-3 text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('petshop.pickup_record_payment_title') }}</p>
+                        @include('admin.pet-shop.partials.offline-payment-form', ['order' => $order])
+                    </div>
                 @endif
 
                 @if($order->hasSettledPayment())
@@ -235,9 +222,53 @@
                         <x-petshop.status-badge :status="$payment->status" type="payment" />
                     </div>
                     <div class="flex items-center justify-between gap-3">
+                        <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.payment_channel') }}</span>
+                        <x-admin.badge
+                            :label="$payment->isOffline() ? __('petshop.channel_offline_label') : __('petshop.channel_online_label')"
+                            :tone="$payment->isOffline() ? 'primary' : 'amber'" />
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
+                        <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.payment_code') }}</span>
+                        <span class="font-mono text-xs text-slate-600 dark:text-slate-300">{{ $payment->payment_code ?? '—' }}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-3">
                         <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.total') }}</span>
                         <span class="font-semibold tabular-nums text-slate-800 dark:text-slate-200">Rp {{ number_format($payment->gross_amount, 0, ',', '.') }}</span>
                     </div>
+
+                    {{-- Uang diterima & kembalian hanya ada pada transaksi offline;
+                         transaksi online tidak pernah menampilkan kembalian. --}}
+                    @if($payment->isOffline())
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_amount_received') }}</span>
+                            <span class="font-semibold tabular-nums text-slate-800 dark:text-slate-200">
+                                {{ $payment->amount_received !== null ? 'Rp ' . number_format((int) $payment->amount_received, 0, ',', '.') : '—' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_change') }}</span>
+                            <span class="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                                {{ $payment->change_amount !== null ? 'Rp ' . number_format((int) $payment->change_amount, 0, ',', '.') : '—' }}
+                            </span>
+                        </div>
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_recorded_by') }}</span>
+                            <span class="text-slate-700 dark:text-slate-300">{{ $payment->metadata['recorded_by_name'] ?? '—' }}</span>
+                        </div>
+                    @endif
+
+                    @if(! empty($payment->metadata['payment_reference']) || $payment->provider_transaction_id)
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.payment_reference') }}</span>
+                            <span class="max-w-[60%] truncate text-right font-mono text-xs text-slate-600 dark:text-slate-300">
+                                {{ $payment->metadata['payment_reference'] ?? $payment->provider_transaction_id }}
+                            </span>
+                        </div>
+                    @endif
+
+                    @if(! empty($payment->metadata['notes']))
+                        <p class="text-xs italic text-slate-500 dark:text-slate-400">“{{ $payment->metadata['notes'] }}”</p>
+                    @endif
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.payment_method_label') }}</span>
                         <span class="text-slate-700 dark:text-slate-300">{{ $payment->payment_method ? __('petshop.payment_method.' . $payment->payment_method) : '—' }}</span>
@@ -316,3 +347,4 @@
     </div>
 </div>
 @endsection
+

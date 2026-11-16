@@ -155,7 +155,9 @@ data class PetShopOrder(
     @SerializedName("receipt_available") val receiptAvailable: Boolean = false,
     @SerializedName("pickup_pass_available") val pickupPassAvailable: Boolean = false,
     @SerializedName("picked_up_at") val pickedUpAt: String? = null,
-    val timeline: List<PetShopTimelineEntry> = emptyList()
+    val timeline: List<PetShopTimelineEntry> = emptyList(),
+    /** Ringkasan baris pembayaran terakhir; null bila belum ada pembayaran. */
+    val payment: PetShopOrderPayment? = null
 ) {
     val isOnline: Boolean get() = paymentMethod == METHOD_ONLINE
     val isPaid: Boolean get() = paymentStatus == PAYMENT_PAID
@@ -180,6 +182,41 @@ data class PetShopOrder(
         const val STATUS_CANCELLED = "cancelled"
         const val STATUS_EXPIRED = "expired"
     }
+}
+
+/**
+ * Satu baris `payments` milik pesanan. Nominal diterima/kembalian hanya ada
+ * pada transaksi offline (bayar di klinik); transaksi online tidak punya
+ * kembalian dan nilainya null.
+ */
+data class PetShopOrderPayment(
+    @SerializedName("payment_code") val paymentCode: String? = null,
+    @SerializedName("is_offline") val isOffline: Boolean = false,
+    val method: String? = null,
+    val status: String? = null,
+    val provider: String? = null,
+    @SerializedName("gross_amount") val grossAmount: Long = 0,
+    @SerializedName("amount_received") val amountReceived: Long? = null,
+    @SerializedName("change_amount") val changeAmount: Long? = null,
+    val reference: String? = null,
+    @SerializedName("recorded_by") val recordedBy: String? = null,
+    @SerializedName("paid_at") val paidAt: String? = null
+) {
+    /** Label metode dari nilai yang disimpan backend, bukan tebakan UI. */
+    val methodLabel: String?
+        get() = when (method?.lowercase()) {
+            "cash" -> "Tunai"
+            "debit_card" -> "Kartu debit"
+            "credit_card" -> "Kartu kredit"
+            "bank_transfer", "bca_va", "bni_va", "bri_va", "mandiri_va", "permata_va", "cimb_va" -> "Transfer bank"
+            "qris" -> "QRIS"
+            "gopay" -> "GoPay"
+            "shopeepay" -> "ShopeePay"
+            "echannel" -> "Mandiri Bill"
+            "akulaku" -> "Akulaku"
+            null, "" -> null
+            else -> method?.replace('_', ' ')?.replaceFirstChar { it.uppercase() }
+        }
 }
 
 data class PetShopOrdersResponse(

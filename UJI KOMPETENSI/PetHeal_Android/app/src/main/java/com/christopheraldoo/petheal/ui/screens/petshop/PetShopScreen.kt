@@ -45,11 +45,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +60,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.ui.components.EmptySearchState
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -67,6 +70,8 @@ import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.util.LocationHelper
+import com.christopheraldoo.petheal.util.LocationResult
 import com.christopheraldoo.petheal.util.formatRupiah
 
 @Composable
@@ -79,6 +84,25 @@ fun PetShopScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    // Filter "Terdekat" memakai mekanisme izin lokasi yang sama dengan layar
+    // lain. Menolak izin tidak memblokir katalog: semua klinik tetap tampil.
+    val locationPermission = rememberLocationPermission()
+    var locationRequest by remember { mutableIntStateOf(0) }
+
+    // `locationRequest` sengaja TIDAK di-reset di dalam effect: mengganti nilai
+    // kunci LaunchedEffect membatalkan coroutine yang sedang berjalan, sehingga
+    // permintaan lokasi dulu selalu terhenti sebelum jarak didapat. Setiap
+    // permintaan baru menaikkan nilai ini; `isGranted` ikut jadi kunci supaya
+    // hasil dialog izin langsung memicu pengambilan lokasi.
+    LaunchedEffect(locationRequest, locationPermission.isGranted) {
+        if (locationRequest == 0 || !locationPermission.isGranted) return@LaunchedEffect
+        when (val result = LocationHelper.currentLocation(context)) {
+            is LocationResult.Success -> viewModel.enableNearby(result.latitude, result.longitude)
+            else -> viewModel.onNearbyFailed()
+        }
+    }
 
     LaunchedEffect(uiState.notice) {
         uiState.notice?.let {
@@ -128,7 +152,27 @@ fun PetShopScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
-                    item { SearchAndFilters(uiState, viewModel) }
+                    item {
+                        SearchAndFilters(
+                            state = uiState,
+                            viewModel = viewModel,
+                            canRequestPermission = locationPermission.canRequest,
+                            onToggleNearby = {
+                                if (uiState.nearbyMode) {
+                                    viewModel.disableNearby()
+                                } else {
+                                    locationRequest++
+                                    if (!locationPermission.isGranted) {
+                                        if (locationPermission.canRequest) {
+                                            locationPermission.request()
+                                        } else {
+                                            locationPermission.openSettings()
+                                        }
+                                    }
+                                }
+                            }
+                        )
+                    }
 
                     if (uiState.products.isEmpty()) {
                         item {
@@ -214,7 +258,12 @@ fun PetShopScreen(
 }
 
 @Composable
-private fun SearchAndFilters(state: PetShopUiState, viewModel: PetShopViewModel) {
+private fun SearchAndFilters(
+    state: PetShopUiState,
+    viewModel: PetShopViewModel,
+    canRequestPermission: Boolean,
+    onToggleNearby: () -> Unit
+) {
     var sortMenuOpen by remember { mutableStateOf(false) }
 
     Column(modifier = Modifier.padding(bottom = 4.dp)) {
@@ -258,18 +307,44 @@ private fun SearchAndFilters(state: PetShopUiState, viewModel: PetShopViewModel)
             }
         }
 
-        if (state.sellers.isNotEmpty()) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                item {
+        LazyRow(
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            item {
+                FilterChip(
+                    label = "Semua klinik",
+                    selected = state.selectedClinicId == null && !state.nearbyMode,
+                    onClick = {
+                        if (state.nearbyMode) viewModel.disableNearby()
+                        else viewModel.onClinicSelected(null)
+                    }
+                )
+            }
+            item {
+                FilterChip(
+                    label = if (state.isLoadingNearby) "Mencari…" else "Terdekat",
+                    selected = state.nearbyMode,
+                    onClick = onToggleNearby
+                )
+            }
+
+            if (state.nearbyMode) {
+                items(state.clinicOptions) { clinic ->
                     FilterChip(
-                        label = "Semua klinik",
-                        selected = state.selectedClinicId == null,
-                        onClick = { viewModel.onClinicSelected(null) }
+                        label = clinic.distanceLabel?.let { "${clinic.name} · $it" } ?: clinic.name,
+                        selected = state.selectedClinicId == clinic.id,
+                        // Di mode terdekat selalu ada satu klinik terpilih;
+                        // menekan chip yang sama tidak boleh mengosongkan
+                        // filter (pakai "Semua klinik" untuk itu).
+                        onClick = {
+                            if (state.selectedClinicId != clinic.id) {
+                                viewModel.onClinicSelected(clinic.id)
+                            }
+                        }
                     )
                 }
+            } else {
                 items(state.sellers) { seller ->
                     FilterChip(
                         label = seller.name,
@@ -278,6 +353,28 @@ private fun SearchAndFilters(state: PetShopUiState, viewModel: PetShopViewModel)
                     )
                 }
             }
+        }
+
+        if (state.nearbyMode) {
+            Text(
+                "Menampilkan produk klinik terdekat (jarak garis lurus). Pilih klinik lain di atas untuk melihat produknya.",
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                color = TextSecondary
+            )
+        } else if (state.locationUnavailable) {
+            Text(
+                if (canRequestPermission) {
+                    "Jarak belum tersedia. Aktifkan lokasi lewat tombol Terdekat."
+                } else {
+                    "Izin lokasi dimatikan. Aktifkan lewat pengaturan aplikasi bila ingin melihat jarak."
+                },
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                fontSize = 10.sp,
+                lineHeight = 14.sp,
+                color = TextSecondary
+            )
         }
 
         Box(

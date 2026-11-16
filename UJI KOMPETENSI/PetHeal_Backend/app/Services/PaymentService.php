@@ -436,55 +436,41 @@ class PaymentService
 
     /**
      * Catat pembayaran tunai di klinik (tanpa provider eksternal).
+     *
+     * Dipakai saat pesanan "bayar di klinik" diselesaikan tanpa pencatatan
+     * manual sebelumnya. Bila pembayaran offline sudah tercatat, transaksi
+     * ini TIDAK digandakan — pembayaran lama yang dikembalikan.
      */
     public function recordCashPayment(ProductOrder $order, ?User $actor = null): Payment
     {
-        $providerOrderId = 'CASH-' . $order->order_number;
+        $existing = $order->payments()->where('status', Payment::STATUS_PAID)->latest('id')->first();
 
-        $payment = Payment::firstOrCreate(
-            ['provider_order_id' => $providerOrderId],
-            [
-                'payment_code' => Payment::generatePaymentCode(),
-                'provider' => 'cash',
-                'payment_type' => Payment::TYPE_PET_SHOP,
-                'clinic_id' => $order->clinic_id,
-                'user_id' => $order->user_id,
-                'payable_type' => ProductOrder::class,
-                'payable_id' => $order->id,
-                'environment' => (string) config('services.midtrans.environment', 'sandbox'),
-                'gross_amount' => (int) $order->total_amount,
-                'currency' => 'IDR',
-                'payment_method' => 'cash',
-                'status' => Payment::STATUS_PAID,
-                'provider_status' => 'paid_at_clinic',
-                'paid_at' => now(),
-                'metadata' => [
-                    'order_number' => $order->order_number,
-                    'gateway' => 'cash',
-                    'recorded_by' => $actor?->id,
-                ],
-            ]
+        if ($existing) {
+            return $existing;
+        }
+
+        $total = (int) $order->total_amount;
+
+        return $this->createClinicPayment(
+            $order,
+            $total,
+            $total,
+            'cash',
+            null,
+            $actor,
+            null,
+            'cash'
         );
-
-        if ($payment->wasRecentlyCreated) {
-            $this->recordHistory($payment, null, Payment::STATUS_PAID, 'clinic_admin', 'Pembayaran tunai di klinik');
-        }
-
-        if ($order->payment_status !== ProductOrder::PAYMENT_PAID) {
-            $order->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
-        }
-
-        return $payment;
     }
 
     /**
-     * Catat pembayaran offline (tunai/EDC/transfer di klinik) untuk Pet Shop.
+     * Catat pembayaran offline (tunai/EDC/transfer/QRIS di klinik) untuk Pet Shop.
      *
-     * Nominal divalidasi di server: harus sama dengan sisa tagihan. Tidak ada
-     * cara bagi client untuk menandai lunas dengan nominal lebih kecil, dan
-     * pesanan tidak pernah menjadi `paid` hanya karena admin membuka halaman.
+     * Nominal divalidasi di server: uang yang diterima boleh lebih besar dari
+     * tagihan (kelebihan becomes kembalian), tapi tidak boleh kurang. Total
+     * tagihan SELALU diambil dari order di database, bukan dari form.
      *
-     * @return array{payment:Payment,outstanding_before:int}
+     * @return array{payment:Payment,outstanding_before:int,amount_received:int,change_amount:int}
      */
     public function recordOfflinePayment(
         ProductOrder $order,
@@ -492,7 +478,8 @@ class PaymentService
         string $method,
         ?string $reference,
         User $actor,
-        ?string $paidAt = null
+        ?string $paidAt = null,
+        ?string $notes = null
     ): array {
         $allowed = ['cash', 'debit_card', 'credit_card', 'bank_transfer', 'qris'];
 
@@ -500,7 +487,11 @@ class PaymentService
             throw new RuntimeException('Metode pembayaran tidak dikenal.');
         }
 
-        return DB::transaction(function () use ($order, $amountReceived, $method, $reference, $actor, $paidAt) {
+        if ($amountReceived < 0) {
+            throw new RuntimeException('Nominal uang diterima tidak valid.');
+        }
+
+        return DB::transaction(function () use ($order, $amountReceived, $method, $reference, $actor, $paidAt, $notes) {
             /** @var ProductOrder $locked */
             $locked = ProductOrder::whereKey($order->id)->lockForUpdate()->firstOrFail();
 
@@ -523,42 +514,27 @@ class PaymentService
             $total = (int) $locked->total_amount;
             $outstanding = $total;
 
-            if ($amountReceived !== $outstanding) {
+            if ($amountReceived < $outstanding) {
                 throw new RuntimeException(sprintf(
-                    'Nominal diterima harus sama dengan sisa tagihan: Rp %s.',
+                    'Uang diterima (%s) kurang dari sisa tagihan (%s). Transaksi tidak dapat diselesaikan.',
+                    number_format($amountReceived, 0, ',', '.'),
                     number_format($outstanding, 0, ',', '.')
                 ));
             }
 
-            $paidAtValue = $paidAt !== null ? \Illuminate\Support\Carbon::parse($paidAt) : now();
+            $change = $amountReceived - $outstanding;
 
-            $payment = Payment::create([
-                'payment_code' => Payment::generatePaymentCode(),
-                'provider' => 'cash',
-                'payment_type' => Payment::TYPE_PET_SHOP,
-                'clinic_id' => $locked->clinic_id,
-                'user_id' => $locked->user_id,
-                'payable_type' => ProductOrder::class,
-                'payable_id' => $locked->id,
-                'provider_order_id' => 'OFFLINE-' . $locked->order_number,
-                'environment' => (string) config('services.midtrans.environment', 'sandbox'),
-                'gross_amount' => $amountReceived,
-                'currency' => 'IDR',
-                'payment_method' => $method,
-                'status' => Payment::STATUS_PAID,
-                'provider_status' => 'paid_at_clinic',
-                'paid_at' => $paidAtValue,
-                'metadata' => [
-                    'order_number' => $locked->order_number,
-                    'gateway' => 'offline',
-                    'amount_received' => $amountReceived,
-                    'payment_reference' => $reference,
-                    'recorded_by' => $actor->id,
-                    'recorded_by_name' => $actor->name,
-                ],
-            ]);
-
-            $this->recordHistory($payment, null, Payment::STATUS_PAID, 'clinic_admin', 'Pembayaran di klinik dicatat', $actor->id);
+            $payment = $this->createClinicPayment(
+                $locked,
+                $outstanding,
+                $amountReceived,
+                $method,
+                $reference,
+                $actor,
+                $paidAt !== null ? \Illuminate\Support\Carbon::parse($paidAt) : null,
+                'offline',
+                $notes
+            );
 
             $locked->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
 
@@ -568,8 +544,73 @@ class PaymentService
                 $this->orders->log($locked, $from, ProductOrder::STATUS_AWAITING_CONFIRMATION, 'clinic_admin', $actor->id, 'Pembayaran di klinik dicatat');
             }
 
-            return ['payment' => $payment, 'outstanding_before' => $outstanding];
+            return [
+                'payment' => $payment,
+                'outstanding_before' => $outstanding,
+                'amount_received' => $amountReceived,
+                'change_amount' => $change,
+            ];
         });
+    }
+
+    /**
+     * Satu-satunya tempat pembuatan baris `payments` untuk transaksi offline.
+     *
+     * `gross_amount` = nominal yang benar-benar menjadi pendapatan (total
+     * tagihan). Nominal diterima & kembalian dicatat terpisah supaya laporan
+     * keuangan tidak menghitung kembalian sebagai pendapatan.
+     */
+    private function createClinicPayment(
+        ProductOrder $order,
+        int $grossAmount,
+        int $amountReceived,
+        string $method,
+        ?string $reference,
+        ?User $actor,
+        ?\Illuminate\Support\Carbon $paidAt,
+        string $gateway,
+        ?string $notes = null
+    ): Payment {
+        $payment = Payment::create([
+            'payment_code' => Payment::generatePaymentCode(),
+            'provider' => 'cash',
+            'payment_type' => Payment::TYPE_PET_SHOP,
+            'clinic_id' => $order->clinic_id,
+            'user_id' => $order->user_id,
+            'payable_type' => ProductOrder::class,
+            'payable_id' => $order->id,
+            'provider_order_id' => strtoupper($gateway) . '-' . $order->order_number,
+            'environment' => (string) config('services.midtrans.environment', 'sandbox'),
+            'gross_amount' => $grossAmount,
+            'amount_received' => $amountReceived,
+            'change_amount' => max(0, $amountReceived - $grossAmount),
+            'currency' => 'IDR',
+            'payment_method' => $method,
+            'status' => Payment::STATUS_PAID,
+            'provider_status' => 'paid_at_clinic',
+            'paid_at' => $paidAt ?? now(),
+            'metadata' => [
+                'order_number' => $order->order_number,
+                'gateway' => $gateway,
+                'amount_received' => $amountReceived,
+                'change_amount' => max(0, $amountReceived - $grossAmount),
+                'payment_reference' => $reference,
+                'notes' => $notes,
+                'recorded_by' => $actor?->id,
+                'recorded_by_name' => $actor?->name,
+            ],
+        ]);
+
+        $this->recordHistory(
+            $payment,
+            null,
+            Payment::STATUS_PAID,
+            'clinic_admin',
+            $gateway === 'offline' ? 'Pembayaran di klinik dicatat' : 'Pembayaran tunai di klinik',
+            $actor?->id
+        );
+
+        return $payment;
     }
 
     /**

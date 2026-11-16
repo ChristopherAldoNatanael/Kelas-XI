@@ -437,9 +437,22 @@ private fun ItemsCard(items: List<PetShopOrderItem>) {
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "${item.variantName} · ${item.quantity}×",
+                            text = if (item.sku.isNullOrBlank()) {
+                                item.variantName
+                            } else {
+                                "${item.variantName} · ${item.sku}"
+                            },
                             fontSize = 11.sp,
-                            color = TextSecondary
+                            color = TextSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        // Harga satuan dari snapshot pesanan, bukan harga katalog
+                        // terbaru yang bisa sudah berubah.
+                        Text(
+                            text = "${item.quantity} × " + formatRupiah((item.discountPrice ?: item.unitPrice).toDouble()),
+                            fontSize = 10.sp,
+                            color = TextTertiary
                         )
                     }
                     Text(
@@ -564,7 +577,49 @@ private fun PaymentCard(order: PetShopOrder) {
                     color = Primary
                 )
             }
+
+            // Detail dari baris `payments`. Nominal diterima & kembalian hanya
+            // dicetak untuk transaksi di klinik — transaksi online tidak punya
+            // kembalian, jadi baris itu tidak pernah muncul.
+            val payment = order.payment
+            if (payment != null) {
+                Spacer(Modifier.height(10.dp))
+                Box(Modifier.fillMaxWidth().height(1.dp).background(Outline))
+                Spacer(Modifier.height(8.dp))
+
+                payment.methodLabel?.let { PaymentDetailRow("Metode", it) }
+                if (!payment.reference.isNullOrBlank()) {
+                    PaymentDetailRow("No. referensi", payment.reference.orEmpty())
+                }
+                payment.paidAt?.let {
+                    PaymentDetailRow("Waktu bayar", formatDateSafe(it, "d MMM yyyy · HH:mm"))
+                }
+
+                if (payment.isOffline) {
+                    payment.amountReceived?.let {
+                        PaymentDetailRow("Uang diterima", formatRupiah(it.toDouble()))
+                    }
+                    payment.changeAmount?.let {
+                        PaymentDetailRow("Kembalian", formatRupiah(it.toDouble()))
+                    }
+                    payment.recordedBy?.let { PaymentDetailRow("Dicatat oleh", it) }
+                }
+            }
         }
+    }
+}
+
+@Composable
+private fun PaymentDetailRow(label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
+        Text(label, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+        Text(
+            value,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            color = OnBackground,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
+        )
     }
 }
 

@@ -260,36 +260,10 @@
                     </div>
 
                     @if(! $verifiedOrder->isPaid())
-                        <form method="POST" action="{{ route('admin.pet-shop.orders.payment', $verifiedOrder) }}"
-                              class="space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-900/10">
-                            @csrf
-                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-300">{{ __('petshop.pickup_record_payment_title') }}</p>
-                            <p class="text-xs text-amber-700 dark:text-amber-300">{{ __('petshop.pickup_record_payment_hint', ['amount' => $currency($verifiedOrder->total_amount)]) }}</p>
-                            <div class="grid gap-3 sm:grid-cols-2">
-                                <div>
-                                    <label class="admin-label" for="amount_received">{{ __('petshop.pickup_amount_received') }}</label>
-                                    <input type="number" name="amount_received" id="amount_received" min="1" step="1"
-                                           value="{{ (int) $verifiedOrder->total_amount }}" required class="admin-input">
-                                </div>
-                                <div>
-                                    <label class="admin-label" for="payment_method">{{ __('petshop.pickup_payment_method') }}</label>
-                                    <select name="payment_method" id="payment_method" class="admin-input" required>
-                                        <option value="cash">Tunai</option>
-                                        <option value="debit_card">Kartu debit</option>
-                                        <option value="credit_card">Kartu kredit</option>
-                                        <option value="bank_transfer">Transfer bank</option>
-                                        <option value="qris">QRIS</option>
-                                    </select>
-                                </div>
-                                <div class="sm:col-span-2">
-                                    <label class="admin-label" for="payment_reference">{{ __('petshop.pickup_payment_reference') }}</label>
-                                    <input type="text" name="payment_reference" id="payment_reference" maxlength="100" class="admin-input" placeholder="{{ __('petshop.pickup_payment_reference_placeholder') }}">
-                                </div>
-                            </div>
-                            <button type="submit" class="admin-btn-secondary w-full justify-center">
-                                {{ __('petshop.pickup_record_payment') }}
-                            </button>
-                        </form>
+                        <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-4 dark:border-amber-900/60 dark:bg-amber-900/10">
+                            <p class="mb-3 text-sm font-semibold text-amber-800 dark:text-amber-300">{{ __('petshop.pickup_record_payment_title') }}</p>
+                            @include('admin.pet-shop.partials.offline-payment-form', ['order' => $verifiedOrder])
+                        </div>
                     @endif
 
                     <form method="POST" action="{{ route('admin.pet-shop.pickups.confirm', $verifiedOrder) }}"

@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.ui.screens.petshop
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.model.PetShopCategory
+import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.data.model.PetShopProduct
 import com.christopheraldoo.petheal.data.model.PetShopSeller
 import com.christopheraldoo.petheal.data.repository.PetShopRepository
@@ -41,11 +42,21 @@ data class PetShopUiState(
     val lastPage: Int = 1,
     val cartCount: Int = 0,
     val cartSubtotal: Long = 0,
-    val notice: String? = null
+    val notice: String? = null,
+    /** Filter "Terdekat dari saya" aktif. Klinik diurutkan backend menurut jarak. */
+    val nearbyMode: Boolean = false,
+    val nearbyClinics: List<PetShopClinicAvailability> = emptyList(),
+    val isLoadingNearby: Boolean = false,
+    /** Lokasi tidak didapat (izin ditolak/GPS mati): Pet Shop tetap dipakai. */
+    val locationUnavailable: Boolean = false
 ) {
     val hasMore: Boolean get() = page < lastPage
     val hasActiveFilters: Boolean
         get() = search.isNotBlank() || selectedCategory != null || selectedClinicId != null
+
+    /** Klinik yang ditampilkan pada baris filter (terdekat atau semua). */
+    val clinicOptions: List<PetShopClinicAvailability>
+        get() = if (nearbyMode) nearbyClinics else emptyList()
 }
 
 @HiltViewModel
@@ -176,9 +187,110 @@ class PetShopViewModel @Inject constructor(
         fetchProducts(showFullLoading = false)
     }
 
+    /**
+     * Filter klinik terdekat. Jarak dihitung server (Haversine) — aplikasi tidak
+     * pernah menghitung atau mengirim angka jarak sendiri.
+     *
+     * Hanya klinik yang benar-benar punya produk Pet Shop yang bisa dibeli
+     * ditampilkan, supaya "terdekat" tidak menawarkan klinik tanpa stok.
+     */
+    fun enableNearby(latitude: Double, longitude: Double) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingNearby = true, locationUnavailable = false) }
+
+            when (val result = repository.loadNearbyClinics(latitude = latitude, longitude = longitude)) {
+                is Result.Success -> {
+                    val sellerIds = _uiState.value.sellers.map { it.id }.toSet()
+                    val clinics = result.data.filter { sellerIds.isEmpty() || it.id in sellerIds }
+                    val nearestClinicId = clinics.firstOrNull()?.id
+
+                    if (nearestClinicId == null) {
+                        // Tidak ada klinik berproduk di sekitar: jangan masuk mode
+                        // terdekat dengan chip kosong — katalog tetap seperti
+                        // semula dan pengguna diberi tahu.
+                        _uiState.update {
+                            it.copy(
+                                nearbyMode = false,
+                                nearbyClinics = emptyList(),
+                                isLoadingNearby = false,
+                                notice = "Belum ada klinik dengan produk tersedia di sekitar Anda."
+                            )
+                        }
+                        return@launch
+                    }
+
+                    _uiState.update {
+                        it.copy(
+                            nearbyMode = true,
+                            nearbyClinics = clinics,
+                            // Langsung tampilkan katalog klinik terdekat: tanpa
+                            // ini filter "Terdekat" hanya menambah chip dan
+                            // daftar produk tidak berubah sama sekali.
+                            selectedClinicId = nearestClinicId,
+                            isLoadingNearby = false,
+                            notice = null
+                        )
+                    }
+
+                    fetchProducts(showFullLoading = false)
+                }
+                is Result.Error -> _uiState.update {
+                    it.copy(isLoadingNearby = false, notice = result.message)
+                }
+                else -> _uiState.update { it.copy(isLoadingNearby = false) }
+            }
+        }
+    }
+
+    /** Lokasi tidak tersedia: kembali ke daftar semua klinik tanpa memblokir. */
+    fun onNearbyFailed(message: String? = null) {
+        val state = _uiState.value
+        // Bila produk sedang difilter oleh klinik hasil "Terdekat", filter itu
+        // ikut dilepas supaya daftar tidak tertahan di satu klinik.
+        val hadNearbySelection = state.nearbyMode && state.selectedClinicId != null
+
+        _uiState.update {
+            it.copy(
+                nearbyMode = false,
+                nearbyClinics = emptyList(),
+                isLoadingNearby = false,
+                locationUnavailable = true,
+                selectedClinicId = if (hadNearbySelection) null else it.selectedClinicId,
+                notice = message ?: "Lokasi tidak tersedia. Menampilkan semua klinik."
+            )
+        }
+
+        if (hadNearbySelection) fetchProducts(showFullLoading = false)
+    }
+
+    fun disableNearby() {
+        val hadClinicFilter = _uiState.value.selectedClinicId != null
+
+        _uiState.update {
+            it.copy(
+                nearbyMode = false,
+                nearbyClinics = emptyList(),
+                selectedClinicId = null,
+                locationUnavailable = false
+            )
+        }
+
+        if (hadClinicFilter) fetchProducts(showFullLoading = false)
+    }
+
     fun resetFilters() {
         _uiState.update {
-            it.copy(search = "", selectedCategory = null, selectedClinicId = null, sort = PetShopSort.NEWEST)
+            it.copy(
+                search = "",
+                selectedCategory = null,
+                selectedClinicId = null,
+                sort = PetShopSort.NEWEST,
+                // Reset juga melepas filter "Terdekat" supaya status chip dan
+                // daftar produk yang tampil tidak bertentangan.
+                nearbyMode = false,
+                nearbyClinics = emptyList(),
+                locationUnavailable = false
+            )
         }
         fetchProducts(showFullLoading = false)
     }

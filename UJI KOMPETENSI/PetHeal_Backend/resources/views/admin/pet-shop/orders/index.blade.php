@@ -40,6 +40,11 @@
                     <option value="{{ $status }}" @selected(request('status') === $status)>{{ __('petshop.status.' . $status) }}</option>
                 @endforeach
             </select>
+            <select name="payment_method" class="admin-input" aria-label="{{ __('petshop.payment_method_label') }}">
+                <option value="">{{ __('petshop.payment_method_label') }}</option>
+                <option value="online" @selected(request('payment_method') === 'online')>{{ __('petshop.payment_method.online') }}</option>
+                <option value="pay_at_clinic" @selected(request('payment_method') === 'pay_at_clinic')>{{ __('petshop.payment_method.pay_at_clinic') }}</option>
+            </select>
             <select name="payment_status" class="admin-input">
                 <option value="">{{ __('petshop.payment_status_label') }}</option>
                 @foreach(['unpaid','pending','paid','failed','expired','cancelled','refund_pending','partially_refunded','refunded','chargeback'] as $status)
@@ -50,7 +55,7 @@
             <input type="date" name="to" value="{{ request('to') }}" class="admin-input" aria-label="{{ __('petshop.date_to') }}">
             <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-6">
                 <button type="submit" class="admin-btn-secondary">{{ __('petshop.search') }}</button>
-                @if(request()->hasAny(['search','status','payment_status','from','to']))
+                @if(request()->hasAny(['search','status','payment_status','payment_method','from','to']))
                     <a href="{{ route('admin.pet-shop.orders.index') }}" class="admin-btn-ghost">{{ __('petshop.reset') }}</a>
                 @endif
             </div>
@@ -111,7 +116,7 @@
                             <td colspan="9">
                                 <x-admin.empty-state
                                     icon="receipt_long"
-                                    :title="request()->hasAny(['search','status','payment_status','from','to']) ? __('petshop.no_orders_filter') : __('petshop.no_orders')" />
+                                    :title="request()->hasAny(['search','status','payment_status','payment_method','from','to']) ? __('petshop.no_orders_filter') : __('petshop.no_orders')" />
                             </td>
                         </tr>
                     @endforelse

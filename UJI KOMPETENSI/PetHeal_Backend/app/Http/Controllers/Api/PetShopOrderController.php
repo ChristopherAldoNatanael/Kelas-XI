@@ -523,6 +523,29 @@ class PetShopOrderController extends Controller
         ];
 
         if ($detailed) {
+            // Ringkasan pembayaran terakhir. Nominal & status berasal dari baris
+            // `payments`, bukan dari order, sehingga uang diterima/kembalian
+            // transaksi offline dan referensi Midtrans transaksi online bisa
+            // ditampilkan tanpa menebak dari status pesanan.
+            $payment = $order->relationLoaded('payments')
+                ? $order->payments->sortByDesc('id')->first()
+                : $order->payments()->latest('id')->first();
+
+            $payload['payment'] = $payment ? [
+                'payment_code' => $payment->payment_code,
+                'is_offline' => $payment->isOffline(),
+                'method' => $payment->payment_method,
+                'status' => $payment->status,
+                'provider' => $payment->provider,
+                'gross_amount' => (int) $payment->gross_amount,
+                // Null pada transaksi online: tidak ada uang tunai/kembalian.
+                'amount_received' => $payment->amount_received !== null ? (int) $payment->amount_received : null,
+                'change_amount' => $payment->change_amount !== null ? (int) $payment->change_amount : null,
+                'reference' => $payment->metadata['payment_reference'] ?? $payment->provider_transaction_id,
+                'recorded_by' => $payment->metadata['recorded_by_name'] ?? null,
+                'paid_at' => $payment->paid_at?->toIso8601String(),
+            ] : null;
+
             $payload['timeline'] = $order->statusHistories->map(fn ($history) => [
                 'from_status' => $history->from_status,
                 'to_status' => $history->to_status,

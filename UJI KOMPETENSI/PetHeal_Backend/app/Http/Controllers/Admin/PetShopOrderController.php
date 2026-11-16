@@ -31,6 +31,14 @@ class PetShopOrderController extends Controller
             ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
             ->when($request->filled('status'), fn ($q) => $q->where('status', $request->input('status')))
             ->when($request->filled('payment_status'), fn ($q) => $q->where('payment_status', $request->input('payment_status')))
+            // Jenis pembayaran: online (Midtrans) atau bayar di klinik.
+            ->when(
+                in_array($request->input('payment_method'), [
+                    ProductOrder::METHOD_ONLINE,
+                    ProductOrder::METHOD_PAY_AT_CLINIC,
+                ], true),
+                fn ($q) => $q->where('payment_method', $request->input('payment_method'))
+            )
             ->when($request->filled('search'), function ($q) use ($request) {
                 $search = trim((string) $request->input('search'));
                 $q->where(function ($inner) use ($search) {

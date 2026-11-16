@@ -59,6 +59,8 @@ class Payment extends Model
         'merchant_id',
         'environment',
         'gross_amount',
+        'amount_received',
+        'change_amount',
         'currency',
         'payment_method',
         'status',
@@ -76,6 +78,8 @@ class Payment extends Model
 
     protected $casts = [
         'gross_amount' => 'integer',
+        'amount_received' => 'integer',
+        'change_amount' => 'integer',
         'refunded_amount' => 'integer',
         'expires_at' => 'datetime',
         'paid_at' => 'datetime',
@@ -122,6 +126,27 @@ class Payment extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(PaymentNotification::class);
+    }
+
+    /**
+     * Apakah transaksi dicatat manual di klinik (bukan lewat provider).
+     */
+    public function isOffline(): bool
+    {
+        return $this->provider === 'cash';
+    }
+
+    /**
+     * Transaksi online — statusnya hanya sah setelah verifikasi backend.
+     */
+    public function isOnline(): bool
+    {
+        return !$this->isOffline();
+    }
+
+    public function scopeForClinic(Builder $query, ?int $clinicId): Builder
+    {
+        return $clinicId === null ? $query : $query->where('clinic_id', $clinicId);
     }
 
     public function scopePendingCheck(Builder $query): Builder

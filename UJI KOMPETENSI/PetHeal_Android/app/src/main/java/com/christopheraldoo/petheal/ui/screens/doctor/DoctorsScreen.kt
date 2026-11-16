@@ -8,10 +8,7 @@ import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
-import android.Manifest
 import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -64,10 +61,10 @@ import com.christopheraldoo.petheal.data.model.Doctor
 import com.christopheraldoo.petheal.data.model.DoctorReview
 import com.christopheraldoo.petheal.data.model.TimeSlot
 import com.christopheraldoo.petheal.ui.components.SkeletonDoctorList
+import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
 import com.christopheraldoo.petheal.util.DoctorListing
 import com.christopheraldoo.petheal.util.DoctorLocationStatus
 import com.christopheraldoo.petheal.util.DoctorSort
-import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.doctorLocationChipLabel
 import kotlinx.coroutines.delay
@@ -139,16 +136,12 @@ fun DoctorsScreen(
 ) {
     val state by viewModel.listState.collectAsState()
     val focusManager = LocalFocusManager.current
-    val context = LocalContext.current
-    // Jarak ke klinik butuh izin lokasi. Diminta HANYA saat user menekan chip
-    // "Urutkan terdekat"; menolak izin tidak mengubah apa pun selain bahwa
-    // jarak tidak ditampilkan.
-    val locationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        if (grants.values.any { it } || LocationHelper.hasPermission(context)) {
-            viewModel.refreshLocation()
-        }
+    // Jarak ke klinik butuh izin lokasi. Izin dikelola satu pintu: dialog hanya
+    // muncul bila belum diizinkan, dan izin yang diberikan lewat Settings
+    // langsung dipakai saat layar aktif kembali.
+    val locationPermission = rememberLocationPermission()
+    LaunchedEffect(locationPermission.isGranted) {
+        if (locationPermission.isGranted) viewModel.refreshLocation()
     }
     // Kembali dari detail (mis. setelah kirim review) → sinkronkan daftar
     // dari cache yang sudah di-patch. Murah: tanpa spinner bila cache ada.
@@ -227,10 +220,10 @@ fun DoctorsScreen(
                 when {
                     state.sort == DoctorSort.NAME -> viewModel.setSort(DoctorSort.NEAREST)
                     state.hasLocation -> viewModel.setSort(DoctorSort.NAME)
-                    else -> locationPermissionLauncher.launch(arrayOf(
-                        Manifest.permission.ACCESS_FINE_LOCATION,
-                        Manifest.permission.ACCESS_COARSE_LOCATION
-                    ))
+                    locationPermission.isGranted -> viewModel.refreshLocation()
+                    // Sudah tidak bisa diminta lewat dialog → arahkan ke Settings.
+                    !locationPermission.canRequest -> locationPermission.openSettings()
+                    else -> locationPermission.request()
                 }
             }
         )

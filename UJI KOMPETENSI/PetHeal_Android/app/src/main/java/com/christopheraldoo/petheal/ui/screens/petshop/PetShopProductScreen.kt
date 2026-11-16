@@ -1,8 +1,5 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
-import android.Manifest
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -45,8 +42,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,6 +59,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
@@ -90,22 +89,28 @@ fun PetShopProductScreen(
     val uiState by viewModel.uiState.collectAsState()
     val product = uiState.product
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
 
-    // Izin lokasi hanya diminta ketika pengguna menekan tombol, dengan
-    // penjelasan. Menolak izin tidak memblokir Pet Shop.
-    val locationLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { grants ->
-        if (grants.values.none { it }) {
-            viewModel.onLocationDenied()
-        } else {
-            scope.launch {
-                when (val result = LocationHelper.currentLocation(context)) {
-                    is LocationResult.Success -> viewModel.onLocationAvailable(result.latitude, result.longitude)
-                    else -> viewModel.onLocationDenied()
-                }
-            }
+    // Izin lokasi dikelola satu pintu (ui.location): dialog hanya muncul bila
+    // memang belum diizinkan, dan izin yang sudah ada tidak ditanyakan lagi.
+    // Menolak izin tidak memblokir Pet Shop — klinik tetap bisa dipilih manual.
+    val locationPermission = rememberLocationPermission()
+
+    // Bila izin sudah diberikan di layar lain (mis. Cari Klinik), jarak langsung
+    // dihitung tanpa menampilkan ajakan izin lagi. `locationRequest` hanya
+    // dinaikkan saat pengguna meminta ulang, dan TIDAK di-reset di dalam effect
+    // (mereset kunci LaunchedEffect akan membatalkan pembacaan lokasi).
+    var locationRequest by remember {
+        mutableIntStateOf(if (locationPermission.isGranted) 1 else 0)
+    }
+
+    LaunchedEffect(locationRequest, locationPermission.isGranted, uiState.product != null) {
+        if (locationRequest == 0 || !locationPermission.isGranted) return@LaunchedEffect
+        // Tunggu produk selesai dimuat dulu supaya reload berkoordinat tidak
+        // bertabrakan dengan load awal tanpa koordinat.
+        if (uiState.product == null) return@LaunchedEffect
+        when (val result = LocationHelper.currentLocation(context)) {
+            is LocationResult.Success -> viewModel.onLocationAvailable(result.latitude, result.longitude)
+            else -> viewModel.onLocationUnavailable()
         }
     }
 
@@ -247,16 +252,15 @@ fun PetShopProductScreen(
                             selectedClinicId = uiState.selectedClinicId,
                             quantity = uiState.quantity,
                             hasLocation = uiState.hasLocation,
-                            locationDenied = uiState.locationDenied,
+                            locationUnavailable = uiState.locationUnavailable,
+                            permissionGranted = locationPermission.isGranted,
+                            canRequestPermission = locationPermission.canRequest,
                             isSwitching = uiState.isSwitchingClinic,
                             onRequestLocation = {
-                                locationLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
+                                locationRequest++
+                                if (!locationPermission.isGranted) locationPermission.request()
                             },
+                            onOpenSettings = locationPermission::openSettings,
                             onSelect = viewModel::selectClinic
                         )
                         Spacer(Modifier.height(20.dp))
@@ -463,9 +467,12 @@ private fun PickupClinicSection(
     selectedClinicId: Int?,
     quantity: Int,
     hasLocation: Boolean,
-    locationDenied: Boolean,
+    locationUnavailable: Boolean,
+    permissionGranted: Boolean,
+    canRequestPermission: Boolean,
     isSwitching: Boolean,
     onRequestLocation: () -> Unit,
+    onOpenSettings: () -> Unit,
     onSelect: (PetShopClinicAvailability) -> Unit
 ) {
     if (clinics.isEmpty()) return
@@ -492,31 +499,60 @@ private fun PickupClinicSection(
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
+                // Izin ditolak permanen: tidak ada dialog lagi, jadi arahkan
+                // ke pengaturan alih-alih mengaku "mengaktifkan lokasi".
+                val permissionBlocked = !permissionGranted && !canRequestPermission
                 Text(
-                    if (locationDenied) "Lokasi tidak diaktifkan" else "Aktifkan lokasi untuk melihat jarak klinik",
+                    when {
+                        permissionBlocked -> "Lokasi tidak diaktifkan"
+                        permissionGranted && locationUnavailable -> "Lokasi belum ditemukan"
+                        permissionGranted -> "Mencari lokasi Anda…"
+                        else -> "Aktifkan lokasi untuk melihat jarak klinik"
+                    },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = OnBackground
                 )
                 Text(
-                    if (locationDenied) {
-                        "Anda tetap bisa memilih klinik di bawah secara manual. Jarak tidak ditampilkan."
-                    } else {
-                        "Lokasi hanya dipakai sekali untuk menghitung jarak — tidak dilacak di latar belakang."
+                    when {
+                        permissionBlocked ->
+                            "Anda tetap bisa memilih klinik di bawah secara manual. Jarak tidak ditampilkan."
+                        permissionGranted && locationUnavailable ->
+                            "Pastikan GPS aktif, lalu coba lagi. Klinik tetap bisa dipilih manual."
+                        permissionGranted ->
+                            "Jarak klinik dihitung dari lokasi Anda saat ini."
+                        else ->
+                            "Lokasi hanya dipakai sekali untuk menghitung jarak — tidak dilacak di latar belakang."
                     },
                     fontSize = 10.sp,
                     lineHeight = 15.sp,
                     color = TextSecondary
                 )
-                if (!locationDenied) {
+                // Izin yang sudah diberikan tidak pernah diminta ulang; yang
+                // ditawarkan hanya pengambilan lokasi lagi atau pengaturan.
+                val locationAction: (() -> Unit)? = when {
+                    permissionGranted && locationUnavailable -> onRequestLocation
+                    permissionGranted -> null
+                    canRequestPermission -> onRequestLocation
+                    else -> onOpenSettings
+                }
+                if (locationAction != null) {
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = onRequestLocation,
+                        onClick = locationAction,
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                         shape = RoundedCornerShape(PetHealRadius.md),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                     ) {
-                        Text("Izinkan lokasi", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                        Text(
+                            when {
+                                permissionGranted -> "Coba ambil lokasi lagi"
+                                canRequestPermission -> "Izinkan lokasi"
+                                else -> "Buka pengaturan aplikasi"
+                            },
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
                     }
                 }
             }

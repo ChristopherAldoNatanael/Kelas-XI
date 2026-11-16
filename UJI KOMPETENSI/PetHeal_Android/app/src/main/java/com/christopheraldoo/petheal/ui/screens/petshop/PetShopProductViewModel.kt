@@ -29,8 +29,8 @@ data class PetShopProductUiState(
     val pickupClinics: List<PetShopClinicAvailability> = emptyList(),
     val selectedClinicId: Int? = null,
     val isSwitchingClinic: Boolean = false,
-    /** true = pengguna menolak izin lokasi; jarak tidak ditampilkan. */
-    val locationDenied: Boolean = false,
+    /** true = izin ada tetapi lokasi gagal didapat (GPS mati/timeout). */
+    val locationUnavailable: Boolean = false,
     /** true = koordinat pengguna sudah dipakai untuk menghitung jarak. */
     val hasLocation: Boolean = false
 ) {
@@ -107,16 +107,26 @@ class PetShopProductViewModel @Inject constructor(
         if (latitude == lat && longitude == lng && _uiState.value.hasLocation) return
         latitude = lat
         longitude = lng
-        _uiState.update { it.copy(hasLocation = true, locationDenied = false) }
+        _uiState.update {
+            it.copy(
+                hasLocation = true,
+                locationUnavailable = false
+            )
+        }
         reload()
     }
 
-    /** Pengguna menolak izin: Pet Shop tetap bisa dipakai, jarak disembunyikan. */
-    fun onLocationDenied() {
+    /**
+     * Izin sudah ada tetapi lokasi gagal didapat (GPS mati / timeout). Produk
+     * tetap dimuat tanpa jarak, dan pengguna bisa mencoba lagi tanpa diminta
+     * izin ulang.
+     */
+    fun onLocationUnavailable() {
         latitude = null
         longitude = null
-        _uiState.update { it.copy(locationDenied = true, hasLocation = false) }
-        reload()
+        _uiState.update {
+            it.copy(locationUnavailable = true, hasLocation = false)
+        }
     }
 
     private fun reload() {
