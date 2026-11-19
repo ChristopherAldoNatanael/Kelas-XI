@@ -25,7 +25,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalHospital
-import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material3.Button
@@ -50,13 +49,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import coil.compose.AsyncImage
 import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
@@ -163,7 +160,14 @@ fun PetShopProductScreen(
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
                 ) {
-                    ProductImage(product.imageUrl, product.name)
+                    PetShopPhoto(
+                        url = product.imageUrl,
+                        contentDescription = product.name,
+                        categorySlug = product.category?.slug,
+                        categoryName = product.category?.name,
+                        iconSize = 72.dp,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(1.15f)
+                    )
 
                     Column(modifier = Modifier.padding(20.dp)) {
                         if (!product.brand.isNullOrBlank()) {
@@ -311,32 +315,6 @@ fun PetShopProductScreen(
                     }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun ProductImage(url: String?, name: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1.15f)
-            .background(SurfaceMuted)
-    ) {
-        if (!url.isNullOrBlank()) {
-            AsyncImage(
-                model = url,
-                contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-        } else {
-            Icon(
-                Icons.Filled.Pets,
-                contentDescription = null,
-                tint = TextTertiary,
-                modifier = Modifier.align(Alignment.Center).size(72.dp)
-            )
         }
     }
 }

@@ -18,6 +18,9 @@ import java.time.LocalDate
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+/** Panjang maksimum keluhan, sama dengan aturan validasi backend (`max:2000`). */
+const val SERVICE_REQUEST_COMPLAINT_MAX = 2000
+
 /** Jenis kebutuhan yang boleh diajukan pemilik (label dari backend). */
 val SERVICE_REQUEST_NEED_TYPES: List<Pair<String, String>> = listOf(
     "consultation" to "Konsultasi umum",
@@ -197,7 +200,11 @@ class ServiceRequestsViewModel @Inject constructor(
     }
 
     fun setComplaint(value: String) {
-        _state.value = _state.value.copy(complaint = value)
+        // Dipotong di sini supaya user tidak menulis melewati batas server lalu
+        // baru mengetahui lewat penolakan validasi saat mengirim.
+        _state.value = _state.value.copy(
+            complaint = value.take(SERVICE_REQUEST_COMPLAINT_MAX)
+        )
     }
 
     fun setPreferredDate(date: LocalDate?) {

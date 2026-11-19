@@ -21,10 +21,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ImageNotSupported
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.ContentCut
+import androidx.compose.material.icons.filled.FlutterDash
+import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.material.icons.filled.Luggage
+import androidx.compose.material.icons.filled.Medication
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Toys
+import androidx.compose.material.icons.filled.Water
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,13 +42,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
@@ -50,10 +65,12 @@ import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.InfoStrong
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
 import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Secondary
 import com.christopheraldoo.petheal.ui.theme.SecondaryLight
@@ -61,6 +78,7 @@ import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.formatRupiah
@@ -238,23 +256,15 @@ fun PetShopProductCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(1f)
-                    .background(SurfaceMuted)
             ) {
-                if (!product.imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = product.imageUrl,
-                        contentDescription = product.name,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1f)
-                    )
-                } else {
-                    Icon(
-                        Icons.Filled.Pets,
-                        contentDescription = null,
-                        tint = TextTertiary,
-                        modifier = Modifier.align(Alignment.Center).size(44.dp)
-                    )
-                }
+                PetShopPhoto(
+                    url = product.imageUrl,
+                    contentDescription = product.name,
+                    categorySlug = product.category?.slug,
+                    categoryName = product.category?.name,
+                    iconSize = 38.dp,
+                    modifier = Modifier.fillMaxSize()
+                )
 
                 if (product.hasDiscount) {
                     Surface(
@@ -382,28 +392,111 @@ fun QuantityStepper(
     }
 }
 
+/** Thumbnail kecil di keranjang, checkout, dan rincian pesanan. */
 @Composable
 fun PetShopImage(
     url: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.background(SurfaceMuted), contentAlignment = Alignment.Center) {
-        if (!url.isNullOrBlank()) {
+    PetShopPhoto(
+        url = url,
+        contentDescription = contentDescription,
+        iconSize = 18.dp,
+        modifier = modifier
+    )
+}
+
+/** Ikon dan aksen pengganti foto, diturunkan dari kategori produk. */
+private data class ProductArtwork(val icon: ImageVector, val accent: Color)
+
+private fun productArtwork(categorySlug: String?, categoryName: String?): ProductArtwork {
+    val key = "${categorySlug.orEmpty()} ${categoryName.orEmpty()}".lowercase()
+    return when {
+        // Makanan diperiksa lebih dulu supaya pakan ikan/burung tetap tampil
+        // sebagai pakan, bukan sebagai hewannya.
+        key.contains("makanan") || key.contains("pakan") -> ProductArtwork(Icons.Filled.SetMeal, Primary)
+        key.contains("obat") || key.contains("vitamin") -> ProductArtwork(Icons.Filled.Medication, Info)
+        key.contains("mainan") -> ProductArtwork(Icons.Filled.Toys, AccentViolet)
+        key.contains("pasir") || key.contains("litter") ->
+            ProductArtwork(Icons.Filled.CleaningServices, Secondary)
+        key.contains("kandang") || key.contains("tas") -> ProductArtwork(Icons.Filled.Luggage, PrimaryDark)
+        key.contains("grooming") -> ProductArtwork(Icons.Filled.ContentCut, Secondary)
+        key.contains("ikan") -> ProductArtwork(Icons.Filled.Water, InfoStrong)
+        key.contains("burung") -> ProductArtwork(Icons.Filled.FlutterDash, WarningDeep)
+        key.contains("hamster") || key.contains("kelinci") -> ProductArtwork(Icons.Filled.Pets, AccentViolet)
+        key.contains("aksesoris") || key.contains("perlengkapan") ->
+            ProductArtwork(Icons.Filled.Inventory2, PrimaryDark)
+        else -> ProductArtwork(Icons.Filled.Pets, Primary)
+    }
+}
+
+/**
+ * Foto produk dengan ilustrasi kategori sebagai lapisan dasar. Ilustrasi itu
+ * yang tampil selama foto dimuat maupun saat URL kosong/gagal dimuat, jadi
+ * katalog tidak pernah menampilkan kotak kosong dan tidak berkedip putih saat
+ * foto selesai dimuat.
+ */
+@Composable
+fun PetShopPhoto(
+    url: String?,
+    contentDescription: String?,
+    categorySlug: String? = null,
+    categoryName: String? = null,
+    modifier: Modifier = Modifier,
+    iconSize: Dp = 36.dp
+) {
+    var failed by remember(url) { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        ProductArtworkTile(
+            categorySlug = categorySlug,
+            categoryName = categoryName,
+            iconSize = iconSize,
+            modifier = Modifier.fillMaxSize()
+        )
+        if (!url.isNullOrBlank() && !failed) {
             AsyncImage(
                 model = url,
                 contentDescription = contentDescription,
                 contentScale = ContentScale.Crop,
+                onError = { failed = true },
                 modifier = Modifier.fillMaxSize()
             )
-        } else {
-            Icon(
-                Icons.Filled.ImageNotSupported,
-                contentDescription = null,
-                tint = TextTertiary,
-                modifier = Modifier.size(26.dp)
-            )
         }
+    }
+}
+
+@Composable
+private fun ProductArtworkTile(
+    categorySlug: String?,
+    categoryName: String?,
+    iconSize: Dp,
+    modifier: Modifier = Modifier
+) {
+    val artwork = productArtwork(categorySlug, categoryName)
+
+    Box(
+        modifier = modifier.background(
+            Brush.verticalGradient(
+                0f to artwork.accent.copy(alpha = 0.16f),
+                1f to artwork.accent.copy(alpha = 0.04f)
+            )
+        ),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(iconSize * 2f)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.6f))
+        )
+        Icon(
+            imageVector = artwork.icon,
+            contentDescription = null,
+            tint = artwork.accent,
+            modifier = Modifier.size(iconSize)
+        )
     }
 }
 

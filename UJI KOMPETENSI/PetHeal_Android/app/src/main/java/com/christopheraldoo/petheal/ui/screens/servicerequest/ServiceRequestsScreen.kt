@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.SupportAgent
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -92,7 +95,11 @@ private val SrTextSecondary = TextSecondary
 
 private val idLocale = Locale("id", "ID")
 private val shortDate = DateTimeFormatter.ofPattern("d MMM", idLocale)
+private val weekdayShort = DateTimeFormatter.ofPattern("EEE", idLocale)
 private val longDate = DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale)
+
+/** Format jam 24 jam yang sama dengan aturan validasi backend. */
+private val TIME_PATTERN = Regex("^([01]\\d|2[0-3]):[0-5]\\d$")
 
 /**
  * Permintaan layanan: daftar, detail penawaran, dan form pengajuan.
@@ -174,7 +181,11 @@ fun ServiceRequestsScreen(
         }
 
         when {
-            state.showForm -> ServiceRequestForm(state = state, viewModel = viewModel)
+            state.showForm -> ServiceRequestForm(
+                state = state,
+                viewModel = viewModel,
+                modifier = Modifier.weight(1f)
+            )
             state.detail != null -> ServiceRequestDetail(
                 request = state.detail!!,
                 isDetailLoading = state.isDetailLoading,
@@ -588,179 +599,469 @@ private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text:
 @Composable
 private fun ServiceRequestForm(
     state: ServiceRequestsUiState,
-    viewModel: ServiceRequestsViewModel
+    viewModel: ServiceRequestsViewModel,
+    modifier: Modifier = Modifier
 ) {
     if (state.isLoadingForm) {
-        LoadingBlock("Menyiapkan form…")
+        Column(modifier.fillMaxWidth()) { LoadingBlock("Menyiapkan form…") }
         return
     }
 
-    val dates = remember { (0..6).map { LocalDate.now().plusDays(it.toLong()) } }
-
-    LazyColumn(
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp)
-    ) {
-        state.formError?.let { error ->
-            item { Banner(error, Tone.ERROR, onDismiss = viewModel::clearMessages) }
+    val dateOptions = remember {
+        (0..6).map { offset ->
+            val date = LocalDate.now().plusDays(offset.toLong())
+            val label = when (offset) {
+                0 -> "Hari ini"
+                1 -> "Besok"
+                else -> date.format(weekdayShort)
+            }
+            Triple(label, date.format(shortDate), date)
         }
+    }
 
-        item {
-            FormLabel("Klinik tujuan")
-            state.clinics.forEach { clinic ->
-                SelectRow(
-                    selected = state.selectedClinicId == clinic.id,
-                    title = clinic.name ?: "Klinik",
-                    subtitle = clinic.address,
-                    onClick = { clinic.id?.let(viewModel::selectClinic) }
-                )
-            }
-            if (state.clinics.isEmpty()) {
-                Text("Belum ada klinik yang bisa dipilih.", fontSize = 12.sp, color = SrTextSecondary)
-            }
-        }
+    val selectedClinicName = remember(state.clinics, state.selectedClinicId) {
+        state.clinics.firstOrNull { it.id == state.selectedClinicId }?.name
+    }
+    val selectedPetName = remember(state.pets, state.selectedPetId) {
+        state.pets.firstOrNull { it.id == state.selectedPetId }?.name
+    }
 
-        item {
-            FormLabel("Hewan")
-            state.pets.forEach { pet: Pet ->
-                SelectRow(
-                    selected = state.selectedPetId == pet.id,
-                    title = pet.name ?: "Hewan",
-                    subtitle = pet.species,
-                    onClick = { pet.id?.let(viewModel::selectPet) }
-                )
-            }
-            if (state.pets.isEmpty()) {
-                Text("Tambahkan hewan terlebih dahulu di menu Hewan.", fontSize = 12.sp, color = SrTextSecondary)
-            }
-        }
+    // Satu sumber petunjuk di action bar: user selalu tahu apa yang menahan
+    // tombol kirim, bukan menebak dari tombol yang tampak mati.
+    val timeInvalid = state.preferredTime.isNotBlank() &&
+        !TIME_PATTERN.matches(state.preferredTime.trim())
+    val submitHint = when {
+        timeInvalid -> "Format jam belum tepat — gunakan HH:mm, mis. 09:30."
+        state.selectedClinicId == null -> "Pilih klinik tujuan untuk melanjutkan."
+        state.selectedPetId == null -> "Pilih hewan yang kebutuhannya diajukan."
+        state.complaint.trim().length < 10 -> "Jelaskan kebutuhan Anda minimal 10 karakter."
+        else -> listOfNotNull(selectedPetName, selectedClinicName).joinToString(" · ")
+    }
 
-        item {
-            FormLabel("Jenis kebutuhan")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(SERVICE_REQUEST_NEED_TYPES) { (value, label) ->
-                    val selected = state.needType == value
-                    Surface(
-                        shape = RoundedCornerShape(999.dp),
-                        color = if (selected) SrPrimary else SrSurface,
-                        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
-                        modifier = Modifier.clickable { viewModel.setNeedType(value) }
+    Column(modifier.fillMaxWidth()) {
+        LazyColumn(
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(22.dp)
+        ) {
+            item { FormIntro() }
+
+            // ── 1. Klinik tujuan ─────────────────────────────────────────
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FormSectionTitle(
+                        step = "1",
+                        title = "Klinik tujuan",
+                        hint = "Permintaan ditinjau oleh klinik ini."
+                    )
+                    if (state.clinics.isEmpty()) {
+                        FormNote("Belum ada klinik yang bisa dipilih.")
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.clinics.forEach { clinic ->
+                                SelectRow(
+                                    selected = state.selectedClinicId == clinic.id,
+                                    title = clinic.name ?: "Klinik",
+                                    subtitle = clinic.address,
+                                    icon = Icons.Filled.LocalHospital,
+                                    onClick = { clinic.id?.let(viewModel::selectClinic) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 2. Hewan ─────────────────────────────────────────────────
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FormSectionTitle(
+                        step = "2",
+                        title = "Hewan",
+                        hint = "Pilih hewan yang kebutuhannya diajukan."
+                    )
+                    if (state.pets.isEmpty()) {
+                        FormNote("Belum ada hewan terdaftar. Tambahkan dulu di menu Hewan.")
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            state.pets.forEach { pet: Pet ->
+                                SelectRow(
+                                    selected = state.selectedPetId == pet.id,
+                                    title = pet.name ?: "Hewan",
+                                    subtitle = pet.species,
+                                    icon = Icons.Filled.Pets,
+                                    onClick = { pet.id?.let(viewModel::selectPet) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── 3. Jenis kebutuhan ───────────────────────────────────────
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FormSectionTitle(step = "3", title = "Jenis kebutuhan")
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(SERVICE_REQUEST_NEED_TYPES) { (value, label) ->
+                            SelectChip(
+                                label = label,
+                                selected = state.needType == value,
+                                onClick = { viewModel.setNeedType(value) }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── 4. Keluhan / kebutuhan ───────────────────────────────────
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FormSectionTitle(
+                        step = "4",
+                        title = "Keluhan / kebutuhan",
+                        hint = "Sebutkan kondisi hewan, sejak kapan, dan layanan yang diharapkan."
+                    )
+                    OutlinedTextField(
+                        value = state.complaint,
+                        onValueChange = viewModel::setComplaint,
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        maxLines = 8,
+                        placeholder = {
+                            Text(
+                                "Contoh: kucing tidak mau makan sejak 2 hari, ingin pemeriksaan lanjutan.",
+                                fontSize = 12.sp,
+                                lineHeight = 17.sp
+                            )
+                        },
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top
                     ) {
+                        val tooShort = state.complaint.isNotBlank() && state.complaint.trim().length < 10
                         Text(
-                            label,
-                            fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                            color = if (selected) Color.White else SrTextPrimary,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                            text = if (tooShort) "Minimal 10 karakter." else "Deskripsi membantu klinik menyiapkan penawaran.",
+                            color = if (tooShort) Error else SrTextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "${state.complaint.length}/$SERVICE_REQUEST_COMPLAINT_MAX",
+                            color = TextTertiary,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(start = 8.dp)
+                        )
+                    }
+                    if (state.sourceMedicalRecordId != null) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(InfoSoft)
+                                .padding(horizontal = 10.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                Icons.Filled.Description,
+                                null,
+                                tint = InfoStrong,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                "Terhubung dengan rekam medis #${state.sourceMedicalRecordId}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = InfoStrong
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── 5. Preferensi jadwal ─────────────────────────────────────
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FormSectionTitle(
+                        step = "5",
+                        title = "Preferensi jadwal",
+                        hint = "Opsional — klinik tetap dapat menawarkan jadwal lain."
+                    )
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        item {
+                            DateChip(
+                                label = "Kapan saja",
+                                date = "Fleksibel",
+                                selected = state.preferredDate == null,
+                                onClick = { viewModel.setPreferredDate(null) }
+                            )
+                        }
+                        items(dateOptions) { option ->
+                            DateChip(
+                                label = option.first,
+                                date = option.second,
+                                selected = state.preferredDate == option.third,
+                                onClick = { viewModel.setPreferredDate(option.third) }
+                            )
+                        }
+                    }
+                    if (state.preferredDate != null) {
+                        OutlinedTextField(
+                            value = state.preferredTime,
+                            onValueChange = viewModel::setPreferredTime,
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            isError = timeInvalid,
+                            placeholder = { Text("mis. 10:30", fontSize = 12.sp) },
+                            leadingIcon = {
+                                Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(18.dp))
+                            },
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        Text(
+                            text = if (timeInvalid) "Format 24 jam (HH:mm), mis. 09:30 atau 16:00."
+                            else "Kosongkan bila belum ada preferensi jam.",
+                            color = if (timeInvalid) Error else SrTextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
                         )
                     }
                 }
             }
         }
 
-        item {
-            FormLabel("Keluhan / penjelasan")
-            OutlinedTextField(
-                value = state.complaint,
-                onValueChange = viewModel::setComplaint,
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 4,
-                placeholder = { Text("Jelaskan kondisi hewan dan layanan yang dibutuhkan (min. 10 karakter).", fontSize = 12.sp) },
-                shape = RoundedCornerShape(14.dp)
-            )
-            if (state.complaint.isNotBlank() && state.complaint.trim().length < 10) {
-                Text("Minimal 10 karakter.", fontSize = 11.sp, color = Error)
-            }
-            if (state.sourceMedicalRecordId != null) {
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "Terhubung dengan rekam medis #${state.sourceMedicalRecordId}",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = SrPrimary
-                )
-            }
-        }
+        SubmitBar(
+            hint = submitHint,
+            error = state.formError,
+            submitting = state.isSubmitting,
+            enabled = state.canSubmit && !timeInvalid,
+            onDismissError = viewModel::clearMessages,
+            onSubmit = viewModel::submit
+        )
+    }
+}
 
-        item {
-            FormLabel("Preferensi tanggal (opsional)")
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                item {
-                    SelectChip(
-                        label = "Fleksibel",
-                        selected = state.preferredDate == null,
-                        onClick = { viewModel.setPreferredDate(null) }
-                    )
-                }
-                items(dates) { date ->
-                    SelectChip(
-                        label = date.format(shortDate),
-                        selected = state.preferredDate == date,
-                        onClick = { viewModel.setPreferredDate(date) }
-                    )
-                }
-            }
-        }
-
-        if (state.preferredDate != null) {
-            item {
-                FormLabel("Preferensi jam (opsional)")
-                OutlinedTextField(
-                    value = state.preferredTime,
-                    onValueChange = viewModel::setPreferredTime,
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("HH:mm, mis. 10:30", fontSize = 12.sp) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(14.dp)
-                )
-            }
-        }
-
-        item {
-            Button(
-                onClick = viewModel::submit,
-                enabled = state.canSubmit,
-                modifier = Modifier.fillMaxWidth().height(50.dp).navigationBarsPadding(),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+/** Pengantar singkat: apa yang terjadi setelah permintaan dikirim. */
+@Composable
+private fun FormIntro() {
+    Surface(shape = RoundedCornerShape(18.dp), color = PrimaryLight, modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(SrSurface),
+                contentAlignment = Alignment.Center
             ) {
-                if (state.isSubmitting) {
-                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
-                } else {
-                    Text("Kirim Permintaan", fontWeight = FontWeight.SemiBold)
-                }
+                Icon(Icons.Filled.SupportAgent, null, tint = SrPrimary, modifier = Modifier.size(19.dp))
             }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                "Permintaan ini bukan booking. Klinik akan meninjau dan mengirim penawaran biaya serta jadwal untuk Anda setujui.",
-                fontSize = 11.sp,
-                color = TextTertiary,
-                textAlign = TextAlign.Center,
-                lineHeight = 16.sp,
-                modifier = Modifier.fillMaxWidth()
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    "Bukan booking langsung",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SrTextPrimary
+                )
+                Text(
+                    "Klinik meninjau permintaan ini, lalu mengirim penawaran biaya dan jadwal untuk Anda setujui.",
+                    fontSize = 12.sp,
+                    color = SrTextSecondary,
+                    lineHeight = 17.sp
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun FormLabel(text: String) {
-    Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
+private fun FormSectionTitle(step: String, title: String, hint: String? = null) {
+    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Box(
+                modifier = Modifier.size(22.dp).clip(CircleShape).background(SrPrimary.copy(alpha = 0.12f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(step, color = SrPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(title, color = SrTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+        hint?.let {
+            Text(
+                it,
+                color = SrTextSecondary,
+                fontSize = 11.sp,
+                lineHeight = 15.sp,
+                modifier = Modifier.padding(start = 31.dp)
+            )
+        }
+    }
+}
+
+/** Catatan kecil untuk keadaan kosong (belum ada klinik / hewan). */
+@Composable
+private fun FormNote(text: String) {
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = WarningSoft,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Filled.ErrorOutline, null, tint = WarningText, modifier = Modifier.size(15.dp))
+            Text(text, color = WarningText, fontSize = 11.sp, lineHeight = 15.sp)
+        }
+    }
+}
+
+/**
+ * Action bar tetap di bawah: satu CTA, selalu di atas navigasi sistem dan
+ * keyboard, jadi tombol kirim tidak pernah tertutup gesture bar maupun IME.
+ */
+@Composable
+private fun SubmitBar(
+    hint: String,
+    error: String?,
+    submitting: Boolean,
+    enabled: Boolean,
+    onDismissError: () -> Unit,
+    onSubmit: () -> Unit
+) {
+    Surface(color = SrSurface) {
+        Column {
+            Divider(color = Outline, thickness = 0.5.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                error?.let { message ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(ErrorSoft)
+                            .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Filled.ErrorOutline, null, tint = Error, modifier = Modifier.size(16.dp))
+                        Text(
+                            message,
+                            modifier = Modifier.weight(1f),
+                            color = Error,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+                        TextButton(
+                            onClick = onDismissError,
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text("Tutup", color = Error, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Text(
+                    hint,
+                    color = SrTextSecondary,
+                    fontSize = 12.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Button(
+                    onClick = onSubmit,
+                    enabled = enabled,
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SrPrimary,
+                        contentColor = Color.White,
+                        // Saat mengirim, tombol memang nonaktif tetapi harus tetap
+                        // terlihat sebagai aksi utama, bukan tombol mati kelabu.
+                        disabledContainerColor = if (submitting) SrPrimary.copy(alpha = 0.75f) else Outline,
+                        disabledContentColor = if (submitting) Color.White else SrTextSecondary
+                    )
+                ) {
+                    if (submitting) {
+                        CircularProgressIndicator(
+                            color = Color.White,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    } else {
+                        Icon(Icons.Filled.Send, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Kirim Permintaan", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
-private fun SelectRow(selected: Boolean, title: String, subtitle: String?, onClick: () -> Unit) {
+private fun SelectRow(
+    selected: Boolean,
+    title: String,
+    subtitle: String?,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+    onClick: () -> Unit
+) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         color = if (selected) PrimaryLight else SrSurface,
         border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
-        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onClick)
+        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = SrTextPrimary)
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            if (icon != null) {
+                Box(
+                    modifier = Modifier.size(34.dp).clip(CircleShape)
+                        .background(if (selected) SrSurface else SrBg),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        icon,
+                        null,
+                        tint = if (selected) SrPrimary else SrTextSecondary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    title,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SrTextPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
                 subtitle?.takeIf { it.isNotBlank() }?.let {
-                    Text(it, fontSize = 11.sp, color = SrTextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        it,
+                        fontSize = 11.sp,
+                        color = SrTextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
                 }
             }
             if (selected) {
@@ -776,15 +1077,49 @@ private fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
         shape = RoundedCornerShape(999.dp),
         color = if (selected) SrPrimary else SrSurface,
         border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick)
     ) {
         Text(
             label,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) Color.White else SrTextPrimary,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
         )
+    }
+}
+
+@Composable
+private fun DateChip(label: String, date: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) SrPrimary else SrSurface,
+        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
+        modifier = Modifier
+            .widthIn(min = 78.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(1.dp)
+        ) {
+            Text(
+                label,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (selected) Color.White.copy(alpha = 0.9f) else SrTextSecondary,
+                maxLines = 1
+            )
+            Text(
+                date,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (selected) Color.White else SrTextPrimary,
+                maxLines = 1
+            )
+        }
     }
 }
 
