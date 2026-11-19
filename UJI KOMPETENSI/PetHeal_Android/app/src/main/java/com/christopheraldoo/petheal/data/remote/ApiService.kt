@@ -286,6 +286,30 @@ interface ApiService {
     @DELETE("bookings/{id}")
     suspend fun deleteBooking(@Path("id") id: Int): Response<MessageResponse>
 
+    // ============= SERVICE REQUESTS =============
+    // Pengajuan layanan yang belum ada di katalog. Bukan booking dan bukan
+    // pembayaran; booking hanya dibuat setelah penawaran disetujui.
+    @GET("service-requests")
+    suspend fun getServiceRequests(): Response<ServiceRequestsResponse>
+
+    @GET("service-requests/{id}")
+    suspend fun getServiceRequest(@Path("id") id: Int): Response<ServiceRequestResponse>
+
+    @POST("service-requests")
+    suspend fun createServiceRequest(@Body request: ServiceRequestCreateRequest): Response<ServiceRequestResponse>
+
+    @POST("service-requests/{id}/accept")
+    suspend fun acceptServiceRequest(
+        @Path("id") id: Int,
+        @Body body: Map<String, String>
+    ): Response<ServiceRequestResponse>
+
+    @POST("service-requests/{id}/reject")
+    suspend fun rejectServiceRequest(
+        @Path("id") id: Int,
+        @Body body: Map<String, String>
+    ): Response<ServiceRequestResponse>
+
     // ============= MEDICAL RECORDS =============
     @GET("medical-records")
     suspend fun getMedicalRecords(): Response<MedicalRecordsResponse>

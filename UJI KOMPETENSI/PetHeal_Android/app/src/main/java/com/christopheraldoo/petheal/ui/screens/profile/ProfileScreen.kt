@@ -80,6 +80,7 @@ fun ProfileScreen(
     onNavigateToEdit: () -> Unit,
     onLogout: () -> Unit,
     onNavigateToNotifications: () -> Unit,
+    onNavigateToServiceRequests: () -> Unit = {},
     onNavigateToPrivacy: () -> Unit,
     onNavigateToHelp: () -> Unit,
     onNavigateToAbout: () -> Unit,
@@ -673,6 +674,12 @@ fun ProfileScreen(
                         icon = Icons.Outlined.Notifications,
                         label = "Notifikasi",
                         onClick = onNavigateToNotifications
+                    )
+                    Divider(color = BorderDark, thickness = 0.5.dp)
+                    ProfileActionRow(
+                        icon = Icons.Outlined.SupportAgent,
+                        label = "Permintaan Layanan",
+                        onClick = onNavigateToServiceRequests
                     )
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileActionRow(

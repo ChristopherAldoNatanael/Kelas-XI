@@ -31,6 +31,14 @@
     <!-- Midtrans: Hardware acceleration required for WebView -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
+    <!-- Android 11+ package visibility: dibutuhkan agar TextToSpeech dapat
+         menemukan engine TTS perangkat untuk pengumuman antrian. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
+
     <application
         android:name=".PetHealApplication"
         android:allowBackup="true"

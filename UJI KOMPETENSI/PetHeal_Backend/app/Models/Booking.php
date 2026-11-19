@@ -27,6 +27,8 @@ class Booking extends Model
         'confirmed_at',
         'completed_at',
         'service_type',
+        // Tautan administratif ke rekam medis yang merekomendasikan kontrol.
+        'medical_record_id',
         'clinic_id',
         'last_reminder_at',
         // Antrian harian (lihat QueueService). Dipisah dari `status` karena
@@ -37,6 +39,7 @@ class Booking extends Model
         'checked_in_at',
         'called_at',
         'queue_finished_at',
+        'queue_note',
     ];
 
     protected $casts = [
@@ -150,6 +153,12 @@ class Booking extends Model
     public function refunds()
     {
         return $this->hasMany(BookingRefund::class);
+    }
+
+    /** Booking kontrol: rekam medis asal rekomendasi. */
+    public function sourceMedicalRecord()
+    {
+        return $this->belongsTo(MedicalRecord::class, 'medical_record_id');
     }
 
     /**

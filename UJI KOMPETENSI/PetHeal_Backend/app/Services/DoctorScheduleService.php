@@ -63,8 +63,8 @@ class DoctorScheduleService
                 'is_working_day' => $this->isValidWindow($start, $end),
                 'is_closed' => false,
                 'has_exception' => true,
-                'start_time' => $this->normalizeTime($start),
-                'end_time' => $this->normalizeTime($end),
+                'start_time' => self::normalizeTime($start),
+                'end_time' => self::normalizeTime($end),
                 'reason' => $exception->reason,
                 'source' => 'exception_custom',
             ];
@@ -76,8 +76,8 @@ class DoctorScheduleService
             'is_working_day' => $worksWeekly,
             'is_closed' => false,
             'has_exception' => false,
-            'start_time' => $worksWeekly ? $this->normalizeTime($doctor->start_time) : null,
-            'end_time' => $worksWeekly ? $this->normalizeTime($doctor->end_time) : null,
+            'start_time' => $worksWeekly ? self::normalizeTime($doctor->start_time) : null,
+            'end_time' => $worksWeekly ? self::normalizeTime($doctor->end_time) : null,
             'reason' => null,
             'source' => 'weekly',
         ];
@@ -234,15 +234,24 @@ class DoctorScheduleService
         )));
     }
 
-    public function normalizeTime(?string $time): ?string
+    /**
+     * Bentuk baku jam `H:i` untuk semua yang disimpan/dibandingkan.
+     *
+     * Kolom `time` di MySQL menyimpan "09:00:00", sedangkan validasi form dan
+     * slot booking memakai "H:i". Nilai yang lebih panjang dipotong supaya
+     * menyimpan ulang jam yang sama tidak ditolak `date_format:H:i`.
+     */
+    public static function normalizeTime(?string $time): ?string
     {
         if (!$time) return null;
-        return substr(trim($time), 0, 5);
+        $trimmed = trim($time);
+        if ($trimmed === '') return null;
+        return substr($trimmed, 0, 5);
     }
 
     private function minutes(?string $time): ?int
     {
-        $normalized = $this->normalizeTime($time);
+        $normalized = self::normalizeTime($time);
         if (!$normalized) return null;
         if (!preg_match('/^(\d{2}):(\d{2})$/', $normalized, $matches)) {
             return null;

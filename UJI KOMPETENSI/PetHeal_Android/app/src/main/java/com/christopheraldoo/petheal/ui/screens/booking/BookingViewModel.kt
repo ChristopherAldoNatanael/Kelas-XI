@@ -149,6 +149,11 @@ data class BookingDetailUiState(
     val error: String? = null,
     val isCancelled: Boolean = false,
     val isRescheduled: Boolean = false,
+    // Check-in mandiri dari layar detail: tombol dan pesannya terpisah dari
+    // state daftar supaya layar detail tidak bergantung pada tab Bookings.
+    val isCheckInLoading: Boolean = false,
+    val checkInMessage: String? = null,
+    val checkInError: String? = null,
     // PHASE 7: real availability for the reschedule dialog (was hardcoded).
     val rescheduleSlots: List<TimeSlot> = emptyList(),
     val isSlotsLoading: Boolean = false,
@@ -204,6 +209,8 @@ data class CreateBookingUiState(
     val clinicName: String? = null,
     val clinicAddress: String? = null,
     val clinicSlug: String? = null,
+    /** Rekam medis asal bila booking ini adalah kontrol lanjutan. */
+    val sourceMedicalRecordId: Int? = null,
     /** Gagal memuat dokter (mis. server error) — layar wajib menawarkan retry. */
     val doctorError: String? = null,
     // Error per sumber data, supaya "gagal muat" tidak tampil sebagai
@@ -491,11 +498,17 @@ class BookingViewModel @Inject constructor(
      * adanya supaya pasien tahu alasannya.
      */
     fun checkInBooking(id: Int) {
-        // Cegah double-submit: dua tap cepat tidak boleh mengirim dua request.
-        if (_listState.value.checkInLoadingId != null) return
+        // Cegah double-submit: dua tap cepat tidak boleh mengirim dua request,
+        // baik dari kartu daftar maupun dari layar detail.
+        if (_listState.value.checkInLoadingId != null || _detailState.value.isCheckInLoading) return
 
         _listState.value = _listState.value.copy(
             checkInLoadingId = id,
+            checkInError = null,
+            checkInMessage = null
+        )
+        _detailState.value = _detailState.value.copy(
+            isCheckInLoading = true,
             checkInError = null,
             checkInMessage = null
         )
@@ -531,15 +544,37 @@ class BookingViewModel @Inject constructor(
                             if (it.id == booking.id) booking else it
                         }
                     )
+
+                    // Layar detail memakai objek booking yang sama agar antrean
+                    // langsung tampil tanpa perlu membuka ulang halaman.
+                    _detailState.value = if (_detailState.value.booking?.id == booking.id) {
+                        _detailState.value.copy(
+                            booking = booking,
+                            isCheckInLoading = false,
+                            checkInMessage = message
+                        )
+                    } else {
+                        _detailState.value.copy(isCheckInLoading = false)
+                    }
+
                     bookingRefreshManager.requestRefresh()
                 }
 
-                is Result.Error -> _listState.value = _listState.value.copy(
-                    checkInLoadingId = null,
-                    checkInError = r.message
-                )
+                is Result.Error -> {
+                    _listState.value = _listState.value.copy(
+                        checkInLoadingId = null,
+                        checkInError = r.message
+                    )
+                    _detailState.value = _detailState.value.copy(
+                        isCheckInLoading = false,
+                        checkInError = r.message
+                    )
+                }
 
-                else -> _listState.value = _listState.value.copy(checkInLoadingId = null)
+                else -> {
+                    _listState.value = _listState.value.copy(checkInLoadingId = null)
+                    _detailState.value = _detailState.value.copy(isCheckInLoading = false)
+                }
             }
         }
     }
@@ -547,6 +582,14 @@ class BookingViewModel @Inject constructor(
     /** Tutup pesan check-in (dipanggil tombol X pada snackbar). */
     fun clearCheckInNotice() {
         _listState.value = _listState.value.copy(
+            checkInMessage = null,
+            checkInError = null
+        )
+    }
+
+    /** Tutup pesan check-in pada layar detail booking. */
+    fun clearDetailCheckInNotice() {
+        _detailState.value = _detailState.value.copy(
             checkInMessage = null,
             checkInError = null
         )
@@ -625,12 +668,13 @@ class BookingViewModel @Inject constructor(
         )
     }
 
-    fun loadCreateBookingData(doctorId: Int, petId: Int) {
+    fun loadCreateBookingData(doctorId: Int, petId: Int, medicalRecordId: Int? = null) {
         viewModelScope.launch {
             _createState.value = CreateBookingUiState(
                 isLoading = true,
                 selectedPetId = petId,
-                isSlotsLoading = true
+                isSlotsLoading = true,
+                sourceMedicalRecordId = medicalRecordId
             )
             // Load pets list
             val petsResult = petRepository.getPets()
@@ -917,6 +961,7 @@ class BookingViewModel @Inject constructor(
                 paymentType = s.selectedPaymentType,
                 totalAmount = s.totalAmount,
                 dpAmount = s.dpAmount,
+                medicalRecordId = s.sourceMedicalRecordId,
                 // Klinik dinyatakan eksplisit: header X-Clinic-Slug bisa
                 // menunjuk klinik favorit yang berbeda dari klinik dokter.
                 clinicSlug = s.clinicSlug

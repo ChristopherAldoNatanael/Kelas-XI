@@ -112,6 +112,14 @@ class User extends Authenticatable
     }
 
     /**
+     * Permintaan layanan (pengajuan layanan yang belum ada di katalog).
+     */
+    public function serviceRequests()
+    {
+        return $this->hasMany(ServiceRequest::class);
+    }
+
+    /**
      * Profil dokter yang terhubung ke akun ini (khusus role doctor).
      */
     public function doctor()

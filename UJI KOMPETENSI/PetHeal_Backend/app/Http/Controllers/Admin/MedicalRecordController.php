@@ -287,6 +287,22 @@ class MedicalRecordController extends Controller
 
         $this->forgetDashboardCaches($record->clinic_id ?: currentClinicId());
 
+        // Pemeriksaan selesai → antrian pasien ikut ditutup. Bila pasien tidak
+        // pernah check-in (tidak ada nomor), tidak ada yang perlu diubah.
+        try {
+            $freshBooking = $booking->fresh();
+            if ($freshBooking && $freshBooking->queue_number
+                && in_array($freshBooking->queue_status, \App\Services\QueueService::ACTIVE_STATUSES, true)) {
+                app(\App\Services\QueueService::class)
+                    ->transition($freshBooking, \App\Services\QueueService::STATUS_DONE);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Queue completion sync failed', [
+                'booking_id' => $booking->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
+
         // Send notification if next visit is scheduled
         $nextVisitDate = $request->input('next_visit_date');
         if ($nextVisitDate) {

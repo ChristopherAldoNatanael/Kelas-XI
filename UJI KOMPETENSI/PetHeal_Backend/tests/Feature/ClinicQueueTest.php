@@ -293,4 +293,185 @@ class ClinicQueueTest extends TestCase
             ->assertOk()
             ->assertSee($this->clinicA->name);
     }
+
+    // ---------- Transisi, lewati, panggil ulang ----------
+
+    public function test_skip_stores_reason_and_keeps_history(): void
+    {
+        $booking = $this->service()->checkIn($this->booking());
+
+        $skipped = $this->service()->transition($booking->fresh(), 'no_show', 'Tidak merespons 3 kali panggilan');
+
+        $this->assertSame('no_show', $skipped->queue_status);
+        $this->assertSame('Tidak merespons 3 kali panggilan', $skipped->queue_note);
+        $this->assertNotNull($skipped->queue_finished_at);
+        // Nomor tidak dipakai ulang pasien berikutnya.
+        $next = $this->service()->checkIn($this->booking(['booking_time' => '10:00:00']));
+        $this->assertSame(2, $next->queue_number);
+    }
+
+    public function test_skipped_patient_can_be_recalled(): void
+    {
+        $booking = $this->service()->checkIn($this->booking());
+        $this->service()->transition($booking->fresh(), 'no_show', 'Keluar sebentar');
+
+        $recalled = $this->service()->transition($booking->fresh(), 'waiting');
+        $this->assertSame('waiting', $recalled->queue_status);
+
+        $called = $this->service()->transition($recalled, 'called');
+        $this->assertSame('called', $called->queue_status);
+        $this->assertNotNull($called->called_at);
+    }
+
+    public function test_finished_queue_cannot_transition_again(): void
+    {
+        $booking = $this->service()->checkIn($this->booking());
+        $this->service()->transition($booking->fresh(), 'done');
+
+        $this->expectException(RuntimeException::class);
+        $this->service()->transition($booking->fresh(), 'in_service');
+    }
+
+    public function test_calling_patient_does_not_complete_queue(): void
+    {
+        $booking = $this->service()->checkIn($this->booking());
+        $this->service()->transition($booking->fresh(), 'called');
+
+        // Dipanggil bukan berarti selesai: rekam medis yang menutup antrian.
+        $this->assertSame('called', $booking->fresh()->queue_status);
+        $this->assertSame('confirmed', $booking->fresh()->status);
+    }
+
+    // ---------- Portal dokter ----------
+
+    public function test_doctor_queue_board_is_scoped_to_own_doctor(): void
+    {
+        $doctorUser = User::create([
+            'name' => 'dr antri ' . Str::random(4),
+            'email' => 'drantri-' . Str::random(6) . '@antri.test',
+            'password' => Hash::make('password123'),
+            'role' => 'doctor',
+            'clinic_id' => $this->clinicA->id,
+        ]);
+        $this->doctorA->update(['user_id' => $doctorUser->id]);
+
+        $this->service()->checkIn($this->booking());
+
+        $this->actingAs($doctorUser)
+            ->get('/doctor/queue')
+            ->assertOk()
+            ->assertSee('AntriPet');
+    }
+
+    public function test_doctor_can_call_waiting_patient(): void
+    {
+        $doctorUser = User::create([
+            'name' => 'dr panggil ' . Str::random(4),
+            'email' => 'drpanggil-' . Str::random(6) . '@antri.test',
+            'password' => Hash::make('password123'),
+            'role' => 'doctor',
+            'clinic_id' => $this->clinicA->id,
+        ]);
+        $this->doctorA->update(['user_id' => $doctorUser->id]);
+
+        $booking = $this->service()->checkIn($this->booking());
+
+        $this->actingAs($doctorUser)
+            ->post('/doctor/queue/' . $booking->id . '/call')
+            ->assertRedirect();
+
+        $this->assertSame('called', $booking->fresh()->queue_status);
+    }
+
+    /**
+     * Regresi: check-in dari papan tanggal lain dulu selalu dicap `today()`,
+     * sehingga baris "hilang" dari papan yang sedang dilihat dan tidak bisa
+     * dipanggil di tanggal tersebut. Nomor harus mengikuti tanggal papan.
+     */
+    public function test_admin_check_in_uses_the_selected_board_date(): void
+    {
+        $tomorrow = today()->addDay()->toDateString();
+        $booking = $this->booking(['booking_date' => $tomorrow]);
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/queue/' . $booking->id . '/check-in', ['date' => $tomorrow])
+            ->assertRedirect();
+
+        $fresh = $booking->fresh();
+        $this->assertSame($tomorrow, $fresh->queue_date?->toDateString());
+        $this->assertSame(1, $fresh->queue_number);
+
+        // Tetap terlihat di papan tanggal yang dipilih, bukan menghilang.
+        $this->actingAs($this->adminA)
+            ->get('/admin/queue?date=' . $tomorrow)
+            ->assertOk()
+            ->assertSee('AntriPet');
+
+        // Dan bisa dipanggil dari papan itu.
+        $this->actingAs($this->adminA)
+            ->post('/admin/queue/' . $booking->id . '/status', ['queue_status' => 'called'])
+            ->assertRedirect();
+
+        $this->assertSame('called', $fresh->fresh()->queue_status);
+    }
+
+    public function test_doctor_sees_patient_checked_in_for_a_future_board_date(): void
+    {
+        $doctorUser = User::create([
+            'name' => 'dr besok ' . Str::random(4),
+            'email' => 'drbesok-' . Str::random(6) . '@antri.test',
+            'password' => Hash::make('password123'),
+            'role' => 'doctor',
+            'clinic_id' => $this->clinicA->id,
+        ]);
+        $this->doctorA->update(['user_id' => $doctorUser->id]);
+
+        $tomorrow = today()->addDay()->toDateString();
+        $booking = $this->booking(['booking_date' => $tomorrow]);
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/queue/' . $booking->id . '/check-in', ['date' => $tomorrow])
+            ->assertRedirect();
+
+        $this->actingAs($doctorUser)
+            ->get('/doctor/queue?date=' . $tomorrow)
+            ->assertOk()
+            ->assertSee('AntriPet')
+            ->assertSee('Panggil');
+    }
+
+    /**
+     * Regresi: nomor antrian yang tercap di tanggal lain membuat pasien
+     * hilang dari papan tanggal booking-nya (tidak ada di daftar antrian
+     * karena `queue_date` beda, dan tidak ada di "Belum Check-in" karena
+     * `queue_number` sudah terisi). Pasien harus tetap bisa di-check-in
+     * ulang pada tanggal booking sebenarnya dan mendapat nomor hari itu.
+     */
+    public function test_booking_with_stale_queue_date_can_be_checked_in_on_its_booking_date(): void
+    {
+        $tomorrow = today()->addDay()->toDateString();
+        $booking = $this->booking(['booking_date' => $tomorrow]);
+
+        // Nomor "salah tanggal" dari check-in sebelumnya.
+        $booking->forceFill([
+            'queue_date' => today()->toDateString(),
+            'queue_number' => 9,
+            'queue_status' => 'waiting',
+        ])->save();
+
+        $this->actingAs($this->adminA)
+            ->get('/admin/queue?date=' . $tomorrow)
+            ->assertOk()
+            ->assertSee('AntriPet');
+
+        $this->actingAs($this->adminA)
+            ->post('/admin/queue/' . $booking->id . '/check-in', ['date' => $tomorrow])
+            ->assertRedirect();
+
+        $fresh = $booking->fresh();
+        $this->assertSame($tomorrow, $fresh->queue_date?->toDateString());
+        // Nomor dihitung per tanggal, jadi tanggal baru mulai dari 1 lagi.
+        $this->assertSame(1, $fresh->queue_number);
+        $this->assertSame('waiting', $fresh->queue_status);
+    }
 }

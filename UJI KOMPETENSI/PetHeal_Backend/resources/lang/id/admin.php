@@ -840,6 +840,7 @@ return [
     'queue_serving' => 'Sedang ditangani',
     'queue_serving_desc' => 'Pasien di ruang periksa.',
     'queue_finished' => 'Selesai & tidak hadir',
+    'queue_finished_desc' => 'Pasien yang pemeriksaannya selesai atau tidak merespons panggilan.',
     'queue_empty_finished' => 'Belum ada yang selesai hari ini.',
     'queue_no_show' => 'Tidak hadir',
     'queue_no_show_concept' => 'Nomor tetap terpakai agar urutan tidak berubah.',

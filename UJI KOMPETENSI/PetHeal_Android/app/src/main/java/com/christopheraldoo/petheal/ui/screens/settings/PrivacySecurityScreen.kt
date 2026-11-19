@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material.icons.filled.RecordVoiceOver
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SwitchLeft
 import androidx.compose.material.icons.filled.Wifi
@@ -34,6 +35,8 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -281,6 +284,32 @@ fun PrivacySecurityScreen(
             }
 
             SettingsSectionCard(title = "Privasi") {
+                SettingsActionRow(
+                    icon = Icons.Default.RecordVoiceOver,
+                    label = "Pengumuman suara antrian",
+                    showChevron = false,
+                    onClick = { viewModel.setQueueVoiceEnabled(!uiState.queueVoiceEnabled) },
+                    trailing = {
+                        // Baris di atas sudah menangani tap; switch hanya
+                        // menampilkan nilai agar satu tap tidak men-toggle dua
+                        // kali (row + switch) dan mengembalikan nilai semula.
+                        Switch(
+                            checked = uiState.queueVoiceEnabled,
+                            onCheckedChange = null,
+                            colors = SwitchDefaults.colors(checkedTrackColor = Primary)
+                        )
+                    }
+                )
+                Text(
+                    "Saat aplikasi terbuka, panggilan dokter dibacakan dengan suara. " +
+                        "Di background, panggilan tetap masuk lewat notifikasi. " +
+                        "Suara otomatis diam ketika ponsel silent atau Do Not Disturb.",
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
+                    color = secondaryColor,
+                    modifier = Modifier.padding(start = 40.dp, end = 4.dp, bottom = 4.dp)
+                )
+                Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(
                     icon = Icons.Default.SwitchLeft,
                     // Label jujur: layar ini menjelaskan izin lalu membawa

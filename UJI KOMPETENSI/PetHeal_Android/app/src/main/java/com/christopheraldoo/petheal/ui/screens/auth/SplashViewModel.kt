@@ -7,6 +7,7 @@ import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
 import com.christopheraldoo.petheal.data.remote.NetworkMonitor
 import com.christopheraldoo.petheal.data.repository.DeviceTokenRepository
+import com.christopheraldoo.petheal.service.AppCoroutineScope
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 /**
@@ -52,7 +54,8 @@ class SplashViewModel @Inject constructor(
     private val preferencesManager: PreferencesManager,
     private val deviceTokenRepository: DeviceTokenRepository,
     private val networkInterceptor: NetworkInterceptor,
-    private val networkMonitor: NetworkMonitor
+    private val networkMonitor: NetworkMonitor,
+    private val appCoroutineScope: AppCoroutineScope
 ) : ViewModel() {
 
     val isLoggedIn: Flow<Boolean> = preferencesManager.isLoggedIn
@@ -104,6 +107,9 @@ class SplashViewModel @Inject constructor(
             delay(STAGE_READABLE_MS)
             if (loggedIn) {
                 update(stage = SplashStage.SYNCING, progress = 0.78f)
+                // Sinkronisasi sesi bersifat best-effort dan tidak lagi bisa
+                // menggantung: kerja jaringan FCM sudah dipindah ke scope
+                // aplikasi (lihat `syncSession`).
                 syncSession()
             }
         }
@@ -138,14 +144,27 @@ class SplashViewModel @Inject constructor(
     /**
      * Refreshes the auth token in the interceptor and re-registers the FCM
      * token. Best-effort: a failure here must never hold the user on the splash.
+     *
+     * `FirebaseMessaging.token` and the `device-token` call punya waktu tunggu
+     * TANPA batas (task Firebase tidak pernah "gagal" bila FCM belum siap atau
+     * backend tidak terjangkau). Karena itu keduanya dijalankan di scope
+     * aplikasi, bukan di jalur start-up: splash lanjut, pendaftaran token tetap
+     * selesai di belakang layar.
      */
     private suspend fun syncSession() {
-        try {
+        // Lokal dan instan: header Authorization harus sudah terpasang sebelum
+        // layar pertama memanggil API.
+        withTimeoutOrNull(TOKEN_CACHE_TIMEOUT_MS) {
             preferencesManager.authToken.first()?.let { networkInterceptor.updateToken(it) }
-            val token = FirebaseMessaging.getInstance().token.await()
-            deviceTokenRepository.saveDeviceToken(token, "android")
-        } catch (_: Exception) {
-            // Non-fatal — the token is registered again on the next login.
+        }
+
+        appCoroutineScope.scope.launch {
+            try {
+                val token = FirebaseMessaging.getInstance().token.await()
+                deviceTokenRepository.saveDeviceToken(token, "android")
+            } catch (_: Exception) {
+                // Non-fatal — the token is registered again on the next login.
+            }
         }
     }
 
@@ -159,5 +178,8 @@ class SplashViewModel @Inject constructor(
 
         /** Minimum time each step stays visible, so the labels are readable. */
         private const val STAGE_READABLE_MS = 200L
+
+        /** Upper bound for reading the cached auth token from DataStore. */
+        private const val TOKEN_CACHE_TIMEOUT_MS = 1_500L
     }
 }

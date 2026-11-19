@@ -8,6 +8,7 @@ use App\Models\AuditLog;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
 use App\Models\User;
+use App\Services\DoctorScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -65,6 +66,14 @@ class DoctorController extends Controller
                 'available_days' => array_map('strtolower', $request->available_days)
             ]);
         }
+
+        // Jam dari kolom `time` bisa berbentuk "09:00:00" (mis. saat form edit
+        // mengirim balik nilai lama). Validasi memakai H:i, jadi normalkan
+        // lebih dulu agar menyimpan jam yang sama tidak ditolak.
+        $request->merge([
+            'start_time' => DoctorScheduleService::normalizeTime($request->input('start_time')),
+            'end_time' => DoctorScheduleService::normalizeTime($request->input('end_time')),
+        ]);
 
         $request->validate([
             'name' => 'required|string|max:255',
@@ -322,6 +331,12 @@ class DoctorController extends Controller
                 'available_days' => array_map('strtolower', $request->available_days)
             ]);
         }
+
+        // Sama seperti store(): buang detik bila ada sebelum validasi H:i.
+        $request->merge([
+            'start_time' => DoctorScheduleService::normalizeTime($request->input('start_time')),
+            'end_time' => DoctorScheduleService::normalizeTime($request->input('end_time')),
+        ]);
 
         $request->validate([
             'name' => 'required|string|max:255',

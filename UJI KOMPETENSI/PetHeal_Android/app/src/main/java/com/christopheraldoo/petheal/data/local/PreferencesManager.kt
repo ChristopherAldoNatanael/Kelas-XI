@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.data.local
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -35,6 +36,16 @@ class PreferencesManager @Inject constructor(
         private val KEY_AUTH_PROVIDER = stringPreferencesKey("auth_provider")
         private val KEY_HAS_SEEN_ONBOARDING = stringPreferencesKey("has_seen_onboarding")
 
+        // Pengumuman suara antrian (TTS). Default aktif: panggilan dokter
+        // adalah momen penting. Pengguna dapat mematikannya di
+        // Privasi & Keamanan; nilainya dibaca sebelum TTS berbunyi.
+        private val KEY_QUEUE_VOICE = booleanPreferencesKey("queue_voice_enabled")
+
+        // Salinan SharedPreferences dari saklar di atas. Service FCM berumur
+        // pendek dan harus memutuskan "bunyi atau tidak" tanpa suspend;
+        // membaca DataStore di sana berisiko notifikasi tidak sempat tampil.
+        private const val KEY_QUEUE_VOICE_SYNC = "queue_voice_enabled_sync"
+
         // PHASE 9: booking ids already nudged for a doctor rating. The reminder
         // appears once per finished visit — never nagging.
         private val KEY_RATING_PROMPTED_IDS = stringSetPreferencesKey("rating_prompted_ids")
@@ -56,6 +67,11 @@ class PreferencesManager @Inject constructor(
         private val KEY_LOCATION_LABEL = stringPreferencesKey("location_label")
         private val KEY_LOCATION_SOURCE = stringPreferencesKey("location_source")
     }
+
+    private val queueVoicePrefs = context.getSharedPreferences(
+        "petheal_queue_voice",
+        Context.MODE_PRIVATE
+    )
 
     val authToken: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_AUTH_TOKEN]
@@ -92,6 +108,28 @@ class PreferencesManager @Inject constructor(
     val hasSeenOnboarding: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[KEY_HAS_SEEN_ONBOARDING] == "true"
     }
+
+    /** Pengumuman suara antrian; default aktif bila pengguna belum memilih. */
+    val queueVoiceEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[KEY_QUEUE_VOICE] ?: true
+    }
+
+    suspend fun setQueueVoiceEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[KEY_QUEUE_VOICE] = enabled
+        }
+        // Salinan sinkron untuk FirebaseMessagingService. Service berumur
+        // pendek dan tidak boleh menunggu DataStore sebelum menampilkan
+        // notifikasi; nilai ini dibaca langsung tanpa suspend.
+        queueVoicePrefs.edit().putBoolean(KEY_QUEUE_VOICE_SYNC, enabled).apply()
+    }
+
+    /**
+     * Nilai saklar pengumuman suara yang bisa dibaca tanpa coroutine.
+     * Dipakai FCM agar notifikasi tetap tampil seketika.
+     */
+    fun isQueueVoiceEnabledNow(): Boolean =
+        queueVoicePrefs.getBoolean(KEY_QUEUE_VOICE_SYNC, true)
 
     val clinicSlug: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[KEY_CLINIC_SLUG]

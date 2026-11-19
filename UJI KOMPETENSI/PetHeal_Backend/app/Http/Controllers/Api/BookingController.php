@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Doctor;
+use App\Models\MedicalRecord;
 use App\Models\PaymentMethod;
 use App\Models\Service;
 use App\Services\DoctorScheduleService;
@@ -177,6 +178,8 @@ class BookingController extends Controller
             'booking_date' => 'required|date|after_or_equal:today',
             'booking_time' => 'required|date_format:H:i',
             'notes' => 'nullable|string',
+            // Booking kontrol: rekam medis asal rekomendasi dokter (opsional).
+            'medical_record_id' => 'nullable|integer',
             'payment_type' => 'nullable|in:dp,full',
             'payment_method_id' => 'nullable|exists:payment_methods,id',
         ]);
@@ -196,6 +199,22 @@ class BookingController extends Controller
                 'success' => false,
                 'message' => 'Doctor not found',
             ], 404);
+        }
+
+        // Rujukan rekam medis harus milik hewan ini DAN dibuat di klinik
+        // dokter tujuan — rekam medis klinik lain tidak boleh ditautkan.
+        if ($request->filled('medical_record_id')) {
+            $sourceRecord = MedicalRecord::where('id', $request->input('medical_record_id'))
+                ->where('pet_id', $pet->id)
+                ->where('clinic_id', $doctor->clinic_id)
+                ->first();
+
+            if (!$sourceRecord) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Rekam medis rujukan tidak ditemukan untuk hewan ini di klinik tersebut.',
+                ], 422);
+            }
         }
 
         $service = Service::active()->find($request->input('service_id'));
@@ -320,6 +339,7 @@ class BookingController extends Controller
                 'pet_id' => $request->input('pet_id'),
                 'doctor_id' => $request->input('doctor_id'),
                 'service_id' => $request->input('service_id'),
+                'medical_record_id' => $request->input('medical_record_id'),
                 'booking_date' => $request->input('booking_date'),
                 'booking_time' => $request->input('booking_time'),
                 'status' => 'pending',

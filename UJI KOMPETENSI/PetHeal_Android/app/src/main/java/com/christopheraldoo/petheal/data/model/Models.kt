@@ -537,7 +537,12 @@ data class BookingRequest(
      * klinik dokter dan layanan; tanpa ini header `X-Clinic-Slug` yang
      * tersimpan bisa menolak booking ke klinik lain.
      */
-    @SerializedName("clinic_slug") val clinicSlug: String? = null
+    @SerializedName("clinic_slug") val clinicSlug: String? = null,
+    /**
+     * Kontrol lanjutan: tautkan booking baru ke rekam medis sebelumnya.
+     * Backend memvalidasi bahwa rekam medis itu milik pet & klinik yang sama.
+     */
+    @SerializedName("medical_record_id") val medicalRecordId: Int? = null
 )
 
 data class RescheduleRequest(
@@ -754,4 +759,97 @@ data class ResetPasswordRequest(
     val code: String,
     val password: String,
     @SerializedName("password_confirmation") val passwordConfirmation: String
+)
+
+// ============= SERVICE REQUEST MODELS =============
+/**
+ * Penawaran dari klinik untuk layanan yang belum ada di katalog.
+ *
+ * `priceType` membedakan harga final dan estimasi — UI wajib menampilkan
+ * perbedaannya agar pemilik tidak mengira estimasi sebagai tagihan pasti.
+ */
+data class ServiceRequestOffer(
+    @SerializedName("service_id") val serviceId: Int? = null,
+    @SerializedName("service_name") val serviceName: String? = null,
+    val description: String? = null,
+    val price: Double? = null,
+    @SerializedName("price_type") val priceType: String? = null,
+    @SerializedName("duration_minutes") val durationMinutes: Int? = null,
+    @SerializedName("doctor_id") val doctorId: Int? = null,
+    @SerializedName("doctor_name") val doctorName: String? = null,
+    @SerializedName("schedule_date") val scheduleDate: String? = null,
+    @SerializedName("schedule_time") val scheduleTime: String? = null,
+    val notes: String? = null,
+    @SerializedName("valid_until") val validUntil: String? = null,
+    @SerializedName("is_expired") val isExpired: Boolean = false
+)
+
+data class ServiceRequestClinicRef(
+    val id: Int? = null,
+    val name: String? = null,
+    val slug: String? = null
+)
+
+data class ServiceRequestBookingSummary(
+    val id: Int? = null,
+    val status: String? = null,
+    @SerializedName("payment_status") val paymentStatus: String? = null,
+    @SerializedName("booking_date") val bookingDate: String? = null,
+    @SerializedName("booking_time") val bookingTime: String? = null,
+    @SerializedName("total_amount") val totalAmount: Double? = null
+)
+
+/**
+ * Pengajuan layanan (kontrol / layanan belum tersedia). Bukan booking:
+ * booking baru lahir setelah penawaran disetujui.
+ */
+data class ServiceRequest(
+    val id: Int? = null,
+    val code: String? = null,
+    val status: String? = null,
+    @SerializedName("status_label") val statusLabel: String? = null,
+    @SerializedName("need_type") val needType: String? = null,
+    @SerializedName("need_type_label") val needTypeLabel: String? = null,
+    val complaint: String? = null,
+    @SerializedName("preferred_date") val preferredDate: String? = null,
+    @SerializedName("preferred_time") val preferredTime: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null,
+    val clinic: ServiceRequestClinicRef? = null,
+    val pet: Pet? = null,
+    val doctor: Doctor? = null,
+    @SerializedName("medical_record_id") val medicalRecordId: Int? = null,
+    @SerializedName("booking_id") val bookingId: Int? = null,
+    val offer: ServiceRequestOffer? = null,
+    @SerializedName("can_respond") val canRespond: Boolean = false,
+    @SerializedName("doctor_recommendation") val doctorRecommendation: String? = null,
+    @SerializedName("doctor_notes") val doctorNotes: String? = null,
+    @SerializedName("admin_notes") val adminNotes: String? = null,
+    @SerializedName("needs_follow_up") val needsFollowUp: Boolean? = null,
+    @SerializedName("owner_response_note") val ownerResponseNote: String? = null,
+    val booking: ServiceRequestBookingSummary? = null
+)
+
+data class ServiceRequestsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: List<ServiceRequest>? = null,
+    val pagination: Pagination? = null
+)
+
+data class ServiceRequestResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: ServiceRequest? = null,
+    val booking: Booking? = null
+)
+
+data class ServiceRequestCreateRequest(
+    @SerializedName("clinic_id") val clinicId: Int,
+    @SerializedName("pet_id") val petId: Int,
+    @SerializedName("need_type") val needType: String,
+    val complaint: String,
+    @SerializedName("preferred_date") val preferredDate: String? = null,
+    @SerializedName("preferred_time") val preferredTime: String? = null,
+    @SerializedName("medical_record_id") val medicalRecordId: Int? = null,
+    @SerializedName("doctor_id") val doctorId: Int? = null
 )

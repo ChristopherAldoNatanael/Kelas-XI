@@ -277,6 +277,7 @@ fun MedicalRecordDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToExtraPayment: (bookingId: Int, recordId: Int, amount: Double) -> Unit = { _, _, _ -> },
     onNavigateToDoctor: (doctorId: Int) -> Unit = {},
+    onBookFollowUp: (petId: Int, clinicSlug: String?) -> Unit = { _, _ -> },
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
     val state by viewModel.detailState.collectAsState()
@@ -383,7 +384,10 @@ fun MedicalRecordDetailScreen(
 
                     if (!record.nextVisitDate.isNullOrBlank()) {
                         item {
-                            MedicalRecordFollowUpSection(record = record)
+                            MedicalRecordFollowUpSection(
+                                record = record,
+                                onBookFollowUp = onBookFollowUp
+                            )
                         }
                     }
 
@@ -1216,7 +1220,10 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
 }
 
 @Composable
-private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
+private fun MedicalRecordFollowUpSection(
+    record: MedicalRecord,
+    onBookFollowUp: (petId: Int, clinicSlug: String?) -> Unit
+) {
     DetailSectionCard(
         title = "Rencana Kontrol",
         subtitle = "Jadwal kunjungan berikutnya dari klinik"
@@ -1243,7 +1250,7 @@ private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
                     Icon(Icons.Filled.CalendarMonth, contentDescription = null, tint = MrAmber, modifier = Modifier.size(24.dp))
                 }
 
-                Column {
+                Column(Modifier.weight(1f)) {
                     Text("Kunjungan berikutnya", color = MrTextSecondary, fontSize = 12.sp)
                     Text(
                         text = parseLocalDate(record.nextVisitDate)?.format(DateTimeFormatter.ofPattern("dd MMMM yyyy", Locale("id", "ID"))) ?: record.nextVisitDate.orEmpty(),
@@ -1254,6 +1261,30 @@ private fun MedicalRecordFollowUpSection(record: MedicalRecord) {
                 }
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Booking dibuat dari alur booking biasa (pilih dokter & jam), lalu
+        // ditautkan ke rekam medis ini oleh server. Tidak ada booking otomatis
+        // saat tombol ditekan.
+        val followUpPetId = record.petId ?: record.pet?.id
+        Button(
+            onClick = { followUpPetId?.let { onBookFollowUp(it, record.clinic?.slug) } },
+            enabled = followUpPetId != null,
+            modifier = Modifier.fillMaxWidth().height(46.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MrPrimary)
+        ) {
+            Icon(Icons.Filled.CalendarMonth, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Booking Kontrol", fontWeight = FontWeight.SemiBold)
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "Hewan dan rekam medis ini otomatis terbawa ke alur booking.",
+            color = MrTextSecondary,
+            fontSize = 11.sp
+        )
     }
 }
 

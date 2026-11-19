@@ -93,12 +93,16 @@ class MainActivity : ComponentActivity() {
 
         when (navigateTo) {
             "notification_target" -> {
-                val bookingId = intent.getIntExtra("booking_id", -1)
-                val medicalRecordId = intent.getIntExtra("medical_record_id", -1)
-                val petId = intent.getIntExtra("pet_id", -1)
-                val doctorId = intent.getIntExtra("doctor_id", -1)
+                val bookingId = intent.intExtraCompat("booking_id")
+                val medicalRecordId = intent.intExtraCompat("medical_record_id")
+                val petId = intent.intExtraCompat("pet_id")
+                val doctorId = intent.intExtraCompat("doctor_id")
+                val serviceRequestId = intent.intExtraCompat("service_request_id")
 
                 when {
+                    serviceRequestId > 0 -> nav.navigate(
+                        Screen.ServiceRequests.createRoute(openId = serviceRequestId)
+                    ) { launchSingleTop = true }
                     bookingId > 0 -> nav.navigate(Screen.BookingDetail.createRoute(bookingId)) { launchSingleTop = true }
                     medicalRecordId > 0 -> nav.navigate(Screen.MedicalRecordDetail.createRoute(medicalRecordId)) { launchSingleTop = true }
                     petId > 0 -> nav.navigate(Screen.PetDetail.createRoute(petId)) { launchSingleTop = true }
@@ -114,6 +118,18 @@ class MainActivity : ComponentActivity() {
                 clearNotificationIntent(intent)
             }
         }
+    }
+
+    /**
+     * FCM menaruh seluruh `data` payload sebagai extra **String** saat sistem
+     * yang menampilkan notifikasi (aplikasi di background/terminated),
+     * sedangkan notifikasi buatan aplikasi sendiri menyimpannya sebagai Int.
+     * Keduanya harus terbaca supaya tap notifikasi tetap membuka layar detail.
+     */
+    private fun Intent.intExtraCompat(key: String): Int {
+        val direct = getIntExtra(key, -1)
+        if (direct != -1) return direct
+        return getStringExtra(key)?.toIntOrNull() ?: -1
     }
 
     private fun handleDeepLink(nav: NavHostController, uri: android.net.Uri) {
@@ -152,6 +168,12 @@ class MainActivity : ComponentActivity() {
                 nav.navigate(Screen.Doctors.route) { launchSingleTop = true }
             }
 
+            "service-request", "service-requests" -> if (id != null) {
+                nav.navigate(Screen.ServiceRequests.createRoute(openId = id)) { launchSingleTop = true }
+            } else {
+                nav.navigate(Screen.ServiceRequests.createRoute()) { launchSingleTop = true }
+            }
+
             "notifications" -> nav.navigate(Screen.Notifications.route) { launchSingleTop = true }
             "bookings", "appointments" -> nav.navigateToTab(PetHealTab.Bookings)
             "profile" -> nav.navigateToTab(PetHealTab.Profile)
@@ -167,5 +189,6 @@ class MainActivity : ComponentActivity() {
         intent.removeExtra("medical_record_id")
         intent.removeExtra("pet_id")
         intent.removeExtra("doctor_id")
+        intent.removeExtra("service_request_id")
     }
 }

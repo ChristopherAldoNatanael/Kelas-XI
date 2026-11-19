@@ -170,6 +170,47 @@ class PetShopProductImportTest extends TestCase
         $this->assertSame(6, (int) $variant->stock_on_hand);
     }
 
+    public function test_xlsx_with_formula_summary_sheet_still_imports_the_catalog(): void
+    {
+        // Struktur file nyata: sheet data diikuti sheet ringkasan yang
+        // berformula lintas sheet. Maatwebsite memutus sel sheet yang sudah
+        // selesai dibaca, sehingga menghitung formula seperti ini dulu
+        // menggagalkan SELURUH import dengan "File tidak bisa dibaca".
+        $spreadsheet = new Spreadsheet();
+
+        $data = $spreadsheet->getActiveSheet();
+        $data->setTitle('Worksheet');
+        $data->fromArray([
+            ['category', 'product_name', 'sku', 'variant_name', 'price', 'stock'],
+            [$this->food->name, 'Royal Canin Kitten', 'RC-KTN-1KG', '1 kg', 120000, 4],
+        ], null, 'A1');
+
+        $summary = $spreadsheet->createSheet();
+        $summary->setTitle('Ringkasan Kategori');
+        $summary->fromArray(['Kategori', 'Jumlah', 'Stok'], null, 'A1');
+        $summary->setCellValue('A2', 'Makanan');
+        $summary->setCellValue('B2', '=COUNTIF(Worksheet!$A$2:$A$100, A2)');
+        $summary->setCellValue('C2', '=SUMIF(Worksheet!$A$2:$A$100, A2, Worksheet!$F$2:$F$100)');
+
+        $path = tempnam(sys_get_temp_dir(), 'produk') . '.xlsx';
+        (new Xlsx($spreadsheet))->save($path);
+        $spreadsheet->disconnectWorksheets();
+
+        $this->import(new UploadedFile(
+            $path,
+            'produk-ringkasan.xlsx',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            null,
+            true
+        ))
+            ->assertSessionHas('success')
+            ->assertSessionMissing('error');
+
+        $variant = ProductVariant::where('sku', 'RC-KTN-1KG')->firstOrFail();
+        $this->assertSame(120000, (int) $variant->price);
+        $this->assertSame(4, (int) $variant->stock_on_hand);
+    }
+
     public function test_unknown_category_is_created_once_instead_of_failing_rows(): void
     {
         $csv = implode("\n", [

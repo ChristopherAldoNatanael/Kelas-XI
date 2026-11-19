@@ -209,7 +209,7 @@
                     <div>
                         <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.working_hours') }}</dt>
                         <dd class="mt-1 text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                            {{ $doctor->start_time }} - {{ $doctor->end_time }}
+                            {{ substr((string) $doctor->start_time, 0, 5) }} - {{ substr((string) $doctor->end_time, 0, 5) }}
                         </dd>
                     </div>
                 </dl>

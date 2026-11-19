@@ -40,6 +40,7 @@ import com.christopheraldoo.petheal.ui.screens.doctor.DoctorDetailScreen
 import com.christopheraldoo.petheal.ui.screens.doctor.DoctorsScreen
 import com.christopheraldoo.petheal.ui.screens.home.HomeScreen
 import com.christopheraldoo.petheal.ui.screens.medicalrecord.MedicalRecordDetailScreen
+import com.christopheraldoo.petheal.ui.screens.servicerequest.ServiceRequestsScreen
 import com.christopheraldoo.petheal.ui.screens.medicalrecord.MedicalRecordsScreen
 import com.christopheraldoo.petheal.ui.screens.pet.AddPetScreen
 import com.christopheraldoo.petheal.ui.screens.pet.EditPetScreen
@@ -489,18 +490,34 @@ fun PetHealNavHost(
                 navArgument("clinicSlug") {
                     type = NavType.StringType
                     defaultValue = ""
+                },
+                navArgument("petId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+                navArgument("medicalRecordId") {
+                    type = NavType.IntType
+                    defaultValue = 0
                 }
             )
         ) { backStackEntry ->
+            val sourceRecordId = backStackEntry.arguments?.getInt("medicalRecordId") ?: 0
             BookingStartScreen(
                 onNavigateBack = { navController.popBackStack() },
                 onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
                 onContinue = { doctorId, petId ->
-                    navController.navigate(Screen.CreateBooking.createRoute(doctorId, petId))
+                    navController.navigate(
+                        Screen.CreateBooking.createRoute(
+                            doctorId = doctorId,
+                            petId = petId,
+                            medicalRecordId = sourceRecordId.takeIf { it > 0 }
+                        )
+                    )
                 },
                 initialClinicSlug = backStackEntry.arguments
                     ?.getString("clinicSlug")
-                    ?.takeIf { it.isNotBlank() }
+                    ?.takeIf { it.isNotBlank() },
+                initialPetId = backStackEntry.arguments?.getInt("petId")?.takeIf { it > 0 }
             )
         }
 
@@ -508,11 +525,16 @@ fun PetHealNavHost(
             route = Screen.CreateBooking.route,
             arguments = listOf(
                 navArgument("doctorId") { type = NavType.IntType },
-                navArgument("petId") { type = NavType.IntType }
+                navArgument("petId") { type = NavType.IntType },
+                navArgument("medicalRecordId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
             )
         ) { backStackEntry ->
             val doctorId = backStackEntry.arguments?.getInt("doctorId") ?: return@composable
             val petId = backStackEntry.arguments?.getInt("petId") ?: return@composable
+            val sourceRecordId = backStackEntry.arguments?.getInt("medicalRecordId") ?: 0
             CreateBookingScreen(
                 doctorId = doctorId,
                 petId = petId,
@@ -522,6 +544,15 @@ fun PetHealNavHost(
                     navController.navigate(Screen.Payment.createRoute(bookingId, isDp, amount, methodsCsv = methodsCsv)) {
                         popUpTo(Screen.CreateBooking.route) { inclusive = true }
                     }
+                },
+                medicalRecordId = sourceRecordId.takeIf { it > 0 },
+                onRequestOtherService = { clinicSlug, requestPetId ->
+                    navController.navigate(
+                        Screen.ServiceRequests.createRoute(
+                            petId = requestPetId,
+                            clinicSlug = clinicSlug
+                        )
+                    )
                 }
             )
         }
@@ -570,6 +601,50 @@ fun PetHealNavHost(
                 },
                 onNavigateToDoctor = { doctorId ->
                     navController.navigate(Screen.DoctorDetail.createRoute(doctorId, true))
+                },
+                onBookFollowUp = { followUpPetId, clinicSlug ->
+                    navController.navigate(
+                        Screen.BookingStart.createRoute(
+                            clinicSlug = clinicSlug,
+                            petId = followUpPetId,
+                            medicalRecordId = recordId
+                        )
+                    )
+                }
+            )
+        }
+
+        composable(
+            route = Screen.ServiceRequests.route,
+            arguments = listOf(
+                navArgument("openId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+                navArgument("petId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+                navArgument("clinicSlug") {
+                    type = NavType.StringType
+                    defaultValue = ""
+                },
+                navArgument("medicalRecordId") {
+                    type = NavType.IntType
+                    defaultValue = 0
+                }
+            )
+        ) { backStackEntry ->
+            ServiceRequestsScreen(
+                onNavigateBack = { navController.popBackStack() },
+                openId = backStackEntry.arguments?.getInt("openId")?.takeIf { it > 0 },
+                petId = backStackEntry.arguments?.getInt("petId")?.takeIf { it > 0 },
+                clinicSlug = backStackEntry.arguments
+                    ?.getString("clinicSlug")
+                    ?.takeIf { it.isNotBlank() },
+                medicalRecordId = backStackEntry.arguments?.getInt("medicalRecordId")?.takeIf { it > 0 },
+                onNavigateToBooking = { bookingId ->
+                    navController.navigate(Screen.BookingDetail.createRoute(bookingId))
                 }
             )
         }
@@ -585,6 +660,7 @@ fun PetHealNavHost(
                     }
                 },
                 onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
+                onNavigateToServiceRequests = { navController.navigate(Screen.ServiceRequests.createRoute()) },
                 onNavigateToPrivacy = { navController.navigate(Screen.PrivacySecurity.route) },
                 onNavigateToHelp = { navController.navigate(Screen.HelpSupport.route) },
                 onNavigateToAbout = { navController.navigate(Screen.About.route) },

@@ -73,6 +73,12 @@ class DoctorScheduleController extends DoctorPortalController
     {
         $doctor = $this->doctor();
 
+        // Jam "H:i:s" dari nilai lama dinormalkan ke H:i sebelum validasi.
+        $request->merge([
+            'start_time' => DoctorScheduleService::normalizeTime($request->input('start_time')),
+            'end_time' => DoctorScheduleService::normalizeTime($request->input('end_time')),
+        ]);
+
         $data = $request->validate([
             'date' => 'required|date|after_or_equal:today',
             'mode' => 'required|in:closed,custom',

@@ -74,4 +74,10 @@
     <string name="notification_channel_payments_desc">Status pembayaran, tagihan, dan pengingat pelunasan.</string>
     <string name="notification_channel_general">Info klinik</string>
     <string name="notification_channel_general_desc">Pengumuman dan informasi umum dari klinik.</string>
+    <string name="notification_channel_queue">Antrian klinik</string>
+    <string name="notification_channel_queue_desc">Nomor antrian, panggilan dokter, dan status pemeriksaan.</string>
+    <string name="notification_channel_queue_voice">Panggilan antrian (suara)</string>
+    <string name="notification_channel_queue_voice_desc">Panggilan antrian yang sudah diumumkan dengan suara saat aplikasi terbuka.</string>
+    <string name="notification_channel_services">Permintaan layanan</string>
+    <string name="notification_channel_services_desc">Status pengajuan layanan dan penawaran biaya dari klinik.</string>
 </resources>

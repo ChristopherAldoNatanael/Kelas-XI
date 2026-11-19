@@ -9,6 +9,7 @@ use App\Models\Medicine;
 use App\Services\FCMService;
 use App\Services\MedicalRecordAttachmentService;
 use App\Services\PrescriptionService;
+use App\Services\QueueService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -23,8 +24,10 @@ use Illuminate\Validation\Rule;
  */
 class DoctorMedicalRecordController extends DoctorPortalController
 {
-    public function __construct(private readonly FCMService $fcmService)
-    {
+    public function __construct(
+        private readonly FCMService $fcmService,
+        private readonly QueueService $queueService
+    ) {
     }
 
     /**
@@ -224,6 +227,22 @@ class DoctorMedicalRecordController extends DoctorPortalController
         }
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
+
+        // Sinkronkan antrian: pemeriksaan selesai saat rekam medis tersimpan.
+        // Kegagalan antrian tidak boleh membatalkan rekam medis yang sudah
+        // sah — dicatat, bukan dilempar ke dokter.
+        try {
+            $freshBooking = $booking->fresh();
+            if ($freshBooking && $freshBooking->queue_number
+                && in_array($freshBooking->queue_status, QueueService::ACTIVE_STATUSES, true)) {
+                $this->queueService->transition($freshBooking, QueueService::STATUS_DONE);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('Queue completion sync failed', [
+                'booking_id' => $booking->id,
+                'message' => $e->getMessage(),
+            ]);
+        }
 
         if ($request->filled('next_visit_date')) {
             $this->fcmService->sendVaccinationReminder(

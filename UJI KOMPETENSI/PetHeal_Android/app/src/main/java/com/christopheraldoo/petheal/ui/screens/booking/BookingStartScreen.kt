@@ -127,6 +127,7 @@ fun BookingStartScreen(
     onNavigateToAddPet: () -> Unit = {},
     onContinue: (doctorId: Int, petId: Int) -> Unit,
     initialClinicSlug: String? = null,
+    initialPetId: Int? = null,
     viewModel: BookingViewModel = hiltViewModel()
 ) {
     val state by viewModel.startState.collectAsState()
@@ -156,6 +157,16 @@ fun BookingStartScreen(
         // tidak menimpa pilihan manual user.
         initialPickApplied = true
         viewModel.selectStartClinic(target.id)
+    }
+
+    // Kontrol lanjutan datang dengan hewan yang sudah pasti: pilih sekali,
+    // setelah daftar hewan tersedia, tanpa menimpa pilihan manual berikutnya.
+    var initialPetApplied by remember { mutableStateOf(false) }
+    LaunchedEffect(state.pets, initialPetId) {
+        if (initialPetApplied || initialPetId == null) return@LaunchedEffect
+        val petId = state.pets.firstOrNull { it.id == initialPetId }?.id ?: return@LaunchedEffect
+        initialPetApplied = true
+        viewModel.selectStartPet(petId)
     }
 
     val selectedDoctor = remember(state.doctors, state.selectedDoctorId) {

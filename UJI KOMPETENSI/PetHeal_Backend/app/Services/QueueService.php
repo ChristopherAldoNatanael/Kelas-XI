@@ -23,6 +23,8 @@ use RuntimeException;
  *  4. Hanya booking terkonfirmasi (confirmed) yang boleh check-in; booking
  *     yang belum dikonfirmasi atau sudah dibatalkan ditolak dengan alasan
  *     yang jelas, bukan diam-diam diabaikan.
+ *  5. Notifikasi FCM dikirim SETELAH transaksi commit dan hanya saat status
+ *     benar-benar berubah. Database tetap sumber kebenaran; FCM hanya kabar.
  */
 class QueueService
 {
@@ -47,6 +49,23 @@ class QueueService
         self::STATUS_IN_SERVICE,
     ];
 
+    /**
+     * Transisi status yang masuk akal. Panggilan ulang pasien yang dilewati
+     * (no_show → called) diizinkan supaya petugas tidak kehilangan pasien
+     * yang ternyata masih di klinik.
+     */
+    public const TRANSITIONS = [
+        self::STATUS_WAITING => [self::STATUS_CALLED, self::STATUS_IN_SERVICE, self::STATUS_DONE, self::STATUS_NO_SHOW],
+        self::STATUS_CALLED => [self::STATUS_IN_SERVICE, self::STATUS_DONE, self::STATUS_NO_SHOW, self::STATUS_WAITING],
+        self::STATUS_IN_SERVICE => [self::STATUS_DONE, self::STATUS_WAITING],
+        self::STATUS_NO_SHOW => [self::STATUS_WAITING, self::STATUS_CALLED],
+        self::STATUS_DONE => [],
+    ];
+
+    public function __construct(private readonly FCMService $fcm)
+    {
+    }
+
     public static function statusLabel(?string $status): string
     {
         return match ($status) {
@@ -57,6 +76,21 @@ class QueueService
             self::STATUS_NO_SHOW => 'Tidak datang',
             default => 'Belum check-in',
         };
+    }
+
+    /** Label nomor antrian yang ditampilkan ke pasien, mis. "A-08". */
+    public static function label(?int $number): ?string
+    {
+        return $number ? 'A-' . str_pad((string) $number, 2, '0', STR_PAD_LEFT) : null;
+    }
+
+    public static function canTransition(?string $from, string $to): bool
+    {
+        if (!in_array($to, self::STATUSES, true)) {
+            return false;
+        }
+
+        return in_array($to, self::TRANSITIONS[$from] ?? [], true);
     }
 
     /**
@@ -74,7 +108,7 @@ class QueueService
             $attempt++;
 
             try {
-                return DB::transaction(function () use ($booking, $queueDate, $userId) {
+                [$result, $assigned] = DB::transaction(function () use ($booking, $queueDate, $userId) {
                     $locked = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
                     if ($locked->status === 'cancelled') {
@@ -91,7 +125,7 @@ class QueueService
                     // selalu false dan membuat check-in ganda memberi nomor baru.
                     $existingDate = $locked->queue_date?->toDateString();
                     if ($locked->queue_number && $existingDate === $queueDate) {
-                        return $locked;
+                        return [$locked, false];
                     }
 
                     $lastNumber = (int) Booking::where('clinic_id', $locked->clinic_id)
@@ -106,6 +140,7 @@ class QueueService
                         'checked_in_at' => now(),
                         'called_at' => null,
                         'queue_finished_at' => null,
+                        'queue_note' => null,
                     ])->save();
 
                     // Jejak siapa yang memicu check-in. Admin punya log sendiri
@@ -120,7 +155,7 @@ class QueueService
                         );
                     }
 
-                    return $locked;
+                    return [$locked, true];
                 });
             } catch (QueryException $e) {
                 // Nomor unik dijaga unique index (clinic_id, queue_date,
@@ -129,7 +164,18 @@ class QueueService
                 if ($attempt >= 3 || (string) $e->getCode() !== '23000') {
                     throw $e;
                 }
+
+                continue;
             }
+
+            // Notifikasi dikirim setelah commit dan hanya untuk nomor baru.
+            // Check-in berulang tidak mengirim suara/notifikasi kedua.
+            if ($assigned) {
+                $result->loadMissing(['pet', 'doctor', 'clinic']);
+                $this->fcm->sendQueueEvent($result->user_id, 'checked_in', $result);
+            }
+
+            return $result;
         }
     }
 
@@ -138,17 +184,61 @@ class QueueService
      *
      * @throws RuntimeException bila transisi tidak masuk akal.
      */
-    public function transition(Booking $booking, string $status): Booking
+    public function transition(Booking $booking, string $status, ?string $note = null): Booking
     {
         if (!in_array($status, self::STATUSES, true)) {
             throw new RuntimeException("Status antrian tidak dikenal: {$status}");
         }
 
-        return DB::transaction(function () use ($booking, $status) {
+        $previous = null;
+        $recalled = false;
+
+        $result = DB::transaction(function () use ($booking, $status, $note, &$previous, &$recalled) {
             $locked = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
             if (!$locked->queue_number) {
                 throw new RuntimeException('Pasien belum check-in, belum ada antrian yang bisa diubah.');
+            }
+
+            $previous = $locked->queue_status;
+
+            if ($previous === $status) {
+                // Panggil ulang. Statusnya memang tetap `called`, tetapi ini
+                // peristiwa baru: waktu panggil diperbarui supaya identitas
+                // peristiwa (`queue_event_id`) berubah dan aplikasi
+                // mengumumkan lagi. Sebelumnya cabang ini langsung return,
+                // sehingga tombol "Panggil ulang" tidak mengirim notifikasi
+                // maupun suara sama sekali.
+                if ($status === self::STATUS_CALLED) {
+                    $callTime = now();
+                    $previousCall = $locked->called_at;
+
+                    // `queue_event_id` memakai detik (`getTimestamp()`), dan
+                    // kolom `called_at` menyimpan detik tanpa pecahan. Dua klik
+                    // dalam detik yang sama akan menghasilkan id peristiwa yang
+                    // identik — aplikasi menganggapnya duplikat dan panggilan
+                    // kedua tidak diumumkan. Jadi waktu panggil selalu didorong
+                    // minimal satu detik setelah panggilan sebelumnya.
+                    if ($previousCall) {
+                        $nextTick = $previousCall->copy()->addSecond();
+                        if ($callTime->lessThan($nextTick)) {
+                            $callTime = $nextTick;
+                        }
+                    }
+
+                    $locked->forceFill(['called_at' => $callTime])->save();
+                    $recalled = true;
+                }
+
+                return $locked;
+            }
+
+            if (!self::canTransition($previous, $status)) {
+                throw new RuntimeException(
+                    'Status antrian tidak bisa diubah dari '
+                    . self::statusLabel($previous)
+                    . ' ke ' . self::statusLabel($status) . '.'
+                );
             }
 
             $payload = ['queue_status' => $status];
@@ -157,8 +247,18 @@ class QueueService
                 $payload['called_at'] = now();
             }
 
+            if ($status === self::STATUS_WAITING) {
+                // Panggilan ulang / kembalikan ke daftar tunggu: waktu panggil
+                // lama tidak boleh tampil sebagai panggilan aktif.
+                $payload['called_at'] = null;
+            }
+
             if (in_array($status, [self::STATUS_DONE, self::STATUS_NO_SHOW], true)) {
                 $payload['queue_finished_at'] = now();
+            }
+
+            if ($status === self::STATUS_NO_SHOW) {
+                $payload['queue_note'] = $note ? mb_substr(trim($note), 0, 255) : 'Pasien tidak merespons panggilan.';
             }
 
             $locked->forceFill($payload)->save();
@@ -170,6 +270,28 @@ class QueueService
 
             return $locked;
         });
+
+        if ($recalled || $previous !== $result->queue_status) {
+            $result->loadMissing(['pet', 'doctor', 'clinic']);
+
+            $event = match ($result->queue_status) {
+                self::STATUS_CALLED => 'called',
+                self::STATUS_IN_SERVICE => 'consultation_started',
+                self::STATUS_DONE => 'consultation_completed',
+                default => null,
+            };
+
+            if ($event) {
+                $this->fcm->sendQueueEvent(
+                    $result->user_id,
+                    $event,
+                    $result,
+                    $result->status === 'completed' ? $result->medical_record_id : null
+                );
+            }
+        }
+
+        return $result;
     }
 
     /** Panggil antrian berikutnya (paling awal menunggu). */

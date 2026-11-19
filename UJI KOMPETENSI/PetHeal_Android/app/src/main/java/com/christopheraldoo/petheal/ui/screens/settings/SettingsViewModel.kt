@@ -18,7 +18,8 @@ data class SettingsUiState(
     val userEmail: String? = null,
     val isSendingReset: Boolean = false,
     val resetMessage: String? = null,
-    val error: String? = null
+    val error: String? = null,
+    val queueVoiceEnabled: Boolean = true
 )
 
 @HiltViewModel
@@ -34,8 +35,17 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 authProvider = preferencesManager.authProvider.first(),
-                userEmail = preferencesManager.userEmail.first()
+                userEmail = preferencesManager.userEmail.first(),
+                queueVoiceEnabled = preferencesManager.queueVoiceEnabled.first()
             )
+        }
+    }
+
+    /** Saklar pengumuman suara antrian; tersimpan di DataStore. */
+    fun setQueueVoiceEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.setQueueVoiceEnabled(enabled)
+            _uiState.value = _uiState.value.copy(queueVoiceEnabled = enabled)
         }
     }
 

@@ -34,6 +34,10 @@ class DeviceTokenController extends Controller
             [
                 'user_id' => $request->user()->id,
                 'device_type' => $request->input('device_type', 'android'),
+                // Token yang sebelumnya ditandai invalid (mis. setelah
+                // reinstall) kembali aktif saat perangkat mendaftarkan ulang.
+                'status' => DeviceToken::STATUS_ACTIVE,
+                'last_used_at' => null,
             ]
         );
 

@@ -15,10 +15,26 @@
         icon="groups"
         :description="__('admin.queue_desc')">
         <x-slot:actions>
-            <form method="GET" action="{{ route('admin.queue.index') }}" class="flex items-center gap-2">
+            <form method="GET" action="{{ route('admin.queue.index') }}" class="flex flex-wrap items-center gap-2">
                 <input type="date" name="date" value="{{ $date }}" class="admin-input !w-40 !py-2">
+                <select name="doctor_id" class="admin-input !w-48 !py-2">
+                    <option value="">Semua dokter</option>
+                    @foreach($doctors as $doctorOption)
+                        <option value="{{ $doctorOption->id }}" @selected((int) $doctorId === $doctorOption->id)>
+                            {{ $doctorOption->name }}
+                        </option>
+                    @endforeach
+                </select>
                 <button type="submit" class="admin-btn-secondary !py-2">{{ __('admin.show') }}</button>
             </form>
+            {{-- Jalan pintas tanggal: presentasi/uji operasional sering perlu
+                 berpindah antara hari ini dan besok tanpa membuka date picker. --}}
+            <div class="flex items-center gap-1">
+                <a href="{{ route('admin.queue.index', ['date' => today()->toDateString(), 'doctor_id' => $doctorId ?: null]) }}"
+                   class="admin-btn-ghost !py-2 text-xs @if($date === today()->toDateString()) !bg-primary/10 !text-primary @endif">Hari ini</a>
+                <a href="{{ route('admin.queue.index', ['date' => today()->addDay()->toDateString(), 'doctor_id' => $doctorId ?: null]) }}"
+                   class="admin-btn-ghost !py-2 text-xs @if($date === today()->addDay()->toDateString()) !bg-primary/10 !text-primary @endif">Besok</a>
+            </div>
             <form method="POST" action="{{ route('admin.queue.call-next') }}">
                 @csrf
                 <input type="hidden" name="date" value="{{ $date }}">
@@ -65,6 +81,11 @@
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">
                                 {{ $booking->user->name ?? '—' }} · {{ $booking->booking_time }}
                             </p>
+                            @if($booking->notes)
+                                <p class="truncate text-xs text-slate-400" title="{{ $booking->notes }}">
+                                    Keluhan: {{ \Illuminate\Support\Str::limit($booking->notes, 80) }}
+                                </p>
+                            @endif
                         </div>
                         <div class="flex gap-2">
                             <form method="POST" action="{{ route('admin.queue.status', $booking->id) }}">
@@ -96,8 +117,26 @@
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">
                                 {{ $booking->user->name ?? '—' }} · {{ __('admin.queue_booked_at') }} {{ $booking->booking_time }}
                             </p>
+                            @if($booking->notes)
+                                <p class="truncate text-xs text-slate-400" title="{{ $booking->notes }}">
+                                    Keluhan: {{ \Illuminate\Support\Str::limit($booking->notes, 80) }}
+                                </p>
+                            @endif
                         </div>
                         <div class="flex flex-wrap justify-end gap-2">
+                            @if($booking->queue_status === QueueService::STATUS_WAITING)
+                                <form method="POST" action="{{ route('admin.queue.status', $booking->id) }}">
+                                    @csrf
+                                    <input type="hidden" name="queue_status" value="{{ QueueService::STATUS_CALLED }}">
+                                    <button class="admin-btn-primary !py-2 text-xs">Panggil</button>
+                                </form>
+                            @else
+                                <form method="POST" action="{{ route('admin.queue.status', $booking->id) }}">
+                                    @csrf
+                                    <input type="hidden" name="queue_status" value="{{ QueueService::STATUS_CALLED }}">
+                                    <button class="admin-btn-secondary !py-2 text-xs">Panggil ulang</button>
+                                </form>
+                            @endif
                             <form method="POST" action="{{ route('admin.queue.status', $booking->id) }}">
                                 @csrf
                                 <input type="hidden" name="queue_status" value="{{ QueueService::STATUS_IN_SERVICE }}">
@@ -135,11 +174,16 @@
                                 @if($booking->status === 'pending')
                                     · {{ __('admin.queue_needs_confirm') }}
                                 @endif
+                                @if($booking->queue_number)
+                                    · punya nomor {{ \App\Services\QueueService::label($booking->queue_number) }}
+                                    tanggal {{ $booking->queue_date?->format('d M') }} — check-in ulang untuk tanggal ini
+                                @endif
                             </p>
                         </div>
                         @if($booking->status === 'confirmed')
                             <form method="POST" action="{{ route('admin.queue.check-in', $booking->id) }}">
                                 @csrf
+                                <input type="hidden" name="date" value="{{ $date }}">
                                 <button class="admin-btn-secondary !py-2 text-xs">{{ __('admin.queue_check_in') }}</button>
                             </form>
                         @else
@@ -165,6 +209,9 @@
                             <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $booking->pet->name ?? '—' }}</p>
                             <p class="text-[11px] text-slate-400">
                                 {{ $booking->queue_finished_at?->format('H:i') }}
+                                @if($booking->queue_note)
+                                    · {{ $booking->queue_note }}
+                                @endif
                             </p>
                         </div>
                         <x-admin.badge
@@ -180,5 +227,28 @@
             </x-admin.panel>
         </div>
     </div>
+
+    {{-- Riwayat perubahan status hari itu. Dibaca dari audit log yang sudah
+         ditulis aksi antrian, jadi tidak ada tabel riwayat kedua. --}}
+    <x-admin.panel title="Riwayat Perubahan Antrian" subtitle="Check-in, panggilan, dan perubahan status pada tanggal ini" flush>
+        @forelse($history as $entry)
+            <div class="flex items-start gap-3 border-b border-slate-100 px-5 py-3 last:border-0 dark:border-slate-800">
+                <span class="material-symbols-outlined mt-0.5 text-[18px] text-slate-400" aria-hidden="true">history</span>
+                <div class="min-w-0 flex-1">
+                    <p class="text-sm text-slate-700 dark:text-slate-300">{{ $entry->description }}</p>
+                    <p class="text-[11px] text-slate-400">
+                        {{ $entry->created_at?->format('H:i') }}
+                        @if($entry->user)
+                            · {{ $entry->user->name }}
+                        @endif
+                    </p>
+                </div>
+            </div>
+        @empty
+            <div class="px-5 py-6">
+                <p class="text-sm text-slate-500 dark:text-slate-400">Belum ada perubahan status pada tanggal ini.</p>
+            </div>
+        @endforelse
+    </x-admin.panel>
 </div>
 @endsection

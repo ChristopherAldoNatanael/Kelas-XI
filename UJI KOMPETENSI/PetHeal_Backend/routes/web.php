@@ -126,6 +126,12 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/queue/{id}/check-in', [\App\Http\Controllers\Admin\QueueController::class, 'checkIn'])->name('queue.check-in');
     Route::post('/queue/{id}/status', [\App\Http\Controllers\Admin\QueueController::class, 'updateStatus'])->name('queue.status');
 
+    // Permintaan layanan: pengajuan pemilik → evaluasi dokter → penawaran admin.
+    // Didaftarkan sebelum pola lain agar `/service-requests/{id}` tidak bentrok.
+    Route::get('/service-requests', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'index'])->name('service-requests.index');
+    Route::get('/service-requests/{id}', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'show'])->name('service-requests.show');
+    Route::post('/service-requests/{id}', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'update'])->name('service-requests.update');
+
     // Bookings
     Route::get('/schedule', [BookingController::class, 'schedule'])->name('bookings.schedule');
     Route::get('/bookings', [BookingController::class, 'index'])->name('bookings.index');
@@ -305,6 +311,18 @@ Route::prefix('doctor')->name('doctor.')->group(function () {
 
         Route::get('/', [DoctorDashboardController::class, 'index'])->name('dashboard');
         Route::get('/welcome', [DoctorAuthController::class, 'welcome'])->name('welcome');
+
+        // Antrian praktik: hanya pasien milik dokter ini hari ini.
+        Route::get('/queue', [\App\Http\Controllers\Doctor\DoctorQueueController::class, 'index'])->name('queue.index');
+        Route::post('/queue/{id}/call', [\App\Http\Controllers\Doctor\DoctorQueueController::class, 'call'])->name('queue.call');
+        Route::post('/queue/{id}/recall', [\App\Http\Controllers\Doctor\DoctorQueueController::class, 'recall'])->name('queue.recall');
+        Route::post('/queue/{id}/start', [\App\Http\Controllers\Doctor\DoctorQueueController::class, 'start'])->name('queue.start');
+        Route::post('/queue/{id}/skip', [\App\Http\Controllers\Doctor\DoctorQueueController::class, 'skip'])->name('queue.skip');
+
+        // Evaluasi medis permintaan layanan yang ditugaskan ke dokter ini.
+        Route::get('/service-requests', [\App\Http\Controllers\Doctor\DoctorServiceRequestController::class, 'index'])->name('service-requests.index');
+        Route::get('/service-requests/{id}', [\App\Http\Controllers\Doctor\DoctorServiceRequestController::class, 'show'])->name('service-requests.show');
+        Route::post('/service-requests/{id}/recommend', [\App\Http\Controllers\Doctor\DoctorServiceRequestController::class, 'recommend'])->name('service-requests.recommend');
 
         Route::get('/bookings', [DoctorBookingController::class, 'index'])->name('bookings.index');
         Route::get('/bookings/{id}', [DoctorBookingController::class, 'show'])->name('bookings.show');

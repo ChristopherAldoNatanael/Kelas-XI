@@ -62,6 +62,8 @@ class AuthController extends Controller
             [
                 'user_id' => $user->id,
                 'device_type' => $deviceType,
+                // Login pada perangkat yang sama = token hidup lagi.
+                'status' => DeviceToken::STATUS_ACTIVE,
             ]
         );
     }

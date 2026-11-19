@@ -11,6 +11,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\HasReferencesToOtherSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
@@ -42,8 +43,17 @@ use Maatwebsite\Excel\Concerns\WithLimit;
  * Seperti import obat, baris header dicari sendiri (bukan
  * `WithHeadingRow`) supaya judul di baris 1, baris kosong, BOM Excel, dan
  * header bahasa Indonesia tetap terbaca.
+ *
+ * `HasReferencesToOtherSheets` wajib ada bersama `WithCalculatedFormulas`.
+ * Maatwebsite memutus sel sheet yang sudah selesai dibaca untuk menghemat
+ * memori; tanpa penanda ini, sheet ringkasan yang berformula lintas sheet
+ * (mis. `COUNTIF(Worksheet!$A$2:$A$117, A2)`) membuat PhpSpreadsheet
+ * menghitung formula di atas sheet yang selnya sudah dilepas, lalu
+ * `cellExists()` menabrak koleksi sel null dan SELURUH import gagal dengan
+ * pesan "File tidak bisa dibaca". Dengan penanda ini semua sheet baru
+ * diputus setelah seluruh sheet selesai dibaca.
  */
-class PetShopProductsImport implements ToCollection, WithLimit, WithCalculatedFormulas, WithCustomCsvSettings
+class PetShopProductsImport implements ToCollection, WithLimit, WithCalculatedFormulas, HasReferencesToOtherSheets, WithCustomCsvSettings
 {
     private const MAX_HEADER_SCAN = 20;
 

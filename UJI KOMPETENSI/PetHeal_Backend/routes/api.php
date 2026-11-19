@@ -131,6 +131,20 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     Route::post('/doctors/{id}/reviews', [DoctorController::class, 'storeReview']);
     Route::get('/doctors/{id}/reviews', [DoctorController::class, 'getReviews']);
 
+    // Permintaan layanan (kontrol / layanan yang belum ada di katalog).
+    // Didaftarkan sebelum resource booking agar tidak tertukar pola.
+    Route::get('/service-requests', [App\Http\Controllers\Api\ServiceRequestController::class, 'index']);
+    Route::post('/service-requests', [App\Http\Controllers\Api\ServiceRequestController::class, 'store'])
+        ->middleware('throttle:api');
+    Route::get('/service-requests/{id}', [App\Http\Controllers\Api\ServiceRequestController::class, 'show'])
+        ->whereNumber('id');
+    Route::post('/service-requests/{id}/accept', [App\Http\Controllers\Api\ServiceRequestController::class, 'accept'])
+        ->whereNumber('id')
+        ->middleware('throttle:api');
+    Route::post('/service-requests/{id}/reject', [App\Http\Controllers\Api\ServiceRequestController::class, 'reject'])
+        ->whereNumber('id')
+        ->middleware('throttle:api');
+
     // Booking routes
     Route::get('/bookings/upcoming', [BookingController::class, 'upcoming']);
     // Check-in mandiri: pasien mendapat nomor antrian saat tiba di klinik.

@@ -94,7 +94,7 @@
                                 <p class="text-xs text-slate-600 dark:text-slate-300">
                                     {{ implode(', ', array_slice($doctor->available_days, 0, 3)) }}
                                 </p>
-                                <p class="mt-0.5 text-[11px] text-slate-400">{{ $doctor->start_time }} - {{ $doctor->end_time }}</p>
+                                <p class="mt-0.5 text-[11px] text-slate-400">{{ substr((string) $doctor->start_time, 0, 5) }} - {{ substr((string) $doctor->end_time, 0, 5) }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge

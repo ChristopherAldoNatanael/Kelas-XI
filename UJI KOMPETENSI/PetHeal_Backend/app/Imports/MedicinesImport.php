@@ -7,6 +7,7 @@ use App\Services\MedicineStockService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Concerns\HasReferencesToOtherSheets;
 use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithCalculatedFormulas;
 use Maatwebsite\Excel\Concerns\WithCustomCsvSettings;
@@ -37,8 +38,13 @@ use Maatwebsite\Excel\Concerns\WithLimit;
  * "0 baris terbaca" padahal isinya benar. Di sini header dipindai sampai
  * 20 baris pertama, dinormalkan (BOM/NBSP/spasi/kapital → snake_case) dan
  * dicocokkan ke alias Indonesia + Inggris.
+ *
+ * `HasReferencesToOtherSheets` menjaga sheet tetap terpasang sampai semua
+ * sheet selesai dibaca, supaya file yang punya sheet ringkasan berformula
+ * lintas sheet tidak gagal saat formula dihitung. Lihat catatan lengkap di
+ * `PetShopProductsImport`.
  */
-class MedicinesImport implements ToCollection, WithLimit, WithCalculatedFormulas, WithCustomCsvSettings
+class MedicinesImport implements ToCollection, WithLimit, WithCalculatedFormulas, HasReferencesToOtherSheets, WithCustomCsvSettings
 {
     /** Batas baris yang dipindai untuk mencari baris header. */
     private const MAX_HEADER_SCAN = 20;

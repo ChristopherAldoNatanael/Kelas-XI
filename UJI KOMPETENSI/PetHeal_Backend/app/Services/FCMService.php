@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Models\AppSetting;
+use App\Models\Booking;
 use App\Models\Notification;
+use App\Models\ServiceRequest;
 use Firebase\JWT\JWT;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -87,7 +89,13 @@ class FCMService
         return trim(preg_replace('/\s{2,}/', ' ', $rendered) ?? $rendered);
     }
 
-    public function sendToDevice(string $deviceToken, string $title, string $body, array $data = []): bool
+    /**
+     * Kirim satu notifikasi: selalu memuat blok `notification` (agar sistem
+     * menampilkannya saat aplikasi di background/terminated) sekaligus `data`
+     * (agar aplikasi dapat membangun tray sendiri saat foreground dan tahu
+     * halaman tujuan saat notifikasi diketuk).
+     */
+    public function sendToDevice(string $deviceToken, string $title, string $body, array $data = [], string $channelId = 'petheal_notifications'): bool
     {
         $accessToken = $this->getAccessToken();
         if (!$accessToken) {
@@ -97,40 +105,57 @@ class FCMService
 
         $stringData = array_map(static fn ($value) => (string) $value, array_filter($data, static fn ($value) => $value !== null));
 
-        $payload = [
-            'message' => [
-                'token' => $deviceToken,
-                'notification' => [
-                    'title' => $title,
-                    'body' => $body,
-                ],
-                'android' => [
-                    'priority' => 'high',
-                    'notification' => [
+        // Notifikasi yang ditampilkan sistem (aplikasi di background atau
+        // prosesnya sudah dihentikan) membuka MainActivity dengan data ini
+        // sebagai extra. Tanpa penanda ini, tap notifikasi hanya membuka
+        // aplikasi tanpa menuju booking/permintaan layanan terkait.
+        $stringData['navigate_to'] = 'notification_target';
+
+        // Payload notifikasi TIDAK memuat data medis. Lock screen hanya boleh
+        // menampilkan judul/isi umum; detail ada di aplikasi setelah login.
+        $message = [
+            'token' => $deviceToken,
+            'android' => ['priority' => 'high'],
+            'apns' => [
+                'payload' => [
+                    'aps' => [
                         'sound' => 'default',
-                        'channel_id' => 'petheal_notifications',
+                        'badge' => 1,
                     ],
                 ],
-                'apns' => [
-                    'payload' => [
-                        'aps' => [
-                            'sound' => 'default',
-                            'badge' => 1,
-                        ],
-                    ],
-                ],
-                'data' => $stringData,
             ],
+            'data' => $stringData,
         ];
+
+        $message['notification'] = [
+            'title' => $title,
+            'body' => $body,
+        ];
+        $message['android']['notification'] = [
+            'sound' => 'default',
+            'channel_id' => $channelId,
+            'visibility' => 'private',
+            'default_vibrate_timings' => true,
+        ];
+
+        $payload = ['message' => $message];
 
         try {
             $response = Http::withToken($accessToken)->post(sprintf(self::FCM_URL, $this->projectId), $payload);
 
             if ($response->successful()) {
+                $this->touchToken($deviceToken);
                 Log::info('FCM delivered to device', [
                     'token_hash' => hash('sha256', $deviceToken),
                 ]);
                 return true;
+            }
+
+            // Token yang sudah tidak berlaku (aplikasi di-uninstall, token
+            // dirotasi) akan ditolak FCM terus-menerus. Tandai invalid supaya
+            // tidak dikirimi lagi — ini yang membuat daftar token tetap sehat.
+            if ($this->isTokenRejected($response->body())) {
+                $this->invalidateToken($deviceToken);
             }
 
             Log::error('FCM send failed', [
@@ -146,26 +171,72 @@ class FCMService
         return false;
     }
 
-    public function sendToMultiple(array $deviceTokens, string $title, string $body, array $data = []): array
+    /**
+     * FCM menolak token yang tidak terdaftar (UNREGISTERED) atau rusak
+     * (INVALID_ARGUMENT). Keduanya berarti token itu tidak bisa dipakai lagi
+     * untuk perangkat tersebut.
+     */
+    private function isTokenRejected(string $body): bool
+    {
+        return str_contains($body, 'UNREGISTERED')
+            || str_contains($body, 'INVALID_ARGUMENT');
+    }
+
+    /** Nonaktifkan token yang ditolak FCM. */
+    private function invalidateToken(string $deviceToken): void
+    {
+        try {
+            $token = \App\Models\DeviceToken::where('token', $deviceToken)->first();
+
+            if ($token) {
+                $token->markInvalid();
+                Log::warning('FCM token marked invalid', [
+                    'token_hash' => hash('sha256', $deviceToken),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to invalidate FCM token', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    /** Catat waktu token terakhir berhasil dipakai. */
+    private function touchToken(string $deviceToken): void
+    {
+        try {
+            \App\Models\DeviceToken::where('token', $deviceToken)
+                ->update(['last_used_at' => now()]);
+        } catch (\Throwable $e) {
+            Log::error('Failed to update FCM token usage', [
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
+    public function sendToMultiple(array $deviceTokens, string $title, string $body, array $data = [], string $channelId = 'petheal_notifications'): array
     {
         $results = [];
         foreach ($deviceTokens as $token) {
-            $results[$token] = $this->sendToDevice($token, $title, $body, $data);
+            $results[$token] = $this->sendToDevice($token, $title, $body, $data, $channelId);
         }
         return $results;
     }
 
-    public function sendToUser(int $userId, string $title, string $body, array $data = []): bool
+    public function sendToUser(int $userId, string $title, string $body, array $data = [], string $channelId = 'petheal_notifications'): bool
     {
         $this->storeNotification($userId, $title, $body, $data);
 
-        $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)->pluck('token')->toArray();
+        $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)
+            ->active()
+            ->pluck('token')
+            ->toArray();
         if (empty($deviceTokens)) {
             Log::warning("FCM: no device tokens found for user #{$userId}");
             return false;
         }
 
-        $results = $this->sendToMultiple($deviceTokens, $title, $body, $data);
+        $results = $this->sendToMultiple($deviceTokens, $title, $body, $data, $channelId);
         return in_array(true, $results, true);
     }
 
@@ -390,5 +461,147 @@ class FCMService
             'pet_id' => $petId,
             'doctor_id' => $doctorId,
         ]);
+    }
+
+    /**
+     * Notifikasi antrian.
+     *
+     * Hanya dikirim ketika status antrian benar-benar berubah (pemanggil
+     * memastikan itu). Isi sengaja pendek dan tidak memuat diagnosis.
+     */
+    public function sendQueueEvent(int $userId, string $event, Booking $booking, ?int $medicalRecordId = null): bool
+    {
+        $label = $booking->queue_number
+            ? 'A-' . str_pad((string) $booking->queue_number, 2, '0', STR_PAD_LEFT)
+            : null;
+        $petName = $booking->pet?->name ?? 'hewan Anda';
+        $doctorName = $booking->doctor?->name ?? 'dokter';
+        $clinicName = $booking->clinic?->name;
+
+        // Ruang pemeriksaan opsional. Tidak ada kolom ruang di tabel klinik,
+        // jadi nilainya dibaca dari pengaturan (`queue.announcement_room`,
+        // mis. "Ruang Pemeriksaan 2"). Bila belum diisi, aplikasi memakai
+        // kalimat umum tanpa mengarang nomor ruang.
+        $room = trim((string) AppSetting::getValue('queue.announcement_room', ''));
+
+        // Identitas satu peristiwa antrian. Dipakai aplikasi untuk menjamin
+        // satu panggilan hanya menghasilkan satu pengumuman suara, meski FCM
+        // mengirim ulang pesan yang sama. `called_at` berubah setiap kali
+        // dokter memanggil (termasuk panggil ulang), sehingga panggilan baru
+        // tetap diumumkan.
+        $eventId = $booking->id . ':' . $event;
+        if ($event === 'called') {
+            $eventId .= ':' . ($booking->called_at?->getTimestamp() ?? 'unknown');
+        }
+
+        [$title, $body] = match ($event) {
+            'checked_in' => [
+                'Check-in berhasil',
+                trim('Nomor antrian Anda ' . ($label ?? '-') . '. Silakan menunggu panggilan dokter.'),
+            ],
+            'called' => [
+                'Giliran pemeriksaan Anda',
+                trim('Nomor antrian ' . ($label ?? '-') . ' dipanggil. Silakan menuju ruang dokter ' . $doctorName . '.'),
+            ],
+            'consultation_started' => [
+                'Pemeriksaan dimulai',
+                "Pemeriksaan {$petName} sedang berlangsung.",
+            ],
+            'consultation_completed' => [
+                'Pemeriksaan selesai',
+                "Pemeriksaan {$petName} selesai. Hasil rekam medis sudah tersedia di aplikasi.",
+            ],
+            default => ['PetHeal', 'Status antrian Anda diperbarui.'],
+        };
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'queue_' . $event,
+            'category' => 'queue',
+            'title' => $title,
+            'body' => $body,
+            'queue_status' => (string) $booking->queue_status,
+            'queue_number' => $booking->queue_number,
+            'queue_label' => $label,
+            'queue_event' => $event,
+            'queue_event_id' => $eventId,
+            'doctor_name' => $doctorName,
+            'room' => $room !== '' ? $room : null,
+            'booking_id' => $booking->id,
+            'pet_id' => $booking->pet_id,
+            'doctor_id' => $booking->doctor_id,
+            'medical_record_id' => $medicalRecordId,
+            'pet_name' => $petName,
+            'clinic_name' => $clinicName,
+            // Bukan data-only: bila aplikasi tidak terlihat (background atau
+            // proses sudah dihentikan), sistem yang menampilkan notifikasi di
+            // channel `petheal_queue`. Aplikasi tetap membangun tray sendiri
+            // saat foreground, sehingga tidak pernah ada dua notifikasi.
+        ], 'petheal_queue');
+    }
+
+    /**
+     * Notifikasi permintaan layanan / penawaran.
+     *
+     * Catatan admin/dokter tidak dimasukkan ke judul/isi notifikasi — hanya
+     * ditampilkan di aplikasi setelah pemilik membuka detailnya.
+     */
+    public function sendServiceRequestEvent(int $userId, string $event, ServiceRequest $request): bool
+    {
+        $petName = $request->pet?->name ?? 'hewan Anda';
+
+        [$title, $body] = match ($event) {
+            'submitted' => [
+                'Permintaan layanan terkirim',
+                "Permintaan layanan untuk {$petName} sudah kami terima. Klinik akan segera meninjaunya.",
+            ],
+            'under_review' => [
+                'Permintaan layanan sedang ditinjau',
+                "Klinik sedang meninjau permintaan layanan untuk {$petName}.",
+            ],
+            'info_required' => [
+                'Klinik membutuhkan informasi tambahan',
+                "Silakan buka aplikasi untuk melihat informasi yang dibutuhkan klinik untuk {$petName}.",
+            ],
+            'doctor_evaluated' => [
+                'Evaluasi dokter selesai',
+                "Dokter sudah mengevaluasi permintaan layanan untuk {$petName}. Klinik akan menyiapkan penawarannya.",
+            ],
+            'offer_created' => [
+                'Penawaran layanan tersedia',
+                "Klinik telah mengirimkan penawaran layanan untuk {$petName}. Silakan buka aplikasi untuk melihat rincian biaya dan jadwal.",
+            ],
+            'offer_updated' => [
+                'Penawaran layanan diperbarui',
+                "Klinik memperbarui penawaran layanan untuk {$petName}. Silakan periksa rincian terbarunya.",
+            ],
+            'offer_expiring' => [
+                'Penawaran akan kedaluwarsa',
+                "Penawaran layanan untuk {$petName} akan segera berakhir. Silakan tinjau sebelum kedaluwarsa.",
+            ],
+            'rejected' => [
+                'Permintaan layanan ditolak',
+                "Klinik belum dapat memenuhi permintaan layanan untuk {$petName}. Silakan buka aplikasi untuk melihat alasannya.",
+            ],
+            'converted' => [
+                'Booking berhasil dibuat',
+                "Penawaran disetujui dan booking untuk {$petName} sudah dibuat. Silakan lanjutkan pembayaran.",
+            ],
+            'expired' => [
+                'Penawaran kedaluwarsa',
+                "Penawaran layanan untuk {$petName} sudah kedaluwarsa. Klinik perlu mengirim penawaran baru.",
+            ],
+            default => ['PetHeal', 'Status permintaan layanan Anda diperbarui.'],
+        };
+
+        return $this->sendToUser($userId, $title, $body, [
+            'type' => 'service_request',
+            'category' => 'service_request',
+            'service_request_event' => $event,
+            'service_request_id' => $request->id,
+            'status' => (string) $request->status,
+            'pet_id' => $request->pet_id,
+            'clinic_name' => $request->clinic?->name,
+            'pet_name' => $petName,
+        ], 'petheal_services');
     }
 }

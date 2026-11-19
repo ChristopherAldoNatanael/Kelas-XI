@@ -94,6 +94,22 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">calendar_month</span>
                     <span class="sidebar-text">Booking Saya</span>
                 </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.queue.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('doctor.queue.index') }}" @if(request()->routeIs('doctor.queue.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('doctor.queue.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">groups</span>
+                    <span class="sidebar-text">Antrian Pasien</span>
+                </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.service-requests.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('doctor.service-requests.index') }}" @if(request()->routeIs('doctor.service-requests.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('doctor.service-requests.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medical_information</span>
+                    <span class="sidebar-text">Evaluasi Layanan</span>
+                </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.medical-records.index') }}" @if(request()->routeIs('doctor.medical-records.*')) aria-current="page" @endif>
                     @if(request()->routeIs('doctor.medical-records.*'))
@@ -156,6 +172,14 @@
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">groups</span>
                     <span class="sidebar-text">{{ __('menu.queue') }}</span>
+                </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.service-requests.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.service-requests.index') }}" @if(request()->routeIs('admin.service-requests.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.service-requests.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">support_agent</span>
+                    <span class="sidebar-text">Permintaan Layanan</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.users.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.users.index') }}" @if(request()->routeIs('admin.users.*')) aria-current="page" @endif>

@@ -82,15 +82,31 @@ sealed class Screen(val route: String) {
     // "bookings/{bookingId}" agar tidak tertelan pola argumen.
     // `clinicSlug` = klinik yang dipilih user di layar detail/discovery. Alur
     // booking memakainya sebagai titik awal; langkah 2 tetap bisa diganti.
-    object BookingStart   : Screen("bookings/start?clinicSlug={clinicSlug}") {
-        fun createRoute(clinicSlug: String? = null) =
-            "bookings/start?clinicSlug=${clinicSlug.orEmpty()}"
+    // `petId` + `medicalRecordId` dipakai alur kontrol lanjutan dari rekam
+    // medis: hewan sudah terpilih dan booking baru tertaut ke rekam medis lama.
+    object BookingStart   : Screen("bookings/start?clinicSlug={clinicSlug}&petId={petId}&medicalRecordId={medicalRecordId}") {
+        fun createRoute(clinicSlug: String? = null, petId: Int? = null, medicalRecordId: Int? = null) =
+            "bookings/start?clinicSlug=${clinicSlug.orEmpty()}&petId=${petId ?: 0}&medicalRecordId=${medicalRecordId ?: 0}"
     }
-    object CreateBooking  : Screen("bookings/create/{doctorId}/{petId}") {  // before BookingDetail
-        fun createRoute(doctorId: Int, petId: Int) = "bookings/create/$doctorId/$petId"
+    object CreateBooking  : Screen("bookings/create/{doctorId}/{petId}?medicalRecordId={medicalRecordId}") {  // before BookingDetail
+        fun createRoute(doctorId: Int, petId: Int, medicalRecordId: Int? = null) =
+            "bookings/create/$doctorId/$petId?medicalRecordId=${medicalRecordId ?: 0}"
     }
     object BookingDetail  : Screen("bookings/{bookingId}") {
         fun createRoute(bookingId: Int) = "bookings/$bookingId"
+    }
+
+    // ── Service Requests ────────────────────────────────────────────────────
+    // Pengajuan kontrol / layanan di luar katalog. Booking tidak pernah
+    // dibuat dari sini sebelum penawaran disetujui.
+    object ServiceRequests : Screen("service-requests?openId={openId}&petId={petId}&clinicSlug={clinicSlug}&medicalRecordId={medicalRecordId}") {
+        fun createRoute(
+            openId: Int? = null,
+            petId: Int? = null,
+            clinicSlug: String? = null,
+            medicalRecordId: Int? = null
+        ) = "service-requests?openId=${openId ?: 0}&petId=${petId ?: 0}" +
+            "&clinicSlug=${clinicSlug.orEmpty()}&medicalRecordId=${medicalRecordId ?: 0}"
     }
 
     // ── Medical Records ─────────────────────────────────────────────────────

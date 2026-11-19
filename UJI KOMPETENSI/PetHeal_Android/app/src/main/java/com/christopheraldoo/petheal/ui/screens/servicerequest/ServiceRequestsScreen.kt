@@ -1,0 +1,826 @@
+package com.christopheraldoo.petheal.ui.screens.servicerequest
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.Pets
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SupportAgent
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import com.christopheraldoo.petheal.data.model.Pet
+import com.christopheraldoo.petheal.data.model.ServiceRequest
+import com.christopheraldoo.petheal.data.model.ServiceRequestOffer
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Error
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.InfoStrong
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.Success
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+import com.christopheraldoo.petheal.ui.theme.WarningText
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private val SrPrimary = Primary
+private val SrBg = Background
+private val SrSurface = Surface
+private val SrTextPrimary = OnBackground
+private val SrTextSecondary = TextSecondary
+
+private val idLocale = Locale("id", "ID")
+private val shortDate = DateTimeFormatter.ofPattern("d MMM", idLocale)
+private val longDate = DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale)
+
+/**
+ * Permintaan layanan: daftar, detail penawaran, dan form pengajuan.
+ *
+ * Satu layar untuk tiga keadaan (daftar → detail → form) supaya pemilik tidak
+ * kehilangan konteks saat menerima penawaran dari notifikasi. Tidak ada
+ * tombol yang membuat booking sebelum penawaran disetujui.
+ */
+@Composable
+fun ServiceRequestsScreen(
+    onNavigateBack: () -> Unit,
+    openId: Int? = null,
+    petId: Int? = null,
+    clinicSlug: String? = null,
+    medicalRecordId: Int? = null,
+    onNavigateToBooking: (Int) -> Unit = {},
+    viewModel: ServiceRequestsViewModel = hiltViewModel()
+) {
+    val state by viewModel.state.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.init(openId, petId, clinicSlug, medicalRecordId)
+    }
+
+    val onBack = {
+        when {
+            state.showForm -> viewModel.closeForm()
+            state.detail != null -> viewModel.closeDetail()
+            else -> onNavigateBack()
+        }
+    }
+
+    Column(Modifier.fillMaxSize().background(SrBg)) {
+        Surface(color = SrSurface) {
+            Column {
+                Row(
+                    Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = SrTextPrimary)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            when {
+                                state.showForm -> "Ajukan Layanan Lain"
+                                state.detail != null -> "Detail Permintaan"
+                                else -> "Permintaan Layanan"
+                            },
+                            color = SrTextPrimary,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            if (state.showForm) "Klinik akan meninjau kebutuhan Anda"
+                            else "Kontrol & layanan khusus",
+                            color = SrTextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                    if (!state.showForm && state.detail == null) {
+                        TextButton(onClick = { viewModel.openForm() }) {
+                            Text("Ajukan", color = SrPrimary, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                Divider(color = Outline, thickness = 0.5.dp)
+            }
+        }
+
+        state.submitMessage?.let { message ->
+            Banner(message = message, tone = Tone.SUCCESS, onDismiss = viewModel::clearMessages)
+        }
+        state.actionMessage?.let { message ->
+            Banner(message = message, tone = Tone.SUCCESS, onDismiss = viewModel::clearMessages)
+        }
+        state.actionError?.let { message ->
+            Banner(message = message, tone = Tone.ERROR, onDismiss = viewModel::clearMessages)
+        }
+
+        when {
+            state.showForm -> ServiceRequestForm(state = state, viewModel = viewModel)
+            state.detail != null -> ServiceRequestDetail(
+                request = state.detail!!,
+                isDetailLoading = state.isDetailLoading,
+                actionInProgressId = state.actionInProgressId,
+                onAccept = viewModel::acceptOffer,
+                onReject = viewModel::rejectOffer,
+                onOpenBooking = onNavigateToBooking
+            )
+            else -> ServiceRequestList(
+                state = state,
+                onRefresh = viewModel::loadRequests,
+                onDismissError = viewModel::clearError,
+                onOpen = viewModel::loadDetail,
+                onCreate = { viewModel.openForm() }
+            )
+        }
+    }
+}
+
+private enum class Tone { SUCCESS, ERROR }
+
+@Composable
+private fun Banner(message: String, tone: Tone, onDismiss: (() -> Unit)? = null) {
+    val (bg, fg) = when (tone) {
+        Tone.SUCCESS -> SuccessSoft to Color(0xFF047857)
+        Tone.ERROR -> ErrorSoft to Error
+    }
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(14.dp)).background(bg).padding(horizontal = 14.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(message, modifier = Modifier.weight(1f), color = fg, fontSize = 12.sp, lineHeight = 17.sp)
+        if (onDismiss != null) {
+            TextButton(onClick = onDismiss, contentPadding = PaddingValues(0.dp)) {
+                Text("Tutup", color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceRequestList(
+    state: ServiceRequestsUiState,
+    onRefresh: () -> Unit,
+    onDismissError: () -> Unit,
+    onOpen: (Int) -> Unit,
+    onCreate: () -> Unit
+) {
+    when {
+        state.isLoading && state.requests.isEmpty() -> LoadingBlock("Memuat permintaan…")
+        state.error != null && state.requests.isEmpty() -> ErrorBlock(state.error, onRefresh)
+        state.requests.isEmpty() -> EmptyRequests(onCreate)
+        else -> LazyColumn(
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(18.dp),
+                    color = PrimaryLight,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Filled.SupportAgent, null, tint = SrPrimary, modifier = Modifier.size(22.dp))
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("Butuh layanan yang belum tersedia?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+                            Text(
+                                "Ajukan permintaan dan klinik akan meninjau, lalu mengirim penawaran biaya dan jadwal.",
+                                fontSize = 12.sp,
+                                color = SrTextSecondary,
+                                lineHeight = 17.sp
+                            )
+                            TextButton(onClick = onCreate, contentPadding = PaddingValues(0.dp)) {
+                                Text("Ajukan Layanan Lain", color = SrPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Daftar sudah tampil (mungkin dari cache); galat hanya perlu
+            // ditutup, bukan memicu permintaan ulang diam-diam.
+            if (state.error != null) {
+                item { Banner(state.error, Tone.ERROR, onDismiss = onDismissError) }
+            }
+
+            items(state.requests, key = { it.id ?: it.hashCode() }) { request ->
+                ServiceRequestCard(request) { request.id?.let(onOpen) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceRequestCard(request: ServiceRequest, onClick: () -> Unit) {
+    val (bg, fg) = statusColors(request.status)
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = SrSurface,
+        border = BorderStroke(1.dp, Outline),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(request.code ?: "Permintaan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+                Surface(shape = RoundedCornerShape(999.dp), color = bg) {
+                    Text(
+                        request.statusLabel ?: request.status.orEmpty(),
+                        color = fg,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp)
+                    )
+                }
+            }
+            Text(
+                buildString {
+                    append(request.pet?.name ?: "Hewan")
+                    request.clinic?.name?.let { append(" · $it") }
+                },
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = SrTextPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(request.needTypeLabel ?: "", fontSize = 11.sp, color = SrTextSecondary)
+            request.complaint?.takeIf { it.isNotBlank() }?.let {
+                Text(it, fontSize = 12.sp, color = SrTextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp)
+            }
+            if (request.offer != null && request.canRespond) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.CheckCircle, null, tint = SrPrimary, modifier = Modifier.size(14.dp))
+                    Text("Penawaran menunggu persetujuan Anda", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SrPrimary)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyRequests(onCreate: () -> Unit) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(Modifier.size(72.dp).clip(CircleShape).background(PrimaryLight), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Description, null, tint = SrPrimary, modifier = Modifier.size(34.dp))
+        }
+        Spacer(Modifier.height(14.dp))
+        Text("Belum ada permintaan layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Ajukan layanan yang belum ada di katalog klinik — mis. pemeriksaan khusus atau kontrol lanjutan.",
+            fontSize = 13.sp,
+            color = SrTextSecondary,
+            textAlign = TextAlign.Center,
+            lineHeight = 18.sp
+        )
+        Spacer(Modifier.height(18.dp))
+        Button(
+            onClick = onCreate,
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+        ) {
+            Text("Ajukan Layanan Lain", fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+private fun ServiceRequestDetail(
+    request: ServiceRequest,
+    isDetailLoading: Boolean,
+    actionInProgressId: Int?,
+    onAccept: (Int, String?) -> Unit,
+    onReject: (Int, String?) -> Unit,
+    onOpenBooking: (Int) -> Unit
+) {
+    var confirmAccept by remember { mutableStateOf(false) }
+    var confirmReject by remember { mutableStateOf(false) }
+    val busy = actionInProgressId != null
+
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(request.code ?: "", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
+                Text(
+                    request.needTypeLabel ?: "Permintaan layanan",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SrTextPrimary
+                )
+                Text(request.statusLabel ?: request.status.orEmpty(), fontSize = 12.sp, color = statusColors(request.status).second, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        item {
+            Surface(shape = RoundedCornerShape(18.dp), color = SrSurface, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    InfoRow(Icons.Filled.Pets, request.pet?.name ?: "Hewan")
+                    InfoRow(Icons.Filled.LocalHospital, request.clinic?.name ?: "Klinik")
+                    request.preferredDate?.let { date ->
+                        InfoRow(
+                            Icons.Filled.Schedule,
+                            "Preferensi: $date${request.preferredTime?.let { " · $it" } ?: ""}"
+                        )
+                    }
+                    request.doctor?.name?.let { InfoRow(Icons.Filled.SupportAgent, "Dokter rujukan: $it") }
+                }
+            }
+        }
+
+        item {
+            Surface(shape = RoundedCornerShape(18.dp), color = SrSurface, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Keluhan / kebutuhan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
+                    Text(request.complaint ?: "-", fontSize = 14.sp, color = SrTextPrimary, lineHeight = 20.sp)
+                }
+            }
+        }
+
+        request.doctorRecommendation?.takeIf { it.isNotBlank() }?.let { recommendation ->
+            item {
+                Surface(shape = RoundedCornerShape(18.dp), color = InfoSoft, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Evaluasi dokter", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = InfoStrong)
+                        Text(recommendation, fontSize = 13.sp, color = SrTextPrimary, lineHeight = 19.sp)
+                        if (request.needsFollowUp == true) {
+                            Text("Kontrol lanjutan disarankan.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = WarningText)
+                        }
+                    }
+                }
+            }
+        }
+
+        request.offer?.let { offer ->
+            item { OfferCard(offer) }
+        }
+
+        request.adminNotes?.takeIf { it.isNotBlank() }?.let { note ->
+            item {
+                Surface(shape = RoundedCornerShape(18.dp), color = WarningSoft, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("Catatan klinik", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WarningText)
+                        Text(note, fontSize = 13.sp, color = SrTextPrimary, lineHeight = 19.sp)
+                    }
+                }
+            }
+        }
+
+        if (isDetailLoading) {
+            item { LoadingBlock("Memuat detail…") }
+        }
+
+        if (request.canRespond && request.id != null) {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    OutlinedButton(
+                        onClick = { confirmReject = true },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        border = BorderStroke(1.dp, Error)
+                    ) {
+                        Text("Tolak", color = Error, fontWeight = FontWeight.SemiBold)
+                    }
+                    Button(
+                        onClick = { confirmAccept = true },
+                        enabled = !busy,
+                        modifier = Modifier.weight(1.4f).height(48.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+                    ) {
+                        if (busy) {
+                            CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                        } else {
+                            Text("Setujui Penawaran", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (request.status == "converted_to_booking" && request.bookingId != null) {
+            item {
+                Surface(shape = RoundedCornerShape(18.dp), color = SuccessSoft, modifier = Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Booking sudah dibuat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        Text(
+                            "Selesaikan pembayaran dari detail booking agar jadwal Anda terkonfirmasi.",
+                            fontSize = 12.sp,
+                            color = SrTextPrimary,
+                            lineHeight = 17.sp
+                        )
+                        Button(
+                            onClick = { onOpenBooking(request.bookingId) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = SnackGreen)
+                        ) {
+                            Text("Buka Booking", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (confirmAccept && request.id != null) {
+        AlertDialog(
+            onDismissRequest = { confirmAccept = false },
+            title = { Text("Setujui penawaran?") },
+            text = { Text("Booking akan dibuat dengan harga dan jadwal pada penawaran. Pembayaran tetap melalui alur pembayaran PetHeal.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmAccept = false
+                    onAccept(request.id, null)
+                }) { Text("Setujui", color = SrPrimary, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmAccept = false }) { Text("Batal", color = SrTextSecondary) }
+            }
+        )
+    }
+
+    if (confirmReject && request.id != null) {
+        AlertDialog(
+            onDismissRequest = { confirmReject = false },
+            title = { Text("Tolak penawaran?") },
+            text = { Text("Tidak ada booking atau pembayaran yang dibuat. Riwayat permintaan tetap tersimpan.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmReject = false
+                    onReject(request.id, null)
+                }) { Text("Tolak", color = Error, fontWeight = FontWeight.Bold) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmReject = false }) { Text("Batal", color = SrTextSecondary) }
+            }
+        )
+    }
+}
+
+private val SnackGreen = Color(0xFF047857)
+
+@Composable
+private fun OfferCard(offer: ServiceRequestOffer) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = SrSurface,
+        border = BorderStroke(1.dp, SrPrimary.copy(alpha = 0.35f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text("Penawaran Klinik", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
+                Text(
+                    if (offer.priceType == "estimate") "Estimasi biaya" else "Harga final",
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (offer.priceType == "estimate") WarningText else Color(0xFF047857)
+                )
+            }
+            Text(offer.serviceName ?: "Layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+            offer.description?.takeIf { it.isNotBlank() }?.let {
+                Text(it, fontSize = 12.sp, color = SrTextSecondary, lineHeight = 17.sp)
+            }
+            offer.price?.let { price ->
+                Text(
+                    "Rp ${"%,.0f".format(price).replace(',', '.')}",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = SrTextPrimary
+                )
+            }
+            if (offer.priceType == "estimate") {
+                Text(
+                    "Biaya akhir dapat berubah setelah pemeriksaan dan akan dikomunikasikan sebelum tindakan tambahan.",
+                    fontSize = 11.sp,
+                    color = WarningText,
+                    lineHeight = 16.sp
+                )
+            }
+            offer.doctorName?.let { InfoRow(Icons.Filled.SupportAgent, it) }
+            if (offer.scheduleDate != null) {
+                InfoRow(Icons.Filled.Schedule, "${offer.scheduleDate} · ${offer.scheduleTime ?: "-"}")
+            }
+            offer.durationMinutes?.let { InfoRow(Icons.Filled.Schedule, "Perkiraan $it menit") }
+            offer.validUntil?.take(10)?.let { InfoRow(Icons.Filled.Schedule, "Berlaku sampai $it") }
+            offer.notes?.takeIf { it.isNotBlank() }?.let {
+                Text(it, fontSize = 12.sp, color = SrTextSecondary, lineHeight = 17.sp)
+            }
+        }
+    }
+}
+
+@Composable
+private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, tint = SrTextSecondary, modifier = Modifier.size(15.dp))
+        Text(text, fontSize = 12.sp, color = SrTextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+@Composable
+private fun ServiceRequestForm(
+    state: ServiceRequestsUiState,
+    viewModel: ServiceRequestsViewModel
+) {
+    if (state.isLoadingForm) {
+        LoadingBlock("Menyiapkan form…")
+        return
+    }
+
+    val dates = remember { (0..6).map { LocalDate.now().plusDays(it.toLong()) } }
+
+    LazyColumn(
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        state.formError?.let { error ->
+            item { Banner(error, Tone.ERROR, onDismiss = viewModel::clearMessages) }
+        }
+
+        item {
+            FormLabel("Klinik tujuan")
+            state.clinics.forEach { clinic ->
+                SelectRow(
+                    selected = state.selectedClinicId == clinic.id,
+                    title = clinic.name ?: "Klinik",
+                    subtitle = clinic.address,
+                    onClick = { clinic.id?.let(viewModel::selectClinic) }
+                )
+            }
+            if (state.clinics.isEmpty()) {
+                Text("Belum ada klinik yang bisa dipilih.", fontSize = 12.sp, color = SrTextSecondary)
+            }
+        }
+
+        item {
+            FormLabel("Hewan")
+            state.pets.forEach { pet: Pet ->
+                SelectRow(
+                    selected = state.selectedPetId == pet.id,
+                    title = pet.name ?: "Hewan",
+                    subtitle = pet.species,
+                    onClick = { pet.id?.let(viewModel::selectPet) }
+                )
+            }
+            if (state.pets.isEmpty()) {
+                Text("Tambahkan hewan terlebih dahulu di menu Hewan.", fontSize = 12.sp, color = SrTextSecondary)
+            }
+        }
+
+        item {
+            FormLabel("Jenis kebutuhan")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(SERVICE_REQUEST_NEED_TYPES) { (value, label) ->
+                    val selected = state.needType == value
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = if (selected) SrPrimary else SrSurface,
+                        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
+                        modifier = Modifier.clickable { viewModel.setNeedType(value) }
+                    ) {
+                        Text(
+                            label,
+                            fontSize = 12.sp,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) Color.White else SrTextPrimary,
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            FormLabel("Keluhan / penjelasan")
+            OutlinedTextField(
+                value = state.complaint,
+                onValueChange = viewModel::setComplaint,
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 4,
+                placeholder = { Text("Jelaskan kondisi hewan dan layanan yang dibutuhkan (min. 10 karakter).", fontSize = 12.sp) },
+                shape = RoundedCornerShape(14.dp)
+            )
+            if (state.complaint.isNotBlank() && state.complaint.trim().length < 10) {
+                Text("Minimal 10 karakter.", fontSize = 11.sp, color = Error)
+            }
+            if (state.sourceMedicalRecordId != null) {
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "Terhubung dengan rekam medis #${state.sourceMedicalRecordId}",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = SrPrimary
+                )
+            }
+        }
+
+        item {
+            FormLabel("Preferensi tanggal (opsional)")
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                item {
+                    SelectChip(
+                        label = "Fleksibel",
+                        selected = state.preferredDate == null,
+                        onClick = { viewModel.setPreferredDate(null) }
+                    )
+                }
+                items(dates) { date ->
+                    SelectChip(
+                        label = date.format(shortDate),
+                        selected = state.preferredDate == date,
+                        onClick = { viewModel.setPreferredDate(date) }
+                    )
+                }
+            }
+        }
+
+        if (state.preferredDate != null) {
+            item {
+                FormLabel("Preferensi jam (opsional)")
+                OutlinedTextField(
+                    value = state.preferredTime,
+                    onValueChange = viewModel::setPreferredTime,
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("HH:mm, mis. 10:30", fontSize = 12.sp) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp)
+                )
+            }
+        }
+
+        item {
+            Button(
+                onClick = viewModel::submit,
+                enabled = state.canSubmit,
+                modifier = Modifier.fillMaxWidth().height(50.dp).navigationBarsPadding(),
+                shape = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+            ) {
+                if (state.isSubmitting) {
+                    CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+                } else {
+                    Text("Kirim Permintaan", fontWeight = FontWeight.SemiBold)
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Permintaan ini bukan booking. Klinik akan meninjau dan mengirim penawaran biaya serta jadwal untuk Anda setujui.",
+                fontSize = 11.sp,
+                color = TextTertiary,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+@Composable
+private fun FormLabel(text: String) {
+    Text(text, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary, modifier = Modifier.padding(bottom = 8.dp))
+}
+
+@Composable
+private fun SelectRow(selected: Boolean, title: String, subtitle: String?, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = if (selected) PrimaryLight else SrSurface,
+        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
+        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp).clickable(onClick = onClick)
+    ) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(title, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = SrTextPrimary)
+                subtitle?.takeIf { it.isNotBlank() }?.let {
+                    Text(it, fontSize = 11.sp, color = SrTextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (selected) {
+                Icon(Icons.Filled.CheckCircle, null, tint = SrPrimary, modifier = Modifier.size(20.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = if (selected) SrPrimary else SrSurface,
+        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Text(
+            label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) Color.White else SrTextPrimary,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
+        )
+    }
+}
+
+@Composable
+private fun LoadingBlock(message: String) {
+    Column(
+        Modifier.fillMaxWidth().padding(top = 64.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        CircularProgressIndicator(color = SrPrimary, strokeWidth = 2.5.dp, modifier = Modifier.size(30.dp))
+        Text(message, fontSize = 13.sp, color = SrTextSecondary)
+    }
+}
+
+@Composable
+private fun ErrorBlock(message: String, onRetry: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(Icons.Filled.ErrorOutline, null, tint = Error, modifier = Modifier.size(34.dp))
+        Text(message, fontSize = 13.sp, color = SrTextSecondary, textAlign = TextAlign.Center)
+        OutlinedButton(onClick = onRetry, shape = RoundedCornerShape(12.dp)) {
+            Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Coba lagi")
+        }
+    }
+}
+
+private fun statusColors(status: String?): Pair<Color, Color> = when (status) {
+    "offered" -> PrimaryLight to SrPrimary
+    "accepted", "converted_to_booking" -> SuccessSoft to Success
+    "rejected", "cancelled", "expired" -> ErrorSoft to Error
+    "waiting_doctor_review" -> WarningSoft to WarningText
+    else -> InfoSoft to InfoStrong
+}

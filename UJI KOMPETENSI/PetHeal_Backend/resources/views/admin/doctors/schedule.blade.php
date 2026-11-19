@@ -52,7 +52,7 @@
             :value="$weeklyLabel !== '' ? $weeklyLabel : __('admin.no_practice_days')"
             icon="calendar_month"
             tone="blue"
-            :hint="$doctor->start_time . ' - ' . $doctor->end_time . ' WIB'" />
+            :hint="substr((string) $doctor->start_time, 0, 5) . ' - ' . substr((string) $doctor->end_time, 0, 5) . ' WIB'" />
 
         <x-admin.stat-card
             :label="__('admin.next_leave')"

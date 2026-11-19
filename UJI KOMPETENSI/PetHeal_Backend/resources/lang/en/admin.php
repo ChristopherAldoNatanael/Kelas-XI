@@ -835,6 +835,7 @@ return [
     'queue_serving' => 'In consultation',
     'queue_serving_desc' => 'Patients currently with the doctor.',
     'queue_finished' => 'Completed & absent',
+    'queue_finished_desc' => 'Patients whose visit is done or who did not respond to the call.',
     'queue_empty_finished' => 'Nothing completed yet today.',
     'queue_no_show' => 'No show',
     'queue_no_show_concept' => 'The number stays used so the order never shifts.',

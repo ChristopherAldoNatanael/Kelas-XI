@@ -96,12 +96,12 @@
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label for="start_time" class="admin-label">{{ __('admin.start_time') }} <span class="text-rose-500">*</span></label>
-                            <input type="time" name="start_time" id="start_time" value="{{ old('start_time', $doctor->start_time) }}" required class="admin-input">
+                            <input type="time" name="start_time" id="start_time" value="{{ old('start_time', $doctor->start_time ? substr((string) $doctor->start_time, 0, 5) : '') }}" required class="admin-input">
                             @error('start_time') <p class="admin-error">{{ $message }}</p> @enderror
                         </div>
                         <div>
                             <label for="end_time" class="admin-label">{{ __('admin.end_time') }} <span class="text-rose-500">*</span></label>
-                            <input type="time" name="end_time" id="end_time" value="{{ old('end_time', $doctor->end_time) }}" required class="admin-input">
+                            <input type="time" name="end_time" id="end_time" value="{{ old('end_time', $doctor->end_time ? substr((string) $doctor->end_time, 0, 5) : '') }}" required class="admin-input">
                             @error('end_time') <p class="admin-error">{{ $message }}</p> @enderror
                         </div>
                     </div>

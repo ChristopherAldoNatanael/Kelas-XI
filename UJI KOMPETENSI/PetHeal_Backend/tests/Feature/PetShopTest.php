@@ -40,10 +40,16 @@ class PetShopTest extends TestCase
     {
         parent::setUp();
 
+        // Kredensial pusat di .env developer tidak boleh memengaruhi test:
+        // kalau akun pusat terisi, "bayar online" jadi tersedia dan skenario
+        // "klinik belum punya pembayaran online" tidak terbentuk. Kosongkan
+        // eksplisit agar hasil test sama di mesin mana pun.
         config([
             'services.midtrans.partner.enabled' => false,
             'services.midtrans.environment' => 'sandbox',
             'services.midtrans.server_key' => 'petshop-test-server-key',
+            'services.midtrans.central.sandbox.server_key' => '',
+            'services.midtrans.central.production.server_key' => '',
         ]);
 
         $this->suffix = strtolower(Str::random(6));
@@ -332,7 +338,7 @@ class PetShopTest extends TestCase
 
     // ---------- payment gating ----------
 
-    public function test_online_order_is_rejected_and_released_when_partner_is_not_ready(): void
+    public function test_online_order_is_rejected_before_an_order_is_created(): void
     {
         config(['services.midtrans.partner.enabled' => false]);
 
@@ -341,13 +347,13 @@ class PetShopTest extends TestCase
             'payment_method' => ProductOrder::METHOD_ONLINE,
         ])->assertStatus(422)->assertJsonPath('code', 'online_payment_unavailable');
 
-        $order = ProductOrder::where('user_id', $this->owner->id)->firstOrFail();
-        $this->assertSame(ProductOrder::STATUS_CANCELLED, $order->status);
-        $this->assertNotNull($order->stock_released_at);
+        // Controller memeriksa ketersediaan online payment SEBELUM membuat
+        // pesanan, jadi tidak ada order setengah jadi yang perlu dibatalkan,
+        // stok tidak pernah direservasi, dan tidak ada baris pembayaran.
+        $this->assertSame(0, ProductOrder::where('user_id', $this->owner->id)->count());
         $this->assertSame(0, (int) $this->variantA->fresh()->stock_reserved);
-        $this->assertSame(0, Payment::where('payable_type', ProductOrder::class)
-            ->where('payable_id', $order->id)
-            ->count());
+        $this->assertSame(10, (int) $this->variantA->fresh()->stock_on_hand);
+        $this->assertSame(0, Payment::where('payable_type', ProductOrder::class)->count());
     }
 
     public function test_pet_shop_webhook_marks_payment_and_order_paid(): void

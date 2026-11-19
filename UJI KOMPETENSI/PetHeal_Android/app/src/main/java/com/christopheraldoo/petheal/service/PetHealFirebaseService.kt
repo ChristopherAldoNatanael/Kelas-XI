@@ -1,17 +1,19 @@
 package com.christopheraldoo.petheal.service
 
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
-import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import com.christopheraldoo.petheal.MainActivity
 import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.data.model.AppNotification
+import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.repository.DeviceTokenRepository
 import com.christopheraldoo.petheal.data.repository.NotificationRepository
+import com.christopheraldoo.petheal.util.QueueAnnouncement
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import dagger.hilt.android.AndroidEntryPoint
@@ -28,6 +30,10 @@ class PetHealFirebaseService : FirebaseMessagingService() {
 
     @Inject lateinit var deviceTokenRepository: DeviceTokenRepository
     @Inject lateinit var notificationRepository: NotificationRepository
+    @Inject lateinit var preferencesManager: PreferencesManager
+    @Inject lateinit var queueAnnouncementPlayer: QueueAnnouncementPlayer
+    @Inject lateinit var queueAnnouncementLedger: QueueAnnouncementLedger
+    @Inject lateinit var appCoroutineScope: AppCoroutineScope
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -54,17 +60,66 @@ class PetHealFirebaseService : FirebaseMessagingService() {
         val medicalRecordId = message.data["medical_record_id"]?.toIntOrNull()
         val petId = message.data["pet_id"]?.toIntOrNull()
         val doctorId = message.data["doctor_id"]?.toIntOrNull()
+        val serviceRequestId = message.data["service_request_id"]?.toIntOrNull()
+        val queueLabel = message.data["queue_label"]
+        val queueEvent = message.data["queue_event"]
+        val queueEventId = message.data["queue_event_id"]
+        val doctorName = message.data["doctor_name"]
+        val room = message.data["room"]
+
+        // Hanya panggilan dokter (transisi status -> called) yang diumumkan.
+        // Check-in, pemeriksaan dimulai, atau refresh data tidak berbunyi.
+        val isQueueCall = type == "queue_called" &&
+            (queueEvent == "called" || message.data["queue_status"] == "called")
 
         val title = message.data["title"] ?: message.notification?.title ?: "PetHeal"
-        val body = when {
-            message.data["body"] != null -> message.data["body"].orEmpty()
-            type == "booking_status" -> "Status booking $petName untuk $date telah diperbarui ke $status."
-            type == "booking_reminder" -> "Jadwal $petName pada $date akan segera dimulai."
-            type == "vaccination_reminder" -> "Saatnya kunjungan berikutnya untuk $petName pada $date."
-            else -> message.notification?.body ?: ""
+        // Backend selalu mengirim `body` di dalam data; `notification.body`
+        // hanya cadangan untuk pesan yang dibuat dari konsol FCM. Cabang
+        // penyusun kalimat per tipe dulu tidak pernah tercapai karena
+        // diperiksa setelah `data["body"]`, jadi dihapus agar alurnya jelas.
+        val body = message.data["body"]?.takeIf { it.isNotBlank() }
+            ?: message.notification?.body
+            ?: ""
+
+        // Panggilan dokter harus tampil SEKETIKA. Service ini berumur pendek:
+        // begitu onMessageReceived selesai, onDestroy memanggil cancel() dan
+        // coroutine di serviceScope ikut mati. Karena itu keputusan suara dan
+        // pemanggilan showNotification dilakukan sinkron di sini, bukan di
+        // dalam launch.
+        val voiceCandidate = isQueueCall &&
+            AppVisibilityTracker.isForeground &&
+            preferencesManager.isQueueVoiceEnabledNow()
+
+        // Idempoten: satu peristiwa antrian hanya diumumkan (suara) sekali.
+        // Klaim juga dilakukan saat background agar pengiriman ulang FCM
+        // tidak tiba-tiba berbunyi ketika aplikasi dibuka kemudian.
+        //
+        // Notifikasi TETAP diposting meski peristiwa ini duplikat: id
+        // notifikasi stabil per booking, jadi posting ulang hanya mengganti
+        // kartu yang sama. Dulu klaim duplikat langsung `return` sehingga
+        // notifikasi bisa hilang sama sekali bila kiriman pertama gagal
+        // ditampilkan (mis. proses aplikasi mati sebelum sempat notify).
+        val alreadyAnnounced = isQueueCall && !queueEventId.isNullOrBlank() &&
+            !queueAnnouncementLedger.claim(queueEventId)
+
+        if (alreadyAnnounced) {
+            Log.d(TAG, "Duplikat event antrian: $queueEventId — suara dilewati")
         }
 
-        serviceScope.launch {
+        showNotification(
+            title = title,
+            body = body,
+            type = type,
+            bookingId = bookingId,
+            medicalRecordId = medicalRecordId,
+            petId = petId,
+            doctorId = doctorId,
+            serviceRequestId = serviceRequestId,
+            silentQueueCall = voiceCandidate || alreadyAnnounced
+        )
+
+        // Riwayat dan TTS tidak boleh bergantung pada umur service.
+        appCoroutineScope.scope.launch {
             notificationRepository.addNotification(
                 AppNotification(
                     id = UUID.randomUUID().toString(),
@@ -82,17 +137,29 @@ class PetHealFirebaseService : FirebaseMessagingService() {
                     isRead = false
                 )
             )
-        }
 
-        showNotification(
-            title = title,
-            body = body,
-            type = type,
-            bookingId = bookingId,
-            medicalRecordId = medicalRecordId,
-            petId = petId,
-            doctorId = doctorId
-        )
+            if (!voiceCandidate || alreadyAnnounced) return@launch
+
+            // TTS hanya saat aplikasi terlihat. Bila engine/locale Indonesia
+            // tidak tersedia, atau perangkat silent/DND, notifikasi yang tadi
+            // senyap diposting ulang di channel bersuara sebagai fallback.
+            val spoken = queueAnnouncementPlayer.speak(
+                QueueAnnouncement.buildText(queueLabel, doctorName, room)
+            )
+            if (!spoken) {
+                showNotification(
+                    title = title,
+                    body = body,
+                    type = type,
+                    bookingId = bookingId,
+                    medicalRecordId = medicalRecordId,
+                    petId = petId,
+                    doctorId = doctorId,
+                    serviceRequestId = serviceRequestId,
+                    silentQueueCall = false
+                )
+            }
+        }
     }
 
     private fun showNotification(
@@ -102,23 +169,28 @@ class PetHealFirebaseService : FirebaseMessagingService() {
         bookingId: Int?,
         medicalRecordId: Int?,
         petId: Int?,
-        doctorId: Int?
+        doctorId: Int?,
+        serviceRequestId: Int?,
+        silentQueueCall: Boolean = false
     ) {
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channel = channelFor(type)
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            notificationManager.getNotificationChannel(channel.id) == null
-        ) {
-            val notificationChannel = NotificationChannel(
-                channel.id,
-                getString(channel.nameRes),
-                channel.importance
-            ).apply {
-                description = getString(channel.descriptionRes)
-            }
-            notificationManager.createNotificationChannel(notificationChannel)
+        // Tanpa izin/channel aktif, `notify()` gagal tanpa error apa pun —
+        // gejalanya "notifikasi tidak muncul" padahal pengiriman sukses.
+        // Catat supaya penyebabnya terlihat di logcat, bukan ditebak.
+        if (!NotificationManagerCompat.from(this).areNotificationsEnabled()) {
+            Log.w(TAG, "Notifikasi diblokir pengguna (izin/channel) — $type tidak akan tampil")
         }
+        // Panggilan yang sudah diumumkan TTS memakai channel senyap; notifikasi
+        // tetap tampil tetapi tidak memutar nada kedua.
+        val channelId = if (silentQueueCall) {
+            NotificationChannels.QUEUE_VOICE
+        } else {
+            channelIdFor(type)
+        }
+
+        // Idempoten: channel biasanya sudah dibuat di Application, tetapi
+        // perangkat yang memperbarui aplikasi tanpa restart tetap aman.
+        NotificationChannels.ensureCreated(this)
 
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -128,11 +200,13 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             medicalRecordId?.let { putExtra("medical_record_id", it) }
             petId?.let { putExtra("pet_id", it) }
             doctorId?.let { putExtra("doctor_id", it) }
+            serviceRequestId?.let { putExtra("service_request_id", it) }
         }
 
         // Stable id per entity: a status update replaces the previous card
         // instead of stacking duplicates in the tray.
         val notificationId = when {
+            serviceRequestId != null -> 40_000 + serviceRequestId
             bookingId != null -> 10_000 + bookingId
             medicalRecordId != null -> 20_000 + medicalRecordId
             petId != null -> 30_000 + petId
@@ -146,7 +220,7 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(this, channel.id)
+        val builder = NotificationCompat.Builder(this, channelId)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(body)
@@ -155,60 +229,44 @@ class PetHealFirebaseService : FirebaseMessagingService() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
 
-        if (channel.id == CHANNEL_REMINDERS) {
-            builder.setCategory(NotificationCompat.CATEGORY_REMINDER)
+        when (channelId) {
+            NotificationChannels.REMINDERS -> builder.setCategory(NotificationCompat.CATEGORY_REMINDER)
+            NotificationChannels.QUEUE, NotificationChannels.QUEUE_VOICE ->
+                builder.setCategory(NotificationCompat.CATEGORY_CALL)
+            NotificationChannels.SERVICES -> builder.setCategory(NotificationCompat.CATEGORY_MESSAGE)
         }
 
         notificationManager.notify(notificationId, builder.build())
     }
 
-    private data class NotificationChannelSpec(
-        val id: String,
-        val nameRes: Int,
-        val descriptionRes: Int,
-        val importance: Int
-    )
+    /**
+     * Channel per jenis notifikasi. Definisi channel (nama, suara, importance)
+     * hanya ada di [NotificationChannels]; di sini cukup memilih id-nya.
+     */
+    private fun channelIdFor(type: String): String = when (type) {
+        "payment", "payment_status", "payment_reminder", "payment_due" ->
+            CHANNEL_PAYMENTS
 
-    private fun channelFor(type: String): NotificationChannelSpec {
-        return when (type) {
-            "payment", "payment_status", "payment_reminder", "payment_due" ->
-                NotificationChannelSpec(
-                    CHANNEL_PAYMENTS,
-                    R.string.notification_channel_payments,
-                    R.string.notification_channel_payments_desc,
-                    NotificationManager.IMPORTANCE_HIGH
-                )
+        "booking_reminder", "vaccination_reminder", "follow_up_reminder", "reminder" ->
+            CHANNEL_REMINDERS
 
-            "booking_reminder", "vaccination_reminder", "follow_up_reminder", "reminder" ->
-                NotificationChannelSpec(
-                    CHANNEL_REMINDERS,
-                    R.string.notification_channel_reminders,
-                    R.string.notification_channel_reminders_desc,
-                    NotificationManager.IMPORTANCE_HIGH
-                )
+        "booking", "booking_status" -> CHANNEL_BOOKINGS
 
-            "booking", "booking_status" ->
-                NotificationChannelSpec(
-                    CHANNEL_BOOKINGS,
-                    R.string.notification_channel_bookings,
-                    R.string.notification_channel_bookings_desc,
-                    NotificationManager.IMPORTANCE_DEFAULT
-                )
+        // Antrian: panggilan dokter butuh kanal sendiri (bunyi berbeda).
+        "queue", "queue_called", "queue_checked_in",
+        "queue_consultation_started", "queue_consultation_completed" ->
+            NotificationChannels.QUEUE
 
-            else ->
-                NotificationChannelSpec(
-                    CHANNEL_GENERAL,
-                    R.string.notification_channel_general,
-                    R.string.notification_channel_general_desc,
-                    NotificationManager.IMPORTANCE_DEFAULT
-                )
-        }
+        "service_request" -> NotificationChannels.SERVICES
+
+        else -> CHANNEL_GENERAL
     }
 
     private companion object {
-        const val CHANNEL_BOOKINGS = "petheal_bookings"
-        const val CHANNEL_REMINDERS = "petheal_reminders"
-        const val CHANNEL_PAYMENTS = "petheal_payments"
-        const val CHANNEL_GENERAL = "petheal_notifications"
+        const val TAG = "PetHealFCM"
+        const val CHANNEL_BOOKINGS = NotificationChannels.BOOKINGS
+        const val CHANNEL_REMINDERS = NotificationChannels.REMINDERS
+        const val CHANNEL_PAYMENTS = NotificationChannels.PAYMENTS
+        const val CHANNEL_GENERAL = NotificationChannels.GENERAL
     }
 }
