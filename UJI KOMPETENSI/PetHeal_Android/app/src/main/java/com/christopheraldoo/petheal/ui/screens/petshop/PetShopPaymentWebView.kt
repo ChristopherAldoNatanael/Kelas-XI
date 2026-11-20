@@ -18,13 +18,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,7 +40,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.christopheraldoo.petheal.ui.theme.OnBackground
-import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PetHealRadius
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
 
@@ -141,12 +145,14 @@ fun PetShopPaymentWebView(
             }
         }
 
-        Column(
+        Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .align(Alignment.TopCenter)
-                .background(Surface)
+                .align(Alignment.TopCenter),
+            color = Surface,
+            shadowElevation = 6.dp
         ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -165,19 +171,43 @@ fun PetShopPaymentWebView(
                     fontWeight = FontWeight.Bold,
                     color = OnBackground
                 )
-                IconButton(onClick = { handleCallback() }, enabled = !isSyncing) {
-                    if (isSyncing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Primary,
-                            strokeWidth = 2.dp
+                // Aksi "cek status" diberi label supaya jelas fungsinya;
+                // ikon saja membuat pembeli ragu menekannya.
+                Surface(
+                    onClick = { handleCallback() },
+                    enabled = !isSyncing,
+                    shape = RoundedCornerShape(PetHealRadius.pill),
+                    color = PrimaryLight
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isSyncing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(13.dp),
+                                color = Primary,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                Icons.Filled.Sync,
+                                contentDescription = null,
+                                tint = Primary,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Spacer(Modifier.width(5.dp))
+                        Text(
+                            text = if (isSyncing) "Memeriksa…" else "Cek status",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Primary
                         )
-                    } else {
-                        Icon(Icons.Filled.Sync, contentDescription = "Cek status pembayaran", tint = OnBackground)
                     }
                 }
             }
-            Divider(color = Outline)
+            }
         }
     }
 }

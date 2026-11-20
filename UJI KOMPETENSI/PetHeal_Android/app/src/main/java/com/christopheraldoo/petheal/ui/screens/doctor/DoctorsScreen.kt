@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -372,7 +371,7 @@ fun DoctorDetailScreen(
         } else {
                 Column(modifier = Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().verticalScroll(rememberScrollState())) {
                     // ── Profil dokter ─────────────────────────────────
-                    Box(modifier = Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(SurfaceDark, BgDark))).padding(20.dp)) {
+                    Box(modifier = Modifier.fillMaxWidth().background(SurfaceDark).padding(20.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             IconButton(onClick = onNavigateBack, modifier = Modifier.align(Alignment.Top)) {
                                 Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)

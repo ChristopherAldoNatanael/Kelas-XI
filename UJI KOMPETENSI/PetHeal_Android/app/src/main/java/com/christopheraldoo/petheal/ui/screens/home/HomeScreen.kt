@@ -82,7 +82,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -305,7 +304,6 @@ private fun HomeHero(
     onNavigateToProfile: () -> Unit
 ) {
     val brand = ClinicTheme.parsePrimaryColor(clinicColor)
-    val heroBottom = androidx.compose.ui.graphics.lerp(brand, Color.Black, 0.22f)
     val onHero = if (brand.luminance() > 0.55f) OnPrimaryStrong else Color.White
     val firstName = userName.trim().split(" ").firstOrNull { it.isNotBlank() }.orEmpty()
 
@@ -313,25 +311,8 @@ private fun HomeHero(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.verticalGradient(listOf(brand, heroBottom)))
+            .background(brand)
     ) {
-        // Dua lingkaran dekoratif — memberi kedalaman tanpa gambar/aset baru.
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 64.dp, y = (-88).dp)
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(onHero.copy(alpha = 0.08f))
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = (-56).dp, y = 56.dp)
-                .size(160.dp)
-                .clip(CircleShape)
-                .background(onHero.copy(alpha = 0.06f))
-        )
 
         Column(
             modifier = Modifier
@@ -416,7 +397,7 @@ private fun HomeHero(
                                 .size(if (unreadNotificationCount > 9) 18.dp else 15.dp)
                                 .clip(CircleShape)
                                 .background(ErrorStrong)
-                                .border(1.5.dp, heroBottom, CircleShape),
+                                .border(1.5.dp, brand, CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
@@ -1376,7 +1357,7 @@ private fun PetShopBanner(onClick: () -> Unit, modifier: Modifier = Modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Brush.horizontalGradient(listOf(PrimaryDark, Primary)))
+                .background(PrimaryDark)
                 .padding(horizontal = 16.dp, vertical = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)

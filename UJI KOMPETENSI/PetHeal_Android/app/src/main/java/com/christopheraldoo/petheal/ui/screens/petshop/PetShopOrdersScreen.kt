@@ -20,21 +20,20 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -43,12 +42,15 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.shimmerEffect
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.util.formatDateSafe
@@ -68,7 +70,11 @@ fun PetShopOrdersScreen(
         topBar = {
             PetShopHeader(
                 title = "Pesanan Saya",
-                subtitle = "Riwayat pembelian produk",
+                subtitle = when {
+                    uiState.isLoading -> "Memuat riwayat pembelian"
+                    uiState.orders.isEmpty() -> "Belum ada pesanan"
+                    else -> "${uiState.orders.size} pesanan · ambil di klinik"
+                },
                 onBack = onNavigateBack
             )
         }
@@ -80,9 +86,7 @@ fun PetShopOrdersScreen(
                 .background(Background)
         ) {
             when {
-                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Primary)
-                }
+                uiState.isLoading -> OrdersSkeleton()
                 uiState.error != null && uiState.orders.isEmpty() -> ErrorState(
                     title = "Pesanan belum bisa dimuat",
                     message = uiState.error.orEmpty(),
@@ -98,7 +102,7 @@ fun PetShopOrdersScreen(
                 )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(horizontal = ShopTheme.gutter, vertical = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     item {
@@ -107,9 +111,10 @@ fun PetShopOrdersScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                "${uiState.orders.size} pesanan terbaru",
+                                text = "${uiState.orders.size} pesanan terbaru",
                                 fontSize = 12.sp,
-                                color = TextSecondary,
+                                fontWeight = FontWeight.SemiBold,
+                                color = OnBackground,
                                 modifier = Modifier.weight(1f)
                             )
                             if (uiState.isRefreshing) {
@@ -119,8 +124,19 @@ fun PetShopOrdersScreen(
                                     strokeWidth = 2.dp
                                 )
                             } else {
-                                TextButton(onClick = { viewModel.refresh() }) {
-                                    Text("Muat ulang", fontSize = 12.sp, color = Primary)
+                                Surface(
+                                    onClick = { viewModel.refresh() },
+                                    shape = RoundedCornerShape(PetHealRadius.pill),
+                                    color = Surface,
+                                    border = BorderStroke(1.dp, Outline)
+                                ) {
+                                    Text(
+                                        text = "Muat ulang",
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = Primary
+                                    )
                                 }
                             }
                         }
@@ -141,8 +157,19 @@ fun PetShopOrdersScreen(
                                         strokeWidth = 2.dp
                                     )
                                 } else {
-                                    TextButton(onClick = { viewModel.loadMore() }) {
-                                        Text("Muat pesanan lain", fontSize = 12.sp, color = Primary)
+                                    Surface(
+                                        onClick = { viewModel.loadMore() },
+                                        shape = RoundedCornerShape(PetHealRadius.pill),
+                                        color = Surface,
+                                        border = BorderStroke(1.dp, Outline)
+                                    ) {
+                                        Text(
+                                            text = "Muat pesanan lain",
+                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                                            fontSize = 11.5.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Primary
+                                        )
                                     }
                                 }
                             }
@@ -158,24 +185,32 @@ fun PetShopOrdersScreen(
     }
 }
 
+/**
+ * Kartu pesanan.
+ *
+ * Susunannya mengikuti kebiasaan aplikasi belanja: nomor pesanan + status di
+ * atas, klinik penjual, potongan foto barang yang dibeli (supaya pesanan bisa
+ * dikenali dari gambarnya, bukan hanya teks), lalu total & status bayar.
+ */
 @Composable
 private fun OrderCard(order: PetShopOrder, onClick: () -> Unit) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(ShopTheme.cardRadius))
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        shape = RoundedCornerShape(ShopTheme.cardRadius),
+        color = Surface,
+        shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = order.orderNumber,
-                    fontSize = 12.sp,
+                    fontSize = 11.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary,
+                    color = TextTertiary,
+                    letterSpacing = 0.3.sp,
                     modifier = Modifier.weight(1f)
                 )
                 PetShopStatusBadge(orderStatusStyle(order.status))
@@ -187,7 +222,7 @@ private fun OrderCard(order: PetShopOrder, onClick: () -> Unit) {
                 Icon(
                     Icons.Filled.Storefront,
                     contentDescription = null,
-                    tint = TextTertiary,
+                    tint = Primary,
                     modifier = Modifier.size(15.dp)
                 )
                 Spacer(Modifier.width(6.dp))
@@ -197,28 +232,72 @@ private fun OrderCard(order: PetShopOrder, onClick: () -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                     color = OnBackground,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Text(
-                text = order.items.joinToString(", ") { "${it.productName} ×${it.quantity}" },
-                fontSize = 11.sp,
-                color = TextSecondary,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 16.sp
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                val shown = order.items.take(3)
+                shown.forEach { item ->
+                    PetShopImage(
+                        url = item.imageUrl,
+                        contentDescription = item.productName,
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                    )
+                    Spacer(Modifier.width(6.dp))
+                }
+                if (order.items.size > shown.size) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(SurfaceMuted),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "+${order.items.size - shown.size}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextSecondary
+                        )
+                    }
+                    Spacer(Modifier.width(10.dp))
+                } else {
+                    Spacer(Modifier.width(4.dp))
+                }
 
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = order.items.firstOrNull()?.productName.orEmpty(),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = OnBackground,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        lineHeight = 16.sp
+                    )
+                    if (order.items.size > 1) {
+                        Text(
+                            text = "+${order.items.size - 1} produk lain",
+                            fontSize = 10.sp,
+                            color = TextTertiary
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Outline))
             Spacer(Modifier.height(10.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        formatDateSafe(order.createdAt, "d MMM yyyy · HH:mm"),
+                        text = formatDateSafe(order.createdAt, "d MMM yyyy · HH:mm"),
                         fontSize = 10.sp,
                         color = TextTertiary
                     )
@@ -229,10 +308,8 @@ private fun OrderCard(order: PetShopOrder, onClick: () -> Unit) {
                         color = OnBackground
                     )
                 }
-                PetShopStatusBadge(
-                    style = paymentStatusStyle(order.paymentStatus),
-                    modifier = Modifier.padding(end = 6.dp)
-                )
+                PetShopStatusBadge(style = paymentStatusStyle(order.paymentStatus))
+                Spacer(Modifier.width(4.dp))
                 Icon(
                     Icons.Filled.ChevronRight,
                     contentDescription = null,
@@ -240,6 +317,51 @@ private fun OrderCard(order: PetShopOrder, onClick: () -> Unit) {
                     modifier = Modifier.size(18.dp)
                 )
             }
+
+            if (order.status == PetShopOrder.STATUS_READY_FOR_PICKUP) {
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(PetHealRadius.md))
+                        .background(PrimaryLight)
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Filled.QrCode2,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        text = "Siap diambil — tunjukkan kode pengambilan di klinik",
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Primary
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OrdersSkeleton() {
+    Column(
+        modifier = Modifier.padding(horizontal = ShopTheme.gutter, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        repeat(3) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(148.dp)
+                    .clip(RoundedCornerShape(ShopTheme.cardRadius))
+                    .background(SurfaceMuted)
+                    .shimmerEffect(true)
+            )
         }
     }
 }

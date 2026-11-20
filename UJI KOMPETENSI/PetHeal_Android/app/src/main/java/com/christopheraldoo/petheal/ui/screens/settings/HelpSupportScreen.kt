@@ -47,7 +47,6 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -98,11 +97,7 @@ fun HelpSupportScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.White, PrimaryLight)
-                    )
-                )
+                .background(PrimaryLight)
                 .padding(top = 18.dp, start = 18.dp, end = 18.dp, bottom = 26.dp)
         ) {
             Column {

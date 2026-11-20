@@ -9,32 +9,32 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,22 +46,25 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.border
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopClinicAvailability
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.shimmerEffect
 import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
-import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Background
-import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.OutlineStrong
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.PrimaryLight
@@ -74,7 +77,6 @@ import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.LocationResult
 import com.christopheraldoo.petheal.util.formatRupiah
-import kotlinx.coroutines.launch
 
 @Composable
 fun PetShopProductScreen(
@@ -115,205 +117,272 @@ fun PetShopProductScreen(
         uiState.notice?.let { viewModel.consumeNotice() }
     }
 
-    Scaffold(
-        containerColor = Background,
-        topBar = {
-            PetShopHeader(
-                title = "Detail Produk",
-                onBack = onNavigateBack,
-                cartCount = uiState.cartCount,
-                onOpenCart = onOpenCart,
-                onOpenOrders = onOpenOrders
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Background)
+    ) {
+        when {
+            uiState.isLoading -> ProductSkeleton(onNavigateBack, onOpenCart, onOpenOrders, uiState.cartCount)
+            uiState.error != null || product == null -> ErrorState(
+                title = "Produk tidak tersedia",
+                message = uiState.error ?: "Produk ini sudah tidak dijual.",
+                primaryActionText = "Coba lagi",
+                onPrimaryActionClick = { viewModel.load() }
             )
-        },
-        bottomBar = {
-            if (product != null && product.purchasableVariants.isNotEmpty()) {
-                PurchaseBar(
-                    price = (uiState.selectedVariant?.effectivePrice ?: 0L),
-                    quantity = uiState.quantity,
-                    canAdd = uiState.canAddToCart,
-                    onDecrease = viewModel::decrementQuantity,
-                    onIncrease = viewModel::incrementQuantity,
-                    onAdd = viewModel::addToCart
-                )
-            }
-        }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(Background)
-        ) {
-            when {
-                uiState.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Primary)
-                }
-                uiState.error != null || product == null -> ErrorState(
-                    title = "Produk tidak tersedia",
-                    message = uiState.error ?: "Produk ini sudah tidak dijual.",
-                    primaryActionText = "Coba lagi",
-                    onPrimaryActionClick = { viewModel.load() }
-                )
-                else -> Column(
+            else -> Column(modifier = Modifier.fillMaxSize()) {
+                Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    PetShopPhoto(
-                        url = product.imageUrl,
-                        contentDescription = product.name,
-                        categorySlug = product.category?.slug,
-                        categoryName = product.category?.name,
-                        iconSize = 72.dp,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(1.15f)
+                    PhotoHero(
+                        product = product,
+                        cartCount = uiState.cartCount,
+                        onNavigateBack = onNavigateBack,
+                        onOpenCart = onOpenCart,
+                        onOpenOrders = onOpenOrders
                     )
 
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        if (!product.brand.isNullOrBlank()) {
-                            Text(
-                                text = product.brand.orEmpty(),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = TextTertiary,
-                                letterSpacing = 0.6.sp
-                            )
-                            Spacer(Modifier.height(4.dp))
-                        }
+                    // Lembaran konten menaiki foto: pencapaian visual khas toko,
+                    // sekaligus memakai pola yang sama dengan detail hewan.
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(y = (-20).dp),
+                        shape = RoundedCornerShape(topStart = ShopTheme.headerBottom, topEnd = ShopTheme.headerBottom),
+                        color = Background
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            HeadBlock(product, uiState.selectedVariant)
 
-                        Text(
-                            text = product.name,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = OnBackground,
-                            lineHeight = 28.sp
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (product.category?.name != null) {
-                                PetShopPill(product.category.name, InfoSoft, Primary)
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            Text(
-                                text = if (product.soldCount > 0) "${product.soldCount} terjual" else "Produk baru",
-                                fontSize = 11.sp,
-                                color = TextSecondary
-                            )
-                        }
-
-                        Spacer(Modifier.height(16.dp))
-
-                        val selected = uiState.selectedVariant
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                text = formatRupiah((selected?.effectivePrice ?: product.priceMin ?: 0L).toDouble()),
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Primary
-                            )
-                            if (selected?.discountPrice != null) {
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = formatRupiah(selected.price.toDouble()),
-                                    fontSize = 13.sp,
-                                    color = TextTertiary,
-                                    textDecoration = TextDecoration.LineThrough,
-                                    modifier = Modifier.padding(bottom = 3.dp)
-                                )
-                            }
-                        }
-
-                        Spacer(Modifier.height(20.dp))
-
-                        if (product.variants.isNotEmpty()) {
-                            Text(
-                                "Pilih varian",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = OnBackground
-                            )
-                            Spacer(Modifier.height(10.dp))
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                product.variants.forEach { variant ->
-                                    VariantRow(
-                                        name = variant.name,
-                                        price = variant.effectivePrice,
-                                        originalPrice = variant.discountPrice?.let { variant.price },
-                                        stock = variant.availableStock,
-                                        selected = variant.id == uiState.selectedVariantId,
-                                        enabled = variant.isAvailable && variant.availableStock > 0,
-                                        onClick = { viewModel.selectVariant(variant.id) }
-                                    )
+                            if (product.variants.isNotEmpty()) {
+                                Spacer(Modifier.height(20.dp))
+                                ShopSectionTitle("Varian")
+                                Spacer(Modifier.height(10.dp))
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    product.variants.forEach { variant ->
+                                        VariantRow(
+                                            name = variant.name,
+                                            price = variant.effectivePrice,
+                                            originalPrice = variant.discountPrice?.let { variant.price },
+                                            stock = variant.availableStock,
+                                            selected = variant.id == uiState.selectedVariantId,
+                                            enabled = variant.isAvailable && variant.availableStock > 0,
+                                            onClick = { viewModel.selectVariant(variant.id) }
+                                        )
+                                    }
                                 }
                             }
-                            Spacer(Modifier.height(20.dp))
-                        }
 
-                        PickupClinicSection(
-                            clinics = uiState.pickupClinics,
-                            selectedClinicId = uiState.selectedClinicId,
-                            quantity = uiState.quantity,
-                            hasLocation = uiState.hasLocation,
-                            locationUnavailable = uiState.locationUnavailable,
-                            permissionGranted = locationPermission.isGranted,
-                            canRequestPermission = locationPermission.canRequest,
-                            isSwitching = uiState.isSwitchingClinic,
-                            onRequestLocation = {
-                                locationRequest++
-                                if (!locationPermission.isGranted) locationPermission.request()
-                            },
-                            onOpenSettings = locationPermission::openSettings,
-                            onSelect = viewModel::selectClinic
-                        )
-                        Spacer(Modifier.height(20.dp))
-
-                        SellerCard(product)
-                        Spacer(Modifier.height(12.dp))
-
-                        if (!product.description.isNullOrBlank()) {
-                            Text(
-                                "Tentang produk",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = OnBackground
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = product.description,
-                                fontSize = 13.sp,
-                                lineHeight = 20.sp,
-                                color = TextSecondary
-                            )
-                            Spacer(Modifier.height(16.dp))
-                        }
-
-                        Surface(
-                            color = SurfaceMuted,
-                            shape = RoundedCornerShape(PetHealRadius.md)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(14.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    Icons.Filled.ShoppingCart,
-                                    contentDescription = null,
-                                    tint = TextSecondary,
-                                    modifier = Modifier.size(18.dp)
+                            if (uiState.pickupClinics.isNotEmpty()) {
+                                Spacer(Modifier.height(20.dp))
+                                PickupClinicSection(
+                                    clinics = uiState.pickupClinics,
+                                    selectedClinicId = uiState.selectedClinicId,
+                                    quantity = uiState.quantity,
+                                    hasLocation = uiState.hasLocation,
+                                    locationUnavailable = uiState.locationUnavailable,
+                                    permissionGranted = locationPermission.isGranted,
+                                    canRequestPermission = locationPermission.canRequest,
+                                    isSwitching = uiState.isSwitchingClinic,
+                                    onRequestLocation = {
+                                        locationRequest++
+                                        if (!locationPermission.isGranted) locationPermission.request()
+                                    },
+                                    onOpenSettings = locationPermission::openSettings,
+                                    onSelect = viewModel::selectClinic
                                 )
-                                Spacer(Modifier.width(10.dp))
+                            }
+
+                            if (product.clinic != null) {
+                                Spacer(Modifier.height(20.dp))
+                                SellerCard(product.clinic.name.orEmpty(), product.clinic.address, product.clinic.onlinePaymentAvailable)
+                            }
+
+                            if (!product.description.isNullOrBlank()) {
+                                Spacer(Modifier.height(20.dp))
+                                ShopSectionTitle("Tentang produk")
+                                Spacer(Modifier.height(8.dp))
                                 Text(
-                                    "Stok diambil dari klinik penjual. Pesanan diambil langsung di klinik, bukan dikirim.",
-                                    fontSize = 11.sp,
-                                    lineHeight = 17.sp,
+                                    text = product.description.orEmpty(),
+                                    fontSize = 13.sp,
+                                    lineHeight = 20.sp,
                                     color = TextSecondary
                                 )
                             }
+
+                            Spacer(Modifier.height(16.dp))
+                            PetShopInfoBanner(
+                                "Stok diambil dari klinik penjual. Pesanan diambil langsung di klinik, bukan dikirim."
+                            )
+                            Spacer(Modifier.height(8.dp))
                         }
                     }
                 }
+
+                if (product.purchasableVariants.isNotEmpty()) {
+                    PurchaseBar(
+                        price = (uiState.selectedVariant?.effectivePrice ?: 0L),
+                        quantity = uiState.quantity,
+                        canAdd = uiState.canAddToCart,
+                        onDecrease = viewModel::decrementQuantity,
+                        onIncrease = viewModel::incrementQuantity,
+                        onAdd = viewModel::addToCart
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Foto produk full-bleed dengan tombol melayang di atasnya. */
+@Composable
+private fun PhotoHero(
+    product: com.christopheraldoo.petheal.data.model.PetShopProduct,
+    cartCount: Int,
+    onNavigateBack: () -> Unit,
+    onOpenCart: () -> Unit,
+    onOpenOrders: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1.05f)
+    ) {
+        PetShopPhoto(
+            url = product.imageUrl,
+            contentDescription = product.name,
+            categorySlug = product.category?.slug,
+            categoryName = product.category?.name,
+            iconSize = 72.dp,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Scrim tipis di belakang tombol: hanya untuk keterbacaan di foto
+        // terang, bukan hiasan. Karena itu paling gelap di bagian atas.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(96.dp)
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.Black.copy(alpha = 0.20f),
+                        1f to Color.Transparent
+                    )
+                )
+                .align(Alignment.TopCenter)
+        )
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Di atas foto, tombol memakai alas putih solid: kontras tetap
+            // terjaga apa pun warna gambarnya.
+            ShopRoundButton(
+                icon = Icons.Filled.ArrowBack,
+                contentDescription = "Kembali",
+                onClick = onNavigateBack,
+                tint = OnBackground,
+                container = Color.White.copy(alpha = 0.92f)
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                ShopRoundButton(
+                    icon = Icons.Outlined.ReceiptLong,
+                    contentDescription = "Pesanan saya",
+                    onClick = onOpenOrders,
+                    tint = OnBackground,
+                    container = Color.White.copy(alpha = 0.92f)
+                )
+                ShopRoundButton(
+                    icon = Icons.Filled.ShoppingBag,
+                    contentDescription = "Keranjang",
+                    onClick = onOpenCart,
+                    badgeCount = cartCount,
+                    tint = OnBackground,
+                    container = Color.White.copy(alpha = 0.92f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HeadBlock(
+    product: com.christopheraldoo.petheal.data.model.PetShopProduct,
+    selectedVariant: com.christopheraldoo.petheal.data.model.PetShopVariant?
+) {
+    if (!product.brand.isNullOrBlank()) {
+        Text(
+            text = product.brand.orEmpty(),
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextTertiary,
+            letterSpacing = 0.7.sp
+        )
+        Spacer(Modifier.height(4.dp))
+    }
+
+    Text(
+        text = product.name,
+        fontSize = 21.sp,
+        fontWeight = FontWeight.Bold,
+        color = OnBackground,
+        lineHeight = 27.sp
+    )
+
+    Spacer(Modifier.height(8.dp))
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (product.category?.name != null) {
+            PetShopPill(product.category.name, PrimaryLight, Primary)
+            Spacer(Modifier.width(8.dp))
+        }
+        Text(
+            text = if (product.soldCount > 0) "${product.soldCount} terjual" else "Produk baru",
+            fontSize = 11.sp,
+            color = TextSecondary
+        )
+    }
+
+    Spacer(Modifier.height(16.dp))
+
+    Row(verticalAlignment = Alignment.Bottom) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = formatRupiah((selectedVariant?.effectivePrice ?: product.priceMin ?: 0L).toDouble()),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                color = Primary,
+                lineHeight = 30.sp
+            )
+            if (selectedVariant?.discountPrice != null) {
+                Text(
+                    text = formatRupiah(selectedVariant.price.toDouble()),
+                    fontSize = 13.sp,
+                    color = TextTertiary,
+                    textDecoration = TextDecoration.LineThrough
+                )
+            }
+        }
+        val stock = selectedVariant?.availableStock ?: product.totalAvailableStock
+        if (stock <= 5) {
+            Surface(
+                shape = RoundedCornerShape(PetHealRadius.pill),
+                color = if (stock <= 0) SurfaceMuted else WarningSoft
+            ) {
+                Text(
+                    text = if (stock <= 0) "Stok habis" else "Sisa $stock",
+                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (stock <= 0) TextTertiary else WarningText
+                )
             }
         }
     }
@@ -332,14 +401,15 @@ private fun VariantRow(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(PetHealRadius.md))
+            .clip(RoundedCornerShape(ShopTheme.innerRadius))
             .clickable(enabled = enabled, onClick = onClick),
-        shape = RoundedCornerShape(PetHealRadius.md),
+        shape = RoundedCornerShape(ShopTheme.innerRadius),
         color = when {
             !enabled -> SurfaceMuted
             selected -> PrimaryLight
             else -> Surface
         },
+        shadowElevation = if (selected) 1.dp else 0.dp,
         border = BorderStroke(
             1.dp,
             when {
@@ -349,7 +419,7 @@ private fun VariantRow(
         )
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier.padding(start = 14.dp, end = 12.dp, top = 13.dp, bottom = 13.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -373,7 +443,7 @@ private fun VariantRow(
                 Text(
                     text = formatRupiah(price.toDouble()),
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = if (enabled) Primary else TextTertiary
                 )
                 if (originalPrice != null) {
@@ -385,46 +455,56 @@ private fun VariantRow(
                     )
                 }
             }
+            Spacer(Modifier.width(8.dp))
+            if (selected) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = "Varian dipilih",
+                    tint = Primary,
+                    modifier = Modifier.size(20.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(18.dp)
+                        .clip(CircleShape)
+                        .background(Surface)
+                        .border(1.2.dp, OutlineStrong, CircleShape)
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun SellerCard(product: com.christopheraldoo.petheal.data.model.PetShopProduct) {
-    val clinic = product.clinic ?: return
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
+private fun SellerCard(name: String, address: String?, onlinePaymentAvailable: Boolean) {
+    ShopCard {
         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(42.dp)
-                    .clip(RoundedCornerShape(PetHealRadius.md))
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(ShopTheme.innerRadius))
                     .background(PrimaryLight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    Icons.Filled.Storefront,
+                    imageVector = Icons.Filled.Storefront,
                     contentDescription = null,
                     tint = Primary,
-                    modifier = Modifier.size(21.dp)
+                    modifier = Modifier.size(22.dp)
                 )
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = clinic.name.orEmpty(),
+                    text = name,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = OnBackground
                 )
-                if (!clinic.address.isNullOrBlank()) {
+                if (!address.isNullOrBlank()) {
                     Text(
-                        text = clinic.address,
+                        text = address,
                         fontSize = 11.sp,
                         lineHeight = 16.sp,
                         color = TextSecondary,
@@ -432,8 +512,8 @@ private fun SellerCard(product: com.christopheraldoo.petheal.data.model.PetShopP
                     )
                 }
             }
-            if (clinic.onlinePaymentAvailable) {
-                PetShopPill("Online", PrimaryLight, Primary)
+            if (onlinePaymentAvailable) {
+                PetShopPill("Pembayaran online", PrimaryLight, Primary)
             }
         }
     }
@@ -455,12 +535,7 @@ private fun PickupClinicSection(
 ) {
     if (clinics.isEmpty()) return
 
-    Text(
-        "Ambil di Klinik",
-        fontSize = 14.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = OnBackground
-    )
+    ShopSectionTitle("Ambil di klinik")
     Spacer(Modifier.height(4.dp))
     Text(
         "Pesanan diambil langsung di klinik. Harga dan stok mengikuti klinik yang dipilih.",
@@ -468,15 +543,15 @@ private fun PickupClinicSection(
         lineHeight = 16.sp,
         color = TextSecondary
     )
-    Spacer(Modifier.height(10.dp))
+    Spacer(Modifier.height(12.dp))
 
     if (!hasLocation) {
         Surface(
             color = SurfaceMuted,
-            shape = RoundedCornerShape(PetHealRadius.md),
+            shape = RoundedCornerShape(ShopTheme.innerRadius),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(13.dp)) {
                 // Izin ditolak permanen: tidak ada dialog lagi, jadi arahkan
                 // ke pengaturan alih-alih mengaku "mengaktifkan lokasi".
                 val permissionBlocked = !permissionGranted && !canRequestPermission
@@ -502,7 +577,7 @@ private fun PickupClinicSection(
                         else ->
                             "Lokasi hanya dipakai sekali untuk menghitung jarak — tidak dilacak di latar belakang."
                     },
-                    fontSize = 10.sp,
+                    fontSize = 10.5.sp,
                     lineHeight = 15.sp,
                     color = TextSecondary
                 )
@@ -515,12 +590,12 @@ private fun PickupClinicSection(
                     else -> onOpenSettings
                 }
                 if (locationAction != null) {
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = locationAction,
                         colors = ButtonDefaults.buttonColors(containerColor = Primary),
                         shape = RoundedCornerShape(PetHealRadius.md),
-                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 7.dp)
                     ) {
                         Text(
                             when {
@@ -535,7 +610,7 @@ private fun PickupClinicSection(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -554,33 +629,44 @@ private fun PickupClinicSection(
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(RoundedCornerShape(PetHealRadius.md))
+                    .clip(RoundedCornerShape(ShopTheme.innerRadius))
                     .clickable(enabled = !isSwitching) { onSelect(clinic) },
-                shape = RoundedCornerShape(PetHealRadius.md),
+                shape = RoundedCornerShape(ShopTheme.innerRadius),
                 color = when {
                     !canServe -> SurfaceMuted
                     selected -> PrimaryLight
                     else -> Surface
                 },
+                shadowElevation = if (selected) 1.dp else 0.dp,
                 border = BorderStroke(1.dp, if (selected) Primary else Outline)
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Filled.LocalHospital,
-                        contentDescription = null,
-                        tint = if (canServe) Primary else TextTertiary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (canServe) PrimaryLight else SurfaceMuted),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            Icons.Filled.LocalHospital,
+                            contentDescription = null,
+                            tint = if (canServe) Primary else TextTertiary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                     Spacer(Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             clinic.name,
                             fontSize = 13.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            color = if (canServe) OnBackground else TextTertiary
+                            color = if (canServe) OnBackground else TextTertiary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
@@ -601,21 +687,12 @@ private fun PickupClinicSection(
                                 color = if (canServe) Primary else WarningText
                             )
                         }
-                        if (!clinic.address.isNullOrBlank()) {
-                            Text(
-                                clinic.address,
-                                fontSize = 10.sp,
-                                lineHeight = 14.sp,
-                                color = TextSecondary,
-                                maxLines = 1
-                            )
-                        }
                     }
                     if (price != null) {
                         Text(
                             formatRupiah(price.toDouble()),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 12.5.sp,
+                            fontWeight = FontWeight.Bold,
                             color = if (canServe) Primary else TextTertiary
                         )
                     }
@@ -644,19 +721,6 @@ private fun PickupClinicSection(
 }
 
 @Composable
-fun PetShopPill(text: String, background: Color, content: Color) {
-    Surface(shape = RoundedCornerShape(PetHealRadius.pill), color = background) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
-            fontSize = 10.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = content
-        )
-    }
-}
-
-@Composable
 private fun PurchaseBar(
     price: Long,
     quantity: Int,
@@ -665,20 +729,23 @@ private fun PurchaseBar(
     onIncrease: () -> Unit,
     onAdd: () -> Unit
 ) {
-    val navPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    Surface(color = Surface, shadowElevation = 12.dp) {
+    Surface(
+        color = Surface,
+        shadowElevation = 12.dp,
+        shape = RoundedCornerShape(topStart = ShopTheme.cardRadius, topEnd = ShopTheme.cardRadius)
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .padding(bottom = navPadding),
+                .navigationBarsPadding()
+                .padding(horizontal = 20.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column {
                 Text("Subtotal", fontSize = 10.sp, color = TextSecondary)
                 Text(
                     formatRupiah((price * quantity).toDouble()),
-                    fontSize = 15.sp,
+                    fontSize = 14.5.sp,
                     fontWeight = FontWeight.Bold,
                     color = OnBackground
                 )
@@ -706,6 +773,98 @@ private fun PurchaseBar(
                 Spacer(Modifier.width(8.dp))
                 Text("Tambah", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
+        }
+    }
+}
+
+@Composable
+private fun ProductSkeleton(
+    onNavigateBack: () -> Unit,
+    onOpenCart: () -> Unit,
+    onOpenOrders: () -> Unit,
+    cartCount: Int
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1.05f)
+                    .background(SurfaceMuted)
+                    .shimmerEffect(true)
+            )
+            Column(modifier = Modifier.padding(20.dp)) {
+                Box(
+                    modifier = Modifier
+                        .width(90.dp)
+                        .height(10.dp)
+                        .clip(RoundedCornerShape(PetHealRadius.sm))
+                        .background(SurfaceMuted)
+                        .shimmerEffect(true)
+                )
+                Spacer(Modifier.height(10.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(17.dp)
+                        .clip(RoundedCornerShape(PetHealRadius.sm))
+                        .background(SurfaceMuted)
+                        .shimmerEffect(true)
+                )
+                Spacer(Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.55f)
+                        .height(17.dp)
+                        .clip(RoundedCornerShape(PetHealRadius.sm))
+                        .background(SurfaceMuted)
+                        .shimmerEffect(true)
+                )
+                Spacer(Modifier.height(24.dp))
+                Box(
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(22.dp)
+                        .clip(RoundedCornerShape(PetHealRadius.sm))
+                        .background(SurfaceMuted)
+                        .shimmerEffect(true)
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            ShopRoundButton(
+                icon = Icons.Filled.ArrowBack,
+                contentDescription = "Kembali",
+                onClick = onNavigateBack
+            )
+            ShopRoundButton(
+                icon = Icons.Filled.ShoppingBag,
+                contentDescription = "Keranjang",
+                onClick = onOpenCart,
+                badgeCount = cartCount
+            )
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(16.dp)
+                .size(22.dp)
+        ) {
+            CircularProgressIndicator(
+                color = Primary,
+                strokeWidth = 2.dp,
+                modifier = Modifier.fillMaxSize()
+            )
         }
     }
 }

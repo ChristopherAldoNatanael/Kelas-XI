@@ -1,11 +1,12 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
-import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -19,11 +20,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CleaningServices
 import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.FlutterDash
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.material.icons.filled.Medication
@@ -31,15 +34,13 @@ import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.SetMeal
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Storefront
 import androidx.compose.material.icons.filled.Toys
 import androidx.compose.material.icons.filled.Water
 import androidx.compose.material.icons.outlined.ReceiptLong
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -49,8 +50,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +64,7 @@ import coil.compose.AsyncImage
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.model.PetShopProduct
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
+import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
@@ -76,12 +79,43 @@ import com.christopheraldoo.petheal.ui.theme.Secondary
 import com.christopheraldoo.petheal.ui.theme.SecondaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
+import com.christopheraldoo.petheal.ui.theme.Tertiary
+import com.christopheraldoo.petheal.ui.theme.TertiaryLight
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.formatRupiah
+
+/**
+ * Bahasa visual Pet Shop.
+ *
+ * Pet Shop tetap satu keluarga dengan layar klinis PetHeal (hijau merek,
+ * kartu putih, gutter 20 dp, ritme 8 dp) tetapi sengaja dibedakan supaya
+ * terasa seperti toko, bukan formulir medis:
+ *
+ * - Kepala layar satu warna solid (tanpa gradien & tanpa bidang dekoratif):
+ *   warna merek yang rata membuat katalog terbaca seperti rak toko sungguhan,
+ *   bukan banner promosi.
+ * - Sudut kartu 18 dp (sedikit lebih tegas dari 20–22 dp layar klinis) dan
+ *   bayangan tipis, bukan garis tepi — kartu produk jadi terlihat "berdiri".
+ * - Aksen hangat [Tertiary] hanya untuk label promo, sehingga harga tetap
+ *   hijau dan promo langsung terbaca.
+ * - Harga selalu jadi elemen paling tebal di kartu: itu informasi yang dicari
+ *   pembeli lebih dulu.
+ */
+object ShopTheme {
+    val gutter = 20.dp
+    val cardRadius = 18.dp
+    val innerRadius = 14.dp
+    val headerBottom = 26.dp
+    val promo = Tertiary
+    val promoSoft = TertiaryLight
+
+    /** Warna kepala halaman Pet Shop: satu warna solid, tanpa gradasi. */
+    val headerColor = PrimaryDark
+}
 
 /** Label + warna status pesanan, satu sumber untuk semua layar Pet Shop. */
 data class PetShopStatusStyle(val label: String, val container: Color, val content: Color)
@@ -158,7 +192,11 @@ fun PetShopStatusBadge(style: PetShopStatusStyle, modifier: Modifier = Modifier)
     }
 }
 
-/** Header standar Pet Shop: kembali, judul, pesanan, keranjang. */
+/**
+ * Kepala layar Pet Shop: pita hijau rata, sudut bawah membulat, tombol
+ * bulat putih untuk kembali/pesanan/keranjang, dan slot [content] untuk elemen
+ * khas halaman (kolom pencarian di katalog, ringkasan di detail).
+ */
 @Composable
 fun PetShopHeader(
     title: String,
@@ -167,89 +205,267 @@ fun PetShopHeader(
     onBack: (() -> Unit)? = null,
     cartCount: Int = 0,
     onOpenCart: (() -> Unit)? = null,
-    onOpenOrders: (() -> Unit)? = null
+    onOpenOrders: (() -> Unit)? = null,
+    content: (@Composable ColumnScope.() -> Unit)? = null
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .clip(RoundedCornerShape(bottomStart = ShopTheme.headerBottom, bottomEnd = ShopTheme.headerBottom))
+            .background(ShopTheme.headerColor)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = OnBackground)
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(top = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onBack != null) {
+                    ShopRoundButton(
+                        icon = Icons.Filled.ArrowBack,
+                        contentDescription = "Kembali",
+                        onClick = onBack
+                    )
+                    Spacer(Modifier.width(10.dp))
                 }
-                Spacer(Modifier.width(4.dp))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (!subtitle.isNullOrBlank()) {
+
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = subtitle,
-                        fontSize = 12.sp,
-                        color = TextSecondary,
+                        text = title,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
+                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.5.sp,
+                            color = Color.White.copy(alpha = 0.82f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                if (onOpenOrders != null) {
+                    ShopRoundButton(
+                        icon = Icons.Outlined.ReceiptLong,
+                        contentDescription = "Pesanan saya",
+                        onClick = onOpenOrders
+                    )
+                    Spacer(Modifier.width(8.dp))
+                }
+
+                if (onOpenCart != null) {
+                    ShopRoundButton(
+                        icon = Icons.Filled.ShoppingBag,
+                        contentDescription = "Keranjang",
+                        onClick = onOpenCart,
+                        badgeCount = cartCount
                     )
                 }
             }
 
-            if (onOpenOrders != null) {
-                IconButton(onClick = onOpenOrders) {
-                    Icon(Icons.Outlined.ReceiptLong, contentDescription = "Pesanan saya", tint = OnBackground)
-                }
+            if (content != null) {
+                Spacer(Modifier.height(14.dp))
+                Column(modifier = Modifier.padding(horizontal = ShopTheme.gutter), content = content)
             }
 
-            if (onOpenCart != null) {
-                Box {
-                    IconButton(onClick = onOpenCart) {
-                        Icon(Icons.Filled.ShoppingBag, contentDescription = "Keranjang", tint = OnBackground)
-                    }
-                    if (cartCount > 0) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(top = 4.dp, end = 2.dp)
-                                .size(18.dp)
-                                .clip(CircleShape)
-                                .background(Primary),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = if (cartCount > 99) "99+" else cartCount.toString(),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                    }
-                }
+            Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Tombol bulat translusen khas kepala layar Pet Shop. */
+@Composable
+fun ShopRoundButton(
+    icon: ImageVector,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    badgeCount: Int = 0,
+    tint: Color = Color.White,
+    container: Color = Color.White.copy(alpha = 0.18f)
+) {
+    Box {
+        Box(
+            modifier = Modifier
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(container)
+                .clickable(onClick = onClick),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(21.dp)
+            )
+        }
+        if (badgeCount > 0) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(18.dp)
+                    .clip(CircleShape)
+                    .background(Error),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (badgeCount > 99) "99+" else badgeCount.toString(),
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
     }
 }
 
-/** Kartu produk untuk grid katalog. */
+/** Kartu putih standar Pet Shop: sudut 18 dp, bayangan tipis, tanpa garis tepi. */
+@Composable
+fun ShopCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ShopTheme.cardRadius),
+        color = Surface,
+        shadowElevation = 2.dp
+    ) {
+        Column(content = content)
+    }
+}
+
+/** Judul bagian dengan aksi opsional di kanan (mis. "Lihat semua"). */
+@Composable
+fun ShopSectionTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+    trailing: @Composable (() -> Unit)? = null
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Bold,
+            color = OnBackground,
+            modifier = Modifier.weight(1f)
+        )
+        trailing?.invoke()
+    }
+}
+
+/** Ikon & aksen kategori produk — dipakai kartu produk, katalog, dan detail. */
+data class CategoryArtwork(val icon: ImageVector, val accent: Color)
+
+fun categoryArtwork(categorySlug: String?, categoryName: String?): CategoryArtwork {
+    val key = "${categorySlug.orEmpty()} ${categoryName.orEmpty()}".lowercase()
+    return when {
+        // Makanan diperiksa lebih dulu supaya pakan ikan/burung tetap tampil
+        // sebagai pakan, bukan sebagai hewannya.
+        key.contains("makanan") || key.contains("pakan") -> CategoryArtwork(Icons.Filled.SetMeal, Primary)
+        key.contains("obat") || key.contains("vitamin") -> CategoryArtwork(Icons.Filled.Medication, Info)
+        key.contains("mainan") -> CategoryArtwork(Icons.Filled.Toys, AccentViolet)
+        key.contains("pasir") || key.contains("litter") ->
+            CategoryArtwork(Icons.Filled.CleaningServices, Secondary)
+        key.contains("kandang") || key.contains("tas") -> CategoryArtwork(Icons.Filled.Luggage, PrimaryDark)
+        key.contains("grooming") -> CategoryArtwork(Icons.Filled.ContentCut, Secondary)
+        key.contains("ikan") -> CategoryArtwork(Icons.Filled.Water, InfoStrong)
+        key.contains("burung") -> CategoryArtwork(Icons.Filled.FlutterDash, WarningDeep)
+        key.contains("hamster") || key.contains("kelinci") -> CategoryArtwork(Icons.Filled.Pets, AccentViolet)
+        key.contains("aksesoris") || key.contains("perlengkapan") ->
+            CategoryArtwork(Icons.Filled.Inventory2, PrimaryDark)
+        else -> CategoryArtwork(Icons.Filled.Pets, Primary)
+    }
+}
+
+/**
+ * Ubin kategori berbentuk kotak ikon + label. Dipakai sebagai rel kategori di
+ * katalog: lebih mudah dipindai daripada deretan chip teks, karena ikon
+ * memberi bentuk yang bisa dikenali sebelum membaca labelnya.
+ */
+@Composable
+fun ShopCategoryTile(
+    name: String,
+    slug: String?,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val artwork = if (name == "Semua") {
+        CategoryArtwork(Icons.Filled.Inventory2, Primary)
+    } else {
+        categoryArtwork(slug, name)
+    }
+
+    Column(
+        modifier = modifier
+            .width(72.dp)
+            .clip(RoundedCornerShape(ShopTheme.innerRadius))
+            .clickable(onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(52.dp)
+                .clip(RoundedCornerShape(ShopTheme.innerRadius))
+                .background(if (selected) Primary else artwork.accent.copy(alpha = 0.12f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = artwork.icon,
+                contentDescription = null,
+                tint = if (selected) Color.White else artwork.accent,
+                modifier = Modifier.size(24.dp)
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = name,
+            fontSize = 10.5.sp,
+            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+            color = if (selected) Primary else TextSecondary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+/**
+ * Kartu produk untuk grid katalog.
+ *
+ * Hierarki yang dipakai: foto → nama (2 baris tetap supaya grid rata) → klinik
+ * penjual → harga. Harga adalah satu-satunya teks hijau tebal di kartu sehingga
+ * mata langsung menemukannya.
+ */
 @Composable
 fun PetShopProductCard(
     product: PetShopProduct,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        modifier = modifier.clickable(onClick = onClick),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, Outline)
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(ShopTheme.cardRadius))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(ShopTheme.cardRadius),
+        color = Surface,
+        shadowElevation = 2.dp
     ) {
         Column {
             Box(
@@ -270,10 +486,10 @@ fun PetShopProductCard(
                     Surface(
                         modifier = Modifier.align(Alignment.TopStart).padding(8.dp),
                         shape = RoundedCornerShape(PetHealRadius.sm),
-                        color = MaterialTheme.colorScheme.error
+                        color = ShopTheme.promo
                     ) {
                         Text(
-                            "Diskon",
+                            "Promo",
                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
@@ -282,40 +498,41 @@ fun PetShopProductCard(
                     }
                 }
 
-                if (product.totalAvailableStock <= 5) {
+                val stock = product.totalAvailableStock
+                if (stock <= 5) {
                     Surface(
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp),
+                        modifier = Modifier.align(Alignment.BottomStart).padding(8.dp),
                         shape = RoundedCornerShape(PetHealRadius.sm),
-                        color = WarningSoft
+                        color = if (stock <= 0) SurfaceMuted else WarningSoft
                     ) {
                         Text(
-                            "Sisa ${product.totalAvailableStock}",
+                            if (stock <= 0) "Stok habis" else "Sisa $stock",
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = WarningText
+                            color = if (stock <= 0) TextTertiary else WarningText
                         )
                     }
                 }
             }
 
-            Column(modifier = Modifier.padding(10.dp)) {
+            Column(modifier = Modifier.padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 10.dp)) {
                 Text(
                     text = product.name,
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = OnBackground,
                     maxLines = 2,
                     minLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    lineHeight = 17.sp
+                    lineHeight = 16.sp
                 )
 
-                Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(5.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Filled.Pets,
+                        Icons.Filled.Storefront,
                         contentDescription = null,
                         tint = TextTertiary,
                         modifier = Modifier.size(11.dp)
@@ -326,20 +543,46 @@ fun PetShopProductCard(
                         fontSize = 10.sp,
                         color = TextTertiary,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
+                    if (product.soldCount > 0) {
+                        Text(
+                            text = "${product.soldCount} terjual",
+                            fontSize = 9.5.sp,
+                            color = TextTertiary
+                        )
+                    }
                 }
 
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(7.dp))
 
-                Text(
-                    text = priceLabel(product.priceMin, product.priceMax),
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Primary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        if (product.hasPriceRange) {
+                            Text(
+                                text = "Mulai dari",
+                                fontSize = 9.sp,
+                                color = TextTertiary
+                            )
+                        }
+                        Text(
+                            text = priceLabel(product.priceMin, product.priceMax),
+                            fontSize = 13.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Primary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = Primary.copy(alpha = 0.55f),
+                        modifier = Modifier.size(11.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
             }
         }
     }
@@ -353,6 +596,7 @@ fun priceLabel(min: Long?, max: Long?): String = when {
     else -> formatRupiah((min ?: max ?: 0L).toDouble())
 }
 
+/** Pengatur jumlah: dua tombol 34 dp dengan angka tebal di tengah. */
 @Composable
 fun QuantityStepper(
     quantity: Int,
@@ -367,26 +611,38 @@ fun QuantityStepper(
             .background(SurfaceMuted),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onDecrease, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Filled.Remove, contentDescription = "Kurangi", modifier = Modifier.size(17.dp))
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clickable(onClick = onDecrease),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                Icons.Filled.Remove,
+                contentDescription = "Kurangi",
+                tint = OnBackground,
+                modifier = Modifier.size(16.dp)
+            )
         }
         Text(
             text = quantity.toString(),
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
             color = OnBackground,
-            modifier = Modifier.width(24.dp)
+            modifier = Modifier.width(22.dp),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
         )
-        IconButton(
-            onClick = onIncrease,
-            enabled = canIncrease,
-            modifier = Modifier.size(34.dp)
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clickable(enabled = canIncrease, onClick = onIncrease),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
                 Icons.Filled.Add,
                 contentDescription = "Tambah",
-                modifier = Modifier.size(17.dp),
-                tint = if (canIncrease) OnBackground else TextTertiary
+                tint = if (canIncrease) OnBackground else TextTertiary,
+                modifier = Modifier.size(16.dp)
             )
         }
     }
@@ -405,30 +661,6 @@ fun PetShopImage(
         iconSize = 18.dp,
         modifier = modifier
     )
-}
-
-/** Ikon dan aksen pengganti foto, diturunkan dari kategori produk. */
-private data class ProductArtwork(val icon: ImageVector, val accent: Color)
-
-private fun productArtwork(categorySlug: String?, categoryName: String?): ProductArtwork {
-    val key = "${categorySlug.orEmpty()} ${categoryName.orEmpty()}".lowercase()
-    return when {
-        // Makanan diperiksa lebih dulu supaya pakan ikan/burung tetap tampil
-        // sebagai pakan, bukan sebagai hewannya.
-        key.contains("makanan") || key.contains("pakan") -> ProductArtwork(Icons.Filled.SetMeal, Primary)
-        key.contains("obat") || key.contains("vitamin") -> ProductArtwork(Icons.Filled.Medication, Info)
-        key.contains("mainan") -> ProductArtwork(Icons.Filled.Toys, AccentViolet)
-        key.contains("pasir") || key.contains("litter") ->
-            ProductArtwork(Icons.Filled.CleaningServices, Secondary)
-        key.contains("kandang") || key.contains("tas") -> ProductArtwork(Icons.Filled.Luggage, PrimaryDark)
-        key.contains("grooming") -> ProductArtwork(Icons.Filled.ContentCut, Secondary)
-        key.contains("ikan") -> ProductArtwork(Icons.Filled.Water, InfoStrong)
-        key.contains("burung") -> ProductArtwork(Icons.Filled.FlutterDash, WarningDeep)
-        key.contains("hamster") || key.contains("kelinci") -> ProductArtwork(Icons.Filled.Pets, AccentViolet)
-        key.contains("aksesoris") || key.contains("perlengkapan") ->
-            ProductArtwork(Icons.Filled.Inventory2, PrimaryDark)
-        else -> ProductArtwork(Icons.Filled.Pets, Primary)
-    }
 }
 
 /**
@@ -474,23 +706,12 @@ private fun ProductArtworkTile(
     iconSize: Dp,
     modifier: Modifier = Modifier
 ) {
-    val artwork = productArtwork(categorySlug, categoryName)
+    val artwork = categoryArtwork(categorySlug, categoryName)
 
     Box(
-        modifier = modifier.background(
-            Brush.verticalGradient(
-                0f to artwork.accent.copy(alpha = 0.16f),
-                1f to artwork.accent.copy(alpha = 0.04f)
-            )
-        ),
+        modifier = modifier.background(artwork.accent.copy(alpha = 0.07f)),
         contentAlignment = Alignment.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(iconSize * 2f)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.6f))
-        )
         Icon(
             imageVector = artwork.icon,
             contentDescription = null,
@@ -503,36 +724,100 @@ private fun ProductArtworkTile(
 fun cartSummaryLabel(count: Int, total: Long): String =
     "$count item · ${formatRupiah(total.toDouble())}"
 
+/** Peringatan sebaris (error) dengan ikon, sudut 14 dp. */
 @Composable
 fun PetShopInlineError(message: String, modifier: Modifier = Modifier) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(PetHealRadius.md),
+        shape = RoundedCornerShape(ShopTheme.innerRadius),
         color = ErrorSoft
     ) {
-        Text(
-            text = message,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.error,
-            lineHeight = 18.sp
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Info,
+                contentDescription = null,
+                tint = Error,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = message,
+                fontSize = 12.sp,
+                color = Error,
+                lineHeight = 17.sp,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+/** Catatan informasi (bukan error) dengan ikon, sudut 14 dp. */
+@Composable
+fun PetShopInfoBanner(message: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ShopTheme.innerRadius),
+        color = InfoSoft
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(9.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Filled.Info,
+                contentDescription = null,
+                tint = Info,
+                modifier = Modifier.size(16.dp)
+            )
+            Text(
+                text = message,
+                fontSize = 12.sp,
+                color = Info,
+                lineHeight = 17.sp,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+/**
+ * Garis putus-putus. Dipakai sebagai pemisah bergaya struk belanja pada kartu
+ * pembayaran, kode pengambilan, dan bukti pembayaran — pola yang sama seperti
+ * struk kertas, sehingga mata langsung mengenalinya sebagai dokumen transaksi.
+ */
+@Composable
+fun DashedDivider(
+    modifier: Modifier = Modifier,
+    color: Color = Outline
+) {
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+    ) {
+        drawLine(
+            color = color,
+            start = Offset(0f, size.height / 2f),
+            end = Offset(size.width, size.height / 2f),
+            strokeWidth = size.height,
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(7f, 6f), 0f)
         )
     }
 }
 
 @Composable
-fun PetShopInfoBanner(message: String, modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(PetHealRadius.md),
-        color = InfoSoft
-    ) {
+fun PetShopPill(text: String, background: Color, content: Color) {
+    Surface(shape = RoundedCornerShape(PetHealRadius.pill), color = background) {
         Text(
-            text = message,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-            fontSize = 12.sp,
-            color = Info,
-            lineHeight = 18.sp
+            text = text,
+            modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = content
         )
     }
 }

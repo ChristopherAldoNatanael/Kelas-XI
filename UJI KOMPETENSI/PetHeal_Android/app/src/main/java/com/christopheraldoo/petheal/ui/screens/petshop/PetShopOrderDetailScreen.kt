@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,20 +32,18 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -55,11 +53,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -67,16 +66,15 @@ import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.model.PetShopOrderItem
 import com.christopheraldoo.petheal.data.model.PetShopPickupPass
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.shimmerEffect
 import com.christopheraldoo.petheal.ui.theme.Background
-import com.christopheraldoo.petheal.ui.theme.ErrorSoft
-import com.christopheraldoo.petheal.ui.theme.Info
-import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
@@ -138,12 +136,18 @@ fun PetShopOrderDetailScreen(
 
     Scaffold(
         containerColor = Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = { SnackbarHost(snackbarHostState, modifier = Modifier.padding(16.dp)) },
         topBar = {
+            val headerOrder = uiState.order
             PetShopHeader(
                 title = "Detail Pesanan",
-                subtitle = uiState.order?.orderNumber,
-                onBack = onNavigateBack
+                subtitle = headerOrder?.orderNumber,
+                onBack = onNavigateBack,
+                // Status + total ditaruh di dalam pita kepala: pembeli langsung
+                // tahu posisi pesanannya tanpa harus menggulir.
+                content = if (headerOrder == null) null else {
+                    { OrderStatusPanel(headerOrder) }
+                }
             )
         }
     ) { innerPadding ->
@@ -156,12 +160,7 @@ fun PetShopOrderDetailScreen(
             val order = uiState.order
 
             when {
-                uiState.isLoading && order == null -> Box(
-                    Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Primary)
-                }
+                uiState.isLoading && order == null -> OrderDetailSkeleton()
 
                 uiState.error != null && order == null -> ErrorState(
                     title = "Pesanan tidak dapat dibuka",
@@ -172,68 +171,111 @@ fun PetShopOrderDetailScreen(
 
                 order != null -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(
+                        start = ShopTheme.gutter,
+                        end = ShopTheme.gutter,
+                        top = 14.dp,
+                        bottom = 24.dp
+                    ),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    item { StatusSummary(order) }
-
-                    item {
-                        OrderActions(
-                            order = order,
-                            isBusy = uiState.isActionRunning,
-                            onPay = viewModel::payNow,
-                            onCheckStatus = viewModel::checkPaymentStatus,
-                            onCancel = { showCancelDialog = true }
-                        )
+                    val hasActions = order.isAwaitingOnlinePayment || order.canCancel || order.isOnline
+                    if (hasActions) {
+                        item {
+                            OrderActions(
+                                order = order,
+                                isBusy = uiState.isActionRunning,
+                                onPay = viewModel::payNow,
+                                onCheckStatus = viewModel::checkPaymentStatus,
+                                onCancel = { showCancelDialog = true }
+                            )
+                        }
                     }
 
                     if (uiState.error != null) {
                         item { PetShopInlineError(uiState.error.orEmpty()) }
                     }
 
+                    if (
+                        order.status == PetShopOrder.STATUS_PENDING_PAYMENT &&
+                        order.reservationExpiresAt != null
+                    ) {
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(PetHealRadius.md))
+                                    .background(WarningSoft)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.Schedule,
+                                    contentDescription = null,
+                                    tint = WarningText,
+                                    modifier = Modifier.size(15.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Batas pembayaran " +
+                                        formatDateSafe(order.reservationExpiresAt, "d MMM yyyy · HH:mm"),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = WarningText
+                                )
+                            }
+                        }
+                    }
+
                     // QR Pickup Pass hanya muncul setelah pesanan siap diambil.
                     if (uiState.pickupPass != null) {
-                        item { SectionTitle("Kode pengambilan") }
+                        item { ShopSectionTitle("Kode pengambilan") }
                         item { PickupPassCard(uiState.pickupPass!!, uiState.pickupQr, uiState.isLoadingPass) }
                     }
 
-                    item { SectionTitle("Item pesanan") }
+                    item { ShopSectionTitle("Item pesanan") }
                     item { ItemsCard(order.items) }
 
-                    item { SectionTitle("Pengambilan") }
+                    item { ShopSectionTitle("Pengambilan") }
                     item { PickupCard(order) }
 
-                    item { SectionTitle("Pembayaran") }
+                    item { ShopSectionTitle("Pembayaran") }
                     item { PaymentCard(order) }
 
                     if (order.receiptAvailable) {
                         item {
                             OutlinedButton(
                                 onClick = { onOpenReceipt(order.id) },
-                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                modifier = Modifier.fillMaxWidth().height(46.dp),
                                 shape = RoundedCornerShape(PetHealRadius.md),
-                                border = BorderStroke(1.dp, Primary)
+                                border = BorderStroke(1.dp, Primary.copy(alpha = 0.55f))
                             ) {
-                                Icon(Icons.Filled.ReceiptLong, contentDescription = null, tint = Primary, modifier = Modifier.size(17.dp))
+                                Icon(
+                                    Icons.Filled.ReceiptLong,
+                                    contentDescription = null,
+                                    tint = Primary,
+                                    modifier = Modifier.size(17.dp)
+                                )
                                 Spacer(Modifier.width(8.dp))
-                                Text("Lihat Bukti Pembayaran", fontSize = 12.sp, color = Primary, fontWeight = FontWeight.SemiBold)
+                                Text(
+                                    "Lihat Bukti Pembayaran",
+                                    fontSize = 12.sp,
+                                    color = Primary,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
 
                     if (order.timeline.isNotEmpty()) {
-                        item { SectionTitle("Riwayat status") }
+                        item { ShopSectionTitle("Riwayat status") }
                         item { TimelineCard(order) }
                     }
 
                     if (!order.notes.isNullOrBlank()) {
-                        item { SectionTitle("Catatan") }
+                        item { ShopSectionTitle("Catatan") }
                         item {
-                            Surface(
-                                color = Surface,
-                                shape = RoundedCornerShape(PetHealRadius.lg),
-                                border = BorderStroke(1.dp, Outline)
-                            ) {
+                            ShopCard {
                                 Text(
                                     text = order.notes.orEmpty(),
                                     modifier = Modifier.padding(14.dp),
@@ -256,92 +298,68 @@ fun PetShopOrderDetailScreen(
     }
 }
 
+/** Panel status translusen di dalam pita kepala layar. */
 @Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        fontSize = 13.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = OnBackground,
-        modifier = Modifier.padding(top = 4.dp)
-    )
-}
-
-@Composable
-private fun StatusSummary(order: PetShopOrder) {
+private fun OrderStatusPanel(order: PetShopOrder) {
     val style = orderStatusStyle(order.status)
-    val hint = when (order.status) {
-        PetShopOrder.STATUS_PENDING_PAYMENT ->
-            "Selesaikan pembayaran sebelum batas waktu agar pesanan tidak otomatis dibatalkan."
-        PetShopOrder.STATUS_AWAITING_CONFIRMATION ->
-            "Klinik akan mengonfirmasi pesanan Anda. Pembayaran dilakukan saat pengambilan."
-        PetShopOrder.STATUS_ACCEPTED, PetShopOrder.STATUS_PREPARING ->
-            "Klinik sedang menyiapkan produk Anda."
-        PetShopOrder.STATUS_READY_FOR_PICKUP ->
-            "Produk siap diambil di klinik. Tunjukkan nomor pesanan kepada petugas."
-        PetShopOrder.STATUS_COMPLETED ->
-            "Pesanan selesai. Terima kasih telah berbelanja di klinik mitra."
-        PetShopOrder.STATUS_REJECTED, PetShopOrder.STATUS_CANCELLED, PetShopOrder.STATUS_EXPIRED ->
-            "Pesanan tidak dilanjutkan. Bila sudah dibayar, refund diproses sesuai kebijakan klinik."
-        else -> ""
-    }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ShopTheme.cardRadius),
+        color = Surface
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .background(style.container, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        if (order.status == PetShopOrder.STATUS_COMPLETED) Icons.Filled.CheckCircle else Icons.Filled.Schedule,
-                        contentDescription = null,
-                        tint = style.content,
-                        modifier = Modifier.size(21.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    PetShopStatusBadge(style)
-                    Spacer(Modifier.height(4.dp))
+                PetShopStatusBadge(style)
+                Spacer(Modifier.weight(1f))
+                Column(horizontalAlignment = Alignment.End) {
                     Text(
-                        text = formatDateSafe(order.createdAt, "d MMMM yyyy · HH:mm"),
-                        fontSize = 11.sp,
-                        color = TextTertiary
+                        text = "Total",
+                        fontSize = 9.5.sp,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = formatRupiah(order.totalAmount.toDouble()),
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Primary
                     )
                 }
             }
 
-            Spacer(Modifier.height(12.dp))
-            Text(text = hint, fontSize = 12.sp, lineHeight = 18.sp, color = TextSecondary)
+            Spacer(Modifier.height(8.dp))
 
-            if (order.status == PetShopOrder.STATUS_PENDING_PAYMENT && order.reservationExpiresAt != null) {
-                Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.Schedule,
-                        contentDescription = null,
-                        tint = WarningText,
-                        modifier = Modifier.size(14.dp)
-                    )
-                    Spacer(Modifier.width(5.dp))
-                    Text(
-                        "Batas pembayaran: ${formatDateSafe(order.reservationExpiresAt, "d MMM yyyy · HH:mm")}",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = WarningText
-                    )
-                }
-            }
+            Text(
+                text = orderStatusHint(order.status),
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+                color = TextSecondary
+            )
+
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = "Dibuat ${formatDateSafe(order.createdAt, "d MMM yyyy · HH:mm")}",
+                fontSize = 10.sp,
+                color = TextTertiary
+            )
         }
     }
+}
+
+private fun orderStatusHint(status: String): String = when (status) {
+    PetShopOrder.STATUS_PENDING_PAYMENT ->
+        "Selesaikan pembayaran sebelum batas waktu agar pesanan tidak otomatis dibatalkan."
+    PetShopOrder.STATUS_AWAITING_CONFIRMATION ->
+        "Klinik akan mengonfirmasi pesanan Anda. Pembayaran dilakukan saat pengambilan."
+    PetShopOrder.STATUS_ACCEPTED, PetShopOrder.STATUS_PREPARING ->
+        "Klinik sedang menyiapkan produk Anda."
+    PetShopOrder.STATUS_READY_FOR_PICKUP ->
+        "Produk siap diambil di klinik. Tunjukkan nomor pesanan kepada petugas."
+    PetShopOrder.STATUS_COMPLETED ->
+        "Pesanan selesai. Terima kasih telah berbelanja di klinik mitra."
+    PetShopOrder.STATUS_REJECTED, PetShopOrder.STATUS_CANCELLED, PetShopOrder.STATUS_EXPIRED ->
+        "Pesanan tidak dilanjutkan. Bila sudah dibayar, refund diproses sesuai kebijakan klinik."
+    else -> ""
 }
 
 @Composable
@@ -352,16 +370,11 @@ private fun OrderActions(
     onCheckStatus: () -> Unit,
     onCancel: () -> Unit
 ) {
-    val hasAction = order.isAwaitingOnlinePayment || order.canCancel || order.isOnline
-    if (!hasAction) return
-
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    ShopCard {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             if (order.isAwaitingOnlinePayment) {
                 Button(
                     onClick = onPay,
@@ -413,31 +426,27 @@ private fun OrderActions(
 
 @Composable
 private fun ItemsCard(items: List<PetShopOrderItem>) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+    ShopCard {
+        Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items.forEach { item ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     PetShopImage(
                         url = item.imageUrl,
                         contentDescription = item.productName,
                         modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(PetHealRadius.sm))
+                            .size(50.dp)
+                            .clip(RoundedCornerShape(ShopTheme.innerRadius))
                     )
-                    Spacer(Modifier.width(10.dp))
+                    Spacer(Modifier.width(11.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
                             text = item.productName,
-                            fontSize = 12.sp,
+                            fontSize = 12.5.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = OnBackground,
                             maxLines = 2,
-                            overflow = TextOverflow.Ellipsis
+                            overflow = TextOverflow.Ellipsis,
+                            lineHeight = 16.sp
                         )
                         Text(
                             text = if (item.sku.isNullOrBlank()) {
@@ -445,7 +454,7 @@ private fun ItemsCard(items: List<PetShopOrderItem>) {
                             } else {
                                 "${item.variantName} · ${item.sku}"
                             },
-                            fontSize = 11.sp,
+                            fontSize = 10.5.sp,
                             color = TextSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
@@ -460,8 +469,8 @@ private fun ItemsCard(items: List<PetShopOrderItem>) {
                     }
                     Text(
                         text = formatRupiah(item.subtotal.toDouble()),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp,
+                        fontWeight = FontWeight.Bold,
                         color = OnBackground
                     )
                 }
@@ -472,21 +481,24 @@ private fun ItemsCard(items: List<PetShopOrderItem>) {
 
 @Composable
 private fun PickupCard(order: PetShopOrder) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
+    ShopCard {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.LocalHospital,
-                    contentDescription = null,
-                    tint = Primary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(PrimaryLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Filled.LocalHospital,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(17.dp)
+                    )
+                }
+                Spacer(Modifier.width(10.dp))
                 Text(
                     text = order.pickup?.clinicName ?: order.clinic?.name.orEmpty(),
                     fontSize = 13.sp,
@@ -497,8 +509,13 @@ private fun PickupCard(order: PetShopOrder) {
 
             val address = order.pickup?.address ?: order.clinic?.address
             if (!address.isNullOrBlank()) {
-                Spacer(Modifier.height(6.dp))
-                Text(address, fontSize = 11.sp, lineHeight = 17.sp, color = TextSecondary)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    address,
+                    fontSize = 11.5.sp,
+                    lineHeight = 17.sp,
+                    color = TextSecondary
+                )
             }
 
             val phone = order.pickup?.phone ?: order.clinic?.phone
@@ -512,7 +529,7 @@ private fun PickupCard(order: PetShopOrder) {
                         modifier = Modifier.size(13.dp)
                     )
                     Spacer(Modifier.width(5.dp))
-                    Text(phone, fontSize = 11.sp, color = TextSecondary)
+                    Text(phone, fontSize = 11.5.sp, color = TextSecondary)
                 }
             }
         }
@@ -521,14 +538,9 @@ private fun PickupCard(order: PetShopOrder) {
 
 @Composable
 private fun PaymentCard(order: PetShopOrder) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
+    ShopCard {
         Column(modifier = Modifier.padding(14.dp)) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     if (order.isOnline) "Pembayaran online" else "Bayar di klinik",
                     fontSize = 12.sp,
@@ -538,38 +550,28 @@ private fun PaymentCard(order: PetShopOrder) {
                 PetShopStatusBadge(paymentStatusStyle(order.paymentStatus))
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(Modifier.height(12.dp))
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Subtotal", fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-                Text(
-                    formatRupiah(order.subtotal.toDouble()),
-                    fontSize = 12.sp,
-                    color = OnBackground
-                )
-            }
+            PaymentDetailRow("Subtotal", formatRupiah(order.subtotal.toDouble()))
 
             if (order.discountTotal > 0) {
                 Spacer(Modifier.height(4.dp))
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Text("Diskon", fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-                    Text(
-                        "-${formatRupiah(order.discountTotal.toDouble())}",
-                        fontSize = 12.sp,
-                        color = Primary
-                    )
-                }
+                PaymentDetailRow(
+                    label = "Diskon",
+                    value = "-${formatRupiah(order.discountTotal.toDouble())}",
+                    valueColor = Primary
+                )
             }
 
-            Spacer(Modifier.height(8.dp))
-            Box(Modifier.fillMaxWidth().height(1.dp).background(Outline))
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
+            DashedDivider()
+            Spacer(Modifier.height(10.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "Total",
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
+                    fontWeight = FontWeight.Bold,
                     color = OnBackground,
                     modifier = Modifier.weight(1f)
                 )
@@ -587,7 +589,7 @@ private fun PaymentCard(order: PetShopOrder) {
             val payment = order.payment
             if (payment != null) {
                 Spacer(Modifier.height(10.dp))
-                Box(Modifier.fillMaxWidth().height(1.dp).background(Outline))
+                DashedDivider()
                 Spacer(Modifier.height(8.dp))
 
                 payment.methodLabel?.let { PaymentDetailRow("Metode", it) }
@@ -613,55 +615,54 @@ private fun PaymentCard(order: PetShopOrder) {
 }
 
 @Composable
-private fun PaymentDetailRow(label: String, value: String) {
+private fun PaymentDetailRow(
+    label: String,
+    value: String,
+    valueColor: Color = OnBackground
+) {
     Row(modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp)) {
         Text(label, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
         Text(
             value,
             fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
-            color = OnBackground,
-            textAlign = androidx.compose.ui.text.style.TextAlign.End
+            color = valueColor,
+            textAlign = TextAlign.End
         )
     }
 }
 
 @Composable
 private fun TimelineCard(order: PetShopOrder) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Outline),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
+    ShopCard {
         Column(modifier = Modifier.padding(14.dp)) {
             order.timeline.forEachIndexed { index, entry ->
+                val isLatest = index == order.timeline.lastIndex
                 Row {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(9.dp)
-                                .background(
-                                    if (index == order.timeline.lastIndex) Primary else Outline,
-                                    CircleShape
-                                )
+                                .padding(top = 3.dp)
+                                .size(if (isLatest) 10.dp else 8.dp)
+                                .clip(CircleShape)
+                                .background(if (isLatest) Primary else Outline)
                         )
-                        if (index != order.timeline.lastIndex) {
+                        if (!isLatest) {
                             Box(
                                 modifier = Modifier
-                                    .width(1.dp)
-                                    .height(34.dp)
+                                    .width(1.5.dp)
+                                    .height(32.dp)
                                     .background(Outline)
                             )
                         }
                     }
-                    Spacer(Modifier.width(10.dp))
-                    Column(modifier = Modifier.padding(bottom = 10.dp)) {
+                    Spacer(Modifier.width(11.dp))
+                    Column(modifier = Modifier.padding(bottom = if (isLatest) 0.dp else 10.dp)) {
                         Text(
                             text = orderStatusStyle(entry.toStatus.orEmpty()).label,
                             fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = OnBackground
+                            fontWeight = if (isLatest) FontWeight.Bold else FontWeight.SemiBold,
+                            color = if (isLatest) Primary else OnBackground
                         )
                         Text(
                             text = formatDateSafe(entry.createdAt, "d MMM yyyy · HH:mm"),
@@ -704,18 +705,22 @@ private fun CancelOrderDialog(onDismiss: () -> Unit, onConfirm: (String?) -> Uni
                     onValueChange = { if (it.length <= 200) reason = it },
                     label = { Text("Alasan (opsional)", fontSize = 12.sp) },
                     shape = RoundedCornerShape(PetHealRadius.md),
-                    colors = TextFieldDefaults.colors(
+                    colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Surface,
                         unfocusedContainerColor = Surface,
-                        focusedIndicatorColor = Primary,
-                        unfocusedIndicatorColor = Outline
+                        focusedBorderColor = Primary,
+                        unfocusedBorderColor = Outline
                     )
                 )
             }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(reason.ifBlank { null }) }) {
-                Text("Batalkan pesanan", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Batalkan pesanan",
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
         },
         dismissButton = {
@@ -727,7 +732,7 @@ private fun CancelOrderDialog(onDismiss: () -> Unit, onConfirm: (String?) -> Uni
 
 /**
  * QR Pickup Pass + kode manual. Kode manual adalah fallback resmi saat kamera
- * klinik tidak bisa membaca QR.
+ * klinik tidak bisa membaca QR, jadi keduanya punya bobot visual yang sama.
  */
 @Composable
 private fun PickupPassCard(
@@ -735,11 +740,11 @@ private fun PickupPassCard(
     qr: android.graphics.Bitmap?,
     isLoading: Boolean
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = Surface),
-        shape = RoundedCornerShape(PetHealRadius.lg),
-        border = BorderStroke(1.dp, Primary),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ShopTheme.cardRadius),
+        color = Surface,
+        border = BorderStroke(1.2.dp, Primary.copy(alpha = 0.45f))
     ) {
         Column(
             modifier = Modifier
@@ -748,11 +753,16 @@ private fun PickupPassCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.QrCode2, contentDescription = null, tint = Primary, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
+                Icon(
+                    Icons.Filled.QrCode2,
+                    contentDescription = null,
+                    tint = Primary,
+                    modifier = Modifier.size(17.dp)
+                )
+                Spacer(Modifier.width(7.dp))
                 Text(
                     pass.statusLabel ?: "Siap diambil",
-                    fontSize = 13.sp,
+                    fontSize = 12.5.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = Primary
                 )
@@ -769,43 +779,55 @@ private fun PickupPassCard(
                     Image(
                         bitmap = qr.asImageBitmap(),
                         contentDescription = "QR Code pengambilan",
-                        modifier = Modifier.size(190.dp).padding(10.dp)
+                        modifier = Modifier.size(182.dp).padding(10.dp)
                     )
                 }
             } else if (isLoading) {
-                CircularProgressIndicator(color = Primary, strokeWidth = 2.dp, modifier = Modifier.size(24.dp))
+                CircularProgressIndicator(
+                    color = Primary,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(24.dp)
+                )
             } else {
                 Text(
                     "QR belum dapat dimuat. Gunakan kode pengambilan di bawah.",
                     fontSize = 11.sp,
                     color = TextSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
 
             Spacer(Modifier.height(12.dp))
-            Text("Kode pengambilan", fontSize = 10.sp, color = TextTertiary)
+            DashedDivider(modifier = Modifier.padding(horizontal = 8.dp))
+            Spacer(Modifier.height(12.dp))
+
+            Text("Kode pengambilan", fontSize = 10.sp, color = TextTertiary, letterSpacing = 0.4.sp)
             Text(
                 pass.manualCode ?: "-",
-                fontSize = 26.sp,
+                fontSize = 27.sp,
                 fontWeight = FontWeight.Bold,
                 color = OnBackground,
-                letterSpacing = 4.sp
+                letterSpacing = 5.sp
             )
 
             Spacer(Modifier.height(6.dp))
             Text(
                 pass.instructions
-                    ?: "Silakan datang ke klinik dan tunjukkan QR Code atau kode pengambilan kepada petugas.",
+                    ?: "Datang ke klinik lalu tunjukkan QR Code atau kode pengambilan kepada petugas.",
                 fontSize = 11.sp,
                 lineHeight = 16.sp,
                 color = TextSecondary,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                textAlign = TextAlign.Center
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(10.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Filled.LocalHospital, contentDescription = null, tint = TextTertiary, modifier = Modifier.size(14.dp))
+                Icon(
+                    Icons.Filled.LocalHospital,
+                    contentDescription = null,
+                    tint = TextTertiary,
+                    modifier = Modifier.size(14.dp)
+                )
                 Spacer(Modifier.width(6.dp))
                 Text(
                     pass.clinic?.name ?: "",
@@ -820,7 +842,7 @@ private fun PickupPassCard(
                     fontSize = 10.sp,
                     lineHeight = 14.sp,
                     color = TextSecondary,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    textAlign = TextAlign.Center
                 )
             }
 
@@ -830,6 +852,25 @@ private fun PickupPassCard(
                 fontSize = 10.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = if (pass.paymentStatus == PetShopOrder.PAYMENT_PAID) Primary else WarningText
+            )
+        }
+    }
+}
+
+@Composable
+private fun OrderDetailSkeleton() {
+    Column(
+        modifier = Modifier.padding(horizontal = ShopTheme.gutter, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        repeat(3) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(if (it == 0) 96.dp else 132.dp)
+                    .clip(RoundedCornerShape(ShopTheme.cardRadius))
+                    .background(SurfaceMuted)
+                    .shimmerEffect(true)
             )
         }
     }

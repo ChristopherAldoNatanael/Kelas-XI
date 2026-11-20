@@ -39,7 +39,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -292,31 +291,14 @@ private fun PetsHero(
     onToggleSearch: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    // Gradasi brand yang sama dengan Beranda, Rekam Medis, dan Booking.
-    val heroBottom = androidx.compose.ui.graphics.lerp(PetPrimary, Color.Black, 0.22f)
+    // Warna brand solid, sama dengan kepala layar lain (tanpa gradasi).
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.verticalGradient(listOf(PetPrimary, heroBottom)))
+            .background(PetPrimaryDark)
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 64.dp, y = (-88).dp)
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .offset(x = (-56).dp, y = 56.dp)
-                .size(160.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.06f))
-        )
 
         Column(
             modifier = Modifier
@@ -711,36 +693,13 @@ fun PetDetailScreen(
             ) {
                 val pet = state.pet
 
-                // ── Hero (gradasi brand, sama dengan layar lain) ──────────────
+                // ── Hero (warna brand solid) ─────────────────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                        .background(
-                            Brush.verticalGradient(
-                                listOf(
-                                    PetPrimary,
-                                    androidx.compose.ui.graphics.lerp(PetPrimary, Color.Black, 0.22f)
-                                )
-                            )
-                        )
+                        .background(PetPrimaryDark)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .offset(x = 64.dp, y = (-88).dp)
-                            .size(200.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.08f))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .offset(x = (-56).dp, y = 56.dp)
-                            .size(160.dp)
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
-                    )
 
                     Column(
                         modifier = Modifier
@@ -1454,7 +1413,7 @@ private fun HealthMiniRow(
             modifier = Modifier
                 .size(7.dp)
                 .clip(CircleShape)
-                .background(PetPrimary)
+                .background(PetPrimaryDark)
         )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -2551,7 +2510,7 @@ private fun PetFormScreen(
                                     .padding(10.dp)
                                     .size(36.dp)
                                     .clip(CircleShape)
-                                    .background(PetPrimary),
+                                    .background(PetPrimaryDark),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(Icons.Filled.Edit, null, tint = Background, modifier = Modifier.size(18.dp))

@@ -1,6 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
 import android.content.Context
+import android.os.Build
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -62,50 +63,61 @@ class PetShopReceiptViewModel @Inject constructor(
         }
     }
 
-    /** Simpan PNG (bukan sekadar menampilkan toast: file benar-benar ditulis). */
+    /** Simpan PNG ke galeri. Pesan hasil selalu menyebut lokasi berkasnya. */
     fun savePng() {
         runExport("Menyimpan gambar bukti pembayaran…") { receipt ->
-            val bitmap = PetShopReceiptExporter.renderBitmap(receipt)
+            val bitmap = PetShopReceiptExporter.renderPng(receipt)
             val fileName = PetShopReceiptExporter.fileName(receipt, "png")
             val saved = PetShopReceiptExporter.savePngToGallery(context, bitmap, fileName)
-            saved to "Bukti pembayaran disimpan sebagai PNG ($fileName)."
+            saved to if (saved) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    "Bukti pembayaran tersimpan di Galeri › PetHeal."
+                } else {
+                    "Bukti pembayaran tersimpan di folder gambar PetHeal."
+                }
+            } else {
+                "Gambar gagal disimpan. Periksa ruang penyimpanan lalu coba lagi."
+            }
         }
     }
 
     fun sharePng() {
         runExport("Menyiapkan gambar…") { receipt ->
-            val bitmap = PetShopReceiptExporter.renderBitmap(receipt)
+            val bitmap = PetShopReceiptExporter.renderPng(receipt)
             val fileName = PetShopReceiptExporter.fileName(receipt, "png")
             PetShopReceiptExporter.sharePng(context, bitmap, fileName)
             true to "Pilih aplikasi untuk membagikan bukti pembayaran."
         }
     }
 
+    /**
+     * Unduh PDF. Dokumen dibuat di perangkat dari data bukti pembayaran yang
+     * sudah dimuat, jadi tidak bergantung pada jaringan maupun endpoint PDF
+     * server — tombol ini selalu menghasilkan berkas selama struknya lunas.
+     */
     fun downloadPdf() {
-        runExport("Mengunduh bukti pembayaran…") { receipt ->
-            when (val result = repository.downloadReceiptPdf(orderId)) {
-                is Result.Success -> {
-                    val fileName = PetShopReceiptExporter.fileName(receipt, "pdf")
-                    val saved = PetShopReceiptExporter.savePdfToDownloads(context, result.data, fileName)
-                    saved to "Bukti pembayaran PDF disimpan ($fileName)."
+        runExport("Menyiapkan PDF…") { receipt ->
+            val bytes = PetShopReceiptExporter.renderPdf(receipt)
+            val fileName = PetShopReceiptExporter.fileName(receipt, "pdf")
+            val saved = PetShopReceiptExporter.savePdfToDownloads(context, bytes, fileName)
+            saved to if (saved) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    "PDF tersimpan di folder Download › PetHeal."
+                } else {
+                    "PDF tersimpan di penyimpanan aplikasi, folder PetHeal."
                 }
-                is Result.Error -> false to result.message
-                else -> false to "Unduhan gagal."
+            } else {
+                "PDF gagal disimpan. Periksa ruang penyimpanan lalu coba lagi."
             }
         }
     }
 
     fun sharePdf() {
         runExport("Menyiapkan PDF…") { receipt ->
-            when (val result = repository.downloadReceiptPdf(orderId)) {
-                is Result.Success -> {
-                    val fileName = PetShopReceiptExporter.fileName(receipt, "pdf")
-                    PetShopReceiptExporter.sharePdf(context, result.data, fileName)
-                    true to "Pilih aplikasi untuk membagikan PDF."
-                }
-                is Result.Error -> false to result.message
-                else -> false to "PDF gagal disiapkan."
-            }
+            val bytes = PetShopReceiptExporter.renderPdf(receipt)
+            val fileName = PetShopReceiptExporter.fileName(receipt, "pdf")
+            PetShopReceiptExporter.sharePdf(context, bytes, fileName)
+            true to "Pilih aplikasi untuk membagikan PDF."
         }
     }
 

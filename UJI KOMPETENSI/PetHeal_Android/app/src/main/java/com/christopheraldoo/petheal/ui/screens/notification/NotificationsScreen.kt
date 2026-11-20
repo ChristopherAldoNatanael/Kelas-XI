@@ -63,7 +63,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -144,7 +143,7 @@ fun NotificationsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Brush.verticalGradient(listOf(Color.White, PrimaryLight)))
+                    .background(PrimaryLight)
                     .statusBarsPadding()
                     .padding(top = 8.dp, start = 8.dp, end = 16.dp, bottom = 18.dp)
             ) {

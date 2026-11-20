@@ -88,7 +88,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -491,24 +490,14 @@ private fun MedicalRecordListHero(
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit = {}
 ) {
-    // Gradasi brand yang sama dengan Beranda: hijau klinik → lebih gelap.
-    val heroBottom = androidx.compose.ui.graphics.lerp(MrPrimary, Color.Black, 0.22f)
+    // Kepala halaman warna brand solid (tanpa gradasi).
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.verticalGradient(listOf(MrPrimary, heroBottom)))
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 64.dp, y = (-88).dp)
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-        Box(
+            .background(MrPrimaryDeep)
+    ) {        Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = (-56).dp, y = 56.dp)
@@ -914,23 +903,13 @@ private fun MedicalRecordDetailHero(
     val pet = record.booking?.pet ?: record.pet
     val doctor = record.booking?.doctor ?: record.doctor
     val createdDate = formatDateSafe(record.createdAt, "dd MMM yyyy")
-    val heroBottom = androidx.compose.ui.graphics.lerp(MrPrimary, Color.Black, 0.22f)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.verticalGradient(listOf(MrPrimary, heroBottom)))
+            .background(MrPrimaryDeep)
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 64.dp, y = (-88).dp)
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-
         Column(
             modifier = Modifier
                 .fillMaxWidth()

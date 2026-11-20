@@ -1,6 +1,8 @@
 package com.christopheraldoo.petheal.ui.screens.petshop
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -20,27 +23,25 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -51,25 +52,36 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.ui.components.EmptySearchState
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.shimmerEffect
 import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
 import com.christopheraldoo.petheal.ui.theme.Background
-import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.LocationResult
 import com.christopheraldoo.petheal.util.formatRupiah
@@ -83,7 +95,7 @@ fun PetShopScreen(
     viewModel: PetShopViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = LocalContext.current
 
     // Filter "Terdekat" memakai mekanisme izin lokasi yang sama dengan layar
@@ -111,22 +123,33 @@ fun PetShopScreen(
         }
     }
 
-    Scaffold(
+    androidx.compose.material3.Scaffold(
         containerColor = Background,
-        snackbarHost = { SnackbarHost(snackbarHostState) },
+        snackbarHost = {
+            androidx.compose.material3.SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.padding(16.dp)
+            )
+        },
         topBar = {
             PetShopHeader(
                 title = "Pet Shop",
-                subtitle = "Produk pilihan dari klinik mitra",
+                subtitle = "Ambil sendiri di klinik mitra",
                 onBack = onNavigateBack,
                 cartCount = uiState.cartCount,
                 onOpenCart = onOpenCart,
-                onOpenOrders = onOpenOrders
+                onOpenOrders = onOpenOrders,
+                content = {
+                    ShopSearchField(
+                        value = uiState.search,
+                        onValueChange = viewModel::onSearchChange
+                    )
+                }
             )
         },
         bottomBar = {
             if (uiState.cartCount > 0) {
-                CartBar(
+                ShopCartBar(
                     count = uiState.cartCount,
                     total = uiState.cartSubtotal,
                     onClick = onOpenCart
@@ -153,10 +176,21 @@ fun PetShopScreen(
                     contentPadding = PaddingValues(bottom = 24.dp)
                 ) {
                     item {
-                        SearchAndFilters(
+                        CategoryRail(
                             state = uiState,
-                            viewModel = viewModel,
+                            onSelect = { viewModel.onCategorySelected(it) }
+                        )
+                    }
+
+                    item {
+                        ClinicFilterRow(
+                            state = uiState,
                             canRequestPermission = locationPermission.canRequest,
+                            onSelectClinic = viewModel::onClinicSelected,
+                            onShowAllClinics = {
+                                if (uiState.nearbyMode) viewModel.disableNearby()
+                                else viewModel.onClinicSelected(null)
+                            },
                             onToggleNearby = {
                                 if (uiState.nearbyMode) {
                                     viewModel.disableNearby()
@@ -174,50 +208,40 @@ fun PetShopScreen(
                         )
                     }
 
+                    item {
+                        ResultToolbar(
+                            count = uiState.products.size,
+                            hasActiveFilters = uiState.hasActiveFilters,
+                            sort = uiState.sort,
+                            onResetFilters = { viewModel.resetFilters() },
+                            onSortSelected = viewModel::onSortSelected
+                        )
+                    }
+
                     if (uiState.products.isEmpty()) {
                         item {
                             if (uiState.hasActiveFilters) {
                                 EmptySearchState(
                                     query = uiState.search.ifBlank { "filter ini" },
-                                    modifier = Modifier.height(360.dp)
+                                    modifier = Modifier.height(340.dp)
                                 )
                             } else {
                                 EmptyState(
                                     icon = Icons.Outlined.Inventory2,
                                     title = "Belum ada produk",
                                     description = "Produk dari klinik mitra akan muncul di sini setelah katalog tersedia.",
-                                    modifier = Modifier.height(360.dp)
+                                    modifier = Modifier.height(340.dp)
                                 )
                             }
                         }
                     } else {
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "${uiState.products.size} produk",
-                                    fontSize = 12.sp,
-                                    color = TextSecondary
-                                )
-                                if (uiState.hasActiveFilters) {
-                                    TextButton(onClick = { viewModel.resetFilters() }) {
-                                        Text("Reset", fontSize = 12.sp, color = Primary)
-                                    }
-                                }
-                            }
-                        }
-
                         itemsIndexed(uiState.products.chunked(2)) { _, rowProducts ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 20.dp, vertical = 5.dp),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                    .padding(horizontal = ShopTheme.gutter, vertical = 5.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.Top
                             ) {
                                 rowProducts.forEach { product ->
                                     PetShopProductCard(
@@ -237,14 +261,29 @@ fun PetShopScreen(
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .padding(vertical = 16.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (uiState.isLoadingMore) {
-                                        Text("Memuat…", fontSize = 13.sp, color = TextSecondary)
+                                        CircularProgressIndicator(
+                                            color = Primary,
+                                            strokeWidth = 2.dp,
+                                            modifier = Modifier.size(20.dp)
+                                        )
                                     } else {
-                                        TextButton(onClick = { viewModel.loadMore() }) {
-                                            Text("Muat lebih banyak", fontSize = 13.sp, color = Primary)
+                                        Surface(
+                                            onClick = { viewModel.loadMore() },
+                                            shape = RoundedCornerShape(PetHealRadius.pill),
+                                            color = Surface,
+                                            border = BorderStroke(1.dp, Outline)
+                                        ) {
+                                            Text(
+                                                text = "Muat produk lain",
+                                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Primary
+                                            )
                                         }
                                     }
                                 }
@@ -257,153 +296,251 @@ fun PetShopScreen(
     }
 }
 
+/** Kolom pencarian di dalam pita kepala layar. */
 @Composable
-private fun SearchAndFilters(
-    state: PetShopUiState,
-    viewModel: PetShopViewModel,
-    canRequestPermission: Boolean,
-    onToggleNearby: () -> Unit
-) {
-    var sortMenuOpen by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.padding(bottom = 4.dp)) {
-        OutlinedTextField(
-            value = state.search,
-            onValueChange = viewModel::onSearchChange,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 6.dp),
-            placeholder = { Text("Cari makanan, obat, atau aksesoris…", fontSize = 13.sp) },
-            leadingIcon = {
-                Icon(Icons.Filled.Search, contentDescription = null, tint = TextSecondary)
-            },
-            singleLine = true,
-            shape = RoundedCornerShape(PetHealRadius.md),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Surface,
-                unfocusedContainerColor = Surface,
-                focusedIndicatorColor = Primary,
-                unfocusedIndicatorColor = Outline
-            )
-        )
-
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+private fun ShopSearchField(value: String, onValueChange: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(PetHealRadius.md),
+        color = Surface
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            item {
-                FilterChip(
-                    label = "Semua",
-                    selected = state.selectedCategory == null,
-                    onClick = { viewModel.onCategorySelected(null) }
+            Icon(
+                imageVector = Icons.Filled.Search,
+                contentDescription = null,
+                tint = TextTertiary,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(9.dp))
+            Box(modifier = Modifier.weight(1f)) {
+                if (value.isEmpty()) {
+                    Text(
+                        text = "Cari makanan, obat, aksesoris…",
+                        fontSize = 13.sp,
+                        color = TextTertiary
+                    )
+                }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = androidx.compose.ui.text.TextStyle(
+                        color = OnBackground,
+                        fontSize = 13.sp
+                    ),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(),
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
-            items(state.categories) { category ->
-                FilterChip(
-                    label = category.name,
-                    selected = state.selectedCategory == category.slug,
-                    onClick = { viewModel.onCategorySelected(category.slug) }
-                )
+            if (value.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .clickable { onValueChange("") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Hapus pencarian",
+                        tint = TextTertiary,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
         }
+    }
+}
 
+/** Rel kategori berbentuk ubin ikon. */
+@Composable
+private fun CategoryRail(state: PetShopUiState, onSelect: (String?) -> Unit) {
+    LazyRow(
+        contentPadding = PaddingValues(horizontal = ShopTheme.gutter - 6.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        item {
+            ShopCategoryTile(
+                name = "Semua",
+                slug = null,
+                selected = state.selectedCategory == null,
+                onClick = { onSelect(null) }
+            )
+        }
+        items(state.categories) { category ->
+            ShopCategoryTile(
+                name = category.name,
+                slug = category.slug,
+                selected = state.selectedCategory == category.slug,
+                onClick = { onSelect(category.slug) }
+            )
+        }
+    }
+}
+
+/** Baris filter klinik: semua klinik, terdekat, lalu klinik penjual. */
+@Composable
+private fun ClinicFilterRow(
+    state: PetShopUiState,
+    canRequestPermission: Boolean,
+    onSelectClinic: (Int?) -> Unit,
+    onShowAllClinics: () -> Unit,
+    onToggleNearby: () -> Unit
+) {
+    Column {
         LazyRow(
-            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 2.dp),
+            contentPadding = PaddingValues(horizontal = ShopTheme.gutter),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             item {
-                FilterChip(
+                ShopFilterChip(
                     label = "Semua klinik",
                     selected = state.selectedClinicId == null && !state.nearbyMode,
-                    onClick = {
-                        if (state.nearbyMode) viewModel.disableNearby()
-                        else viewModel.onClinicSelected(null)
-                    }
+                    onClick = onShowAllClinics
                 )
             }
             item {
-                FilterChip(
+                ShopFilterChip(
                     label = if (state.isLoadingNearby) "Mencari…" else "Terdekat",
                     selected = state.nearbyMode,
+                    icon = Icons.Filled.MyLocation,
                     onClick = onToggleNearby
                 )
             }
 
             if (state.nearbyMode) {
                 items(state.clinicOptions) { clinic ->
-                    FilterChip(
+                    ShopFilterChip(
                         label = clinic.distanceLabel?.let { "${clinic.name} · $it" } ?: clinic.name,
                         selected = state.selectedClinicId == clinic.id,
                         // Di mode terdekat selalu ada satu klinik terpilih;
-                        // menekan chip yang sama tidak boleh mengosongkan
-                        // filter (pakai "Semua klinik" untuk itu).
+                        // menekan chip yang sama tidak boleh mengosongkan filter
+                        // (pakai "Semua klinik" untuk itu).
                         onClick = {
-                            if (state.selectedClinicId != clinic.id) {
-                                viewModel.onClinicSelected(clinic.id)
-                            }
+                            if (state.selectedClinicId != clinic.id) onSelectClinic(clinic.id)
                         }
                     )
                 }
             } else {
                 items(state.sellers) { seller ->
-                    FilterChip(
+                    ShopFilterChip(
                         label = seller.name,
                         selected = state.selectedClinicId == seller.id,
-                        onClick = { viewModel.onClinicSelected(seller.id) }
+                        onClick = { onSelectClinic(seller.id) }
                     )
                 }
             }
         }
 
-        if (state.nearbyMode) {
+        val note = when {
+            state.nearbyMode ->
+                "Menampilkan produk klinik terdekat (jarak garis lurus). Pilih klinik lain di atas untuk melihat produknya."
+            state.locationUnavailable && canRequestPermission ->
+                "Jarak belum tersedia. Aktifkan lokasi lewat tombol Terdekat."
+            state.locationUnavailable ->
+                "Izin lokasi dimatikan. Aktifkan lewat pengaturan aplikasi bila ingin melihat jarak."
+            else -> null
+        }
+        if (note != null) {
             Text(
-                "Menampilkan produk klinik terdekat (jarak garis lurus). Pilih klinik lain di atas untuk melihat produknya.",
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
-                fontSize = 10.sp,
-                lineHeight = 14.sp,
-                color = TextSecondary
-            )
-        } else if (state.locationUnavailable) {
-            Text(
-                if (canRequestPermission) {
-                    "Jarak belum tersedia. Aktifkan lokasi lewat tombol Terdekat."
-                } else {
-                    "Izin lokasi dimatikan. Aktifkan lewat pengaturan aplikasi bila ingin melihat jarak."
-                },
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 2.dp),
+                text = note,
+                modifier = Modifier.padding(horizontal = ShopTheme.gutter, vertical = 4.dp),
                 fontSize = 10.sp,
                 lineHeight = 14.sp,
                 color = TextSecondary
             )
         }
+    }
+}
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 12.dp, end = 20.dp, top = 2.dp),
-            contentAlignment = Alignment.CenterEnd
-        ) {
-            TextButton(onClick = { sortMenuOpen = true }) {
-                Text(state.sort.label, fontSize = 12.sp, color = TextSecondary)
-                Icon(
-                    Icons.Filled.ArrowDropDown,
-                    contentDescription = null,
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
+/** Jumlah hasil + tombol urutkan. */
+@Composable
+private fun ResultToolbar(
+    count: Int,
+    hasActiveFilters: Boolean,
+    sort: PetShopSort,
+    onResetFilters: () -> Unit,
+    onSortSelected: (PetShopSort) -> Unit
+) {
+    var sortMenuOpen by remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = ShopTheme.gutter, end = ShopTheme.gutter, top = 12.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "$count produk",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = OnBackground,
+            modifier = Modifier.weight(1f)
+        )
+        if (hasActiveFilters) {
+            Text(
+                text = "Reset",
+                fontSize = 11.5.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(PetHealRadius.sm))
+                    .clickable(onClick = onResetFilters)
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+        }
+        Box {
+            Surface(
+                onClick = { sortMenuOpen = true },
+                shape = RoundedCornerShape(PetHealRadius.pill),
+                color = Surface,
+                border = BorderStroke(1.dp, Outline)
+            ) {
+                Row(
+                    modifier = Modifier.padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Sort,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                    Text(
+                        text = sort.label,
+                        fontSize = 11.5.sp,
+                        color = TextSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.ArrowDropDown,
+                        contentDescription = null,
+                        tint = TextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
             DropdownMenu(expanded = sortMenuOpen, onDismissRequest = { sortMenuOpen = false }) {
-                PetShopSort.entries.forEach { sort ->
+                PetShopSort.entries.forEach { option ->
                     DropdownMenuItem(
                         text = {
                             Text(
-                                sort.label,
-                                fontWeight = if (sort == state.sort) FontWeight.SemiBold else FontWeight.Normal
+                                option.label,
+                                fontSize = 13.sp,
+                                fontWeight = if (option == sort) FontWeight.SemiBold else FontWeight.Normal,
+                                color = if (option == sort) Primary else OnBackground
                             )
                         },
                         onClick = {
                             sortMenuOpen = false
-                            viewModel.onSortSelected(sort)
+                            onSortSelected(option)
                         }
                     )
                 }
@@ -412,62 +549,114 @@ private fun SearchAndFilters(
     }
 }
 
+/** Chip filter putih dengan garis tipis; aktif = hijau penuh. */
 @Composable
-private fun FilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun ShopFilterChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null
+) {
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(PetHealRadius.pill),
-        color = if (selected) Primary else Surface,
-        border = if (selected) null else androidx.compose.foundation.BorderStroke(1.dp, Outline)
+        // Chip aktif memakai hijau tua: teks putih tetap terbaca di ukuran 11 sp.
+        color = if (selected) PrimaryDark else Surface,
+        border = if (selected) null else BorderStroke(1.dp, Outline)
     ) {
-        Text(
-            text = label,
-            modifier = Modifier.padding(horizontal = 13.dp, vertical = 7.dp),
-            fontSize = 12.sp,
-            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-            color = if (selected) Color.White else OnBackground
-        )
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) Color.White else TextSecondary,
+                    modifier = Modifier.size(13.dp)
+                )
+                Spacer(Modifier.width(5.dp))
+            }
+            Text(
+                text = label,
+                fontSize = 11.5.sp,
+                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                color = if (selected) Color.White else OnBackground,
+                maxLines = 1
+            )
+        }
     }
 }
 
+/**
+ * Bar keranjang mengapung di atas navigasi sistem: bentuk pil, bayangan tebal,
+ * dan tombol hijau penuh supaya aksi utamanya tidak mungkin terlewat.
+ */
 @Composable
-private fun CartBar(count: Int, total: Long, onClick: () -> Unit) {
+private fun ShopCartBar(count: Int, total: Long, onClick: () -> Unit) {
     val navPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    Surface(
-        color = Surface,
-        shadowElevation = 12.dp,
-        modifier = Modifier.fillMaxWidth()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp, bottom = navPadding + 12.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .padding(bottom = navPadding),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(20.dp),
+            color = Surface,
+            shadowElevation = 12.dp
         ) {
-            Icon(
-                Icons.Filled.ShoppingBag,
-                contentDescription = null,
-                tint = Primary,
-                modifier = Modifier.size(22.dp)
-            )
-            Spacer(Modifier.width(12.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text("$count item", fontSize = 12.sp, color = TextSecondary)
-                Text(
-                    formatRupiah(total.toDouble()),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = OnBackground
-                )
-            }
-            Button(
-                onClick = onClick,
-                shape = RoundedCornerShape(PetHealRadius.md),
-                colors = ButtonDefaults.buttonColors(containerColor = Primary),
-                contentPadding = PaddingValues(horizontal = 22.dp, vertical = 12.dp)
+            Row(
+                modifier = Modifier.padding(start = 12.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Lihat keranjang", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(ShopTheme.innerRadius))
+                        .background(PrimaryLight),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.ShoppingBag,
+                        contentDescription = null,
+                        tint = Primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                Spacer(Modifier.width(11.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "$count item",
+                        fontSize = 10.5.sp,
+                        color = TextSecondary
+                    )
+                    Text(
+                        text = formatRupiah(total.toDouble()),
+                        fontSize = 15.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = OnBackground
+                    )
+                }
+                Button(
+                    onClick = onClick,
+                    shape = RoundedCornerShape(PetHealRadius.md),
+                    colors = ButtonDefaults.buttonColors(containerColor = Primary),
+                    contentPadding = PaddingValues(start = 16.dp, end = 12.dp, top = 11.dp, bottom = 11.dp)
+                ) {
+                    Text(
+                        "Keranjang",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 12.5.sp
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        modifier = Modifier.size(11.dp)
+                    )
+                }
             }
         }
     }
@@ -475,43 +664,69 @@ private fun CartBar(count: Int, total: Long, onClick: () -> Unit) {
 
 @Composable
 private fun PetShopCatalogSkeleton() {
-    Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .background(SurfaceMuted, RoundedCornerShape(PetHealRadius.md))
-        )
-        Spacer(Modifier.height(12.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = Modifier.padding(horizontal = ShopTheme.gutter, vertical = 12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             repeat(4) {
-                Box(
-                    modifier = Modifier
-                        .width(80.dp)
-                        .height(32.dp)
-                        .background(SurfaceMuted, RoundedCornerShape(PetHealRadius.pill))
-                )
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(
+                        modifier = Modifier
+                            .size(52.dp)
+                            .clip(RoundedCornerShape(ShopTheme.innerRadius))
+                            .background(SurfaceMuted)
+                            .shimmerEffect(true)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .width(44.dp)
+                            .height(9.dp)
+                            .clip(RoundedCornerShape(PetHealRadius.sm))
+                            .background(SurfaceMuted)
+                            .shimmerEffect(true)
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(18.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             repeat(2) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(230.dp)
-                        .background(Surface, RoundedCornerShape(PetHealRadius.lg))
-                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(150.dp)
+                            .clip(RoundedCornerShape(ShopTheme.cardRadius))
+                            .background(SurfaceMuted)
+                            .shimmerEffect(true)
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.9f)
+                            .height(11.dp)
+                            .clip(RoundedCornerShape(PetHealRadius.sm))
+                            .background(SurfaceMuted)
+                            .shimmerEffect(true)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(0.55f)
+                            .height(11.dp)
+                            .clip(RoundedCornerShape(PetHealRadius.sm))
+                            .background(SurfaceMuted)
+                            .shimmerEffect(true)
+                    )
+                }
             }
         }
-        Spacer(Modifier.height(12.dp))
-        Surface(color = InfoSoft, shape = RoundedCornerShape(PetHealRadius.md)) {
-            Text(
-                "Menyiapkan katalog dari klinik mitra…",
-                modifier = Modifier.padding(14.dp),
-                fontSize = 12.sp,
-                color = TextSecondary
-            )
-        }
+        Spacer(Modifier.height(14.dp))
+        Text(
+            "Menyiapkan katalog dari klinik mitra…",
+            fontSize = 11.sp,
+            color = TextTertiary,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }

@@ -480,24 +480,14 @@ private fun BookingHero(
     onOpenFilter: () -> Unit,
     onSelectTab: (BookingTab) -> Unit
 ) {
-    // Gradasi brand yang sama dengan Beranda & Rekam Medis.
-    val heroBottom = androidx.compose.ui.graphics.lerp(BkPrimary, Color.Black, 0.22f)
+    // Kepala halaman warna brand solid (tanpa gradasi).
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(Brush.verticalGradient(listOf(BkPrimary, heroBottom)))
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = 64.dp, y = (-88).dp)
-                .size(200.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
-        )
-        Box(
+            .background(BkPrimaryDark)
+    ) {        Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .offset(x = (-56).dp, y = 56.dp)
