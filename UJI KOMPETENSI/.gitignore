@@ -6,6 +6,10 @@
 **/*.pem
 **/*.p12
 **/*.pfx
+**/*.jks
+**/*.keystore
+**/keystore.properties
+**/keystore/
 **/*service-account*.json
 **/*firebase-adminsdk*.json
 **/google-services.json

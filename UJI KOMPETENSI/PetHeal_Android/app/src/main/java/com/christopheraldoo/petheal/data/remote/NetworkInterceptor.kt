@@ -2,75 +2,88 @@ package com.christopheraldoo.petheal.data.remote
 
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.local.SessionEvents
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
+import com.christopheraldoo.petheal.di.ApplicationScope
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import okhttp3.Interceptor
 import okhttp3.Response
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 
+/**
+ * Menambahkan identitas permintaan (token + tenant) dan menutup sesi saat 401.
+ *
+ * **Kenapa tanpa `runBlocking` di setiap permintaan.** Sebelumnya interceptor
+ * membaca DataStore lewat `runBlocking` setiap kali cache di memori kosong —
+ * artinya thread jaringan ikut menunggu pembacaan disk, dan pada permintaan
+ * pertama setelah proses dibunuh ini bisa terasa sebagai aplikasi menggantung.
+ * Sekarang nilai disimpan di memori dan diisi sekali oleh
+ * `PetHealApplication` (lihat `SessionCacheBootstrap`), sehingga interceptor
+ * hanya membaca variabel.
+ *
+ * Bila permintaan datang sebelum cache siap (mis. cold start sangat cepat),
+ * interceptor menunggu **maksimal 1,5 detik** — bukan selamanya — lalu lanjut
+ * tanpa header. Permintaan publik tetap berhasil, dan permintaan yang memang
+ * butuh token akan diulang pengguna setelah sesi selesai dipulihkan.
+ */
 class NetworkInterceptor @Inject constructor(
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    @ApplicationScope private val appScope: CoroutineScope
 ) : Interceptor {
 
     @Volatile private var cachedToken: String? = null
     @Volatile private var cachedClinicSlug: String? = null
-    @Volatile private var clinicSlugLoaded = false
+    @Volatile private var cacheReady = false
+
+    private val cacheReadyLatch = CountDownLatch(1)
+
+    /** Menjaga agar alur "sesi berakhir" hanya berjalan sekali per sesi. */
+    private val sessionExpiredEmitted = AtomicBoolean(false)
 
     fun updateToken(token: String?) {
         cachedToken = token
+        // Token baru berarti sesi baru: izinkan notifikasi kedaluwarsa lagi.
+        if (!token.isNullOrBlank()) sessionExpiredEmitted.set(false)
+        markCacheReady()
     }
 
-    /** Called after clinic pick / login so the header follows immediately. */
+    /** Dipanggil setelah pilih klinik / login agar header tenant ikut berubah. */
     fun updateClinicSlug(slug: String?) {
         cachedClinicSlug = slug
-        clinicSlugLoaded = true
+        markCacheReady()
     }
 
-    companion object {
-        // 401 must not wipe a login/register/reset attempt itself (nothing to wipe
-        // and it would mask field errors). Paths here never trigger the
-        // session-expired flow. Only true auth endpoints are listed: any other
-        // call made WITH a token that answers 401 means the token is invalid
-        // and the session must end (previously public catalog paths listed here
-        // swallowed real expiries and left the user stuck logged-in).
-        // Path register OTP ikut terdaftar: ketiganya gagal-auth juga (401 di
-        // sana tidak boleh menghapus sesi yang belum ada), dan ketiganya
-        // membawa tenant (clinic_slug) di BODY, bukan header.
-        private val AUTH_PATHS = listOf(
-            "auth/login", "auth/register", "auth/firebase-login",
-            "auth/register/request-otp", "auth/register/verify-otp",
-            "auth/register/resend-otp",
-            "auth/forgot-password", "auth/verify-reset-code", "auth/reset-password",
-            "public/clinics"
-        )
+    private fun markCacheReady() {
+        if (cacheReady) return
+        cacheReady = true
+        cacheReadyLatch.countDown()
+    }
 
-        // The login/register calls carry (or establish) the binding itself —
-        // a stale stored slug must never break them (backend 403 on mismatch).
-        // Tenant binding travels in the request BODY (clinic_slug) instead.
-        private val NO_SLUG_HEADER_PATHS = listOf(
-            "auth/login", "auth/register", "auth/firebase-login",
-            "auth/register/request-otp", "auth/register/verify-otp",
-            "auth/register/resend-otp"
-        )
+    private fun awaitCacheReady() {
+        if (cacheReady) return
+        try {
+            cacheReadyLatch.await(CACHE_WAIT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val originalRequest = chain.request()
+        awaitCacheReady()
 
-        val token = cachedToken ?: runBlocking { preferencesManager.authToken.first() }
-            .also { cachedToken = it }
-        if (!clinicSlugLoaded) {
-            cachedClinicSlug = runBlocking { preferencesManager.clinicSlug.first() }
-            clinicSlugLoaded = true
-        }
+        val originalRequest = chain.request()
+        val token = cachedToken
+        val path = originalRequest.url.encodedPath
 
         val builder = originalRequest.newBuilder()
         if (!token.isNullOrBlank()) {
             builder.header("Authorization", "Bearer $token")
         }
-        // PHASE 7: tenant hint. Backend validates it when present (403 on
-        // mismatch); anonymous catalog calls additionally send ?clinic_slug=.
-        val path = originalRequest.url.encodedPath
+
+        // PHASE 7: tenant hint. Backend memvalidasi bila ada (403 saat tidak
+        // cocok); katalog anonim juga mengirim ?clinic_slug=.
         val skipSlugHeader = NO_SLUG_HEADER_PATHS.any { path.contains(it) }
         val clinicSlug = cachedClinicSlug
         if (!skipSlugHeader && !clinicSlug.isNullOrBlank()) {
@@ -79,18 +92,43 @@ class NetworkInterceptor @Inject constructor(
 
         val response = chain.proceed(builder.build())
 
-        // PHASE 7 (§21): expired/invalid token ends the session exactly once:
-        // clear persisted auth + RAM cache and notify navigation. No retry
-        // loop (request is returned as-is), no logout of auth attempts.
+        // PHASE 7 (§21): token kedaluwarsa mengakhiri sesi tepat satu kali.
+        // Cache di memori dikosongkan seketika (permintaan berikutnya tidak
+        // membawa token basi), lalu penyimpanan dibersihkan di background.
         val isAuthPath = AUTH_PATHS.any { path.contains(it) }
-        if (response.code == 401 && !token.isNullOrBlank() && !isAuthPath) {
+        if (response.code == 401 && !token.isNullOrBlank()) {
             cachedToken = null
-            runBlocking { preferencesManager.clearSession() }
-            SessionEvents.emitSessionExpired()
-        } else if (response.code == 401 && !token.isNullOrBlank()) {
-            cachedToken = null
+            if (!isAuthPath && sessionExpiredEmitted.compareAndSet(false, true)) {
+                SessionEvents.emitSessionExpired()
+                appScope.launch { preferencesManager.clearSession() }
+            }
         }
 
         return response
+    }
+
+    private companion object {
+        const val CACHE_WAIT_TIMEOUT_MS = 1_500L
+
+        // 401 tidak boleh menghapus percobaan login/register/reset itu sendiri
+        // (tidak ada sesi untuk dihapus, dan error field akan tertutup alur
+        // "sesi berakhir"). Hanya endpoint auth asli yang terdaftar: permintaan
+        // lain yang membawa token lalu dijawab 401 berarti token tidak valid.
+        // Register OTP juga terdaftar karena ketiganya membawa tenant di BODY.
+        val AUTH_PATHS = listOf(
+            "auth/login", "auth/register", "auth/firebase-login",
+            "auth/register/request-otp", "auth/register/verify-otp",
+            "auth/register/resend-otp",
+            "auth/forgot-password", "auth/verify-reset-code", "auth/reset-password",
+            "public/clinics"
+        )
+
+        // Login/register membawa atau membentuk ikatan tenant itu sendiri —
+        // slug lama tidak boleh ikut terkirim (backend menjawab 403).
+        val NO_SLUG_HEADER_PATHS = listOf(
+            "auth/login", "auth/register", "auth/firebase-login",
+            "auth/register/request-otp", "auth/register/verify-otp",
+            "auth/register/resend-otp"
+        )
     }
 }

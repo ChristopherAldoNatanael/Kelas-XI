@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,6 +54,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.ClinicTheme
 import com.christopheraldoo.petheal.ui.theme.InfoStrong
@@ -335,7 +337,7 @@ fun PaymentReceiptSheet(
                             onClick = ::saveImage,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(44.dp),
+                                .heightIn(min = Dimens.MinTouchTarget),
                             shape = RoundedCornerShape(13.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
@@ -347,7 +349,7 @@ fun PaymentReceiptSheet(
                             onClick = ::savePdf,
                             modifier = Modifier
                                 .weight(1f)
-                                .height(44.dp),
+                                .heightIn(min = Dimens.MinTouchTarget),
                             shape = RoundedCornerShape(13.dp),
                             contentPadding = PaddingValues(horizontal = 8.dp)
                         ) {
@@ -489,7 +491,7 @@ fun PaymentReceiptPreviewCard(
                 onClick = onOpen,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(42.dp),
+                    .heightIn(min = Dimens.MinTouchTarget),
                 shape = RoundedCornerShape(12.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, accent.copy(alpha = 0.45f)),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = accent)

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -44,7 +45,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.repository.PetShopCartLine
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.Info
@@ -72,6 +73,7 @@ import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.util.formatRupiah
 
 @Composable
@@ -81,7 +83,7 @@ fun PetShopCheckoutScreen(
     onOrderCreated: (Int) -> Unit,
     viewModel: PetShopCheckoutViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.notice) {
@@ -571,7 +573,7 @@ private fun CheckoutBar(total: Long, isSubmitting: Boolean, onSubmit: () -> Unit
             Button(
                 onClick = onSubmit,
                 enabled = !isSubmitting,
-                modifier = Modifier.height(46.dp),
+                modifier = Modifier.heightIn(min = Dimens.MinTouchTarget),
                 shape = RoundedCornerShape(PetHealRadius.md),
                 colors = ButtonDefaults.buttonColors(containerColor = Primary),
                 contentPadding = PaddingValues(horizontal = 20.dp)

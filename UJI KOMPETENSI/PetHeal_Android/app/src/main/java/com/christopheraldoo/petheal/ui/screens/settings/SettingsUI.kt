@@ -19,9 +19,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.Brand
 
 // Warna dari ui/theme/Color.kt — jangan hardcode hex.
-private val SettingsTextSecondary = TextSecondary
 
 @Composable
 fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
@@ -86,7 +86,7 @@ fun SettingsActionRow(
             Icon(
                 imageVector = Icons.Default.ChevronRight,
                 contentDescription = null,
-                tint = SettingsTextSecondary,
+                tint = Brand.textSecondary,
                 modifier = Modifier.size(20.dp)
             )
         }

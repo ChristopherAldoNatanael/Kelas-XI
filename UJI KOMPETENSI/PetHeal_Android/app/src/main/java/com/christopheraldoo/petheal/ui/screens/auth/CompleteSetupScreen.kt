@@ -30,7 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,9 +63,9 @@ fun CompleteSetupScreen(
     viewModel: CompleteSetupViewModel = hiltViewModel(),
     pickerViewModel: ClinicPickerViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
-    val pickerState by pickerViewModel.uiState.collectAsState()
-    val provider by viewModel.authProvider.collectAsState(initial = null)
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
+    val pickerState by pickerViewModel.uiState.collectAsStateLifecycleAware()
+    val provider by viewModel.authProvider.collectAsStateLifecycleAware(initial = null)
     val isGoogle = provider != PreferencesManager.AUTH_PROVIDER_EMAIL_PASSWORD
 
     LaunchedEffect(Unit) { pickerViewModel.load() }

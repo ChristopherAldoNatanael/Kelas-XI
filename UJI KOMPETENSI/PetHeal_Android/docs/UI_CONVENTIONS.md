@@ -23,8 +23,19 @@
 | Teks/ikon di atas `Primary` | `OnPrimaryStrong` |
 | Status booking | `StatusPending`, `StatusConfirmed`, `StatusCompleted`, `StatusCancelled`, `StatusRejected`, `StatusPaid` |
 
-Alias lokal per layar **boleh** ada (mis. `BkPrimary`, `MrTextPrimary`), tetapi
-nilainya wajib menunjuk token di atas — bukan hex. Contoh: `HomeScreen.kt:76`.
+**Nama warna yang dipakai layar adalah `Brand.*`** dari `ui/theme/Brand.kt`
+(`Brand.primary`, `Brand.card`, `Brand.textSecondary`, `Brand.danger`, …).
+Objek itu hanya memetakan peran ke token di atas, jadi satu warna bisa diubah
+dari satu tempat.
+
+Alias per layar (`MrPrimary`, `BkSurface`, `PetPrimary`, `SrSurface`, `BsBorder`,
+`TextPrimary`, `SurfaceDark`, …) **sudah dihapus** — jangan dibuat lagi. Dulu
+satu layar punya 6–16 alias sendiri, sehingga mengganti satu warna berarti
+menyunting 4–8 file dan mudah ada layar yang tertinggal.
+
+**Tanpa gradien dekoratif.** Header, kartu, dan tombol memakai satu warna solid
+(`Brand.primaryDeep` untuk header). Gradien hanya boleh sebagai *scrim* di atas
+foto agar teks terbaca, dan di asset brand pada `ui/screens/auth/`.
 
 > Sisanya masih ada ±35 hex satu-off yang belum ditoken; kalau menyentuh area
 > itu, ganti ke token yang paling dekat.
@@ -75,6 +86,15 @@ Satu sumber kebenaran: `data/remote/NetworkMonitor.kt`
 cache di `di/AppModule.kt`. Jangan membuat pengecekan konektivitas baru di layar
 lain.
 
+Urutan interceptor di `di/AppModule.kt`: auth (`NetworkInterceptor`) → cache →
+`RetryInterceptor` → timeout → logging. `RetryInterceptor` hanya mengulang
+**GET** sekali pada 408/429/5xx (POST/PUT/DELETE tidak pernah diulang agar
+transaksi tidak ganda).
+
+Token & slug klinik dibaca dari memori, bukan DataStore: `NetworkInterceptor`
+diisi sekali di awal oleh `data/remote/SessionCacheBootstrap.kt`
+(dipanggil `PetHealApplication`). Jangan menambahkan `runBlocking` di interceptor.
+
 ## 7. Insets (edge-to-edge)
 
 `MainActivity` memakai `enableEdgeToEdge()` + `setDecorFitsSystemWindows(false)`,
@@ -92,3 +112,63 @@ Layar yang memakai `Scaffold + TopAppBar` sudah otomatis (M3 mengurusnya).
 
 Salinan baru untuk pengguna masuk ke `res/values/strings.xml`; literal panjang di
 Composable hanya untuk konten dari API (nama dokter, klinik, hewan).
+
+Pola penamaan: `<layar>_<bagian>_<arti>` (mis. `petshop_receipt_label_order`)
+dan `common_*` untuk aksi yang dipakai dua layar atau lebih (`common_retry`,
+`common_save_png`, `common_check_status`). Contoh migrasi lengkap:
+`ui/screens/petshop/PetShopReceiptScreen.kt`.
+
+Layar lama masih memakai literal inline — saat menyentuh sebuah layar, pindahkan
+string yang terlihat pengguna ke `strings.xml`, bukan menambah literal baru.
+
+## 9. Area sentuh minimum 48dp
+
+Setiap elemen yang bisa disentuh minimal 48×48dp, walau bentuk visualnya lebih
+kecil. Caranya:
+
+- Tombol aksi: `Modifier.heightIn(min = Dimens.MinTouchTarget)` — jangan
+  `.height(44.dp)` tetap, karena teks terpotong saat pengaturan font HP besar.
+- Tombol ikon bulat di hero: lingkaran visual boleh 42dp, tetapi `Box` yang
+  memegang `clickable` berukuran `Dimens.MinTouchTarget` (lihat
+  `ShopRoundButton` di `ui/screens/petshop/PetShopComponents.kt`).
+- Chip: bungkus pil ramping di dalam `Box` 48dp yang memegang `clickable`
+  (lihat `ShopFilterChip`, `InvoiceFilterChip`, `SelectChip`, `DateChip`).
+- `Dimens.MinTouchTarget`/`Dimens.ButtonHeight` ada di
+  `ui/components/CommonComponents.kt`; `Modifier.minTapTarget()` setara
+  `minimumInteractiveComponentSize()`.
+
+## 10. Gerak (motion) — satu sistem
+
+Semua transisi halaman diatur satu tempat: `ui/navigation/PetHealTransitions.kt`
+(`PetHealMotion`: `PushMs 340`, `PopMs 300`, `TabMs 260`, `SheetMs 330`,
+`BrandMs 420`). Jenis animasi dipilih dari nama route (`TabRoots`, `SheetScreens`,
+`BrandScreens`) — layar tidak perlu (dan tidak boleh) menambahkan animasi masuk
+sendiri. Mengubah “rasa” aplikasi = mengubah 5 konstanta itu saja.
+
+Anti ketuk ganda ditangani global oleh `ui/navigation/NavGate.kt` (400ms untuk
+navigasi, 300ms untuk kembali) di dalam `goTo()`/`goBack()` pada `PetHealNavHost`.
+Alur 401 (`PetHealNavHost.kt`, logout paksa) sengaja melewati gate.
+
+## 11. State Flow di Composable
+
+Pakai `collectAsStateLifecycleAware()` dari `ui/util/LifecycleAwareState.kt`,
+bukan `collectAsState()`. Versi lifecycle-aware berhenti mengoleksi saat aplikasi
+di background (hemat CPU/bateri) dan mempertahankan nilai terakhir sehingga layar
+tidak berkedip saat kembali.
+
+```kotlin
+val uiState by viewModel.uiState.collectAsStateLifecycleAware()
+```
+
+## 12. Build & rilis
+
+- Versi ada di `app/build.gradle.kts` (`versionCode`, `versionName`). Naikkan
+  keduanya setiap kali APK dibagikan.
+- Tanda tangan rilis dibaca dari `keystore.properties` (tidak di-commit; lihat
+  `keystore/README.md`). Tanpa berkas itu build tetap jalan, tetapi keluarannya
+  `app-release-unsigned.apk` yang tidak bisa dipasang.
+- Cleartext HTTP hanya diizinkan pada build **debug** untuk `10.0.2.2`,
+  `localhost`, `127.0.0.1` (`app/src/debug/res/xml/network_security_config.xml`).
+  Build rilis memakai `app/src/main/res/xml/network_security_config.xml` yang
+  menolak semua cleartext.
+- `isShrinkResources = true` pada rilis; jangan matikan tanpa mengukur ukuran.

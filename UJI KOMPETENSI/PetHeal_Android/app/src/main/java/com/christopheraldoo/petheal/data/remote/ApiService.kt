@@ -456,9 +456,9 @@ interface ApiService {
     @GET("pet-shop/orders/{id}/receipt")
     suspend fun getPetShopReceipt(@Path("id") id: Int): Response<PetShopReceiptResponse>
 
-    @Streaming
-    @GET("pet-shop/orders/{id}/receipt/pdf")
-    suspend fun downloadPetShopReceiptPdf(@Path("id") id: Int): Response<ResponseBody>
+    // Catatan: endpoint PDF server sudah tidak dipakai. Bukti pembayaran PDF
+    // kini dirender di perangkat (PetShopReceiptExporter.renderPdf) agar hasilnya
+    // selalu sama dengan PNG dan tetap bisa diunduh saat offline.
 
     @GET("pet-shop/orders/{id}/pickup-pass")
     suspend fun getPetShopPickupPass(@Path("id") id: Int): Response<PetShopPickupPassResponse>

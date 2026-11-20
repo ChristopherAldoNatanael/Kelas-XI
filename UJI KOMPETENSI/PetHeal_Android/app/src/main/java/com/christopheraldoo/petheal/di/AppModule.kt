@@ -10,6 +10,7 @@ import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.NetworkInterceptor
 import com.christopheraldoo.petheal.data.remote.NetworkMonitor
+import com.christopheraldoo.petheal.data.remote.RetryInterceptor
 import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
 import dagger.Provides
@@ -18,6 +19,9 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.Cache
 import okhttp3.OkHttpClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -64,11 +68,22 @@ object AppModule {
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
 
+    /**
+     * Scope yang hidup selama proses aplikasi. Dipakai untuk pekerjaan lintas
+     * layar (menyegarkan cache sesi, membersihkan sesi setelah 401).
+     */
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(): CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     @Provides
     @Singleton
     fun provideNetworkInterceptor(
-        preferencesManager: PreferencesManager
-    ): NetworkInterceptor = NetworkInterceptor(preferencesManager)
+        preferencesManager: PreferencesManager,
+        @ApplicationScope appScope: CoroutineScope
+    ): NetworkInterceptor = NetworkInterceptor(preferencesManager, appScope)
 
     @Provides
     @Singleton
@@ -101,6 +116,8 @@ object AppModule {
                 }
                 chain.proceed(request)
             }
+            // Retry khusus GET (429/5xx) — lihat RetryInterceptor untuk alasannya.
+            .addInterceptor(RetryInterceptor())
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(45, TimeUnit.SECONDS)

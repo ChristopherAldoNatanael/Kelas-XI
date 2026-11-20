@@ -16,6 +16,14 @@ if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
 
+// Kredensial tanda tangan rilis. File sengaja berada di luar Git
+// (.gitignore) dan hanya dipakai bila ada — build debug tidak terpengaruh.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace = "com.christopheraldoo.petheal"
     compileSdk = 34
@@ -24,8 +32,9 @@ android {
         applicationId = "com.christopheraldoo.petheal"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Dinaikkan setiap kali APK/AAB dirilis ke pemasangan (Play/internal).
+        versionCode = 2
+        versionName = "1.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -42,6 +51,18 @@ android {
         buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${localProperties.getProperty("GOOGLE_CLIENT_ID", "your-google-client-id-here")}\"")
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                // rootProject.file: path di keystore.properties relatif terhadap root repo.
+                storeFile = rootProject.file(keystoreProperties.getProperty("RELEASE_STORE_FILE"))
+                storePassword = keystoreProperties.getProperty("RELEASE_STORE_PASSWORD")
+                keyAlias = keystoreProperties.getProperty("RELEASE_KEY_ALIAS")
+                keyPassword = keystoreProperties.getProperty("RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -50,12 +71,22 @@ android {
         }
         release {
             isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
             // Disable logging in release builds
             buildConfigField("boolean", "ENABLE_HTTP_LOGGING", "false")
+
+            // APK/AAB rilis harus bertanda tangan. Tanpa keystore.properties
+            // (mis. di mesin CI lain) build tetap jalan, tetapi berkas keluar
+            // sebagai *-unsigned dan tidak bisa dipasang.
+            signingConfig = if (keystorePropertiesFile.exists()) {
+                signingConfigs.getByName("release")
+            } else {
+                null
+            }
         }
     }
 

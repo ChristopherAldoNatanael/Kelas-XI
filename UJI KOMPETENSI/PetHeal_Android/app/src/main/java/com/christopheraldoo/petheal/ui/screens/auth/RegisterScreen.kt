@@ -7,14 +7,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,17 +41,19 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
+import com.christopheraldoo.petheal.ui.components.Dimens
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
+import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import com.christopheraldoo.petheal.ui.theme.OnBackground
-import com.christopheraldoo.petheal.ui.theme.Outline
-import com.christopheraldoo.petheal.ui.theme.PrimaryWash
-import com.christopheraldoo.petheal.ui.theme.Secondary
-import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
 @Composable
 fun RegisterScreen(
@@ -61,7 +64,7 @@ fun RegisterScreen(
     onNavigateToOtpVerification: (String) -> Unit = {},
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current

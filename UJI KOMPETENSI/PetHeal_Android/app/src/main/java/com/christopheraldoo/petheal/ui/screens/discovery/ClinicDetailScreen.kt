@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.data.model.ClinicDetail
 import com.christopheraldoo.petheal.data.model.ClinicServiceDto
 import com.christopheraldoo.petheal.ui.components.ClinicAvatar
@@ -77,7 +77,7 @@ fun ClinicDetailScreen(
     onBookAtClinic: (clinicSlug: String, serviceId: Int?) -> Unit = { _, _ -> },
     viewModel: ClinicDetailViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateLifecycleAware()
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         PetHealTopAppBar(

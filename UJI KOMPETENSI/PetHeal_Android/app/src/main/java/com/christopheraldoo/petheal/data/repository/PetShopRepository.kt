@@ -201,16 +201,6 @@ class PetShopRepository @Inject constructor(
         }
     }
 
-    suspend fun downloadReceiptPdf(orderId: Int): Result<ByteArray> = call {
-        val response = apiService.downloadPetShopReceiptPdf(orderId)
-        val body = response.body()
-        if (response.isSuccessful && body != null) {
-            Result.Success(body.bytes())
-        } else {
-            Result.Error(errorMessage(response, "Bukti pembayaran PDF gagal diunduh."))
-        }
-    }
-
     suspend fun loadPickupPass(orderId: Int): Result<PetShopPickupPass> = call {
         val response = apiService.getPetShopPickupPass(orderId)
         val body = response.body()

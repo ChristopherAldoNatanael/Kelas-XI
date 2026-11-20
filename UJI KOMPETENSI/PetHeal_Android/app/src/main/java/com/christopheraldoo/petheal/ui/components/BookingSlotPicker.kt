@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.data.model.SlotMeta
 import com.christopheraldoo.petheal.data.model.TimeSlot
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -433,7 +435,7 @@ private fun SlotChip(
 
     Surface(
         modifier = modifier
-            .height(40.dp)
+            .heightIn(min = Dimens.MinTouchTarget)
             .clip(RoundedCornerShape(10.dp))
             .selectable(
                 selected = selected,
@@ -476,7 +478,7 @@ private fun SlotSkeleton() {
                     Box(
                         modifier = Modifier
                             .weight(1f)
-                            .height(40.dp)
+                            .heightIn(min = Dimens.MinTouchTarget)
                             .clip(RoundedCornerShape(10.dp))
                             .background(SurfaceMuted)
                     )

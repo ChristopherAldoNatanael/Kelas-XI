@@ -27,6 +27,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -68,7 +69,19 @@ object Dimens {
     val ItemGap = 12.dp
     val FieldGap = 14.dp
     val MinTouchTarget = 48.dp
+    val ButtonHeight = 48.dp
+    val IconTouchTarget = 48.dp
 }
+
+/**
+ * Memperluas area sentuh minimum ke [Dimens.MinTouchTarget] (48dp) tanpa
+ * mengubah ukuran visual komponen.
+ *
+ * Aturan aksesibilitas: seluruh elemen yang bisa disentuh minimal 48×48dp.
+ * Tombol ikon kecil di hero (mis. 42dp visual) tetap berukuran 48dp pada
+ * area kliknya. Ukuran visual dijaga oleh komponen inner-nya sendiri.
+ */
+fun Modifier.minTapTarget(): Modifier = this.minimumInteractiveComponentSize()
 
 // ── Top app bar ─────────────────────────────────────────────────────────────
 

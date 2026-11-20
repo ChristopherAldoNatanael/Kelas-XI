@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.data.model.CompareItem
 import com.christopheraldoo.petheal.data.model.ServiceCategoryDto
 import com.christopheraldoo.petheal.data.repository.DiscoveryRepository.CompareSort
@@ -76,7 +76,7 @@ fun PriceCompareScreen(
     onBookService: (clinicSlug: String, serviceId: Int) -> Unit,
     viewModel: PriceCompareViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateLifecycleAware()
 
     Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         PetHealTopAppBar(title = "Bandingkan Harga", onNavigateBack = onNavigateBack)

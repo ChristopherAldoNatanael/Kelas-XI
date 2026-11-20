@@ -51,6 +51,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.data.model.Booking
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.InfoStrong
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -396,7 +397,7 @@ private fun InvoiceCard(
             ) {
                 OutlinedButton(
                     onClick = onOpen,
-                    modifier = Modifier.weight(1f).height(44.dp),
+                    modifier = Modifier.weight(1f).heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, Outline),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = OnBackground)
@@ -407,7 +408,7 @@ private fun InvoiceCard(
                 if (hasPaymentProof) {
                     OutlinedButton(
                         onClick = onOpenReceipt,
-                        modifier = Modifier.weight(1f).height(44.dp),
+                        modifier = Modifier.weight(1f).heightIn(min = Dimens.MinTouchTarget),
                         shape = RoundedCornerShape(14.dp),
                         border = BorderStroke(1.dp, Primary.copy(alpha = 0.45f)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
@@ -425,7 +426,7 @@ private fun InvoiceCard(
                 if (outstanding) {
                     Button(
                         onClick = onPay,
-                        modifier = Modifier.weight(if (hasPaymentProof) 1.15f else 1.25f).height(44.dp),
+                        modifier = Modifier.weight(if (hasPaymentProof) 1.15f else 1.25f).heightIn(min = Dimens.MinTouchTarget),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary,
@@ -530,13 +531,20 @@ private fun InvoiceEmptyState(hasAnyInvoice: Boolean, filter: InvoiceFilter) {
 
 @Composable
 private fun InvoiceFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    // Pembungkus 48dp: area sentuh memenuhi standar aksesibilitas, bentuk pil
+    // tetap ramping (34dp) seperti desain aslinya.
+    Box(
+        modifier = Modifier
+            .heightIn(min = Dimens.MinTouchTarget)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
     Row(
         modifier = Modifier
             .heightIn(min = 34.dp)
             .clip(RoundedCornerShape(999.dp))
             .background(if (selected) Primary else SurfaceColor)
             .border(1.dp, if (selected) Primary else Outline, RoundedCornerShape(999.dp))
-            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 7.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp)
@@ -555,6 +563,7 @@ private fun InvoiceFilterChip(label: String, selected: Boolean, onClick: () -> U
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             color = if (selected) Color.White else TextSecondary
         )
+    }
     }
 }
 

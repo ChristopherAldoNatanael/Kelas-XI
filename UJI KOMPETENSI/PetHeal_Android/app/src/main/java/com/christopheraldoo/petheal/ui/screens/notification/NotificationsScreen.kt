@@ -54,7 +54,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -83,13 +83,8 @@ import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.Secondary
 import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import kotlinx.coroutines.launch
+import com.christopheraldoo.petheal.ui.theme.Brand
 
-private val NPrimary = Primary
-private val NBg = Background
-private val NSurface = Surface
-private val NBorder = Outline
-private val TextPrimary = OnBackground
-private val NUnread = PrimaryLight
 
 @Composable
 fun NotificationsScreen(
@@ -102,7 +97,7 @@ fun NotificationsScreen(
     onOpenPets: () -> Unit = {},
     viewModel: NotificationsViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     var showClearDialog by remember { mutableStateOf(false) }
     val unreadCount = uiState.notifications.count { !it.isRead }
 
@@ -112,8 +107,8 @@ fun NotificationsScreen(
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            containerColor = NSurface,
-            title = { Text("Hapus Semua Notifikasi", color = TextPrimary, fontWeight = FontWeight.Bold) },
+            containerColor = Brand.card,
+            title = { Text("Hapus Semua Notifikasi", color = Brand.textPrimary, fontWeight = FontWeight.Bold) },
             text = { Text("Tindakan ini menghapus seluruh notifikasi secara permanen.", color = TextSecondary, fontSize = 14.sp) },
             confirmButton = {
                 TextButton(onClick = {
@@ -138,7 +133,7 @@ fun NotificationsScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(NBg)
+                .background(Brand.page)
         ) {
             Column(
                 modifier = Modifier
@@ -149,10 +144,10 @@ fun NotificationsScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = Brand.textPrimary)
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Pusat Notifikasi", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                        Text("Pusat Notifikasi", color = Brand.textPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                         Text(
                             text = if (uiState.notifications.isEmpty()) "Tidak ada pembaruan baru" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
                             color = TextSecondary,
@@ -170,12 +165,12 @@ fun NotificationsScreen(
                     modifier = Modifier.padding(start = 48.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    NotificationMetric("Belum dibaca", unreadCount.toString(), NPrimary, Modifier.weight(1f))
+                    NotificationMetric("Belum dibaca", unreadCount.toString(), Brand.primary, Modifier.weight(1f))
                     NotificationMetric("Total", uiState.notifications.size.toString(), Secondary, Modifier.weight(1f))
                 }
             }
 
-            Divider(color = NBorder, thickness = 0.5.dp)
+            Divider(color = Brand.border, thickness = 0.5.dp)
 
             when {
                 uiState.isLoading -> {
@@ -293,7 +288,7 @@ fun NotificationsScreen(
 private fun NotificationMetric(label: String, value: String, accent: Color, modifier: Modifier = Modifier) {
     Surface(modifier = modifier, shape = RoundedCornerShape(18.dp), color = Color.White) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text(value, color = TextPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+            Text(value, color = Brand.textPrimary, fontSize = 20.sp, fontWeight = FontWeight.Bold)
             Text(label, color = accent, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
         }
     }
@@ -302,7 +297,7 @@ private fun NotificationMetric(label: String, value: String, accent: Color, modi
 @Composable
 private fun NotificationCard(notification: AppNotification, onClick: () -> Unit) {
     val bgColor by animateColorAsState(
-        targetValue = if (notification.isRead) NSurface else NUnread,
+        targetValue = if (notification.isRead) Brand.card else Brand.primarySoft,
         animationSpec = tween(300),
         label = "notif_bg"
     )
@@ -314,7 +309,7 @@ private fun NotificationCard(notification: AppNotification, onClick: () -> Unit)
             .background(bgColor)
             .border(
                 width = 1.dp,
-                color = if (notification.isRead) NBorder else NPrimary.copy(alpha = 0.35f),
+                color = if (notification.isRead) Brand.border else Brand.primary.copy(alpha = 0.35f),
                 shape = RoundedCornerShape(20.dp)
             )
             .clickable(onClick = onClick)
@@ -346,7 +341,7 @@ private fun NotificationCard(notification: AppNotification, onClick: () -> Unit)
             ) {
                 Text(
                     text = notification.title,
-                    color = TextPrimary,
+                    color = Brand.textPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -375,10 +370,10 @@ private fun NotificationCard(notification: AppNotification, onClick: () -> Unit)
                         modifier = Modifier
                             .size(7.dp)
                             .clip(CircleShape)
-                            .background(NPrimary)
+                            .background(Brand.primary)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("Belum dibaca", color = NPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Belum dibaca", color = Brand.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -395,7 +390,7 @@ private fun NotificationSkeletonCard() {
         color = Color.White
     ) {
         Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(NBorder))
+            Box(Modifier.size(44.dp).clip(RoundedCornerShape(16.dp)).background(Brand.border))
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SkeletonText(lines = 1)

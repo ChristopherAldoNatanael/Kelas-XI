@@ -2,7 +2,7 @@ package com.christopheraldoo.petheal.ui.navigation
 
 import android.util.Log
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,7 +68,7 @@ import com.christopheraldoo.petheal.ui.components.navigateBackOrHome
 import com.christopheraldoo.petheal.ui.components.navigateToTab
 import com.christopheraldoo.petheal.ui.components.route
 import androidx.compose.ui.res.stringResource
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 
 @Composable
 fun PetHealNavHost(
@@ -77,7 +77,7 @@ fun PetHealNavHost(
 ) {
     // Klinik aktif untuk transaksi (dipakai memutuskan tujuan tombol booking
     // di layar perbandingan harga). Tidak mengubah klinik apa pun.
-    val activeClinicSlug by viewModel.activeClinicSlug.collectAsState(initial = null)
+    val activeClinicSlug by viewModel.activeClinicSlug.collectAsStateLifecycleAware(initial = null)
 
     // ── Gerbang navigasi (anti double-tap) ────────────────────────────────
     // Dua ketukan cepat pada tombol yang sama tidak boleh menumpuk dua layar
@@ -758,7 +758,7 @@ fun PetHealNavHost(
             val amount = backStackEntry.arguments?.getFloat("amount")?.toDouble() ?: 0.0
 
             val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
-            val paymentNavState by paymentNavViewModel.state.collectAsState()
+            val paymentNavState by paymentNavViewModel.state.collectAsStateLifecycleAware()
 
             LaunchedEffect(bookingId) {
                 paymentNavViewModel.loadBookingAndUser(bookingId)
@@ -863,7 +863,7 @@ fun PetHealNavHost(
                 .ifEmpty { null }
 
             val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
-            val paymentNavState by paymentNavViewModel.state.collectAsState()
+            val paymentNavState by paymentNavViewModel.state.collectAsStateLifecycleAware()
 
             LaunchedEffect(bookingId) {
                 paymentNavViewModel.loadBookingAndUser(bookingId)
@@ -970,7 +970,7 @@ fun PetHealNavHost(
                 .orEmpty().takeIf { it.isNotBlank() }
 
             val paymentNavViewModel = hiltViewModel<PaymentNavViewModel>()
-            val paymentNavState by paymentNavViewModel.state.collectAsState()
+            val paymentNavState by paymentNavViewModel.state.collectAsStateLifecycleAware()
 
             LaunchedEffect(bookingId, resultRecordId) {
                 if (bookingId > 0) paymentNavViewModel.loadBookingAndUser(bookingId)

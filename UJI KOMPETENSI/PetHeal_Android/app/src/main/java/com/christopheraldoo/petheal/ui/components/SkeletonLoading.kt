@@ -32,8 +32,8 @@ import androidx.compose.ui.unit.dp
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.Brand
 
-private val SkeletonBase = Outline
 private val SkeletonHighlight = Color.White
 
 fun Modifier.shimmerEffect(isVisible: Boolean = true): Modifier = composed {
@@ -51,9 +51,9 @@ fun Modifier.shimmerEffect(isVisible: Boolean = true): Modifier = composed {
     )
 
     val shimmerColors = listOf(
-        SkeletonBase.copy(alpha = 0.55f),
+        Brand.border.copy(alpha = 0.55f),
         SkeletonHighlight.copy(alpha = 0.95f),
-        SkeletonBase.copy(alpha = 0.55f)
+        Brand.border.copy(alpha = 0.55f)
     )
 
     background(
@@ -94,7 +94,7 @@ fun SkeletonAvatar(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
-            .background(SkeletonBase)
+            .background(Brand.border)
             .shimmerEffect(true)
     )
 }
@@ -120,7 +120,7 @@ fun SkeletonText(
                     .fillMaxWidth(widthFraction)
                     .height(16.dp)
                     .clip(RoundedCornerShape(4.dp))
-                    .background(SkeletonBase)
+                    .background(Brand.border)
                     .shimmerEffect(true)
             )
         }
@@ -155,7 +155,7 @@ fun SkeletonBookingCard() {
                         .width(80.dp)
                         .height(24.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .background(SkeletonBase)
+                        .background(Brand.border)
                         .shimmerEffect(true)
                 )
             }
@@ -189,14 +189,14 @@ fun SkeletonBookingCard() {
                         .weight(1f)
                         .height(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(SkeletonBase)
+                        .background(Brand.border)
                         .shimmerEffect(true)
                 )
                 Box(
                     modifier = Modifier
                         .size(42.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(SkeletonBase)
+                        .background(Brand.border)
                         .shimmerEffect(true)
                 )
             }

@@ -1,19 +1,15 @@
 package com.christopheraldoo.petheal.ui.screens.booking
 
-import com.christopheraldoo.petheal.ui.theme.Background
-import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
-import com.christopheraldoo.petheal.ui.theme.Primary
-import com.christopheraldoo.petheal.ui.theme.PrimaryDark
-import com.christopheraldoo.petheal.ui.theme.PrimaryLight
-import com.christopheraldoo.petheal.ui.theme.Surface
-
 import android.util.Log
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -25,7 +21,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -35,15 +33,15 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalView
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import coil.request.CachePolicy
@@ -53,24 +51,13 @@ import com.christopheraldoo.petheal.data.model.PaymentMethod
 import com.christopheraldoo.petheal.ui.components.BookingDateRail
 import com.christopheraldoo.petheal.ui.components.BookingTimeSlots
 import com.christopheraldoo.petheal.ui.components.ClinicHelpSheet
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.EmptyBookingsState
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
-import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingList
-import com.christopheraldoo.petheal.util.HapticFeedback
-import com.christopheraldoo.petheal.util.buildPhotoUrl
-import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
-import com.christopheraldoo.petheal.util.isDoctorWorkingDay
-import com.christopheraldoo.petheal.util.toCustomHoursDates
-import com.christopheraldoo.petheal.util.toLeaveDates
-import androidx.compose.material.icons.filled.Info
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.material3.ExperimentalMaterial3Api
+import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
+import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
@@ -78,12 +65,17 @@ import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.InfoStrong
 import com.christopheraldoo.petheal.ui.theme.Neutral
 import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.OutlineStrong
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Star
 import com.christopheraldoo.petheal.ui.theme.Success
 import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 import com.christopheraldoo.petheal.ui.theme.Tertiary
@@ -93,8 +85,19 @@ import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
+import com.christopheraldoo.petheal.util.HapticFeedback
+import com.christopheraldoo.petheal.util.buildPhotoUrl
+import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
 import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.util.isDoctorWorkingDay
 import com.christopheraldoo.petheal.util.speciesLabelOf
+import com.christopheraldoo.petheal.util.toCustomHoursDates
+import com.christopheraldoo.petheal.util.toLeaveDates
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import com.christopheraldoo.petheal.ui.theme.Brand
 
 private const val TAG = "BookingPhoto"
 
@@ -122,13 +125,6 @@ private fun isTodayBooking(booking: com.christopheraldoo.petheal.data.model.Book
     booking.id != null && isToday(booking.bookingDate)
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
-private val BkPrimary       = Primary
-private val BkPrimaryDark   = PrimaryDark
-private val BkPrimaryDeep   = PrimaryDark
-private val BkPrimarySoft   = PrimaryLight
-private val BkPrimaryFg     = Color.White
-private val BkBg       = Background
-private val BkSurface  = Surface
 
 // ── Helper: load doctor photo with ngrok header ─────────────────────────────
 @Composable
@@ -170,7 +166,7 @@ private fun BkDocPhoto(url: String?, size: androidx.compose.ui.unit.Dp) {
             }
         )
     } else {
-        Icon(Icons.Filled.Person, null, tint = BkPrimary, modifier = Modifier.size(size * 0.5f))
+        Icon(Icons.Filled.Person, null, tint = Brand.primary, modifier = Modifier.size(size * 0.5f))
     }
 }
 
@@ -188,9 +184,9 @@ fun BookingsScreen(
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: BookingViewModel = hiltViewModel()
 ) {
-    val state by viewModel.listState.collectAsState()
-    val bg      = BkBg
-    val surface = BkSurface
+    val state by viewModel.listState.collectAsStateLifecycleAware()
+    val bg      = Brand.page
+    val surface = Brand.card
     val textPrimary   = OnBackground
     val textSecondary = TextSecondary
 
@@ -318,14 +314,14 @@ fun BookingsScreen(
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(999.dp))
-                                            .background(BkPrimarySoft)
+                                            .background(Brand.primarySoft)
                                             .padding(horizontal = 7.dp, vertical = 2.dp)
                                     ) {
                                         Text(
                                             todayItems.size.toString(),
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = BkPrimaryDeep
+                                            color = Brand.primaryDeep
                                         )
                                     }
                                 }
@@ -486,7 +482,7 @@ private fun BookingHero(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(BkPrimaryDark)
+            .background(Brand.primaryDeep)
     ) {        Box(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -571,7 +567,8 @@ private fun BkHeroCircleButton(
 ) {
     Box(
         modifier = Modifier
-            .size(42.dp)
+            // 48dp = area sentuh minimum yang nyaman (sebelumnya 42dp).
+            .size(Dimens.MinTouchTarget)
             .clip(CircleShape)
             .background(Color.White.copy(alpha = 0.18f))
             .clickable(onClick = onClick),
@@ -651,7 +648,7 @@ private fun BookingTabItem(
         targetValue = if (selected) Color.White else Color.Transparent,
         animationSpec = tween(180)
     )
-    val contentColor = if (selected) BkPrimaryDark else Color.White.copy(alpha = 0.88f)
+    val contentColor = if (selected) Brand.primaryDeep else Color.White.copy(alpha = 0.88f)
 
     Box(
         modifier = modifier
@@ -712,7 +709,7 @@ private fun ActiveFilterChips(
             text = "Atur ulang",
             fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
-            color = BkPrimaryDeep,
+            color = Brand.primaryDeep,
             modifier = Modifier
                 .clip(RoundedCornerShape(10.dp))
                 .clickable(onClick = onResetAll)
@@ -726,17 +723,17 @@ private fun ActiveFilterPill(label: String, onClear: () -> Unit) {
     Row(
         modifier = Modifier
             .clip(RoundedCornerShape(999.dp))
-            .background(BkPrimarySoft)
+            .background(Brand.primarySoft)
             .clickable(onClick = onClear)
             .padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = BkPrimaryDark)
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = Brand.primaryDeep)
         Icon(
             imageVector = Icons.Filled.Close,
             contentDescription = "Hapus filter",
-            tint = BkPrimaryDark,
+            tint = Brand.primaryDeep,
             modifier = Modifier.size(13.dp)
         )
     }
@@ -783,13 +780,13 @@ private fun FilteredBookingsEmptyState(
                 modifier = Modifier
                     .size(56.dp)
                     .clip(CircleShape)
-                    .background(BkPrimary.copy(alpha = 0.12f)),
+                    .background(Brand.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.CalendarMonth,
                     contentDescription = null,
-                    tint = BkPrimary,
+                    tint = Brand.primary,
                     modifier = Modifier.size(28.dp)
                 )
             }
@@ -809,17 +806,17 @@ private fun FilteredBookingsEmptyState(
             )
             Button(
                 onClick = onClearFilter,
-                modifier = Modifier.height(44.dp),
+                modifier = Modifier.heightIn(min = Dimens.MinTouchTarget),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = BkPrimary,
+                    containerColor = Brand.primary,
                     contentColor = Color.White
                 )
             ) {
                 Text("Tampilkan Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
             }
             TextButton(onClick = onResetAll) {
-                Text("Atur Ulang Filter", fontSize = 12.sp, color = BkPrimary)
+                Text("Atur Ulang Filter", fontSize = 12.sp, color = Brand.primary)
             }
         }
     }
@@ -878,7 +875,7 @@ private fun BookingFilterBottomSheet(
                             { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = BkPrimary,
+                            selectedContainerColor = Brand.primary,
                             selectedLabelColor = OnPrimaryStrong,
                             selectedLeadingIconColor = OnPrimaryStrong
                         )
@@ -892,7 +889,7 @@ private fun BookingFilterBottomSheet(
                             { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                         } else null,
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = BkPrimary,
+                            selectedContainerColor = Brand.primary,
                             selectedLabelColor = OnPrimaryStrong,
                             selectedLeadingIconColor = OnPrimaryStrong
                         )
@@ -924,7 +921,7 @@ private fun BookingFilterBottomSheet(
                                 { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.size(16.dp)) }
                             } else null,
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = BkPrimary,
+                                selectedContainerColor = Brand.primary,
                                 selectedLabelColor = OnPrimaryStrong,
                                 selectedLeadingIconColor = OnPrimaryStrong
                             )
@@ -964,7 +961,7 @@ private fun BookingCard(
     isCheckingIn: Boolean = false            // Request check-in sedang berjalan
 ) {
     val statusColor = when (booking.status?.lowercase()) {
-        "confirmed" -> BkPrimaryDeep
+        "confirmed" -> Brand.primaryDeep
         "pending" -> WarningDeep
         "cancelled" -> ErrorStrong
         "completed" -> InfoStrong
@@ -1055,7 +1052,7 @@ private fun BookingCard(
                                 text = clinicName,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = BkPrimaryDeep,
+                                color = Brand.primaryDeep,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -1099,12 +1096,12 @@ private fun BookingCard(
                         text = "Detail",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = BkPrimaryDeep
+                        color = Brand.primaryDeep
                     )
                     Icon(
                         imageVector = Icons.Filled.ChevronRight,
                         contentDescription = null,
-                        tint = BkPrimaryDeep,
+                        tint = Brand.primaryDeep,
                         modifier = Modifier.size(14.dp)
                     )
                 }
@@ -1166,9 +1163,9 @@ private fun BookingCard(
                         enabled = !isCheckingIn,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(44.dp),
+                            .heightIn(min = Dimens.MinTouchTarget),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BkPrimary,
+                            containerColor = Brand.primary,
                             contentColor = Color.White
                         ),
                         shape = RoundedCornerShape(14.dp)
@@ -1214,7 +1211,7 @@ private fun BookingCard(
                     onClick = { booking.id?.let { id -> onPayRemaining?.invoke(id) } },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(44.dp),
+                        .heightIn(min = Dimens.MinTouchTarget),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = InfoStrong,
                         contentColor = Color.White
@@ -1244,20 +1241,20 @@ private fun BkDateTile(isoDate: String?) {
         modifier = Modifier
             .size(52.dp)
             .clip(RoundedCornerShape(15.dp))
-            .background(BkPrimarySoft),
+            .background(Brand.primarySoft),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = date?.dayOfMonth?.toString() ?: "—",
-            color = BkPrimaryDark,
+            color = Brand.primaryDeep,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             maxLines = 1
         )
         Text(
             text = date?.format(DateTimeFormatter.ofPattern("MMM", Locale("id", "ID"))) ?: "tgl",
-            color = BkPrimaryDark.copy(alpha = 0.85f),
+            color = Brand.primaryDeep.copy(alpha = 0.85f),
             fontSize = 10.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1
@@ -1276,7 +1273,7 @@ private fun BkMetaPill(icon: androidx.compose.ui.graphics.vector.ImageVector, la
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Icon(icon, contentDescription = null, tint = BkPrimaryDeep, modifier = Modifier.size(12.dp))
+        Icon(icon, contentDescription = null, tint = Brand.primaryDeep, modifier = Modifier.size(12.dp))
         Text(
             text = label,
             fontSize = 10.5.sp,
@@ -1344,8 +1341,8 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
         "waiting" -> QueueTone(
             label = "Menunggu",
             hint = "Nomor antrian sudah terbit. Tunggu panggilan dokter.",
-            accent = BkPrimary,
-            container = BkPrimary.copy(alpha = 0.08f)
+            accent = Brand.primary,
+            container = Brand.primary.copy(alpha = 0.08f)
         )
         "called" -> QueueTone(
             label = "Dipanggil",
@@ -1378,8 +1375,8 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
         else -> QueueTone(
             label = "Menunggu",
             hint = "Nomor antrian sudah terbit. Tunggu panggilan dokter.",
-            accent = BkPrimary,
-            container = BkPrimary.copy(alpha = 0.08f)
+            accent = Brand.primary,
+            container = Brand.primary.copy(alpha = 0.08f)
         )
     }
 
@@ -1455,9 +1452,9 @@ fun BookingDetailScreen(
     onNavigateToMedicalExtraPayment: ((Int, Int, Double) -> Unit)? = null,
     viewModel: BookingViewModel = hiltViewModel()
 ) {
-    val state by viewModel.detailState.collectAsState()
-    val bg      = BkBg
-    val surface = BkSurface
+    val state by viewModel.detailState.collectAsStateLifecycleAware()
+    val bg      = Brand.page
+    val surface = Brand.card
     val textPrimary   = OnBackground
     val textSecondary = TextSecondary
     val dividerColor  = Outline
@@ -1492,7 +1489,7 @@ fun BookingDetailScreen(
                         shape = RoundedCornerShape(12.dp),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = BkPrimary)
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Brand.primary)
                     )
                 }
             },
@@ -1623,7 +1620,7 @@ fun BookingDetailScreen(
                             selectedTime ?: return@TextButton
                         )
                     }
-                ) { Text("Jadwalkan Ulang", fontWeight = FontWeight.Bold, color = BkPrimary) }
+                ) { Text("Jadwalkan Ulang", fontWeight = FontWeight.Bold, color = Brand.primary) }
             },
             dismissButton = {
                 TextButton(onClick = { showRescheduleDialog = false }) { Text("Batal") }
@@ -1635,7 +1632,7 @@ fun BookingDetailScreen(
     Box(Modifier.fillMaxSize().background(bg)) {
         if (state.isLoading) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(color = BkPrimary)
+                CircularProgressIndicator(color = Brand.primary)
             }
         } else if (state.booking == null) {
             // Error (or missing data) state with retry — never a blank screen.
@@ -1653,7 +1650,7 @@ fun BookingDetailScreen(
                 Spacer(Modifier.height(16.dp))
                 Button(
                     onClick = { viewModel.loadBookingDetail(bookingId, forceRefresh = true) },
-                    colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
                 ) { Text("Coba Lagi") }
                 Spacer(Modifier.height(8.dp))
                 TextButton(onClick = onNavigateBack) { Text("Kembali", color = textSecondary) }
@@ -1697,7 +1694,7 @@ fun BookingDetailScreen(
                         Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.Transparent, bg.copy(alpha = 0.85f)), startY = 80f)))
                     } else {
                         Box(Modifier.fillMaxSize().background(SuccessSoft)) {
-                            Icon(Icons.Filled.Person, null, tint = BkPrimary.copy(0.25f), modifier = Modifier.size(80.dp).align(Alignment.Center))
+                            Icon(Icons.Filled.Person, null, tint = Brand.primary.copy(0.25f), modifier = Modifier.size(80.dp).align(Alignment.Center))
                         }
                     }
                     // Back
@@ -1708,7 +1705,7 @@ fun BookingDetailScreen(
 
                     // Status badge
                     val statusColor = when (booking?.status?.lowercase()) {
-                        "confirmed" -> BkPrimary; "pending" -> Tertiary
+                        "confirmed" -> Brand.primary; "pending" -> Tertiary
                         "cancelled" -> ErrorStrong; "completed" -> InfoStrong
                         else -> Neutral
                     }
@@ -1737,7 +1734,7 @@ fun BookingDetailScreen(
                     booking?.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
                         Surface(
                             shape = RoundedCornerShape(14.dp),
-                            color = BkPrimary.copy(alpha = 0.08f),
+                            color = Brand.primary.copy(alpha = 0.08f),
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
@@ -1748,7 +1745,7 @@ fun BookingDetailScreen(
                                 Icon(
                                     Icons.Filled.LocalHospital,
                                     contentDescription = null,
-                                    tint = BkPrimary,
+                                    tint = Brand.primary,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -1796,7 +1793,7 @@ fun BookingDetailScreen(
                                     enabled = !state.isCheckInLoading,
                                     modifier = Modifier.fillMaxWidth().height(52.dp),
                                     shape = RoundedCornerShape(14.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                                    colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
                                 ) {
                                     if (state.isCheckInLoading) {
                                         CircularProgressIndicator(
@@ -1932,8 +1929,8 @@ fun BookingDetailScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(BkPrimary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                                            Icon(Icons.Filled.AttachMoney, null, tint = BkPrimary, modifier = Modifier.size(20.dp))
+                                        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Brand.primary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Filled.AttachMoney, null, tint = Brand.primary, modifier = Modifier.size(20.dp))
                                         }
                                         Column {
                                             Text("Total Tagihan", fontSize = 11.sp, color = textSecondary)
@@ -1948,7 +1945,7 @@ fun BookingDetailScreen(
                                     if (booking.paidAmount != null && booking.paidAmount > 0) {
                                         Surface(
                                             shape = RoundedCornerShape(8.dp),
-                                            color = BkPrimary.copy(alpha = 0.1f)
+                                            color = Brand.primary.copy(alpha = 0.1f)
                                         ) {
                                             Column(
                                                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -1959,7 +1956,7 @@ fun BookingDetailScreen(
                                                     formatRupiah(booking.paidAmount),
                                                     fontSize = 14.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = BkPrimary
+                                                    color = Brand.primary
                                                 )
                                             }
                                         }
@@ -2047,8 +2044,8 @@ fun BookingDetailScreen(
                                     Surface(
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(18.dp),
-                                        color = BkPrimary.copy(alpha = 0.08f),
-                                        border = BorderStroke(1.dp, BkPrimary.copy(alpha = 0.12f))
+                                        color = Brand.primary.copy(alpha = 0.08f),
+                                        border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.12f))
                                     ) {
                                         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                             Text("Pembayaran Booking", fontSize = 11.sp, color = textSecondary, fontWeight = FontWeight.Medium)
@@ -2142,7 +2139,7 @@ fun BookingDetailScreen(
                                         onClick = { onNavigateToMedicalRecord(record.id) },
                                         modifier = Modifier.fillMaxWidth().height(52.dp),
                                         shape = RoundedCornerShape(16.dp),
-                                        colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                                        colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
                                     ) {
                                         Icon(Icons.Filled.Article, null, modifier = Modifier.size(20.dp))
                                         Spacer(Modifier.width(8.dp))
@@ -2214,7 +2211,7 @@ fun BookingDetailScreen(
                                 },
                                 modifier = Modifier.fillMaxWidth().height(52.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = BkPrimary)
+                                colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
                             ) {
                                 Icon(Icons.Default.Payment, null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -2244,8 +2241,8 @@ fun BookingDetailScreen(
                                 },
                                 modifier = Modifier.weight(1f).height(52.dp),
                                 shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, BkPrimary.copy(0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = BkPrimary)
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Brand.primary.copy(0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.primary)
                             ) {
                                 Icon(Icons.Filled.Schedule, null, modifier = Modifier.size(20.dp))
                                 Spacer(Modifier.width(8.dp))
@@ -2291,8 +2288,8 @@ fun BookingDetailScreen(
 @Composable
 private fun DetailRow(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, textPrimary: Color, textSecondary: Color) {
     Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(BkPrimary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = BkPrimary, modifier = Modifier.size(20.dp))
+        Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Brand.primary.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = Brand.primary, modifier = Modifier.size(20.dp))
         }
         Column {
             Text(label, fontSize = 11.sp, color = textSecondary)
@@ -2314,11 +2311,11 @@ fun CreateBookingScreen(
     onRequestOtherService: (clinicSlug: String?, petId: Int?) -> Unit = { _, _ -> },
     viewModel: BookingViewModel = hiltViewModel()
 ) {
-    val state by viewModel.createState.collectAsState()
-    val supportState by viewModel.supportState.collectAsState()
+    val state by viewModel.createState.collectAsStateLifecycleAware()
+    val supportState by viewModel.supportState.collectAsStateLifecycleAware()
     var showHelpSheet by remember { mutableStateOf(false) }
-    val bg      = BkBg
-    val surface = BkSurface
+    val bg      = Brand.page
+    val surface = Brand.card
     val textPrimary   = OnBackground
     val textSecondary = TextSecondary
     val dividerColor  = Outline
@@ -2376,7 +2373,7 @@ fun CreateBookingScreen(
                             showHelpSheet = true
                             viewModel.loadSupportContact()
                         }) {
-                            Text("Bantuan", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Text("Bantuan", color = Brand.primary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                         }
                     }
                     // Progress dots
@@ -2393,7 +2390,7 @@ fun CreateBookingScreen(
                                     .padding(horizontal = 6.dp)
                                     .size(if (current) 10.dp else 8.dp)
                                     .clip(CircleShape)
-                                    .background(if (active) BkPrimary else OutlineStrong)
+                                    .background(if (active) Brand.primary else OutlineStrong)
                             )
                         }
                     }
@@ -2459,15 +2456,15 @@ fun CreateBookingScreen(
                                             }
                                         )
                                     } else {
-                                        Icon(Icons.Filled.Person, null, tint = BkPrimary, modifier = Modifier.size(28.dp))
+                                        Icon(Icons.Filled.Person, null, tint = Brand.primary, modifier = Modifier.size(28.dp))
                                     }
                                 } else {
-                                    Icon(Icons.Filled.Person, null, tint = BkPrimary, modifier = Modifier.size(28.dp))
+                                    Icon(Icons.Filled.Person, null, tint = Brand.primary, modifier = Modifier.size(28.dp))
                                 }
                             }
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(doc.name ?: "–", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                                Text(doc.specialization ?: "Veterinarian", fontSize = 13.sp, color = BkPrimary, fontWeight = FontWeight.Medium)
+                                Text(doc.specialization ?: "Veterinarian", fontSize = 13.sp, color = Brand.primary, fontWeight = FontWeight.Medium)
                                 // Ringkas saja: rating + jam praktik. Profil lengkap
                                 // (ulasan, tentang) ada di alur Cari Dokter.
                                 val createAvg = doc.averageRating
@@ -2494,7 +2491,7 @@ fun CreateBookingScreen(
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Icon(
                                             Icons.Filled.LocalHospital, null,
-                                            tint = BkPrimary, modifier = Modifier.size(13.dp)
+                                            tint = Brand.primary, modifier = Modifier.size(13.dp)
                                         )
                                         Spacer(Modifier.width(4.dp))
                                         Text(
@@ -2557,7 +2554,7 @@ fun CreateBookingScreen(
                                     onClick = { viewModel.loadCreateBookingData(doctorId, petId, state.sourceMedicalRecordId) },
                                     shape = RoundedCornerShape(10.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = BkPrimary, contentColor = BkPrimaryFg
+                                        containerColor = Brand.primary, contentColor = Color.White
                                     )
                                 ) {
                                     Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
@@ -2578,8 +2575,8 @@ fun CreateBookingScreen(
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
                         items(state.pets) { pet ->
                             val selected = pet.id == state.selectedPetId
-                            val chipBg by animateColorAsState(if (selected) BkPrimary else surface, tween(200))
-                            val chipText by animateColorAsState(if (selected) BkPrimaryFg else textPrimary, tween(200))
+                            val chipBg by animateColorAsState(if (selected) Brand.primary else surface, tween(200))
+                            val chipText by animateColorAsState(if (selected) Color.White else textPrimary, tween(200))
                             Surface(
                                 shape = CircleShape,
                                 color = chipBg,
@@ -2587,7 +2584,7 @@ fun CreateBookingScreen(
                                 modifier = Modifier
                                     .clip(CircleShape)
                                     .clickable { pet.id?.let { viewModel.selectPet(it) } }
-                                    .then(if (selected) Modifier.shadow(6.dp, CircleShape, spotColor = BkPrimary.copy(0.4f)) else Modifier)
+                                    .then(if (selected) Modifier.shadow(6.dp, CircleShape, spotColor = Brand.primary.copy(0.4f)) else Modifier)
                             ) {
                                 Row(
                                     Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -2643,7 +2640,7 @@ fun CreateBookingScreen(
                             )
                             if (!state.isLoading && state.servicesError != null) {
                                 TextButton(onClick = { viewModel.loadCreateBookingData(doctorId, petId, state.sourceMedicalRecordId) }) {
-                                    Text("Coba Lagi", color = BkPrimary, fontWeight = FontWeight.SemiBold)
+                                    Text("Coba Lagi", color = Brand.primary, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -2665,10 +2662,10 @@ fun CreateBookingScreen(
                                             .weight(1f)
                                             .clip(RoundedCornerShape(16.dp))
                                             .clickable { viewModel.selectService(service) }
-                                            .then(if (selected) Modifier.border(2.dp, BkPrimary, RoundedCornerShape(16.dp)) else Modifier),
+                                            .then(if (selected) Modifier.border(2.dp, Brand.primary, RoundedCornerShape(16.dp)) else Modifier),
                                         shape = RoundedCornerShape(16.dp),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = if (selected) BkPrimary.copy(alpha = 0.1f) else BkSurface
+                                            containerColor = if (selected) Brand.primary.copy(alpha = 0.1f) else Brand.card
                                         ),
                                         elevation = CardDefaults.cardElevation(if (selected) 0.dp else 2.dp)
                                     ) {
@@ -2679,7 +2676,7 @@ fun CreateBookingScreen(
                                                         .background(bgLight),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    Icon(Icons.Filled.MedicalServices, null, tint = BkPrimary, modifier = Modifier.size(24.dp))
+                                                    Icon(Icons.Filled.MedicalServices, null, tint = Brand.primary, modifier = Modifier.size(24.dp))
                                                 }
                                                 Text(service.name ?: "Layanan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                                 Text(
@@ -2693,14 +2690,14 @@ fun CreateBookingScreen(
                                                     formatRupiah(service.price ?: 0.0),
                                                     fontSize = 12.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = if (selected) BkPrimary else textPrimary
+                                                    color = if (selected) Brand.primary else textPrimary
                                                 )
                                             }
                                             if (selected) {
                                                 Icon(
                                                     Icons.Filled.CheckCircle,
                                                     null,
-                                                    tint = BkPrimary,
+                                                    tint = Brand.primary,
                                                     modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(20.dp)
                                                 )
                                             }
@@ -2716,7 +2713,7 @@ fun CreateBookingScreen(
                     // Ini membuka pengajuan, BUKAN membuat booking langsung.
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = BkSurface,
+                        color = Brand.card,
                         border = androidx.compose.foundation.BorderStroke(1.dp, dividerColor),
                         modifier = Modifier.fillMaxWidth()
                     ) {
@@ -2725,7 +2722,7 @@ fun CreateBookingScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Icon(Icons.Filled.SupportAgent, null, tint = BkPrimary, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Filled.SupportAgent, null, tint = Brand.primary, modifier = Modifier.size(22.dp))
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text("Tidak menemukan layanan yang cocok?", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                 Text(
@@ -2736,7 +2733,7 @@ fun CreateBookingScreen(
                                 )
                             }
                             TextButton(onClick = { onRequestOtherService(state.clinicSlug, state.selectedPetId) }) {
-                                Text("Ajukan", color = BkPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Ajukan", color = Brand.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -2750,7 +2747,7 @@ fun CreateBookingScreen(
                             state.selectedDate.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale("id", "ID"))),
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = BkPrimary
+                            color = Brand.primary
                         )
                     }
                     BookingDateRail(
@@ -2805,7 +2802,7 @@ fun CreateBookingScreen(
                             )
                             if (!state.isLoading && state.paymentMethodsError != null) {
                                 TextButton(onClick = { viewModel.loadCreateBookingData(doctorId, petId, state.sourceMedicalRecordId) }) {
-                                    Text("Coba Lagi", color = BkPrimary, fontWeight = FontWeight.SemiBold)
+                                    Text("Coba Lagi", color = Brand.primary, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         }
@@ -2817,7 +2814,7 @@ fun CreateBookingScreen(
 
                         // QRIS
                         if (qrisMethods.isNotEmpty()) {
-                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, BkPrimary) {
+                            PaymentMethodGroup("QRIS", qrisMethods, state.selectedPaymentMethod, surface, textPrimary, textSecondary, Brand.primary) {
                                 viewModel.selectPaymentMethod(it)
                             }
                         }
@@ -2840,14 +2837,14 @@ fun CreateBookingScreen(
                     state.selectedPaymentMethod?.let { chosen ->
                         Card(
                             shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = BkPrimary.copy(alpha = 0.08f))
+                            colors = CardDefaults.cardColors(containerColor = Brand.primary.copy(alpha = 0.08f))
                         ) {
                             Row(
                                 Modifier.padding(12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Filled.CheckCircle, null, tint = BkPrimary, modifier = Modifier.size(18.dp))
+                                Icon(Icons.Filled.CheckCircle, null, tint = Brand.primary, modifier = Modifier.size(18.dp))
                                 Text(
                                     "Saat bayar, Midtrans langsung membuka ${chosen.name ?: "metode ini"}.",
                                     fontSize = 12.sp, color = textSecondary
@@ -2869,10 +2866,10 @@ fun CreateBookingScreen(
                                 .weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { viewModel.selectPaymentType("full") }
-                                .then(if (isFullSelected) Modifier.border(2.dp, BkPrimary, RoundedCornerShape(16.dp)) else Modifier),
+                                .then(if (isFullSelected) Modifier.border(2.dp, Brand.primary, RoundedCornerShape(16.dp)) else Modifier),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (isFullSelected) BkPrimary.copy(alpha = 0.1f) else surface
+                                containerColor = if (isFullSelected) Brand.primary.copy(alpha = 0.1f) else surface
                             ),
                             elevation = CardDefaults.cardElevation(if (isFullSelected) 0.dp else 2.dp)
                         ) {
@@ -2884,7 +2881,7 @@ fun CreateBookingScreen(
                                 Icon(
                                     Icons.Filled.Payment,
                                     contentDescription = null,
-                                    tint = if (isFullSelected) BkPrimary else textSecondary,
+                                    tint = if (isFullSelected) Brand.primary else textSecondary,
                                     modifier = Modifier.size(32.dp)
                                 )
                                 Text(
@@ -2897,13 +2894,13 @@ fun CreateBookingScreen(
                                     formatRupiah(state.totalAmount),
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (isFullSelected) BkPrimary else textPrimary
+                                    color = if (isFullSelected) Brand.primary else textPrimary
                                 )
                                 if (isFullSelected) {
                                     Icon(
                                         Icons.Filled.CheckCircle,
                                         contentDescription = null,
-                                        tint = BkPrimary,
+                                        tint = Brand.primary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                 }
@@ -2967,7 +2964,7 @@ fun CreateBookingScreen(
                     // Info text
                     Card(
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = BkPrimary.copy(alpha = 0.08f))
+                        colors = CardDefaults.cardColors(containerColor = Brand.primary.copy(alpha = 0.08f))
                     ) {
                         Row(
                             Modifier.padding(12.dp),
@@ -2977,7 +2974,7 @@ fun CreateBookingScreen(
                             Icon(
                                 Icons.Filled.Info,
                                 contentDescription = null,
-                                tint = BkPrimary,
+                                tint = Brand.primary,
                                 modifier = Modifier.size(18.dp)
                             )
                             Text(
@@ -3058,11 +3055,11 @@ fun CreateBookingScreen(
                             state.selectedTime != null && state.selectedPaymentMethod != null &&
                             // Bayar hanya dengan nominal tervalidasi dari backend.
                             state.totalAmount > 0.0,
-                        colors = ButtonDefaults.buttonColors(containerColor = BkPrimary, contentColor = BkPrimaryFg),
+                        colors = ButtonDefaults.buttonColors(containerColor = Brand.primary, contentColor = Color.White),
                         elevation = ButtonDefaults.buttonElevation(6.dp)
                     ) {
                         if (state.isLoading) {
-                            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = BkPrimaryFg, strokeWidth = 2.5.dp)
+                            CircularProgressIndicator(modifier = Modifier.size(22.dp), color = Color.White, strokeWidth = 2.5.dp)
                         } else {
                             Text(
                                 if (state.selectedPaymentType == "dp") "Book with DP" else "Confirm Booking",

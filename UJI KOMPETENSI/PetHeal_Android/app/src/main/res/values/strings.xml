@@ -80,4 +80,43 @@
     <string name="notification_channel_queue_voice_desc">Panggilan antrian yang sudah diumumkan dengan suara saat aplikasi terbuka.</string>
     <string name="notification_channel_services">Permintaan layanan</string>
     <string name="notification_channel_services_desc">Status pengajuan layanan dan penawaran biaya dari klinik.</string>
+    <!--
+      Aksi umum. Dipakai lebih dari satu layar — jangan menyalin teks yang sama
+      sebagai literal di Compose. Tambahkan entri baru di sini bila sebuah aksi
+      muncul di dua tempat atau lebih.
+    -->
+    <string name="common_retry">Coba lagi</string>
+    <string name="common_close">Tutup</string>
+    <string name="common_cancel">Batal</string>
+    <string name="common_processing">Memproses…</string>
+    <string name="common_save_png">Simpan PNG</string>
+    <string name="common_save_pdf">Simpan PDF</string>
+    <string name="common_share_image">Bagikan gambar</string>
+    <string name="common_share_pdf">Bagikan PDF</string>
+    <string name="common_check_status">Cek status</string>
+    <string name="common_checking_status">Memeriksa…</string>
+
+    <!-- Bukti pembayaran Pet Shop (PetShopReceiptScreen) -->
+    <string name="petshop_receipt_title">Bukti Pembayaran</string>
+    <string name="petshop_receipt_unavailable_title">Bukti pembayaran tidak tersedia</string>
+    <string name="petshop_receipt_unavailable_message">Bukti pembayaran hanya dapat dibuka setelah pembayaran diterima.</string>
+    <string name="petshop_receipt_disclaimer">Bukti pembayaran memakai data transaksi saat pesanan dibuat. Perubahan harga katalog tidak mengubah struk lama.</string>
+    <string name="petshop_receipt_brand">PetHeal</string>
+    <string name="petshop_receipt_subtitle">Bukti pembayaran Pet Shop</string>
+    <string name="petshop_receipt_badge_paid">LUNAS</string>
+    <string name="petshop_receipt_badge_pending">MENUNGGU</string>
+    <string name="petshop_receipt_label_order">No. pesanan</string>
+    <string name="petshop_receipt_label_customer">Pelanggan</string>
+    <string name="petshop_receipt_label_date">Tanggal</string>
+    <string name="petshop_receipt_label_payment">Pembayaran</string>
+    <string name="petshop_receipt_label_status">Status</string>
+    <string name="petshop_receipt_section_products">PRODUK</string>
+    <string name="petshop_receipt_section_pickup">PENGAMBILAN</string>
+    <string name="petshop_receipt_pickup_note">Produk diambil langsung di klinik. Tunjukkan QR Pickup Pass atau kode pengambilan kepada petugas.</string>
+    <string name="petshop_receipt_not_paid_note">Pembayaran belum diterima. Bukti ini bukan tanda lunas.</string>
+    <string name="petshop_receipt_total_subtotal">Subtotal</string>
+    <string name="petshop_receipt_total_discount">Diskon</string>
+    <string name="petshop_receipt_total_total">Total</string>
+    <string name="petshop_receipt_total_received">Diterima</string>
+    <string name="petshop_receipt_download_pdf">Unduh Bukti PDF</string>
 </resources>

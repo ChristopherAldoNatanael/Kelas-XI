@@ -52,7 +52,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.data.model.ClinicCard
 import com.christopheraldoo.petheal.data.model.ServiceCategoryDto
 import com.christopheraldoo.petheal.data.repository.DiscoveryRepository.DiscoverySort
@@ -93,7 +93,7 @@ fun ClinicDiscoveryScreen(
     onComparePrices: () -> Unit,
     viewModel: DiscoveryViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateLifecycleAware()
     var showFilters by remember { mutableStateOf(false) }
 
     // Izin lokasi satu pintu: bila sudah diberikan tidak ada dialog lagi, dan

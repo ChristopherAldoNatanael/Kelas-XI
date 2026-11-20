@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,7 +47,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -65,6 +65,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopOrder
 import com.christopheraldoo.petheal.data.model.PetShopOrderItem
 import com.christopheraldoo.petheal.data.model.PetShopPickupPass
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.components.shimmerEffect
 import com.christopheraldoo.petheal.ui.theme.Background
@@ -79,6 +80,7 @@ import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.formatRupiah
 
@@ -88,7 +90,7 @@ fun PetShopOrderDetailScreen(
     onOpenReceipt: (Int) -> Unit,
     viewModel: PetShopOrderDetailViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     val snackbarHostState = remember { SnackbarHostState() }
     var showCancelDialog by remember { mutableStateOf(false) }
 
@@ -246,7 +248,7 @@ fun PetShopOrderDetailScreen(
                         item {
                             OutlinedButton(
                                 onClick = { onOpenReceipt(order.id) },
-                                modifier = Modifier.fillMaxWidth().height(46.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = Dimens.MinTouchTarget),
                                 shape = RoundedCornerShape(PetHealRadius.md),
                                 border = BorderStroke(1.dp, Primary.copy(alpha = 0.55f))
                             ) {
@@ -379,7 +381,7 @@ private fun OrderActions(
                 Button(
                     onClick = onPay,
                     enabled = !isBusy,
-                    modifier = Modifier.fillMaxWidth().height(46.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(PetHealRadius.md),
                     colors = ButtonDefaults.buttonColors(containerColor = Primary)
                 ) {
@@ -401,7 +403,7 @@ private fun OrderActions(
                 OutlinedButton(
                     onClick = onCheckStatus,
                     enabled = !isBusy,
-                    modifier = Modifier.fillMaxWidth().height(44.dp),
+                    modifier = Modifier.fillMaxWidth().heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(PetHealRadius.md),
                     border = BorderStroke(1.dp, Outline)
                 ) {

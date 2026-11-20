@@ -63,6 +63,7 @@ import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.ui.components.OtpInput
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 
 // ─── Brand tokens → satu sumber: ui/theme/Color.kt ───────────────────────────
 private val PrimaryFg     = OnPrimaryStrong
@@ -86,7 +87,7 @@ fun ProfileScreen(
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val state by viewModel.profileState.collectAsState()
+    val state by viewModel.profileState.collectAsStateLifecycleAware()
     var showLogoutDialog by remember { mutableStateOf(false) }
     // PHASE 7: two-step verified deletion (anti-kepencet).
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -812,8 +813,8 @@ fun EditProfileScreen(
     onProfileUpdated: () -> Unit,
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val state by viewModel.editState.collectAsState()
-    val profileState by viewModel.profileState.collectAsState()
+    val state by viewModel.editState.collectAsStateLifecycleAware()
+    val profileState by viewModel.profileState.collectAsStateLifecycleAware()
 
     var showEmailDialog by remember { mutableStateOf(false) }
 

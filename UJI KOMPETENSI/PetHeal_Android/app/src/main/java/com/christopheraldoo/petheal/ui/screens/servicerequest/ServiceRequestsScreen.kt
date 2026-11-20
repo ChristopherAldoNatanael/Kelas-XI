@@ -49,7 +49,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,12 +88,10 @@ import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import com.christopheraldoo.petheal.ui.components.Dimens
+import androidx.compose.foundation.layout.heightIn
+import com.christopheraldoo.petheal.ui.theme.Brand
 
-private val SrPrimary = Primary
-private val SrBg = Background
-private val SrSurface = Surface
-private val SrTextPrimary = OnBackground
-private val SrTextSecondary = TextSecondary
 
 private val idLocale = Locale("id", "ID")
 private val shortDate = DateTimeFormatter.ofPattern("d MMM", idLocale)
@@ -120,7 +118,7 @@ fun ServiceRequestsScreen(
     onNavigateToBooking: (Int) -> Unit = {},
     viewModel: ServiceRequestsViewModel = hiltViewModel()
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateLifecycleAware()
 
     LaunchedEffect(Unit) {
         viewModel.init(openId, petId, clinicSlug, medicalRecordId)
@@ -134,15 +132,15 @@ fun ServiceRequestsScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize().background(SrBg)) {
-        Surface(color = SrSurface) {
+    Column(Modifier.fillMaxSize().background(Brand.page)) {
+        Surface(color = Brand.card) {
             Column {
                 Row(
                     Modifier.fillMaxWidth().statusBarsPadding().padding(start = 8.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = SrTextPrimary)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = Brand.textPrimary)
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
@@ -151,20 +149,20 @@ fun ServiceRequestsScreen(
                                 state.detail != null -> "Detail Permintaan"
                                 else -> "Permintaan Layanan"
                             },
-                            color = SrTextPrimary,
+                            color = Brand.textPrimary,
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             if (state.showForm) "Klinik akan meninjau kebutuhan Anda"
                             else "Kontrol & layanan khusus",
-                            color = SrTextSecondary,
+                            color = Brand.textSecondary,
                             fontSize = 12.sp
                         )
                     }
                     if (!state.showForm && state.detail == null) {
                         TextButton(onClick = { viewModel.openForm() }) {
-                            Text("Ajukan", color = SrPrimary, fontWeight = FontWeight.Bold)
+                            Text("Ajukan", color = Brand.primary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -253,17 +251,17 @@ private fun ServiceRequestList(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Icon(Icons.Filled.SupportAgent, null, tint = SrPrimary, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.SupportAgent, null, tint = Brand.primary, modifier = Modifier.size(22.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text("Butuh layanan yang belum tersedia?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+                            Text("Butuh layanan yang belum tersedia?", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
                             Text(
                                 "Ajukan permintaan dan klinik akan meninjau, lalu mengirim penawaran biaya dan jadwal.",
                                 fontSize = 12.sp,
-                                color = SrTextSecondary,
+                                color = Brand.textSecondary,
                                 lineHeight = 17.sp
                             )
                             TextButton(onClick = onCreate, contentPadding = PaddingValues(0.dp)) {
-                                Text("Ajukan Layanan Lain", color = SrPrimary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                Text("Ajukan Layanan Lain", color = Brand.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             }
                         }
                     }
@@ -288,13 +286,13 @@ private fun ServiceRequestCard(request: ServiceRequest, onClick: () -> Unit) {
     val (bg, fg) = statusColors(request.status)
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = SrSurface,
+        color = Brand.card,
         border = BorderStroke(1.dp, Outline),
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick)
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(request.code ?: "Permintaan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+                Text(request.code ?: "Permintaan", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
                 Surface(shape = RoundedCornerShape(999.dp), color = bg) {
                     Text(
                         request.statusLabel ?: request.status.orEmpty(),
@@ -312,18 +310,18 @@ private fun ServiceRequestCard(request: ServiceRequest, onClick: () -> Unit) {
                 },
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = SrTextPrimary,
+                color = Brand.textPrimary,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(request.needTypeLabel ?: "", fontSize = 11.sp, color = SrTextSecondary)
+            Text(request.needTypeLabel ?: "", fontSize = 11.sp, color = Brand.textSecondary)
             request.complaint?.takeIf { it.isNotBlank() }?.let {
-                Text(it, fontSize = 12.sp, color = SrTextSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp)
+                Text(it, fontSize = 12.sp, color = Brand.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis, lineHeight = 17.sp)
             }
             if (request.offer != null && request.canRespond) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.CheckCircle, null, tint = SrPrimary, modifier = Modifier.size(14.dp))
-                    Text("Penawaran menunggu persetujuan Anda", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = SrPrimary)
+                    Icon(Icons.Filled.CheckCircle, null, tint = Brand.primary, modifier = Modifier.size(14.dp))
+                    Text("Penawaran menunggu persetujuan Anda", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Brand.primary)
                 }
             }
         }
@@ -338,15 +336,15 @@ private fun EmptyRequests(onCreate: () -> Unit) {
         verticalArrangement = Arrangement.Center
     ) {
         Box(Modifier.size(72.dp).clip(CircleShape).background(PrimaryLight), contentAlignment = Alignment.Center) {
-            Icon(Icons.Filled.Description, null, tint = SrPrimary, modifier = Modifier.size(34.dp))
+            Icon(Icons.Filled.Description, null, tint = Brand.primary, modifier = Modifier.size(34.dp))
         }
         Spacer(Modifier.height(14.dp))
-        Text("Belum ada permintaan layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+        Text("Belum ada permintaan layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
         Spacer(Modifier.height(6.dp))
         Text(
             "Ajukan layanan yang belum ada di katalog klinik — mis. pemeriksaan khusus atau kontrol lanjutan.",
             fontSize = 13.sp,
-            color = SrTextSecondary,
+            color = Brand.textSecondary,
             textAlign = TextAlign.Center,
             lineHeight = 18.sp
         )
@@ -354,7 +352,7 @@ private fun EmptyRequests(onCreate: () -> Unit) {
         Button(
             onClick = onCreate,
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+            colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
         ) {
             Text("Ajukan Layanan Lain", fontWeight = FontWeight.SemiBold)
         }
@@ -380,19 +378,19 @@ private fun ServiceRequestDetail(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(request.code ?: "", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
+                Text(request.code ?: "", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Brand.textSecondary)
                 Text(
                     request.needTypeLabel ?: "Permintaan layanan",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SrTextPrimary
+                    color = Brand.textPrimary
                 )
                 Text(request.statusLabel ?: request.status.orEmpty(), fontSize = 12.sp, color = statusColors(request.status).second, fontWeight = FontWeight.SemiBold)
             }
         }
 
         item {
-            Surface(shape = RoundedCornerShape(18.dp), color = SrSurface, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(18.dp), color = Brand.card, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     InfoRow(Icons.Filled.Pets, request.pet?.name ?: "Hewan")
                     InfoRow(Icons.Filled.LocalHospital, request.clinic?.name ?: "Klinik")
@@ -408,10 +406,10 @@ private fun ServiceRequestDetail(
         }
 
         item {
-            Surface(shape = RoundedCornerShape(18.dp), color = SrSurface, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
+            Surface(shape = RoundedCornerShape(18.dp), color = Brand.card, border = BorderStroke(1.dp, Outline), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("Keluhan / kebutuhan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
-                    Text(request.complaint ?: "-", fontSize = 14.sp, color = SrTextPrimary, lineHeight = 20.sp)
+                    Text("Keluhan / kebutuhan", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Brand.textSecondary)
+                    Text(request.complaint ?: "-", fontSize = 14.sp, color = Brand.textPrimary, lineHeight = 20.sp)
                 }
             }
         }
@@ -421,7 +419,7 @@ private fun ServiceRequestDetail(
                 Surface(shape = RoundedCornerShape(18.dp), color = InfoSoft, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Evaluasi dokter", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = InfoStrong)
-                        Text(recommendation, fontSize = 13.sp, color = SrTextPrimary, lineHeight = 19.sp)
+                        Text(recommendation, fontSize = 13.sp, color = Brand.textPrimary, lineHeight = 19.sp)
                         if (request.needsFollowUp == true) {
                             Text("Kontrol lanjutan disarankan.", fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = WarningText)
                         }
@@ -439,7 +437,7 @@ private fun ServiceRequestDetail(
                 Surface(shape = RoundedCornerShape(18.dp), color = WarningSoft, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Text("Catatan klinik", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = WarningText)
-                        Text(note, fontSize = 13.sp, color = SrTextPrimary, lineHeight = 19.sp)
+                        Text(note, fontSize = 13.sp, color = Brand.textPrimary, lineHeight = 19.sp)
                     }
                 }
             }
@@ -466,7 +464,7 @@ private fun ServiceRequestDetail(
                         enabled = !busy,
                         modifier = Modifier.weight(1.4f).height(48.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = SrPrimary)
+                        colors = ButtonDefaults.buttonColors(containerColor = Brand.primary)
                     ) {
                         if (busy) {
                             CircularProgressIndicator(color = Color.White, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
@@ -486,13 +484,13 @@ private fun ServiceRequestDetail(
                         Text(
                             "Selesaikan pembayaran dari detail booking agar jadwal Anda terkonfirmasi.",
                             fontSize = 12.sp,
-                            color = SrTextPrimary,
+                            color = Brand.textPrimary,
                             lineHeight = 17.sp
                         )
                         Button(
                             onClick = { onOpenBooking(request.bookingId) },
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = SnackGreen)
+                            colors = ButtonDefaults.buttonColors(containerColor = Brand.successDeep)
                         ) {
                             Text("Buka Booking", fontWeight = FontWeight.SemiBold)
                         }
@@ -511,10 +509,10 @@ private fun ServiceRequestDetail(
                 TextButton(onClick = {
                     confirmAccept = false
                     onAccept(request.id, null)
-                }) { Text("Setujui", color = SrPrimary, fontWeight = FontWeight.Bold) }
+                }) { Text("Setujui", color = Brand.primary, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmAccept = false }) { Text("Batal", color = SrTextSecondary) }
+                TextButton(onClick = { confirmAccept = false }) { Text("Batal", color = Brand.textSecondary) }
             }
         )
     }
@@ -531,25 +529,24 @@ private fun ServiceRequestDetail(
                 }) { Text("Tolak", color = Error, fontWeight = FontWeight.Bold) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmReject = false }) { Text("Batal", color = SrTextSecondary) }
+                TextButton(onClick = { confirmReject = false }) { Text("Batal", color = Brand.textSecondary) }
             }
         )
     }
 }
 
-private val SnackGreen = SuccessDeep
 
 @Composable
 private fun OfferCard(offer: ServiceRequestOffer) {
     Surface(
         shape = RoundedCornerShape(18.dp),
-        color = SrSurface,
-        border = BorderStroke(1.dp, SrPrimary.copy(alpha = 0.35f)),
+        color = Brand.card,
+        border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.35f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("Penawaran Klinik", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SrTextSecondary)
+                Text("Penawaran Klinik", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Brand.textSecondary)
                 Text(
                     if (offer.priceType == "estimate") "Estimasi biaya" else "Harga final",
                     fontSize = 10.sp,
@@ -557,16 +554,16 @@ private fun OfferCard(offer: ServiceRequestOffer) {
                     color = if (offer.priceType == "estimate") WarningText else SuccessDeep
                 )
             }
-            Text(offer.serviceName ?: "Layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
+            Text(offer.serviceName ?: "Layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
             offer.description?.takeIf { it.isNotBlank() }?.let {
-                Text(it, fontSize = 12.sp, color = SrTextSecondary, lineHeight = 17.sp)
+                Text(it, fontSize = 12.sp, color = Brand.textSecondary, lineHeight = 17.sp)
             }
             offer.price?.let { price ->
                 Text(
                     "Rp ${"%,.0f".format(price).replace(',', '.')}",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SrTextPrimary
+                    color = Brand.textPrimary
                 )
             }
             if (offer.priceType == "estimate") {
@@ -584,7 +581,7 @@ private fun OfferCard(offer: ServiceRequestOffer) {
             offer.durationMinutes?.let { InfoRow(Icons.Filled.Schedule, "Perkiraan $it menit") }
             offer.validUntil?.take(10)?.let { InfoRow(Icons.Filled.Schedule, "Berlaku sampai $it") }
             offer.notes?.takeIf { it.isNotBlank() }?.let {
-                Text(it, fontSize = 12.sp, color = SrTextSecondary, lineHeight = 17.sp)
+                Text(it, fontSize = 12.sp, color = Brand.textSecondary, lineHeight = 17.sp)
             }
         }
     }
@@ -593,8 +590,8 @@ private fun OfferCard(offer: ServiceRequestOffer) {
 @Composable
 private fun InfoRow(icon: androidx.compose.ui.graphics.vector.ImageVector, text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, tint = SrTextSecondary, modifier = Modifier.size(15.dp))
-        Text(text, fontSize = 12.sp, color = SrTextPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Icon(icon, null, tint = Brand.textSecondary, modifier = Modifier.size(15.dp))
+        Text(text, fontSize = 12.sp, color = Brand.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -747,7 +744,7 @@ private fun ServiceRequestForm(
                         val tooShort = state.complaint.isNotBlank() && state.complaint.trim().length < 10
                         Text(
                             text = if (tooShort) "Minimal 10 karakter." else "Deskripsi membantu klinik menyiapkan penawaran.",
-                            color = if (tooShort) Error else SrTextSecondary,
+                            color = if (tooShort) Error else Brand.textSecondary,
                             fontSize = 11.sp,
                             lineHeight = 15.sp,
                             modifier = Modifier.weight(1f)
@@ -827,7 +824,7 @@ private fun ServiceRequestForm(
                         Text(
                             text = if (timeInvalid) "Format 24 jam (HH:mm), mis. 09:30 atau 16:00."
                             else "Kosongkan bila belum ada preferensi jam.",
-                            color = if (timeInvalid) Error else SrTextSecondary,
+                            color = if (timeInvalid) Error else Brand.textSecondary,
                             fontSize = 11.sp,
                             lineHeight = 15.sp
                         )
@@ -857,22 +854,22 @@ private fun FormIntro() {
             verticalAlignment = Alignment.Top
         ) {
             Box(
-                modifier = Modifier.size(36.dp).clip(CircleShape).background(SrSurface),
+                modifier = Modifier.size(36.dp).clip(CircleShape).background(Brand.card),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.SupportAgent, null, tint = SrPrimary, modifier = Modifier.size(19.dp))
+                Icon(Icons.Filled.SupportAgent, null, tint = Brand.primary, modifier = Modifier.size(19.dp))
             }
             Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
                     "Bukan booking langsung",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
-                    color = SrTextPrimary
+                    color = Brand.textPrimary
                 )
                 Text(
                     "Klinik meninjau permintaan ini, lalu mengirim penawaran biaya dan jadwal untuk Anda setujui.",
                     fontSize = 12.sp,
-                    color = SrTextSecondary,
+                    color = Brand.textSecondary,
                     lineHeight = 17.sp
                 )
             }
@@ -888,17 +885,17 @@ private fun FormSectionTitle(step: String, title: String, hint: String? = null) 
             horizontalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Box(
-                modifier = Modifier.size(22.dp).clip(CircleShape).background(SrPrimary.copy(alpha = 0.12f)),
+                modifier = Modifier.size(22.dp).clip(CircleShape).background(Brand.primary.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(step, color = SrPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                Text(step, color = Brand.primary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
             }
-            Text(title, color = SrTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+            Text(title, color = Brand.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         }
         hint?.let {
             Text(
                 it,
-                color = SrTextSecondary,
+                color = Brand.textSecondary,
                 fontSize = 11.sp,
                 lineHeight = 15.sp,
                 modifier = Modifier.padding(start = 31.dp)
@@ -939,7 +936,7 @@ private fun SubmitBar(
     onDismissError: () -> Unit,
     onSubmit: () -> Unit
 ) {
-    Surface(color = SrSurface) {
+    Surface(color = Brand.card) {
         Column {
             Divider(color = Outline, thickness = 0.5.dp)
             Column(
@@ -978,7 +975,7 @@ private fun SubmitBar(
                 }
                 Text(
                     hint,
-                    color = SrTextSecondary,
+                    color = Brand.textSecondary,
                     fontSize = 12.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -989,12 +986,12 @@ private fun SubmitBar(
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = SrPrimary,
+                        containerColor = Brand.primary,
                         contentColor = Color.White,
                         // Saat mengirim, tombol memang nonaktif tetapi harus tetap
                         // terlihat sebagai aksi utama, bukan tombol mati kelabu.
-                        disabledContainerColor = if (submitting) SrPrimary.copy(alpha = 0.75f) else Outline,
-                        disabledContentColor = if (submitting) Color.White else SrTextSecondary
+                        disabledContainerColor = if (submitting) Brand.primary.copy(alpha = 0.75f) else Outline,
+                        disabledContentColor = if (submitting) Color.White else Brand.textSecondary
                     )
                 ) {
                     if (submitting) {
@@ -1024,8 +1021,8 @@ private fun SelectRow(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = if (selected) PrimaryLight else SrSurface,
-        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
+        color = if (selected) PrimaryLight else Brand.card,
+        border = BorderStroke(1.dp, if (selected) Brand.primary else Outline),
         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).clickable(onClick = onClick)
     ) {
         Row(
@@ -1036,13 +1033,13 @@ private fun SelectRow(
             if (icon != null) {
                 Box(
                     modifier = Modifier.size(34.dp).clip(CircleShape)
-                        .background(if (selected) SrSurface else SrBg),
+                        .background(if (selected) Brand.card else Brand.page),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         icon,
                         null,
-                        tint = if (selected) SrPrimary else SrTextSecondary,
+                        tint = if (selected) Brand.primary else Brand.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -1052,7 +1049,7 @@ private fun SelectRow(
                     title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = SrTextPrimary,
+                    color = Brand.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1060,14 +1057,14 @@ private fun SelectRow(
                     Text(
                         it,
                         fontSize = 11.sp,
-                        color = SrTextSecondary,
+                        color = Brand.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             if (selected) {
-                Icon(Icons.Filled.CheckCircle, null, tint = SrPrimary, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.CheckCircle, null, tint = Brand.primary, modifier = Modifier.size(20.dp))
             }
         }
     }
@@ -1075,32 +1072,42 @@ private fun SelectRow(
 
 @Composable
 private fun SelectChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    // Pembungkus 48dp untuk area sentuh; bentuk pil tetap seperti semula.
+    Box(
+        modifier = Modifier
+            .heightIn(min = Dimens.MinTouchTarget)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
     Surface(
         shape = RoundedCornerShape(999.dp),
-        color = if (selected) SrPrimary else SrSurface,
-        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
-        modifier = Modifier.clip(RoundedCornerShape(999.dp)).clickable(onClick = onClick)
+        color = if (selected) Brand.primary else Brand.card,
+        border = BorderStroke(1.dp, if (selected) Brand.primary else Outline)
     ) {
         Text(
             label,
             fontSize = 12.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-            color = if (selected) Color.White else SrTextPrimary,
+            color = if (selected) Color.White else Brand.textPrimary,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp)
         )
+    }
     }
 }
 
 @Composable
 private fun DateChip(label: String, date: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .heightIn(min = Dimens.MinTouchTarget)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
     Surface(
         shape = RoundedCornerShape(14.dp),
-        color = if (selected) SrPrimary else SrSurface,
-        border = BorderStroke(1.dp, if (selected) SrPrimary else Outline),
-        modifier = Modifier
-            .widthIn(min = 78.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick)
+        color = if (selected) Brand.primary else Brand.card,
+        border = BorderStroke(1.dp, if (selected) Brand.primary else Outline),
+        modifier = Modifier.widthIn(min = 78.dp)
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -1111,17 +1118,18 @@ private fun DateChip(label: String, date: String, selected: Boolean, onClick: ()
                 label,
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (selected) Color.White.copy(alpha = 0.9f) else SrTextSecondary,
+                color = if (selected) Color.White.copy(alpha = 0.9f) else Brand.textSecondary,
                 maxLines = 1
             )
             Text(
                 date,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (selected) Color.White else SrTextPrimary,
+                color = if (selected) Color.White else Brand.textPrimary,
                 maxLines = 1
             )
         }
+    }
     }
 }
 
@@ -1132,8 +1140,8 @@ private fun LoadingBlock(message: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        CircularProgressIndicator(color = SrPrimary, strokeWidth = 2.5.dp, modifier = Modifier.size(30.dp))
-        Text(message, fontSize = 13.sp, color = SrTextSecondary)
+        CircularProgressIndicator(color = Brand.primary, strokeWidth = 2.5.dp, modifier = Modifier.size(30.dp))
+        Text(message, fontSize = 13.sp, color = Brand.textSecondary)
     }
 }
 
@@ -1145,7 +1153,7 @@ private fun ErrorBlock(message: String, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Icon(Icons.Filled.ErrorOutline, null, tint = Error, modifier = Modifier.size(34.dp))
-        Text(message, fontSize = 13.sp, color = SrTextSecondary, textAlign = TextAlign.Center)
+        Text(message, fontSize = 13.sp, color = Brand.textSecondary, textAlign = TextAlign.Center)
         OutlinedButton(onClick = onRetry, shape = RoundedCornerShape(12.dp)) {
             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(16.dp))
             Spacer(Modifier.width(6.dp))
@@ -1155,7 +1163,7 @@ private fun ErrorBlock(message: String, onRetry: () -> Unit) {
 }
 
 private fun statusColors(status: String?): Pair<Color, Color> = when (status) {
-    "offered" -> PrimaryLight to SrPrimary
+    "offered" -> PrimaryLight to Brand.primary
     "accepted", "converted_to_booking" -> SuccessSoft to Success
     "rejected", "cancelled", "expired" -> ErrorSoft to Error
     "waiting_doctor_review" -> WarningSoft to WarningText

@@ -2,16 +2,16 @@ package com.christopheraldoo.petheal.ui.screens.auth
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -44,7 +45,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.BuildConfig
 import com.christopheraldoo.petheal.R
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.Primary
@@ -73,6 +74,7 @@ import com.christopheraldoo.petheal.ui.theme.PrimaryDark
 import com.christopheraldoo.petheal.ui.theme.Tertiary
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 
 @Composable
 fun SplashScreen(
@@ -81,9 +83,9 @@ fun SplashScreen(
     onNavigateToOnboarding: () -> Unit,
     viewModel: SplashViewModel = hiltViewModel()
 ) {
-    val isLoggedIn by viewModel.isLoggedIn.collectAsState(initial = null)
-    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsState(initial = null)
-    val uiState by viewModel.state.collectAsState()
+    val isLoggedIn by viewModel.isLoggedIn.collectAsStateLifecycleAware(initial = null)
+    val hasSeenOnboarding by viewModel.hasSeenOnboarding.collectAsStateLifecycleAware(initial = null)
+    val uiState by viewModel.state.collectAsStateLifecycleAware()
 
     val brandName = stringResource(R.string.app_name)
 
@@ -377,7 +379,7 @@ private fun OfflineNotice(
                     onClick = onContinue,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.dp, Outline),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary)
@@ -393,7 +395,7 @@ private fun OfflineNotice(
                     onClick = onRetry,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Primary,

@@ -1,28 +1,7 @@
 package com.christopheraldoo.petheal.ui.screens.home
 
-import com.christopheraldoo.petheal.ui.theme.Background
-import com.christopheraldoo.petheal.ui.theme.ErrorSoft
-import com.christopheraldoo.petheal.ui.theme.ErrorStrong
-import com.christopheraldoo.petheal.ui.theme.InfoSoft
-import com.christopheraldoo.petheal.ui.theme.InfoStrong
-import com.christopheraldoo.petheal.ui.theme.OnBackground
-import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
-import com.christopheraldoo.petheal.ui.theme.Outline
-import com.christopheraldoo.petheal.ui.theme.Primary
-import com.christopheraldoo.petheal.ui.theme.PrimaryDark
-import com.christopheraldoo.petheal.ui.theme.PrimaryLight
-import com.christopheraldoo.petheal.ui.theme.PrimaryWash
-import com.christopheraldoo.petheal.ui.theme.StatusRejected
-import com.christopheraldoo.petheal.ui.theme.SuccessDeep
-import com.christopheraldoo.petheal.ui.theme.SuccessSoft
-import com.christopheraldoo.petheal.ui.theme.Surface
-import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
-import com.christopheraldoo.petheal.ui.theme.TextMuted
-import com.christopheraldoo.petheal.ui.theme.TextSecondary
-import com.christopheraldoo.petheal.ui.theme.TextTertiary
-import com.christopheraldoo.petheal.ui.theme.WarningSoft
-import com.christopheraldoo.petheal.ui.theme.WarningText
-
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -70,22 +49,29 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -96,22 +82,44 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.ui.components.Dimens
+import com.christopheraldoo.petheal.ui.location.LocationPermissionStatus
+import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
+import com.christopheraldoo.petheal.ui.theme.Background
+import com.christopheraldoo.petheal.ui.theme.Brand
 import com.christopheraldoo.petheal.ui.theme.ClinicTheme
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
+import com.christopheraldoo.petheal.ui.theme.ErrorStrong
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import com.christopheraldoo.petheal.ui.theme.InfoStrong
+import com.christopheraldoo.petheal.ui.theme.OnBackground
+import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
+import com.christopheraldoo.petheal.ui.theme.Outline
+import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
+import com.christopheraldoo.petheal.ui.theme.PrimaryWash
+import com.christopheraldoo.petheal.ui.theme.StatusRejected
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
+import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
+import com.christopheraldoo.petheal.ui.theme.TextMuted
+import com.christopheraldoo.petheal.ui.theme.TextSecondary
+import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
+import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.util.DoctorListing
+import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.formatRupiahCompact
 import com.christopheraldoo.petheal.util.speciesLabelOf
+import kotlinx.coroutines.launch
 
 // Alias lokal → satu sumber warna di ui/theme/Color.kt.
-private val HomePrimary = Primary
-private val HomePrimaryDark = PrimaryDark
-private val HomeBg = Background
-private val HomeSurface = Surface
-private val HomeTextPrimary = OnBackground
-private val HomeTextSecondary = TextSecondary
-private val HomeSoftSurface = SurfaceVariant
 
 /** Padding horizontal Beranda — ritme khas aplikasi mobile (bukan web 24dp). */
 private val HomeGutter = 20.dp
@@ -147,13 +155,92 @@ fun HomeScreen(
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
+
+    // ── "Aktifkan lokasi" pada seksi Dokter terdekat ────────────────────────
+    // Sebelumnya tombol ini hanya memanggil loadNearbyDoctors(forceGps = true);
+    // fungsi itu langsung berhenti bila izin belum ada, jadi tombol terasa mati.
+    // Sekarang: izin diminta lewat satu pintu (rememberLocationPermission),
+    // GPS yang mati dijelaskan, dan setiap hasil tampil sebagai Snackbar.
+    val context = LocalContext.current
+    val locationPermission = rememberLocationPermission()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var awaitingGrant by remember { mutableStateOf(false) }
+    // User dikirim ke pengaturan GPS: begitu layanan menyala, muat otomatis.
+    var awaitingGps by remember { mutableStateOf(false) }
+
+    fun notify(message: String) {
+        scope.launch { snackbarHostState.showSnackbar(message) }
+    }
+
+    fun fetchNearbyWithLocation() {
+        if (!LocationHelper.isLocationEnabled(context)) {
+            awaitingGps = true
+            notify("Layanan lokasi (GPS) belum aktif. Nyalakan lalu coba lagi.")
+            runCatching {
+                context.startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            }
+            return
+        }
+        viewModel.loadNearbyDoctors(forceGps = true)
+    }
+
+    fun handleEnableLocation() {
+        when {
+            locationPermission.isGranted -> fetchNearbyWithLocation()
+
+            // Dialog sistem masih boleh muncul.
+            locationPermission.canRequest -> locationPermission.request { result ->
+                when (result) {
+                    LocationPermissionStatus.GRANTED -> fetchNearbyWithLocation()
+                    LocationPermissionStatus.PERMANENTLY_DENIED -> {
+                        awaitingGrant = true
+                        notify("Izin lokasi diblokir. Aktifkan lewat pengaturan aplikasi.")
+                    }
+                    LocationPermissionStatus.DENIED ->
+                        notify("Izin lokasi diperlukan untuk menghitung jarak klinik.")
+                }
+            }
+
+            // Sudah "jangan tanya lagi": hanya pengaturan aplikasi yang bisa.
+            else -> {
+                awaitingGrant = true
+                notify("Izin lokasi diblokir. Aktifkan lewat pengaturan aplikasi.")
+                locationPermission.openSettings()
+            }
+        }
+    }
+
+    // Kembali dari pengaturan dengan izin sudah menyala → langsung ambil lokasi.
+    LaunchedEffect(locationPermission.status, awaitingGrant) {
+        if (awaitingGrant && locationPermission.isGranted) {
+            awaitingGrant = false
+            fetchNearbyWithLocation()
+        }
+    }
+
+    // Pesan dari ViewModel (GPS mati / titik tidak terbaca) tampil sekali saja.
+    LaunchedEffect(uiState.nearbyMessage) {
+        val message = uiState.nearbyMessage
+        if (message != null) {
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearNearbyMessage()
+        }
+    }
 
     // Kembali dari layar lain (review/booking) → revalidasi diam-diam bila basi.
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshIfStale()
+            if (event == Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshIfStale()
+                // Kembali dari pengaturan GPS → langsung ambil lokasi.
+                if (awaitingGps && LocationHelper.isLocationEnabled(context)) {
+                    awaitingGps = false
+                    viewModel.loadNearbyDoctors(forceGps = true)
+                }
+            }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
@@ -162,7 +249,7 @@ fun HomeScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(HomeBg)
+            .background(Brand.page)
     ) {
         Column(
             modifier = Modifier
@@ -219,7 +306,7 @@ fun HomeScreen(
                             "Coba lagi",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
-                            color = HomePrimaryDark
+                            color = Brand.primaryDeep
                         )
                     }
                 }
@@ -245,7 +332,7 @@ fun HomeScreen(
                 state = uiState,
                 onDoctorClick = { doctorId, clinicId -> onNavigateToDoctorInClinic(doctorId, clinicId) },
                 onSeeAll = onNavigateToDoctors,
-                onEnableLocation = { viewModel.loadNearbyDoctors(forceGps = true) }
+                onEnableLocation = { handleEnableLocation() }
             )
 
             PetShopBanner(
@@ -263,6 +350,16 @@ fun HomeScreen(
             selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Home,
             onSelect = onTabSelected,
             modifier = Modifier.align(Alignment.BottomCenter)
+        )
+
+        // Umpan balik aksi lokasi. Diletakkan di atas navigasi mengapung supaya
+        // tidak tertutup dan tetap menghormati navigation bar sistem.
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(start = 16.dp, end = 16.dp, bottom = 104.dp)
         )
 
         // PHASE 9: one-time gentle nudge to rate finished visits.
@@ -495,7 +592,7 @@ private fun QuickActionsCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = HomeSurface,
+        color = Brand.card,
         shadowElevation = 2.dp
     ) {
         Row(
@@ -538,7 +635,7 @@ private fun QuickActionsCard(
             QuickActionTile(
                 icon = Icons.Filled.Article,
                 label = "Rekam",
-                iconBg = HomeSoftSurface,
+                iconBg = Brand.cardAlt,
                 iconTint = TextMuted,
                 onClick = onNavigateToMedicalRecords,
                 modifier = Modifier.weight(1f)
@@ -689,7 +786,7 @@ private fun SectionTitle(
             text = title,
             fontSize = 16.sp,
             fontWeight = FontWeight.Bold,
-            color = HomeTextPrimary,
+            color = Brand.textPrimary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
@@ -708,13 +805,13 @@ private fun SectionTitle(
                     text = actionLabel,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = HomePrimaryDark,
+                    color = Brand.primaryDeep,
                     maxLines = 1
                 )
                 Icon(
                     imageVector = Icons.Filled.ChevronRight,
                     contentDescription = null,
-                    tint = HomePrimaryDark,
+                    tint = Brand.primaryDeep,
                     modifier = Modifier.size(15.dp)
                 )
             }
@@ -772,7 +869,7 @@ private fun NextAppointmentCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = HomeSurface,
+        color = Brand.card,
         shadowElevation = 2.dp
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -793,21 +890,21 @@ private fun NextAppointmentCard(
                         text = "Konsultasi hewan",
                         fontSize = 10.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = HomePrimaryDark,
+                        color = Brand.primaryDeep,
                         letterSpacing = 0.6.sp
                     )
                     Text(
                         text = booking.doctor?.name ?: "Dokter hewan",
                         fontSize = 15.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = HomeTextPrimary,
+                        color = Brand.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = booking.doctor?.specialization ?: "Dokter Hewan",
                         fontSize = 12.sp,
-                        color = HomeTextSecondary,
+                        color = Brand.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -819,7 +916,7 @@ private fun NextAppointmentCard(
                         Icon(
                             imageVector = Icons.Filled.Schedule,
                             contentDescription = null,
-                            tint = HomePrimaryDark,
+                            tint = Brand.primaryDeep,
                             modifier = Modifier.size(14.dp)
                         )
                         Text(
@@ -851,10 +948,10 @@ private fun NextAppointmentCard(
                     onClick = onOpen,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = HomePrimary,
+                        containerColor = Brand.primary,
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp)
@@ -863,10 +960,10 @@ private fun NextAppointmentCard(
                 }
                 OutlinedButton(
                     onClick = onFindDoctor,
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(14.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = HomeTextPrimary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.textPrimary),
                     contentPadding = PaddingValues(horizontal = 14.dp)
                 ) {
                     Icon(
@@ -907,7 +1004,7 @@ private fun PetAndClinicRow(booking: Booking) {
             text = listOfNotNull(petLabel, booking.clinic?.name?.takeIf { it.isNotBlank() })
                 .joinToString(" · "),
             fontSize = 11.sp,
-            color = HomeTextSecondary,
+            color = Brand.textSecondary,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
@@ -951,7 +1048,7 @@ private fun BookingAvatar(photo: String?) {
         modifier = Modifier
             .size(52.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(HomeSoftSurface),
+            .background(Brand.cardAlt),
         contentAlignment = Alignment.Center
     ) {
         if (!doctorPhoto.isNullOrBlank()) {
@@ -980,7 +1077,7 @@ private fun EmptyAppointmentCard(
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
-        color = HomeSurface,
+        color = Brand.card,
         border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
         shadowElevation = 0.dp
     ) {
@@ -999,7 +1096,7 @@ private fun EmptyAppointmentCard(
                     Icon(
                         imageVector = Icons.Filled.CalendarMonth,
                         contentDescription = null,
-                        tint = HomePrimaryDark,
+                        tint = Brand.primaryDeep,
                         modifier = Modifier.size(22.dp)
                     )
                 }
@@ -1008,13 +1105,13 @@ private fun EmptyAppointmentCard(
                         text = "Belum ada jadwal aktif",
                         fontSize = 14.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = HomeTextPrimary
+                        color = Brand.textPrimary
                     )
                     Text(
                         text = "Jadwalkan konsultasi agar kondisi hewan tetap terpantau.",
                         fontSize = 11.5.sp,
                         lineHeight = 16.sp,
-                        color = HomeTextSecondary
+                        color = Brand.textSecondary
                     )
                 }
             }
@@ -1024,10 +1121,10 @@ private fun EmptyAppointmentCard(
                     onClick = onBook,
                     modifier = Modifier
                         .weight(1f)
-                        .height(44.dp),
+                        .heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = HomePrimary,
+                        containerColor = Brand.primary,
                         contentColor = Color.White
                     ),
                     contentPadding = PaddingValues(horizontal = 12.dp)
@@ -1036,10 +1133,10 @@ private fun EmptyAppointmentCard(
                 }
                 OutlinedButton(
                     onClick = onFindDoctor,
-                    modifier = Modifier.height(44.dp),
+                    modifier = Modifier.heightIn(min = Dimens.MinTouchTarget),
                     shape = RoundedCornerShape(14.dp),
                     border = androidx.compose.foundation.BorderStroke(1.dp, Outline),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = HomeTextPrimary),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.textPrimary),
                     contentPadding = PaddingValues(horizontal = 14.dp)
                 ) {
                     Text("Lihat dokter", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
@@ -1057,7 +1154,7 @@ private fun BookingCardSkeleton(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(150.dp),
         shape = RoundedCornerShape(22.dp),
-        color = HomeSurface,
+        color = Brand.card,
         shadowElevation = 1.dp
     ) {
         Row(
@@ -1158,7 +1255,7 @@ private fun NearbyDoctorsSection(
                 Text(
                     text = "Memuat dokter terdekat…",
                     fontSize = 12.sp,
-                    color = HomeTextSecondary
+                    color = Brand.textSecondary
                 )
             }
 
@@ -1194,9 +1291,9 @@ private fun LocationPromptCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
-            .clickable(onClick = onEnableLocation),
+            .clickable(role = Role.Button, onClick = onEnableLocation),
         shape = RoundedCornerShape(20.dp),
-        color = HomeSoftSurface
+        color = Brand.cardAlt
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 14.dp),
@@ -1213,7 +1310,7 @@ private fun LocationPromptCard(
                 Icon(
                     imageVector = Icons.Outlined.MyLocation,
                     contentDescription = null,
-                    tint = HomePrimaryDark,
+                    tint = Brand.primaryDeep,
                     modifier = Modifier.size(19.dp)
                 )
             }
@@ -1222,12 +1319,12 @@ private fun LocationPromptCard(
                     text = "Aktifkan lokasi",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = HomeTextPrimary
+                    color = Brand.textPrimary
                 )
                 Text(
                     text = "Supaya jarak ke tiap klinik terlihat.",
                     fontSize = 11.5.sp,
-                    color = HomeTextSecondary
+                    color = Brand.textSecondary
                 )
             }
             Icon(
@@ -1249,7 +1346,7 @@ private fun NearbyDoctorCard(listing: DoctorListing, onClick: () -> Unit) {
             .clip(RoundedCornerShape(20.dp))
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
-        color = HomeSurface,
+        color = Brand.card,
         shadowElevation = 2.dp
     ) {
         Column(
@@ -1264,7 +1361,7 @@ private fun NearbyDoctorCard(listing: DoctorListing, onClick: () -> Unit) {
                     modifier = Modifier
                         .size(42.dp)
                         .clip(CircleShape)
-                        .background(HomeBg),
+                        .background(Brand.page),
                     contentAlignment = Alignment.Center
                 ) {
                     val photo = remember(doctor.photo) { buildPhotoUrl(doctor.photo) }
@@ -1306,7 +1403,7 @@ private fun NearbyDoctorCard(listing: DoctorListing, onClick: () -> Unit) {
                     text = doctor.name ?: "Dokter",
                     fontSize = 13.5.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = HomeTextPrimary,
+                    color = Brand.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1314,7 +1411,7 @@ private fun NearbyDoctorCard(listing: DoctorListing, onClick: () -> Unit) {
                     text = doctor.specialization ?: "Dokter Hewan",
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Medium,
-                    color = HomePrimaryDark,
+                    color = Brand.primaryDeep,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1333,7 +1430,7 @@ private fun NearbyDoctorCard(listing: DoctorListing, onClick: () -> Unit) {
                 Text(
                     text = listing.clinicLabel ?: "Klinik belum diisi",
                     fontSize = 10.5.sp,
-                    color = HomeTextSecondary,
+                    color = Brand.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -1431,7 +1528,7 @@ private fun RecentActivitySection(recentVisits: List<MedicalRecord>, onSeeAll: (
                     .fillMaxWidth()
                     .padding(horizontal = HomeGutter),
                 shape = RoundedCornerShape(20.dp),
-                color = HomeSurface,
+                color = Brand.card,
                 border = androidx.compose.foundation.BorderStroke(1.dp, Outline)
             ) {
                 Column(
@@ -1442,13 +1539,13 @@ private fun RecentActivitySection(recentVisits: List<MedicalRecord>, onSeeAll: (
                         text = "Belum ada aktivitas medis",
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = HomeTextPrimary
+                        color = Brand.textPrimary
                     )
                     Text(
                         text = "Ringkasan kunjungan muncul setelah konsultasi selesai.",
                         fontSize = 11.5.sp,
                         lineHeight = 16.sp,
-                        color = HomeTextSecondary
+                        color = Brand.textSecondary
                     )
                 }
             }
@@ -1461,7 +1558,7 @@ private fun RecentVisitCard(record: MedicalRecord) {
     Surface(
         modifier = Modifier.width(238.dp),
         shape = RoundedCornerShape(20.dp),
-        color = HomeSurface,
+        color = Brand.card,
         shadowElevation = 2.dp
     ) {
         Column(
@@ -1491,14 +1588,14 @@ private fun RecentVisitCard(record: MedicalRecord) {
                         text = record.pet?.name ?: "Pasien",
                         fontSize = 13.5.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = HomeTextPrimary,
+                        color = Brand.textPrimary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
                         text = record.doctor?.name ?: "Dokter",
                         fontSize = 11.sp,
-                        color = HomeTextSecondary,
+                        color = Brand.textSecondary,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1550,7 +1647,7 @@ private fun RatingReminderSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        containerColor = HomeSurface
+        containerColor = Brand.card
     ) {
         Column(
             modifier = Modifier
@@ -1562,7 +1659,7 @@ private fun RatingReminderSheet(
                 text = "Kunjungan selesai",
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = HomePrimary,
+                color = Brand.primary,
                 letterSpacing = 1.2.sp
             )
             Spacer(Modifier.height(6.dp))
@@ -1570,7 +1667,7 @@ private fun RatingReminderSheet(
                 text = "Bagaimana pengalaman konsultasinya?",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = HomeTextPrimary,
+                color = Brand.textPrimary,
                 lineHeight = 26.sp
             )
             Spacer(Modifier.height(6.dp))
@@ -1578,7 +1675,7 @@ private fun RatingReminderSheet(
                 text = "Penilaian Anda membantu dokter meningkatkan pelayanan dan membantu pemilik hewan lain memilih dengan yakin.",
                 fontSize = 13.sp,
                 lineHeight = 19.sp,
-                color = HomeTextSecondary
+                color = Brand.textSecondary
             )
             Spacer(Modifier.height(16.dp))
             pending.forEach { review ->
@@ -1586,7 +1683,7 @@ private fun RatingReminderSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(HomeSoftSurface)
+                        .background(Brand.cardAlt)
                         .border(1.dp, Outline, RoundedCornerShape(16.dp))
                         .clickable { onRateDoctor(review) }
                         .padding(12.dp),
@@ -1598,7 +1695,7 @@ private fun RatingReminderSheet(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(HomePrimary.copy(alpha = 0.12f)),
+                            .background(Brand.primary.copy(alpha = 0.12f)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (!photoModel.isNullOrBlank()) {
@@ -1613,7 +1710,7 @@ private fun RatingReminderSheet(
                             Icon(
                                 imageVector = Icons.Filled.Person,
                                 contentDescription = null,
-                                tint = HomePrimary,
+                                tint = Brand.primary,
                                 modifier = Modifier.size(26.dp)
                             )
                         }
@@ -1623,7 +1720,7 @@ private fun RatingReminderSheet(
                             text = review.doctorName,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = HomeTextPrimary,
+                            color = Brand.textPrimary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1633,7 +1730,7 @@ private fun RatingReminderSheet(
                                 review.visitDate?.let { formatVisitDate(it) }
                             ).joinToString(" • "),
                             fontSize = 12.sp,
-                            color = HomeTextSecondary,
+                            color = Brand.textSecondary,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -1642,7 +1739,7 @@ private fun RatingReminderSheet(
                         onClick = { onRateDoctor(review) },
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = HomePrimary,
+                            containerColor = Brand.primary,
                             contentColor = Color.White
                         ),
                         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
@@ -1666,7 +1763,7 @@ private fun RatingReminderSheet(
                     "Nanti saja",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = HomeTextSecondary
+                    color = Brand.textSecondary
                 )
             }
         }

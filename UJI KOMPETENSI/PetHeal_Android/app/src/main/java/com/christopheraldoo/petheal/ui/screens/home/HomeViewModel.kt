@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlinx.coroutines.Job
 
 data class HomeUiState(
     val userName: String = "",
@@ -69,7 +70,13 @@ data class HomeUiState(
     val nearbyDoctors: List<DoctorListing> = emptyList(),
     val nearbyHasLocation: Boolean = false,
     val nearbyLoadError: String? = null,
-    val isNearbyLoading: Boolean = false
+    val isNearbyLoading: Boolean = false,
+    /**
+     * Pesan sekali-tampil untuk aksi "Aktifkan lokasi" di Beranda.
+     * Dipakai saat lokasi tetap tidak didapat (GPS mati / tidak ada fix) supaya
+     * tombol tidak terasa diam. Dibersihkan lewat [clearNearbyMessage].
+     */
+    val nearbyMessage: String? = null
 )
 
 /**
@@ -159,25 +166,46 @@ class HomeViewModel @Inject constructor(
      * dipakai sekali; selain itu seksi tetap kosong — tidak pernah meminta
      * izin dari Beranda dan tidak pernah mengarang jarak.
      */
+    private var nearbyJob: Job? = null
+
     fun loadNearbyDoctors(forceGps: Boolean = false) {
-        if (_uiState.value.isNearbyLoading) return
-        viewModelScope.launch {
+        // Muat biasa: jangan tumpuk permintaan. Permintaan dari tombol
+        // "Aktifkan lokasi" (forceGps) selalu dijalankan — bila pemuatan
+        // sebelumnya masih berjalan, ia diganti supaya tombol tidak terasa
+        // diam ketika diketuk berurutan.
+        if (nearbyJob?.isActive == true) {
+            if (!forceGps) return
+            nearbyJob?.cancel()
+        }
+        nearbyJob = viewModelScope.launch {
             _uiState.value = _uiState.value.copy(
                 isNearbyLoading = true,
-                nearbyLoadError = null
+                nearbyLoadError = null,
+                nearbyMessage = null
             )
 
             val saved = runCatching { preferencesManager.userLocation.first() }.getOrNull()
             var location = saved
-            if (location == null && forceGps && LocationHelper.hasPermission(context)) {
-                val fix = runCatching { LocationHelper.currentLocation(context) }.getOrNull()
-                if (fix is com.christopheraldoo.petheal.util.LocationResult.Success) {
-                    location = com.christopheraldoo.petheal.data.model.UserLocation(
-                        latitude = fix.latitude,
-                        longitude = fix.longitude,
-                        label = "Lokasi GPS"
-                    )
-                    runCatching { preferencesManager.saveUserLocation(location) }
+            var gpsMessage: String? = null
+            if (location == null && forceGps) {
+                if (!LocationHelper.hasPermission(context)) {
+                    gpsMessage = "Izin lokasi belum diberikan."
+                } else if (!LocationHelper.isLocationEnabled(context)) {
+                    gpsMessage = "Layanan lokasi (GPS) belum aktif. Nyalakan lalu coba lagi."
+                } else {
+                    val fix = runCatching { LocationHelper.currentLocation(context) }.getOrNull()
+                    if (fix is com.christopheraldoo.petheal.util.LocationResult.Success) {
+                        location = com.christopheraldoo.petheal.data.model.UserLocation(
+                            latitude = fix.latitude,
+                            longitude = fix.longitude,
+                            label = "Lokasi GPS"
+                        )
+                        runCatching { preferencesManager.saveUserLocation(location) }
+                    } else {
+                        // Izin ada dan GPS menyala, tetapi tidak ada titik dalam
+                        // batas waktu: katakan apa adanya, jangan diam.
+                        gpsMessage = "Lokasi belum terbaca. Coba lagi di area terbuka."
+                    }
                 }
             }
 
@@ -195,15 +223,27 @@ class HomeViewModel @Inject constructor(
                         isNearbyLoading = false,
                         nearbyDoctors = nearby,
                         nearbyHasLocation = location != null,
-                        nearbyLoadError = null
+                        nearbyLoadError = null,
+                        nearbyMessage = gpsMessage
                     )
                 }
                 is Result.Error -> _uiState.value = _uiState.value.copy(
                     isNearbyLoading = false,
-                    nearbyLoadError = result.message
+                    nearbyLoadError = result.message,
+                    nearbyMessage = gpsMessage
                 )
-                else -> _uiState.value = _uiState.value.copy(isNearbyLoading = false)
+                else -> _uiState.value = _uiState.value.copy(
+                    isNearbyLoading = false,
+                    nearbyMessage = gpsMessage
+                )
             }
+        }
+    }
+
+    /** Pesan "Aktifkan lokasi" sudah ditampilkan; jangan ulang di recompose. */
+    fun clearNearbyMessage() {
+        if (_uiState.value.nearbyMessage != null) {
+            _uiState.value = _uiState.value.copy(nearbyMessage = null)
         }
     }
 

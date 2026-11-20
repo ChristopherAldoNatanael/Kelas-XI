@@ -46,6 +46,8 @@ import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Surface
+import androidx.compose.ui.res.stringResource
+import com.christopheraldoo.petheal.R
 
 private const val TAG = "PetShopPaymentWebView"
 
@@ -199,7 +201,8 @@ fun PetShopPaymentWebView(
                         }
                         Spacer(Modifier.width(5.dp))
                         Text(
-                            text = if (isSyncing) "Memeriksa…" else "Cek status",
+                            text = if (isSyncing) stringResource(R.string.common_checking_status)
+                                else stringResource(R.string.common_check_status),
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = Primary

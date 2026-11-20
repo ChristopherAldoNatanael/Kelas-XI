@@ -56,13 +56,12 @@ import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.util.formatRupiah
 import com.christopheraldoo.petheal.util.toExtraPaymentReceipt
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
+import com.christopheraldoo.petheal.ui.theme.Brand
 
 private const val TAG = "PaymentScreen"
 
 // Brand tokens
-private val PayPrimary = Primary
-private val PayBg = Background
-private val PaySurface = Surface
 
 /**
  * Enhanced payment screen with complete post-payment UX.
@@ -93,8 +92,8 @@ fun PaymentScreen(
     enabledPayments: List<String>? = null,
     viewModel: PaymentViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-    val bgColor = PayBg
+    val state by viewModel.uiState.collectAsStateLifecycleAware()
+    val bgColor = Brand.page
     val textPrimary = OnBackground
     val textSecondary = TextSecondary
     val paymentContextTitle = when {
@@ -230,10 +229,10 @@ fun PaymentScreen(
                             modifier = Modifier
                                 .size(86.dp)
                                 .clip(RoundedCornerShape(28.dp))
-                                .background(PayPrimary.copy(alpha = 0.10f)),
+                                .background(Brand.primary.copy(alpha = 0.10f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = PayPrimary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
+                            CircularProgressIndicator(color = Brand.primary, modifier = Modifier.scale(scale), strokeWidth = 4.dp)
                         }
                         Text(paymentContextTitle, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = textPrimary)
                         Text("Menyiapkan pembayaran yang aman", fontSize = 22.sp, fontWeight = FontWeight.Bold, color = textPrimary, textAlign = TextAlign.Center)
@@ -243,23 +242,23 @@ fun PaymentScreen(
                                 "Dibayarkan ke $payeeClinicName",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PayPrimary,
+                                color = Brand.primary,
                                 textAlign = TextAlign.Center
                             )
                         }
                         midtransCodesLabel(enabledPayments)?.let { methodLabel ->
                             Surface(
                                 shape = RoundedCornerShape(50),
-                                color = PayPrimary.copy(alpha = 0.1f),
-                                border = BorderStroke(1.dp, PayPrimary.copy(alpha = 0.25f))
+                                color = Brand.primary.copy(alpha = 0.1f),
+                                border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.25f))
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Filled.Payment, null, tint = PayPrimary, modifier = Modifier.size(16.dp))
+                                    Icon(Icons.Filled.Payment, null, tint = Brand.primary, modifier = Modifier.size(16.dp))
                                     Spacer(Modifier.width(6.dp))
-                                    Text("Midtrans: $methodLabel", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = PayPrimary)
+                                    Text("Midtrans: $methodLabel", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Brand.primary)
                                 }
                             }
                         }
@@ -345,7 +344,7 @@ fun PaymentScreen(
             }
             else -> {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = PayPrimary)
+                    CircularProgressIndicator(color = Brand.primary)
                 }
             }
         }
@@ -565,7 +564,7 @@ fun PaymentResultDialog(
     val title: String
     val message: String
     when (status) {
-        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = PayPrimary; title = "Pembayaran Selesai"; message = "Pembayaran Anda tercatat. Status booking terbaru akan dimuat ulang otomatis." }
+        "success" -> { icon = Icons.Filled.CheckCircle; iconColor = Brand.primary; title = "Pembayaran Selesai"; message = "Pembayaran Anda tercatat. Status booking terbaru akan dimuat ulang otomatis." }
         "pending" -> { icon = Icons.Filled.Schedule; iconColor = Tertiary; title = "Pembayaran Tertunda"; message = "Sesi pembayaran masih aktif. Selesaikan transaksi untuk membuka status terbaru." }
         "cancelled" -> { icon = Icons.Outlined.Cancel; iconColor = TextTertiary; title = "Pembayaran Dibatalkan"; message = "Tidak ada dana yang terpotong. Anda bisa memulai pembayaran lagi dari detail booking." }
         else -> { icon = Icons.Filled.Cancel; iconColor = ErrorStrong; title = "Pembayaran Gagal"; message = "Checkout tidak selesai. Silakan coba lagi." }
@@ -665,7 +664,7 @@ fun PaymentErrorScreen(
             Text(error, fontSize = 14.sp, color = Error, textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp))
         }
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
+        Button(onClick = onRetry, modifier = Modifier.fillMaxWidth().height(48.dp), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Brand.primary, contentColor = Color.White)) {
             Icon(Icons.Filled.Refresh, null, modifier = Modifier.size(20.dp))
             Spacer(Modifier.width(8.dp))
             Text("Coba Lagi", fontWeight = FontWeight.Bold)
@@ -699,8 +698,8 @@ fun PaymentResultScreen(
     onNavigateToBookings: () -> Unit,
     onNavigateBack: () -> Unit
 ) {
-    val bgColor = PayBg
-    val surfaceColor = PaySurface
+    val bgColor = Brand.page
+    val surfaceColor = Brand.card
     val textPrimary = OnBackground
     val textSecondary = TextSecondary
     var showReceipt by rememberSaveable { mutableStateOf(false) }
@@ -745,7 +744,7 @@ fun PaymentResultScreen(
     when (status) {
         "success" -> {
             icon = Icons.Filled.CheckCircle
-            titleColor = PayPrimary
+            titleColor = Brand.primary
             subtitle = if (hasPaymentProof) {
                 "Pembayaran tercatat. Bukti pembayaran siap disimpan atau dibagikan."
             } else {
@@ -831,7 +830,7 @@ fun PaymentResultScreen(
                         Surface(
                             shape = RoundedCornerShape(16.dp),
                             color = when (status) {
-                                "success" -> PayPrimary.copy(alpha = 0.08f)
+                                "success" -> Brand.primary.copy(alpha = 0.08f)
                                 "pending" -> Tertiary.copy(alpha = 0.08f)
                                 else -> ErrorStrong.copy(alpha = 0.08f)
                             }
@@ -840,7 +839,7 @@ fun PaymentResultScreen(
                                 it,
                                 fontSize = 13.sp,
                                 color = when (status) {
-                                    "success" -> PayPrimary
+                                    "success" -> Brand.primary
                                     "pending" -> Tertiary
                                     else -> ErrorStrong
                                 },
@@ -874,7 +873,7 @@ fun PaymentResultScreen(
             }
 
             Spacer(Modifier.height(32.dp))
-            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = PayPrimary, contentColor = Color.White)) {
+            Button(onClick = onNavigateToBookings, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(16.dp), colors = ButtonDefaults.buttonColors(containerColor = Brand.primary, contentColor = Color.White)) {
                 Icon(Icons.Filled.List, null, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("Buka Booking Saya", fontWeight = FontWeight.Bold, fontSize = 16.sp)

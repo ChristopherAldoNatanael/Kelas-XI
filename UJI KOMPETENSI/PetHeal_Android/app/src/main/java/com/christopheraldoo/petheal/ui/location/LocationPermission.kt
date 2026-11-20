@@ -55,7 +55,7 @@ enum class LocationPermissionStatus {
 
 class LocationPermissionHandle internal constructor(
     val status: LocationPermissionStatus,
-    private val requestBlock: () -> Unit,
+    private val requestBlock: (onResult: ((LocationPermissionStatus) -> Unit)?) -> Unit,
     private val openSettingsBlock: () -> Unit
 ) {
     val isGranted: Boolean get() = status == LocationPermissionStatus.GRANTED
@@ -64,10 +64,16 @@ class LocationPermissionHandle internal constructor(
     val canRequest: Boolean get() = status != LocationPermissionStatus.PERMANENTLY_DENIED
 
     /**
-     * Minta izin. Bila sudah diberikan, dialog TIDAK muncul; hasil `onGranted`
-     * pada pemanggil tetap berjalan karena statusnya sudah GRANTED.
+     * Minta izin. Bila sudah diberikan, dialog TIDAK muncul dan [onResult]
+     * langsung dipanggil dengan [LocationPermissionStatus.GRANTED].
+     *
+     * [onResult] menerima status akhir setelah dialog ditutup (atau setelah
+     * status dibaca ulang ketika izin sudah ada / diblokir permanen). Pemanggil
+     * memakainya untuk membedakan "user menolak" dari "sistem tidak bertanya
+     * lagi", karena keduanya sama-sama menghasilkan status DENIED.
      */
-    fun request() = requestBlock()
+    fun request(onResult: ((LocationPermissionStatus) -> Unit)? = null) =
+        requestBlock(onResult)
 
     fun openSettings() = openSettingsBlock()
 }
@@ -85,12 +91,20 @@ fun rememberLocationPermission(): LocationPermissionHandle {
 
     var status by remember { mutableStateOf(readStatus(context)) }
 
+    // Callback satu kali untuk pemanggil yang ingin tahu hasil dialog.
+    var pendingResult by remember {
+        mutableStateOf<((LocationPermissionStatus) -> Unit)?>(null)
+    }
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) {
         // Hasil dialog bukan sumber kebenaran tunggal: baca ulang dari sistem
         // supaya "approx only" / "only this time" ikut terhitung benar.
-        status = readStatus(currentContext, consideredRequest = true)
+        val resolved = readStatus(currentContext, consideredRequest = true)
+        status = resolved
+        pendingResult?.invoke(resolved)
+        pendingResult = null
     }
 
     // Izin bisa berubah dari Settings saat aplikasi di background. Tanpa
@@ -120,13 +134,24 @@ fun rememberLocationPermission(): LocationPermissionHandle {
 
     return LocationPermissionHandle(
         status = status,
-        requestBlock = {
+        requestBlock = { onResult ->
             when (status) {
                 // Sudah diizinkan: jangan tampilkan dialog, cukup segarkan
                 // status agar pemanggil memakai lokasi yang ada.
-                LocationPermissionStatus.GRANTED -> status = readStatus(currentContext)
-                LocationPermissionStatus.PERMANENTLY_DENIED -> openSettings()
-                LocationPermissionStatus.DENIED -> launcher.launch(LOCATION_PERMISSIONS)
+                LocationPermissionStatus.GRANTED -> {
+                    status = readStatus(currentContext)
+                    onResult?.invoke(status)
+                }
+                // Dialog tidak akan muncul lagi: buka pengaturan aplikasi dan
+                // beri tahu pemanggil alasannya.
+                LocationPermissionStatus.PERMANENTLY_DENIED -> {
+                    openSettings()
+                    onResult?.invoke(LocationPermissionStatus.PERMANENTLY_DENIED)
+                }
+                LocationPermissionStatus.DENIED -> {
+                    pendingResult = onResult
+                    launcher.launch(LOCATION_PERMISSIONS)
+                }
             }
         },
         openSettingsBlock = openSettings

@@ -87,6 +87,7 @@ import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.ui.components.Dimens
 
 /**
  * Bahasa visual Pet Shop.
@@ -296,20 +297,27 @@ fun ShopRoundButton(
     container: Color = Color.White.copy(alpha = 0.18f)
 ) {
     Box {
+        // Area klik 48dp (standar aksesibilitas); lingkaran visual tetap 42dp.
         Box(
             modifier = Modifier
-                .size(42.dp)
-                .clip(CircleShape)
-                .background(container)
+                .size(Dimens.MinTouchTarget)
                 .clickable(onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = contentDescription,
-                tint = tint,
-                modifier = Modifier.size(21.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(container),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = contentDescription,
+                    tint = tint,
+                    modifier = Modifier.size(21.dp)
+                )
+            }
         }
         if (badgeCount > 0) {
             Box(

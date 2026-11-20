@@ -68,7 +68,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -95,18 +95,8 @@ import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.reviewCountLabel
 import com.christopheraldoo.petheal.util.speciesLabelOf
+import com.christopheraldoo.petheal.ui.theme.Brand
 
-private val BsPrimary = Primary
-private val BsPrimarySoft = PrimaryLight
-private val BsPrimaryDark = PrimaryDark
-private val BsPrimaryFg = OnPrimaryStrong
-private val BsBg = Background
-private val BsSurface = Surface
-private val BsSurfaceVariant = SurfaceVariant
-private val BsBorder = Outline
-private val BsTextPrimary = OnBackground
-private val BsTextSecondary = TextSecondary
-private val BsTextTertiary = TextTertiary
 
 /**
  * Langkah 1–2 alur transaksi booking.
@@ -131,7 +121,7 @@ fun BookingStartScreen(
     initialPetId: Int? = null,
     viewModel: BookingViewModel = hiltViewModel()
 ) {
-    val state by viewModel.startState.collectAsState()
+    val state by viewModel.startState.collectAsStateLifecycleAware()
     val focusManager = LocalFocusManager.current
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -183,9 +173,9 @@ fun BookingStartScreen(
         else -> 3
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(BsBg)) {
+    Column(modifier = Modifier.fillMaxSize().background(Brand.page)) {
         // ── Header: posisi jelas dalam alur ──
-        Surface(color = BsSurface, shadowElevation = 0.dp) {
+        Surface(color = Brand.card, shadowElevation = 0.dp) {
             Column {
                 Row(
                     modifier = Modifier.fillMaxWidth()
@@ -194,19 +184,19 @@ fun BookingStartScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = BsTextPrimary)
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = Brand.textPrimary)
                     }
                     Spacer(Modifier.width(4.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Buat Booking", color = BsTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text("Buat Booking", color = Brand.textPrimary, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                         Text(
                             "Langkah $currentStep dari 3 · hewan, klinik & dokter",
-                            color = BsTextSecondary, fontSize = 12.sp
+                            color = Brand.textSecondary, fontSize = 12.sp
                         )
                     }
                 }
                 BookingStartSteps(currentStep = currentStep)
-                Divider(color = BsBorder, thickness = 0.5.dp)
+                Divider(color = Brand.border, thickness = 0.5.dp)
             }
         }
 
@@ -236,18 +226,18 @@ fun BookingStartScreen(
                                 ) {
                                     Text(
                                         "Belum ada hewan terdaftar",
-                                        color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
+                                        color = Brand.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         "Daftarkan hewan dulu agar booking bisa dibuat untuknya.",
-                                        color = BsTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
+                                        color = Brand.textSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
                                     )
                                     Spacer(Modifier.height(4.dp))
                                     Button(
                                         onClick = onNavigateToAddPet,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = ButtonDefaults.buttonColors(
-                                            containerColor = BsPrimary, contentColor = BsPrimaryFg
+                                            containerColor = Brand.primary, contentColor = Brand.onAccent
                                         )
                                     ) {
                                         Icon(Icons.Filled.Pets, null, modifier = Modifier.size(18.dp))
@@ -283,7 +273,7 @@ fun BookingStartScreen(
                                         "lalu dokter yang praktik di sana."
                                 else -> "Booking hanya bisa dibuat ke klinik yang punya dokter aktif."
                             },
-                            color = BsTextSecondary, fontSize = 12.sp, lineHeight = 17.sp
+                            color = Brand.textSecondary, fontSize = 12.sp, lineHeight = 17.sp
                         )
                         if (state.clinics.isEmpty()) {
                             CardSurface {
@@ -294,11 +284,11 @@ fun BookingStartScreen(
                                 ) {
                                     Text(
                                         "Belum ada klinik dengan dokter aktif",
-                                        color = BsTextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
+                                        color = Brand.textPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         "Booking hanya bisa dibuat ke klinik yang punya dokter aktif.",
-                                        color = BsTextSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
+                                        color = Brand.textSecondary, fontSize = 12.sp, textAlign = TextAlign.Center
                                     )
                                 }
                             }
@@ -315,7 +305,7 @@ fun BookingStartScreen(
                                 if (state.totalDoctors > 0) {
                                     Text(
                                         "${state.totalDoctors} dokter aktif di ${state.clinics.size} klinik",
-                                        color = BsTextTertiary, fontSize = 11.sp,
+                                        color = Brand.textTertiary, fontSize = 11.sp,
                                         modifier = Modifier.padding(top = 2.dp)
                                     )
                                 }
@@ -342,13 +332,13 @@ fun BookingStartScreen(
                                 placeholder = {
                                     Text(
                                         "Cari nama atau spesialisasi di klinik ini",
-                                        color = BsTextSecondary, fontSize = 13.sp
+                                        color = Brand.textSecondary, fontSize = 13.sp
                                     )
                                 },
                                 leadingIcon = {
                                     Icon(
                                         Icons.Outlined.Search, null,
-                                        tint = BsTextSecondary, modifier = Modifier.size(20.dp)
+                                        tint = Brand.textSecondary, modifier = Modifier.size(20.dp)
                                     )
                                 },
                                 singleLine = true,
@@ -356,10 +346,10 @@ fun BookingStartScreen(
                                 keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedTextColor = BsTextPrimary, unfocusedTextColor = BsTextPrimary,
-                                    focusedBorderColor = BsPrimary, unfocusedBorderColor = BsBorder,
-                                    cursorColor = BsPrimary,
-                                    focusedContainerColor = BsSurface, unfocusedContainerColor = BsSurface
+                                    focusedTextColor = Brand.textPrimary, unfocusedTextColor = Brand.textPrimary,
+                                    focusedBorderColor = Brand.primary, unfocusedBorderColor = Brand.border,
+                                    cursorColor = Brand.primary,
+                                    focusedContainerColor = Brand.card, unfocusedContainerColor = Brand.card
                                 ),
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -370,7 +360,7 @@ fun BookingStartScreen(
                                             "Tidak ada dokter di klinik ini yang cocok dengan pencarian."
                                         else
                                             "Klinik ini belum punya dokter aktif. Pilih klinik lain.",
-                                        color = BsTextSecondary, fontSize = 13.sp,
+                                        color = Brand.textSecondary, fontSize = 13.sp,
                                         textAlign = TextAlign.Center,
                                         modifier = Modifier.padding(20.dp).fillMaxWidth()
                                     )
@@ -403,9 +393,9 @@ fun BookingStartScreen(
         }
 
         // ── Bottom bar: ringkasan + satu CTA ──
-        Surface(color = BsSurface, shadowElevation = 0.dp, modifier = Modifier.navigationBarsPadding()) {
+        Surface(color = Brand.card, shadowElevation = 0.dp, modifier = Modifier.navigationBarsPadding()) {
             Column {
-                Divider(color = BsBorder, thickness = 0.5.dp)
+                Divider(color = Brand.border, thickness = 0.5.dp)
                 Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                     Text(
                         text = when {
@@ -415,7 +405,7 @@ fun BookingStartScreen(
                                 "${selectedPet.name ?: "Hewan"} di ${selectedClinic.name} — pilih dokter"
                             else -> "${selectedPet.name} · ${selectedDoctor.name} · ${selectedClinic.name}"
                         },
-                        color = BsTextSecondary, fontSize = 12.sp,
+                        color = Brand.textSecondary, fontSize = 12.sp,
                         maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
                     Spacer(Modifier.height(8.dp))
@@ -428,8 +418,8 @@ fun BookingStartScreen(
                         enabled = state.canContinue,
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = BsPrimary, contentColor = BsPrimaryFg,
-                            disabledContainerColor = BsBorder, disabledContentColor = BsTextSecondary
+                            containerColor = Brand.primary, contentColor = Brand.onAccent,
+                            disabledContainerColor = Brand.border, disabledContentColor = Brand.textSecondary
                         ),
                         modifier = Modifier.fillMaxWidth().height(52.dp)
                     ) {
@@ -447,8 +437,8 @@ fun BookingStartScreen(
 
 @Composable
 private fun CardSurface(
-    color: Color = BsSurface,
-    borderColor: Color? = BsBorder,
+    color: Color = Brand.card,
+    borderColor: Color? = Brand.border,
     content: @Composable () -> Unit
 ) {
     Surface(
@@ -472,12 +462,12 @@ private fun BookingStartSteps(currentStep: Int) {
             number = "1", label = "Hewan",
             active = currentStep >= 1, done = currentStep > 1
         )
-        Box(modifier = Modifier.weight(1f).height(1.dp).background(BsBorder))
+        Box(modifier = Modifier.weight(1f).height(1.dp).background(Brand.border))
         BookingStartStepPill(
             number = "2", label = "Klinik",
             active = currentStep >= 2, done = currentStep > 2
         )
-        Box(modifier = Modifier.weight(1f).height(1.dp).background(BsBorder))
+        Box(modifier = Modifier.weight(1f).height(1.dp).background(Brand.border))
         BookingStartStepPill(
             number = "3", label = "Dokter",
             active = currentStep >= 3, done = false
@@ -493,22 +483,22 @@ private fun BookingStartStepPill(number: String, label: String, active: Boolean,
     ) {
         Box(
             modifier = Modifier.size(22.dp).clip(CircleShape)
-                .background(if (done) BsPrimaryDark else if (active) BsPrimary else BsBorder),
+                .background(if (done) Brand.primaryDeep else if (active) Brand.primary else Brand.border),
             contentAlignment = Alignment.Center
         ) {
             if (done) {
-                Icon(Icons.Filled.CheckCircle, null, tint = BsPrimaryFg, modifier = Modifier.size(14.dp))
+                Icon(Icons.Filled.CheckCircle, null, tint = Brand.onAccent, modifier = Modifier.size(14.dp))
             } else {
                 Text(
                     number,
-                    color = if (active) BsPrimaryFg else BsTextSecondary,
+                    color = if (active) Brand.onAccent else Brand.textSecondary,
                     fontSize = 11.sp, fontWeight = FontWeight.Bold
                 )
             }
         }
         Text(
             label,
-            color = if (active) BsTextPrimary else BsTextSecondary,
+            color = if (active) Brand.textPrimary else Brand.textSecondary,
             fontSize = 12.sp, fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -518,12 +508,12 @@ private fun BookingStartStepPill(number: String, label: String, active: Boolean,
 private fun BookingStartSectionTitle(step: String, title: String) {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Box(
-            modifier = Modifier.size(24.dp).clip(CircleShape).background(BsPrimary.copy(alpha = 0.14f)),
+            modifier = Modifier.size(24.dp).clip(CircleShape).background(Brand.primary.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center
         ) {
-            Text(step, color = BsPrimary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            Text(step, color = Brand.primary, fontSize = 12.sp, fontWeight = FontWeight.Bold)
         }
-        Text(title, color = BsTextPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = Brand.textPrimary, fontSize = 15.sp, fontWeight = FontWeight.Bold)
     }
 }
 
@@ -538,24 +528,24 @@ private fun StartClinicRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selected) BsPrimarySoft else BsSurface)
-            .border(1.dp, if (selected) BsPrimary else BsBorder, RoundedCornerShape(16.dp))
+            .background(if (selected) Brand.primarySoft else Brand.card)
+            .border(1.dp, if (selected) Brand.primary else Brand.border, RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
         Box(
             modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                .background(BsPrimary.copy(alpha = 0.12f)),
+                .background(Brand.primary.copy(alpha = 0.12f)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Filled.LocalHospital, null, tint = BsPrimaryDark, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.LocalHospital, null, tint = Brand.primaryDeep, modifier = Modifier.size(20.dp))
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     clinic.name,
-                    color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    color = Brand.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false)
                 )
@@ -568,23 +558,23 @@ private fun StartClinicRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
                         Icons.Filled.LocationOn, null,
-                        tint = BsTextTertiary, modifier = Modifier.size(12.dp)
+                        tint = Brand.textTertiary, modifier = Modifier.size(12.dp)
                     )
                     Spacer(Modifier.width(3.dp))
                     Text(
                         clinic.address.orEmpty(),
-                        color = BsTextSecondary, fontSize = 11.sp,
+                        color = Brand.textSecondary, fontSize = 11.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 }
             }
             Text(
                 "${clinic.doctorCount} dokter aktif",
-                color = BsTextTertiary, fontSize = 11.sp
+                color = Brand.textTertiary, fontSize = 11.sp
             )
         }
         Spacer(Modifier.width(8.dp))
-        Icon(Icons.Filled.ChevronRight, null, tint = BsTextSecondary, modifier = Modifier.size(20.dp))
+        Icon(Icons.Filled.ChevronRight, null, tint = Brand.textSecondary, modifier = Modifier.size(20.dp))
     }
 }
 
@@ -598,8 +588,8 @@ private fun StartSelectedClinicCard(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = BsPrimarySoft,
-        border = BorderStroke(1.dp, BsPrimary.copy(alpha = 0.45f)),
+        color = Brand.primarySoft,
+        border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.45f)),
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
@@ -608,36 +598,36 @@ private fun StartSelectedClinicCard(
         ) {
             Box(
                 modifier = Modifier.size(40.dp).clip(RoundedCornerShape(12.dp))
-                    .background(BsPrimary.copy(alpha = 0.18f)),
+                    .background(Brand.primary.copy(alpha = 0.18f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.LocalHospital, null, tint = BsPrimaryDark, modifier = Modifier.size(20.dp))
+                Icon(Icons.Filled.LocalHospital, null, tint = Brand.primaryDeep, modifier = Modifier.size(20.dp))
             }
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Text(
                     "Booking di klinik ini",
-                    color = BsPrimaryDark, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold
+                    color = Brand.primaryDeep, fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold
                 )
                 Text(
                     name,
-                    color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    color = Brand.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
                 if (!address.isNullOrBlank()) {
                     Text(
                         address,
-                        color = BsTextSecondary, fontSize = 11.sp,
+                        color = Brand.textSecondary, fontSize = 11.sp,
                         maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
                 } else {
-                    Text("$doctorCount dokter aktif", color = BsTextSecondary, fontSize = 11.sp)
+                    Text("$doctorCount dokter aktif", color = Brand.textSecondary, fontSize = 11.sp)
                 }
             }
             TextButton(onClick = onChangeClinic, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                Icon(Icons.Outlined.SwapHoriz, null, tint = BsPrimaryDark, modifier = Modifier.size(16.dp))
+                Icon(Icons.Outlined.SwapHoriz, null, tint = Brand.primaryDeep, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("Ganti", color = BsPrimaryDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text("Ganti", color = Brand.primaryDeep, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -645,10 +635,10 @@ private fun StartSelectedClinicCard(
 
 @Composable
 private fun PreferredTag() {
-    Surface(shape = RoundedCornerShape(6.dp), color = BsSurfaceVariant) {
+    Surface(shape = RoundedCornerShape(6.dp), color = Brand.cardAlt) {
         Text(
             "Terakhir dipakai",
-            color = BsTextSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold,
+            color = Brand.textSecondary, fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
         )
     }
@@ -658,8 +648,8 @@ private fun PreferredTag() {
 private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
     Surface(
         shape = CircleShape,
-        color = if (selected) BsPrimary else BsSurface,
-        border = if (selected) null else BorderStroke(1.dp, BsBorder),
+        color = if (selected) Brand.primary else Brand.card,
+        border = if (selected) null else BorderStroke(1.dp, Brand.border),
         modifier = Modifier.clip(CircleShape).clickable(onClick = onClick)
     ) {
         Row(
@@ -669,7 +659,7 @@ private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
         ) {
             Box(
                 modifier = Modifier.size(32.dp).clip(CircleShape)
-                    .background(if (selected) BsPrimaryFg.copy(alpha = 0.15f) else BsBg),
+                    .background(if (selected) Brand.onAccent.copy(alpha = 0.15f) else Brand.page),
                 contentAlignment = Alignment.Center
             ) {
                 val photo = remember(pet.photo) { buildPhotoUrl(pet.photo) }
@@ -682,7 +672,7 @@ private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
                 } else {
                     Icon(
                         Icons.Filled.Pets, null,
-                        tint = if (selected) BsPrimaryFg else BsTextSecondary,
+                        tint = if (selected) Brand.onAccent else Brand.textSecondary,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -692,16 +682,16 @@ private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
                     pet.name ?: "—",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
-                    color = if (selected) BsPrimaryFg else BsTextPrimary
+                    color = if (selected) Brand.onAccent else Brand.textPrimary
                 )
                 Text(
                     speciesLabelOf(pet.species),
                     fontSize = 11.sp,
-                    color = if (selected) BsPrimaryFg.copy(alpha = 0.8f) else BsTextSecondary
+                    color = if (selected) Brand.onAccent.copy(alpha = 0.8f) else Brand.textSecondary
                 )
             }
             if (selected) {
-                Icon(Icons.Filled.CheckCircle, null, tint = BsPrimaryFg, modifier = Modifier.size(18.dp))
+                Icon(Icons.Filled.CheckCircle, null, tint = Brand.onAccent, modifier = Modifier.size(18.dp))
             }
         }
     }
@@ -713,17 +703,17 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (selected) BsPrimary.copy(alpha = 0.08f) else BsSurface)
+            .background(if (selected) Brand.primary.copy(alpha = 0.08f) else Brand.card)
             .border(
                 1.dp,
-                if (selected) BsPrimary else BsBorder,
+                if (selected) Brand.primary else Brand.border,
                 RoundedCornerShape(16.dp)
             )
             .clickable(onClick = onClick)
             .padding(12.dp)
     ) {
         Box(
-            modifier = Modifier.size(48.dp).clip(CircleShape).background(BsBg),
+            modifier = Modifier.size(48.dp).clip(CircleShape).background(Brand.page),
             contentAlignment = Alignment.Center
         ) {
             val photo = remember(doctor.photo) { buildPhotoUrl(doctor.photo) }
@@ -734,19 +724,19 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
                     modifier = Modifier.fillMaxSize().clip(CircleShape)
                 )
             } else {
-                Icon(Icons.Filled.Person, null, tint = BsTextSecondary, modifier = Modifier.size(24.dp))
+                Icon(Icons.Filled.Person, null, tint = Brand.textSecondary, modifier = Modifier.size(24.dp))
             }
         }
         Spacer(Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 doctor.name ?: "Tidak diketahui",
-                color = BsTextPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                color = Brand.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Text(
                 doctor.specialization ?: "Dokter Hewan",
-                color = BsPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                color = Brand.primary, fontSize = 12.sp, fontWeight = FontWeight.Medium,
                 maxLines = 1, overflow = TextOverflow.Ellipsis
             )
             Spacer(Modifier.height(2.dp))
@@ -758,24 +748,24 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
                     Spacer(Modifier.width(4.dp))
                     Text(
                         "%.1f".format(avg),
-                        color = BsTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold
+                        color = Brand.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold
                     )
                     if (startReviewTotal > 0) {
                         Text(
                             " · ${reviewCountLabel(startReviewTotal)}",
-                            color = BsTextSecondary, fontSize = 11.sp
+                            color = Brand.textSecondary, fontSize = 11.sp
                         )
                     }
                 }
             } else {
-                Text("Belum ada ulasan", color = BsTextSecondary, fontSize = 11.sp)
+                Text("Belum ada ulasan", color = Brand.textSecondary, fontSize = 11.sp)
             }
         }
         Spacer(Modifier.width(8.dp))
         if (selected) {
-            Icon(Icons.Filled.CheckCircle, null, tint = BsPrimary, modifier = Modifier.size(22.dp))
+            Icon(Icons.Filled.CheckCircle, null, tint = Brand.primary, modifier = Modifier.size(22.dp))
         } else {
-            Icon(Icons.Filled.ChevronRight, null, tint = BsTextSecondary, modifier = Modifier.size(20.dp))
+            Icon(Icons.Filled.ChevronRight, null, tint = Brand.textSecondary, modifier = Modifier.size(20.dp))
         }
     }
 }
@@ -784,8 +774,8 @@ private fun StartDoctorRow(doctor: Doctor, selected: Boolean, onClick: () -> Uni
 private fun BookingStartLoading(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CircularProgressIndicator(color = BsPrimary)
-            Text("Menyiapkan pilihan booking...", color = BsTextSecondary, fontSize = 13.sp)
+            CircularProgressIndicator(color = Brand.primary)
+            Text("Menyiapkan pilihan booking...", color = Brand.textSecondary, fontSize = 13.sp)
         }
     }
 }
@@ -798,18 +788,18 @@ private fun BookingStartError(message: String, onRetry: () -> Unit, modifier: Mo
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(32.dp)
         ) {
-            Icon(Icons.Filled.MedicalServices, null, tint = BsTextSecondary, modifier = Modifier.size(48.dp))
-            Text("Tidak bisa memuat pilihan", color = BsTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-            Text(message, color = BsTextSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
+            Icon(Icons.Filled.MedicalServices, null, tint = Brand.textSecondary, modifier = Modifier.size(48.dp))
+            Text("Tidak bisa memuat pilihan", color = Brand.textPrimary, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(message, color = Brand.textSecondary, fontSize = 13.sp, textAlign = TextAlign.Center)
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = onRetry,
                 shape = RoundedCornerShape(50),
-                border = BorderStroke(1.dp, BsPrimary)
+                border = BorderStroke(1.dp, Brand.primary)
             ) {
-                Icon(Icons.Filled.Refresh, null, tint = BsPrimary, modifier = Modifier.size(16.dp))
+                Icon(Icons.Filled.Refresh, null, tint = Brand.primary, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Coba Lagi", color = BsPrimary, fontWeight = FontWeight.SemiBold)
+                Text("Coba Lagi", color = Brand.primary, fontWeight = FontWeight.SemiBold)
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -34,7 +35,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.PetShopReceipt
+import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.ErrorState
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.OnBackground
@@ -59,8 +60,11 @@ import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.formatRupiah
+import androidx.compose.ui.res.stringResource
+import com.christopheraldoo.petheal.R
 
 /**
  * Bukti pembayaran Pet Shop.
@@ -79,7 +83,7 @@ fun PetShopReceiptScreen(
     onNavigateBack: () -> Unit,
     viewModel: PetShopReceiptViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     val snackbarHostState = remember { SnackbarHostState() }
 
     // Setiap hasil ekspor (berhasil maupun gagal) diberitahukan lewat snackbar:
@@ -103,7 +107,7 @@ fun PetShopReceiptScreen(
         },
         topBar = {
             PetShopHeader(
-                title = "Bukti Pembayaran",
+                title = stringResource(R.string.petshop_receipt_title),
                 subtitle = uiState.receipt?.receiptNumber ?: uiState.receipt?.orderNumber,
                 onBack = onNavigateBack
             )
@@ -132,9 +136,9 @@ fun PetShopReceiptScreen(
                     CircularProgressIndicator(color = Primary)
                 }
                 uiState.receipt == null -> ErrorState(
-                    title = "Bukti pembayaran tidak tersedia",
-                    message = uiState.error ?: "Bukti pembayaran hanya dapat dibuka setelah pembayaran diterima.",
-                    primaryActionText = "Coba lagi",
+                    title = stringResource(R.string.petshop_receipt_unavailable_title),
+                    message = uiState.error ?: stringResource(R.string.petshop_receipt_unavailable_message),
+                    primaryActionText = stringResource(R.string.common_retry),
                     onPrimaryActionClick = { viewModel.load() }
                 )
                 else -> Column(
@@ -157,12 +161,12 @@ fun PetShopReceiptScreen(
                                 modifier = Modifier.size(15.dp)
                             )
                             Spacer(Modifier.width(8.dp))
-                            Text(uiState.message ?: "Memproses…", fontSize = 11.sp, color = TextSecondary)
+                            stringResource(R.string.common_processing)
                         }
                     }
                     uiState.error?.let { PetShopInlineError(it) }
                     Text(
-                        "Bukti pembayaran memakai data transaksi saat pesanan dibuat. Perubahan harga katalog tidak mengubah struk lama.",
+                        stringResource(R.string.petshop_receipt_disclaimer),
                         fontSize = 10.sp,
                         lineHeight = 15.sp,
                         color = TextTertiary
@@ -194,14 +198,12 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "PetHeal",
-                            fontSize = 20.sp,
+                            stringResource(R.string.petshop_receipt_brand),
                             fontWeight = FontWeight.Bold,
                             color = Primary
                         )
                         Text(
-                            "Bukti pembayaran Pet Shop",
-                            fontSize = 10.sp,
+                            stringResource(R.string.petshop_receipt_subtitle),
                             color = TextSecondary
                         )
                     }
@@ -224,7 +226,7 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                             }
                             Text(
                                 receipt.payment?.receiptStatusLabel
-                                    ?: if (receipt.isSettled) "LUNAS" else "MENUNGGU",
+                                    ?: if (receipt.isSettled) stringResource(R.string.petshop_receipt_badge_paid) else stringResource(R.string.petshop_receipt_badge_pending),
                                 fontSize = 9.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (receipt.isSettled) Primary else WarningText
@@ -260,14 +262,14 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                 )
 
                 Spacer(Modifier.height(10.dp))
-                ReceiptMetaRow("No. pesanan", receipt.orderNumber)
-                ReceiptMetaRow("Pelanggan", receipt.customer?.name ?: "-")
-                ReceiptMetaRow("Tanggal", formatDateSafe(receipt.timeline?.createdAt, "d MMM yyyy · HH:mm"))
+                ReceiptMetaRow(stringResource(R.string.petshop_receipt_label_order), receipt.orderNumber)
+                ReceiptMetaRow(stringResource(R.string.petshop_receipt_label_customer), receipt.customer?.name ?: "-")
+                ReceiptMetaRow(stringResource(R.string.petshop_receipt_label_date), formatDateSafe(receipt.timeline?.createdAt, "d MMM yyyy · HH:mm"))
                 ReceiptMetaRow(
-                    "Pembayaran",
+                    stringResource(R.string.petshop_receipt_label_payment),
                     receipt.payment?.methodLabel ?: receipt.payment?.method ?: "-"
                 )
-                ReceiptMetaRow("Status", receipt.statusLabel ?: "-")
+                ReceiptMetaRow(stringResource(R.string.petshop_receipt_label_status), receipt.statusLabel ?: "-")
 
                 Spacer(Modifier.height(14.dp))
                 DashedDivider()
@@ -275,7 +277,7 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "PRODUK",
+                        stringResource(R.string.petshop_receipt_section_products),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
                         color = TextTertiary,
@@ -325,12 +327,12 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
 
                 val totals = receipt.totals
                 if (totals != null) {
-                    ReceiptTotalRow("Subtotal", totals.subtotal)
-                    if (totals.discountTotal > 0) ReceiptTotalRow("Diskon", -totals.discountTotal)
+                    stringResource(R.string.petshop_receipt_total_subtotal)
+                    if (totals.discountTotal > 0) stringResource(R.string.petshop_receipt_total_discount)
                     Spacer(Modifier.height(4.dp))
-                    ReceiptTotalRow("Total", totals.totalAmount, emphasize = true)
+                    stringResource(R.string.petshop_receipt_total_total)
                     if (totals.paidAmount > 0 && totals.paidAmount != totals.totalAmount) {
-                        ReceiptTotalRow("Diterima", totals.paidAmount)
+                        stringResource(R.string.petshop_receipt_total_received)
                     }
                 }
 
@@ -338,7 +340,7 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                 Surface(color = SurfaceMuted, shape = RoundedCornerShape(PetHealRadius.md)) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Text(
-                            "PENGAMBILAN",
+                            stringResource(R.string.petshop_receipt_section_pickup),
                             fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextTertiary,
@@ -359,7 +361,7 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                         )
                         Spacer(Modifier.height(5.dp))
                         Text(
-                            "Produk diambil langsung di klinik. Tunjukkan QR Pickup Pass atau kode pengambilan kepada petugas.",
+                            stringResource(R.string.petshop_receipt_pickup_note),
                             fontSize = 10.sp,
                             lineHeight = 15.sp,
                             color = TextSecondary
@@ -371,7 +373,7 @@ private fun ReceiptCard(receipt: PetShopReceipt) {
                     Spacer(Modifier.height(10.dp))
                     Surface(color = WarningSoft, shape = RoundedCornerShape(PetHealRadius.md)) {
                         Text(
-                            "Pembayaran belum diterima. Bukti ini bukan tanda lunas.",
+                            stringResource(R.string.petshop_receipt_not_paid_note),
                             modifier = Modifier.padding(10.dp),
                             fontSize = 10.sp,
                             lineHeight = 14.sp,
@@ -444,7 +446,7 @@ private fun ReceiptActionsBar(
             Button(
                 onClick = onDownloadPdf,
                 enabled = !isBusy && isSettled,
-                modifier = Modifier.fillMaxWidth().height(46.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = Dimens.MinTouchTarget),
                 shape = RoundedCornerShape(PetHealRadius.md),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Primary,
@@ -462,27 +464,27 @@ private fun ReceiptActionsBar(
                     Icon(Icons.Filled.Download, contentDescription = null, modifier = Modifier.size(17.dp))
                 }
                 Spacer(Modifier.width(8.dp))
-                Text("Unduh Bukti PDF", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                stringResource(R.string.petshop_receipt_download_pdf)
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ReceiptSmallAction(
                     icon = Icons.Filled.Share,
-                    label = "Bagikan PNG",
+                    label = stringResource(R.string.common_share_image),
                     enabled = !isBusy,
                     onClick = onSharePng,
                     modifier = Modifier.weight(1f)
                 )
                 ReceiptSmallAction(
                     icon = Icons.Filled.Download,
-                    label = "Simpan PNG",
+                    label = stringResource(R.string.common_save_png),
                     enabled = !isBusy,
                     onClick = onSavePng,
                     modifier = Modifier.weight(1f)
                 )
                 ReceiptSmallAction(
                     icon = Icons.Filled.Share,
-                    label = "Bagikan PDF",
+                    label = stringResource(R.string.common_share_pdf),
                     enabled = !isBusy && isSettled,
                     onClick = onSharePdf,
                     modifier = Modifier.weight(1f)
@@ -514,7 +516,7 @@ private fun ReceiptSmallAction(
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(40.dp),
+        modifier = modifier.heightIn(min = Dimens.MinTouchTarget),
         shape = RoundedCornerShape(PetHealRadius.md),
         border = BorderStroke(1.dp, Outline),
         contentPadding = PaddingValues(horizontal = 6.dp)

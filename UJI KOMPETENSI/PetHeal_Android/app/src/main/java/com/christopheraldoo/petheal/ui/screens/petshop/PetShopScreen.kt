@@ -44,7 +44,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -85,6 +85,8 @@ import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.LocationHelper
 import com.christopheraldoo.petheal.util.LocationResult
 import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.ui.components.Dimens
+import androidx.compose.foundation.layout.heightIn
 
 @Composable
 fun PetShopScreen(
@@ -94,7 +96,7 @@ fun PetShopScreen(
     onOpenOrders: () -> Unit,
     viewModel: PetShopViewModel = hiltViewModel()
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateLifecycleAware()
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = LocalContext.current
 
@@ -557,33 +559,41 @@ private fun ShopFilterChip(
     onClick: () -> Unit,
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null
 ) {
-    Surface(
-        onClick = onClick,
-        shape = RoundedCornerShape(PetHealRadius.pill),
-        // Chip aktif memakai hijau tua: teks putih tetap terbaca di ukuran 11 sp.
-        color = if (selected) PrimaryDark else Surface,
-        border = if (selected) null else BorderStroke(1.dp, Outline)
+    // Pembungkus 48dp: area sentuh memenuhi standar aksesibilitas, bentuk pil
+    // tetap ramping seperti desain aslinya.
+    Box(
+        modifier = Modifier
+            .heightIn(min = Dimens.MinTouchTarget)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Surface(
+            shape = RoundedCornerShape(PetHealRadius.pill),
+            // Chip aktif memakai hijau tua: teks putih tetap terbaca di 11 sp.
+            color = if (selected) PrimaryDark else Surface,
+            border = if (selected) null else BorderStroke(1.dp, Outline)
         ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (selected) Color.White else TextSecondary,
-                    modifier = Modifier.size(13.dp)
+            Row(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (icon != null) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = if (selected) Color.White else TextSecondary,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(Modifier.width(5.dp))
+                }
+                Text(
+                    text = label,
+                    fontSize = 11.5.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (selected) Color.White else OnBackground,
+                    maxLines = 1
                 )
-                Spacer(Modifier.width(5.dp))
             }
-            Text(
-                text = label,
-                fontSize = 11.5.sp,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (selected) Color.White else OnBackground,
-                maxLines = 1
-            )
         }
     }
 }
