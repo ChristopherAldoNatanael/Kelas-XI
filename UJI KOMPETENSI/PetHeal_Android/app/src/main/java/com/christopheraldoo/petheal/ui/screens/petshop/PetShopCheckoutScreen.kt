@@ -2,6 +2,7 @@ package com.christopheraldoo.petheal.ui.screens.petshop
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -482,7 +483,8 @@ private fun CheckoutBar(total: Long, isSubmitting: Boolean, onSubmit: () -> Unit
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
-                .padding(bottom = navPadding),
+                .padding(bottom = navPadding)
+                .imePadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {

@@ -53,7 +53,9 @@ fun SettingsActionRow(
     showChevron: Boolean = true,
     trailing: @Composable () -> Unit = {},
     enabled: Boolean = true,
-    onClick: () -> Unit
+    // null = baris informasi murni (tanpa aksi). Dengan begitu tidak ada
+    // handler kosong di pemanggil dan baris tidak beriak saat disentuh.
+    onClick: (() -> Unit)? = null
 ) {
     val textColor = OnBackground
 
@@ -61,7 +63,7 @@ fun SettingsActionRow(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = enabled && onClick != null) { onClick?.invoke() }
             .padding(vertical = 12.dp)
     ) {
         Icon(

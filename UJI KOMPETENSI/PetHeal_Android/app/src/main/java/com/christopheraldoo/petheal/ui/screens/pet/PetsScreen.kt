@@ -2,6 +2,8 @@ package com.christopheraldoo.petheal.ui.screens.pet
 
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 
@@ -20,9 +22,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -36,7 +39,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -57,7 +60,6 @@ import coil.compose.AsyncImage
 import coil.request.CachePolicy
 import coil.request.ImageRequest
 import com.christopheraldoo.petheal.data.model.Pet
-import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.data.model.Vaccination
 import com.christopheraldoo.petheal.data.model.WeightRecord
 import com.christopheraldoo.petheal.ui.components.EmptyPetsState
@@ -81,21 +83,25 @@ import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
-import com.christopheraldoo.petheal.ui.theme.OutlineStrong
-import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 import com.christopheraldoo.petheal.ui.theme.Tertiary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
+import com.christopheraldoo.petheal.util.speciesLabelOf
+import com.christopheraldoo.petheal.util.genderLabelOf
 
 // ── Brand tokens ──────────────────────────────────────────────────────────────
 private val PetPrimary       = Primary
-private val PetBg       = Background
-private val PetSurface  = Surface
+private val PetPrimaryDark   = PrimaryDark
+private val PetPrimaryDeep   = PrimaryDark
+private val PetPrimarySoft   = PrimaryLight
+private val PetBg            = Background
+private val PetSurface       = Surface
 private val PetMuted         = TextSecondary
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -114,7 +120,6 @@ fun PetsScreen(
     val surfaceColor = PetSurface
     val textPrimary  = OnBackground
     val textMuted    = PetMuted
-    val borderColor  = SurfaceMuted
 
     var showSearch by remember { mutableStateOf(false) }
 
@@ -123,8 +128,17 @@ fun PetsScreen(
         else uiState.pets.filter {
             it.name?.contains(uiState.searchQuery, ignoreCase = true) == true ||
             it.species?.contains(uiState.searchQuery, ignoreCase = true) == true ||
+            speciesLabelOf(it.species).contains(uiState.searchQuery, ignoreCase = true) ||
             it.breed?.contains(uiState.searchQuery, ignoreCase = true) == true
         }
+    }
+
+    // Angka hero hanya dari data yang benar-benar ada di daftar.
+    val speciesCount = remember(uiState.pets) {
+        uiState.pets.mapNotNull { it.species?.takeIf { s -> s.isNotBlank() } }
+            .map { it.trim().lowercase() }
+            .distinct()
+            .size
     }
 
     Box(
@@ -134,130 +148,19 @@ fun PetsScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
 
-            // ── Header ─────────────────────────────────────────────────
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = surfaceColor.copy(alpha = 0.92f),
-                shadowElevation = 0.dp,
-                tonalElevation = 0.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp)
-                        .statusBarsPadding()
-                        .padding(top = 8.dp, bottom = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Back button
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { onNavigateBack() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.ArrowBack,
-                                contentDescription = "Kembali",
-                                tint = textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Text(
-                            "Hewan Saya",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary,
-                            modifier = Modifier.weight(1f),
-                            textAlign = TextAlign.Center
-                        )
-                        // Search toggle
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable {
-                                    if (showSearch) viewModel.setSearchQuery("")
-                                    showSearch = !showSearch
-                                },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
-                                contentDescription = if (showSearch) "Tutup pencarian" else "Cari hewan",
-                                tint = textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        // Refresh button
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .clickable { viewModel.loadPets(forceRefresh = true) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Refresh,
-                                contentDescription = "Segarkan",
-                                tint = textPrimary,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-
-                    // Search bar
-                    AnimatedVisibility(visible = showSearch) {
-                        val focusManager = LocalFocusManager.current
-                        OutlinedTextField(
-                            value = uiState.searchQuery,
-                            onValueChange = { viewModel.setSearchQuery(it) },
-                            placeholder = {
-                                Text("Cari hewan...", color = textMuted, fontSize = 14.sp)
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Filled.Search, null, tint = textMuted, modifier = Modifier.size(20.dp))
-                            },
-                            trailingIcon = {
-                                if (uiState.searchQuery.isNotBlank()) {
-                                    IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                        Icon(Icons.Filled.Close, null, tint = textMuted, modifier = Modifier.size(18.dp))
-                                    }
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                                .padding(top = 12.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = PetPrimary,
-                                unfocusedBorderColor = borderColor,
-                                focusedContainerColor = surfaceColor,
-                                unfocusedContainerColor = surfaceColor,
-                                focusedTextColor = textPrimary,
-                                unfocusedTextColor = textPrimary
-                            )
-                        )
-                    }
-                }
-                // Bottom border line
-                Divider(
-                    color = SurfaceMuted,
-                    thickness = 1.dp
-                )
-            }
+            PetsHero(
+                petCount = uiState.pets.size,
+                speciesCount = speciesCount,
+                showSearch = showSearch,
+                searchQuery = uiState.searchQuery,
+                onSearchQuery = viewModel::setSearchQuery,
+                onNavigateBack = onNavigateBack,
+                onToggleSearch = {
+                    if (showSearch) viewModel.setSearchQuery("")
+                    showSearch = !showSearch
+                },
+                onRefresh = { viewModel.loadPets(forceRefresh = true) }
+            )
 
             // ── Content ────────────────────────────────────────────────
             if (uiState.isLoading) {
@@ -266,26 +169,24 @@ fun PetsScreen(
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    contentPadding = PaddingValues(top = 16.dp, bottom = 120.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = 20.dp, top = 14.dp, end = 20.dp, bottom = 130.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Error banner
                     uiState.error?.let { errorMessage ->
                         item {
-                            Card(
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = ErrorStrong.copy(alpha = 0.1f))
+                            Surface(
+                                shape = RoundedCornerShape(16.dp),
+                                color = ErrorStrong.copy(alpha = 0.10f)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(12.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                                 ) {
-                                    Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(20.dp))
-                                    Text(errorMessage, color = ErrorStrong, fontSize = 13.sp)
+                                    Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(18.dp))
+                                    Text(errorMessage, color = ErrorStrong, fontSize = 12.5.sp)
                                 }
                             }
                         }
@@ -308,26 +209,49 @@ fun PetsScreen(
                         }
                     }
 
-                    // Pet cards
-                    itemsIndexed(filteredPets) { index, pet ->
+                    if (filteredPets.isNotEmpty()) {
+                        item(key = "pets-header") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (uiState.searchQuery.isBlank()) "Daftar Hewan" else "Hasil pencarian",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = textPrimary
+                                )
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(999.dp))
+                                        .background(PetPrimarySoft)
+                                        .padding(horizontal = 7.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = filteredPets.size.toString(),
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PetPrimaryDeep
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    items(filteredPets, key = { it.id ?: it.hashCode() }) { pet ->
                         PetListCard(
                             pet = pet,
                             surfaceColor = surfaceColor,
                             textPrimary = textPrimary,
                             textMuted = textMuted,
-                            isFirst = index == 0,
                             onClick = { pet.id?.let { onNavigateToPetDetail(it) } }
                         )
                     }
 
                     // Add New Pet card at the bottom of the list
                     item {
-                        AddNewPetCard(
-                            surfaceColor = surfaceColor,
-                            textPrimary = textPrimary,
-                            textMuted = textMuted,
-                            onClick = onNavigateToAddPet
-                        )
+                        AddNewPetCard(onClick = onNavigateToAddPet)
                     }
                 }
             }
@@ -338,6 +262,7 @@ fun PetsScreen(
             onClick = onNavigateToAddPet,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
+                .navigationBarsPadding()
                 .padding(end = 24.dp, bottom = 120.dp),
             containerColor = PetPrimary,
             contentColor = Color.White,
@@ -355,6 +280,181 @@ fun PetsScreen(
     }
 }
 
+// ── Hero ──────────────────────────────────────────────────────────────────────
+@Composable
+private fun PetsHero(
+    petCount: Int,
+    speciesCount: Int,
+    showSearch: Boolean,
+    searchQuery: String,
+    onSearchQuery: (String) -> Unit,
+    onNavigateBack: () -> Unit,
+    onToggleSearch: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    // Gradasi brand yang sama dengan Beranda, Rekam Medis, dan Booking.
+    val heroBottom = androidx.compose.ui.graphics.lerp(PetPrimary, Color.Black, 0.22f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .background(Brush.verticalGradient(listOf(PetPrimary, heroBottom)))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 64.dp, y = (-88).dp)
+                .size(200.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-56).dp, y = 56.dp)
+                .size(160.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                PetHeroIconButton(
+                    onClick = onNavigateBack,
+                    icon = Icons.Filled.ArrowBack,
+                    description = "Kembali"
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Hewan Saya",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Profil dan riwayat kesehatan",
+                        color = Color.White.copy(alpha = 0.82f),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                PetHeroIconButton(
+                    onClick = onToggleSearch,
+                    icon = if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
+                    description = if (showSearch) "Tutup pencarian" else "Cari hewan"
+                )
+                PetHeroIconButton(
+                    onClick = onRefresh,
+                    icon = Icons.Filled.Refresh,
+                    description = "Segarkan"
+                )
+            }
+
+            if (petCount > 0) {
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    PetHeroStat("Hewan", petCount.toString(), Modifier.weight(1f))
+                    PetHeroStat("Jenis", speciesCount.toString(), Modifier.weight(1f))
+                }
+            }
+
+            AnimatedVisibility(visible = showSearch) {
+                val focusManager = LocalFocusManager.current
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQuery,
+                    placeholder = { Text("Cari nama, jenis, atau ras…", color = PetMuted, fontSize = 13.sp) },
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, null, tint = PetMuted, modifier = Modifier.size(18.dp))
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotBlank()) {
+                            IconButton(onClick = { onSearchQuery("") }) {
+                                Icon(Icons.Filled.Close, null, tint = PetMuted, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 12.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
+                        focusedTextColor = OnBackground,
+                        unfocusedTextColor = OnBackground,
+                        cursorColor = PetPrimaryDark
+                    )
+                )
+            }
+        }
+    }
+}
+
+/** Tombol bulat translusen di atas gradasi hero. */
+@Composable
+private fun PetHeroIconButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(19.dp))
+    }
+}
+
+/** Angka ringkas di atas hero. */
+@Composable
+private fun PetHeroStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.80f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+    }
+}
+
 // ── Pet List Card ─────────────────────────────────────────────────────────────
 @Composable
 private fun PetListCard(
@@ -362,38 +462,33 @@ private fun PetListCard(
     surfaceColor: Color,
     textPrimary: Color,
     textMuted: Color,
-    isFirst: Boolean,
     onClick: () -> Unit
 ) {
-    val borderColor = if (isFirst) PetPrimary else PetPrimary.copy(alpha = 0.3f)
-    val arrowBg     = SurfaceVariant
-
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black.copy(alpha = 0.05f))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        elevation = CardDefaults.cardElevation(0.dp)
+        shape = RoundedCornerShape(22.dp),
+        color = surfaceColor,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {            // Avatar circle
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
+                    .size(54.dp)
                     .clip(CircleShape)
-                    .border(2.dp, borderColor, CircleShape)
-                    .background(SuccessSoft)
+                    .background(PetPrimarySoft)
             ) {
                 val photoUrl = buildPhotoUrl(pet.photo)
                 if (photoUrl != null) {
-                    // ✅ OPTIMIZED: ThumbnailImage resizes to 100px BEFORE decode → 80% less memory!
+                    // ThumbnailImage memperkecil gambar sebelum decode.
                     ThumbnailImage(
                         model = photoUrl,
                         contentDescription = pet.name,
@@ -402,124 +497,134 @@ private fun PetListCard(
                 } else {
                     Icon(
                         Icons.Filled.Pets, null,
-                        tint = if (isFirst) PetPrimary else PetPrimary.copy(alpha = 0.6f),
-                        modifier = Modifier.size(30.dp).align(Alignment.Center)
+                        tint = PetPrimaryDeep,
+                        modifier = Modifier.size(26.dp).align(Alignment.Center)
                     )
                 }
             }
 
-            // Info
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
                 Text(
-                    text = pet.name ?: "Unknown",
-                    fontSize = 17.sp,
+                    text = pet.name ?: "Hewan",
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = buildString {
-                        if (!pet.species.isNullOrBlank()) append(pet.species)
-                        if (!pet.breed.isNullOrBlank()) {
-                            if (isNotEmpty()) append(" · ")
-                            append(pet.breed)
-                        }
-                        if (pet.age != null) {
-                            if (isNotEmpty()) append(" · ")
-                            append("${pet.age} tahun")
-                        }
-                    }.ifBlank { "Belum ada detail" },
-                    fontSize = 13.sp,
+                    text = listOfNotNull(
+                        pet.species?.takeIf { it.isNotBlank() },
+                        pet.breed?.takeIf { it.isNotBlank() }
+                    ).joinToString(" · ").ifBlank { "Detail belum lengkap" },
+                    fontSize = 12.sp,
                     color = textMuted,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                // Chip kecil: hanya data yang tersedia di server.
+                val chips = listOfNotNull(
+                    genderLabelOf(pet.gender).takeIf { it.isNotBlank() },
+                    pet.age?.let { "$it tahun" },
+                    pet.weight?.let { "${formatPetWeight(it)} kg" }
+                )
+                if (chips.isNotEmpty()) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        chips.forEach { chip ->
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(SurfaceVariant)
+                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = chip,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = TextSecondary,
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
-            // Chevron
             Box(
                 modifier = Modifier
-                    .size(32.dp)
+                    .size(28.dp)
                     .clip(CircleShape)
-                    .background(arrowBg),
+                    .background(PetPrimarySoft),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.ChevronRight, null,
-                    tint = textMuted,
-                    modifier = Modifier.size(20.dp)
+                    tint = PetPrimaryDeep,
+                    modifier = Modifier.size(17.dp)
                 )
             }
         }
     }
 }
 
+/** Berat dari server bisa bulat ("4.0") — tampilkan tanpa nol berlebih. */
+private fun formatPetWeight(value: Double): String {
+    val rounded = Math.round(value * 10.0) / 10.0
+    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
+}
+
 // ── Add New Pet Card ──────────────────────────────────────────────────────────
 @Composable
-private fun AddNewPetCard(
-    surfaceColor: Color,
-    textPrimary: Color,
-    textMuted: Color,
-    onClick: () -> Unit
-) {
-    Card(
+private fun AddNewPetCard(onClick: () -> Unit) {
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(16.dp), ambientColor = Color.Black.copy(0.03f))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor.copy(alpha = 0.6f)),
-        elevation = CardDefaults.cardElevation(0.dp)
+        shape = RoundedCornerShape(22.dp),
+        color = PetPrimarySoft
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, OutlineStrong, CircleShape, )
-                    .background(Color(0xFFF9FAFB)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Filled.Pets, null,
-                    tint = TextTertiary,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "Tambah Hewan Baru",
-                    fontSize = 17.sp, fontWeight = FontWeight.Bold,
-                    color = textPrimary
-                )
-                Text(
-                    "Daftarkan sahabat baru Anda",
-                    fontSize = 13.sp, color = textMuted
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(SurfaceVariant),
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     Icons.Filled.Add, null,
-                    tint = textMuted,
-                    modifier = Modifier.size(20.dp)
+                    tint = PetPrimaryDeep,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(
+                    "Tambah Hewan Baru",
+                    fontSize = 14.sp, fontWeight = FontWeight.Bold,
+                    color = PetPrimaryDeep
+                )
+                Text(
+                    "Daftarkan sahabat baru Anda",
+                    fontSize = 11.5.sp, color = PetPrimaryDeep.copy(alpha = 0.72f)
+                )
+            }
+
+            Icon(
+                Icons.Filled.ChevronRight, null,
+                tint = PetPrimaryDeep,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
@@ -606,215 +711,215 @@ fun PetDetailScreen(
             ) {
                 val pet = state.pet
 
-                // ── Top Navigation Bar ───────────────────────────────────────────
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent,
-                    shadowElevation = 0.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp)
-                            .statusBarsPadding()
-                            .padding(top = 8.dp, bottom = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Back button
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.05f))
-                                .clickable { onNavigateBack() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.ArrowBackIosNew,
-                                contentDescription = "Kembali",
-                                tint = textPrimary,
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-
-                        Text(
-                            "Profil Hewan",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = textPrimary
-                        )
-
-                        // Edit shortcut (mirrors the Edit button below)
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color.Black.copy(alpha = 0.05f))
-                                .clickable { onNavigateToEdit() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Filled.Edit,
-                                contentDescription = "Ubah hewan",
-                                tint = textPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-
-                // ── Hero Section ───────────────────────────────────────────────
-                Column(
+                // ── Hero (gradasi brand, sama dengan layar lain) ──────────────
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+                        .background(
+                            Brush.verticalGradient(
+                                listOf(
+                                    PetPrimary,
+                                    androidx.compose.ui.graphics.lerp(PetPrimary, Color.Black, 0.22f)
+                                )
+                            )
+                        )
                 ) {
-                    // Pet Photo with checkmark badge
-                    Box(contentAlignment = Alignment.BottomEnd) {                        Box(
-                            modifier = Modifier
-                                .size(128.dp)
-                                .clip(CircleShape)
-                                .background(SuccessSoft)
-                                .border(4.dp, PetPrimary.copy(alpha = 0.2f), CircleShape)
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 64.dp, y = (-88).dp)
+                            .size(200.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = (-56).dp, y = 56.dp)
+                            .size(160.dp)
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.06f))
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val photoUrl = buildPhotoUrl(pet?.photo)
-                            if (photoUrl != null) {
-                                // ✅ OPTIMIZED: MediumImage resizes to 400px BEFORE decode
-                                MediumImage(
-                                    model = photoUrl,
-                                    contentDescription = pet?.name,
-                                    modifier = Modifier.fillMaxSize()
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Filled.Pets, null,
-                                    tint = PetPrimary.copy(alpha = 0.6f),
-                                    modifier = Modifier
-                                        .size(50.dp)
-                                        .align(Alignment.Center)
-                                )
-                            }
+                            PetHeroIconButton(
+                                onClick = onNavigateBack,
+                                icon = Icons.Filled.ArrowBack,
+                                description = "Kembali"
+                            )
+                            Text(
+                                text = "Profil Hewan",
+                                modifier = Modifier.weight(1f),
+                                textAlign = TextAlign.Center,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                            PetHeroIconButton(
+                                onClick = onNavigateToEdit,
+                                icon = Icons.Filled.Edit,
+                                description = "Ubah hewan"
+                            )
                         }
-                        // Checkmark badge — HANYA bila ada dasar data nyata
-                        // (rekam medis). Tanpa riwayat, aplikasi tidak boleh
-                        // mengklaim hewan "sehat"; tidak ada diagnosa dari
-                        // ketiadaan data.
-                        if (state.medicalRecords.isNotEmpty()) {
+
+                        Spacer(Modifier.height(18.dp))
+
+                        Box(contentAlignment = Alignment.BottomEnd) {
                             Box(
                                 modifier = Modifier
-                                    .size(28.dp)
+                                    .size(104.dp)
                                     .clip(CircleShape)
-                                    .background(PetPrimary),
-                                contentAlignment = Alignment.Center
+                                    .background(PetPrimarySoft)
+                                    .border(3.dp, Color.White.copy(alpha = 0.5f), CircleShape)
                             ) {
-                                Icon(
-                                    Icons.Filled.Check,
-                                    contentDescription = "Pemeriksaan terakhir tercatat",
-                                    tint = Background,
-                                    modifier = Modifier.size(18.dp)
-                                )
+                                val photoUrl = buildPhotoUrl(pet?.photo)
+                                if (photoUrl != null) {
+                                    // MediumImage memperkecil gambar sebelum decode.
+                                    MediumImage(
+                                        model = photoUrl,
+                                        contentDescription = pet?.name,
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Filled.Pets, null,
+                                        tint = PetPrimaryDeep,
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .align(Alignment.Center)
+                                    )
+                                }
+                            }
+                            // Badge hanya bila ada rekam medis nyata — aplikasi
+                            // tidak mengklaim "sehat" dari ketiadaan data.
+                            if (state.medicalRecords.isNotEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Filled.Check,
+                                        contentDescription = "Pemeriksaan terakhir tercatat",
+                                        tint = PetPrimaryDark,
+                                        modifier = Modifier.size(17.dp)
+                                    )
+                                }
                             }
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(Modifier.height(12.dp))
 
-                    // Pet Name
-                    Text(
-                        pet?.name ?: "–",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = textPrimary
-                    )
-
-                    // Health Status — derived from the most recent medical record
-                    val hasVisitRecord = state.medicalRecords.isNotEmpty()
-                    val healthLabel = when {
-                        hasVisitRecord -> "Pemeriksaan terakhir tercatat"
-                        else -> "Status belum tersedia"
-                    }
-                    val healthColor = if (hasVisitRecord) PetPrimary else textMuted
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(healthColor)
-                        )
                         Text(
-                            healthLabel,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = healthColor
+                            text = pet?.name ?: "–",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                    }
 
-                    // Species, Gender, Age
-                    Text(
-                        buildString {
-                            if (!pet?.species.isNullOrBlank()) append(pet?.species)
-                            if (!pet?.gender.isNullOrBlank()) {
-                                if (isNotEmpty()) append(" • ")
-                                append(pet?.gender)
-                            }
-                            if (pet?.age != null) {
-                                if (isNotEmpty()) append(" • ")
-                                append("${pet.age} years old")
-                            }
-                        }.ifBlank { "No details" },
-                        fontSize = 14.sp,
-                        color = textMuted
-                    )
+                        val metaText = listOfNotNull(
+                            speciesLabelOf(pet?.species).takeIf { it.isNotBlank() },
+                            genderLabelOf(pet?.gender).takeIf { it.isNotBlank() },
+                            pet?.age?.let { "$it tahun" }
+                        ).joinToString(" · ")
+                        if (metaText.isNotBlank()) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                text = metaText,
+                                fontSize = 12.5.sp,
+                                color = Color.White.copy(alpha = 0.86f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        val hasVisitRecord = state.medicalRecords.isNotEmpty()
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(Color.White.copy(alpha = 0.18f))
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White.copy(alpha = if (hasVisitRecord) 0.95f else 0.55f))
+                            )
+                            Text(
+                                text = if (hasVisitRecord) {
+                                    "Pemeriksaan terakhir tercatat"
+                                } else {
+                                    "Status belum tersedia"
+                                },
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White.copy(alpha = 0.92f)
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // ── Action Buttons ───────────────────────────────────────────────
+                // ── Action Buttons ────────────────────────────────────────────
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    // Edit Profile Button
                     Button(
                         onClick = onNavigateToEdit,
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp),
+                            .height(48.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = PetPrimary,
-                            contentColor = OnBackground
+                            contentColor = Color.White
                         )
                     ) {
-                        Icon(Icons.Filled.Edit, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Edit Profil", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Filled.Edit, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Ubah Profil", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
 
-                    // History Button
                     OutlinedButton(
                         onClick = onNavigateToMedicalRecords,
                         modifier = Modifier
                             .weight(1f)
-                            .height(52.dp),
+                            .height(48.dp),
                         shape = RoundedCornerShape(14.dp),
-                        border = BorderStroke(1.dp, PetPrimary.copy(alpha = 0.3f)),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PetPrimary)
+                        border = BorderStroke(1.dp, Outline),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = OnBackground)
                     ) {
-                        Icon(Icons.Filled.History, null, modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.width(8.dp))
-                        Text("Riwayat", fontWeight = FontWeight.Bold)
+                        Icon(Icons.Filled.History, null, modifier = Modifier.size(17.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("Riwayat", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(18.dp))
 
                 // ── Quick Stats Cards ───────────────────────────────────────────
                 // Hanya tanggal rekam medis yang NYATA. updated-at profil
@@ -828,8 +933,8 @@ fun PetDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        .padding(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     // Weight Card
                     StatCard(
@@ -865,10 +970,10 @@ fun PetDetailScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // ── Health Records Section ───────────────────────────────────────
-                Column(
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                ) {
+                // ── Rekam Medis ───────────────────────────────────────────────
+                val medicalRecords = state.medicalRecords
+
+                Column(modifier = Modifier.padding(horizontal = 20.dp)) {
                     HealthTrackingSection(
                         weightRecords = state.weightRecords,
                         vaccinations = state.vaccinations,
@@ -887,97 +992,119 @@ fun PetDetailScreen(
                         surfaceColor = surfaceColor,
                         textPrimary = textPrimary,
                         textMuted = textMuted,
-                        modifier = Modifier.padding(bottom = 24.dp)
+                        modifier = Modifier.padding(bottom = 20.dp)
                     )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            "Rekam Medis",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textPrimary
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(PetPrimarySoft)
+                                .padding(horizontal = 7.dp, vertical = 2.dp)
+                        ) {
                             Text(
-                                "Medical Records",
-                                fontSize = 18.sp,
+                                text = medicalRecords.size.toString(),
+                                fontSize = 10.5.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = textPrimary
-                            )
-                            Text(
-                                "Recent diagnosis, treatment, and follow-up history",
-                                fontSize = 12.sp,
-                                color = textMuted
+                                color = PetPrimaryDeep
                             )
                         }
-                        TextButton(onClick = onNavigateToMedicalRecords) {
+                        Spacer(Modifier.weight(1f))
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable(onClick = onNavigateToMedicalRecords)
+                                .padding(horizontal = 6.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Text(
-                                "View All",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PetPrimary
+                                "Lihat semua",
+                                fontSize = 11.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = PetPrimaryDeep
+                            )
+                            Icon(
+                                Icons.Filled.ChevronRight, null,
+                                tint = PetPrimaryDeep,
+                                modifier = Modifier.size(14.dp)
                             )
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(Modifier.height(10.dp))
 
-                    // Show real medical records from database
-                    val medicalRecords = state.medicalRecords
-                    
                     if (medicalRecords.isEmpty()) {
-                        // Empty state - no medical records yet
-                        Card(
+                        Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-                            elevation = CardDefaults.cardElevation(0.dp)
+                            shape = RoundedCornerShape(22.dp),
+                            color = surfaceColor,
+                            shadowElevation = 2.dp
                         ) {
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(24.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                    .padding(horizontal = 20.dp, vertical = 24.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(
-                                    Icons.Filled.MedicalServices,
-                                    contentDescription = null,
-                                    tint = textMuted,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .background(SurfaceMuted),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Filled.MedicalServices,
+                                        contentDescription = null,
+                                        tint = TextTertiary,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
                                 Text(
-                                    "No medical records yet",
-                                    fontSize = 15.sp,
+                                    "Belum ada rekam medis",
+                                    fontSize = 14.sp,
                                     fontWeight = FontWeight.SemiBold,
                                     color = textPrimary
                                 )
                                 Text(
-                                    "Records will appear here after your pet completes a consultation or treatment.",
-                                    fontSize = 13.sp,
+                                    "Rekam medis muncul otomatis setelah hewan selesai diperiksa di klinik.",
+                                    fontSize = 12.sp,
                                     color = textMuted,
                                     textAlign = TextAlign.Center
                                 )
                             }
                         }
                     } else {
-                        // Display actual medical records from database
                         medicalRecords.forEachIndexed { index, record ->
                             if (index > 0) {
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(Modifier.height(10.dp))
                             }
-                            
-                            val recordTitle = record.diagnosis ?: "General medical review"
+
+                            val recordTitle = record.diagnosis?.takeIf { it.isNotBlank() }
+                                ?: "Pemeriksaan umum"
                             val recordSubtitle = buildString {
                                 record.treatment?.takeIf { it.isNotBlank() }?.let { append(it) }
                                 record.medicine?.takeIf { it.isNotBlank() }?.let {
-                                    if (isNotEmpty()) append(" • ")
+                                    if (isNotEmpty()) append(" · ")
                                     append(it)
                                 }
-                            }.ifBlank { "Tap to review the clinical summary and treatment notes." }
+                            }.ifBlank { "Ketuk untuk melihat ringkasan klinis dan terapi." }
 
                             val recordMeta = buildString {
                                 append(formatMedicalRecordDate(record.createdAt))
                                 if (!record.nextVisitDate.isNullOrBlank()) {
-                                    append(" • Follow-up ")
+                                    append(" · Kontrol ")
                                     append(record.nextVisitDate)
                                 }
                             }
@@ -1000,24 +1127,24 @@ fun PetDetailScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(20.dp))
 
                 // ── Delete Button ───────────────────────────────────────────────
                 Button(
                     onClick = { showDeleteDialog = true },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp)
-                        .height(52.dp),
+                        .padding(horizontal = 20.dp)
+                        .height(48.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = ErrorStrong.copy(alpha = 0.1f),
+                        containerColor = ErrorSoft,
                         contentColor = ErrorStrong
                     )
                 ) {
-                    Icon(Icons.Filled.Delete, null, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Filled.Delete, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Remove Pet", fontWeight = FontWeight.SemiBold)
+                    Text("Hapus Hewan", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
                 }
             }
         }
@@ -1040,69 +1167,90 @@ private fun HealthTrackingSection(
     textMuted: Color,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+    Column(modifier = modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                "Health Tracking",
-                fontSize = 18.sp,
+                "Pantauan Kesehatan",
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = textPrimary
             )
+            Spacer(Modifier.weight(1f))
             Text(
-                "Weight history and vaccination reminders in one place",
-                fontSize = 12.sp,
+                "Berat & vaksinasi",
+                fontSize = 11.sp,
                 color = textMuted
             )
         }
 
-        Card(
+        // ── Kartu berat badan ────────────────────────────────────────────
+        Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-            elevation = CardDefaults.cardElevation(0.dp)
+            color = surfaceColor,
+            shadowElevation = 2.dp
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(PetPrimary.copy(alpha = 0.12f)),
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(PetPrimarySoft),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.FitnessCenter, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.FitnessCenter, null, tint = PetPrimaryDeep, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Weight Tracker", fontWeight = FontWeight.Bold, color = textPrimary)
+                    Spacer(Modifier.width(11.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            currentWeight?.let { "Current weight: $it kg" } ?: "No weight record saved yet",
-                            fontSize = 13.sp,
+                            "Pelacak Berat",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textPrimary
+                        )
+                        Text(
+                            currentWeight?.let { "Berat terakhir ${formatPetWeight(it)} kg" }
+                                ?: "Belum ada catatan berat",
+                            fontSize = 11.5.sp,
                             color = textMuted
                         )
                     }
-                    TextButton(onClick = onAddWeight) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Tambah")
-                    }
+                    PetSoftAction(label = "Tambah", icon = Icons.Filled.Add, onClick = onAddWeight)
                 }
 
                 weightTrend?.let {
-                    Text(
-                        text = "Trend: ${it.replaceFirstChar { c -> c.uppercaseChar() }}",
+                    Row(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(PetPrimary.copy(alpha = 0.12f))
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        color = PetPrimary,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(PetPrimarySoft)
+                            .padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.TrendingUp,
+                            contentDescription = null,
+                            tint = PetPrimaryDeep,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Text(
+                            text = "Tren ${it.replaceFirstChar { c -> c.lowercaseChar() }}",
+                            color = PetPrimaryDeep,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
                 }
 
-                // A trend line only earns its space when there are at least two
-                // dated measurements; a single point stays a plain row.
+                // Grafik hanya bila ada minimal dua pengukuran bertanggal.
                 val chartPoints = remember(weightRecords) {
                     weightRecords
                         .filter { it.weight != null && !it.recordedAt.isNullOrBlank() }
@@ -1128,12 +1276,20 @@ private fun HealthTrackingSection(
                 }
 
                 if (weightRecords.isEmpty()) {
-                    Text("Start recording weight so growth, recovery, and health changes are easier to monitor over time.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
+                    Text(
+                        "Catat berat badan secara rutin supaya pertumbuhan dan pemulihan mudah dipantau.",
+                        fontSize = 12.5.sp,
+                        lineHeight = 19.sp,
+                        color = textMuted
+                    )
                 } else {
                     weightRecords.take(3).forEach { record ->
                         HealthMiniRow(
-                            title = "${record.weight ?: 0.0} kg",
-                            subtitle = listOfNotNull(record.recordedAt, record.notes).joinToString(" • ").ifBlank { "Weight record" },
+                            title = "${formatPetWeight(record.weight ?: 0.0)} kg",
+                            subtitle = listOfNotNull(
+                                (record.recordedAt ?: "").takeIf { it.isNotBlank() },
+                                record.notes?.takeIf { it.isNotBlank() }
+                            ).joinToString(" · ").ifBlank { "Catatan berat" },
                             textPrimary = textPrimary,
                             textMuted = textMuted,
                             onDelete = record.id?.let { id -> { onDeleteWeight(id) } }
@@ -1143,42 +1299,56 @@ private fun HealthTrackingSection(
             }
         }
 
-        Card(
+        // ── Kartu vaksinasi ──────────────────────────────────────────────
+        Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(22.dp),
-            colors = CardDefaults.cardColors(containerColor = surfaceColor),
-            elevation = CardDefaults.cardElevation(0.dp)
+            color = surfaceColor,
+            shadowElevation = 2.dp
         ) {
-            Column(modifier = Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
-                            .size(42.dp)
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(PetPrimary.copy(alpha = 0.12f)),
+                            .size(40.dp)
+                            .clip(RoundedCornerShape(13.dp))
+                            .background(PetPrimarySoft),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Filled.MedicalServices, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
+                        Icon(Icons.Filled.Vaccines, null, tint = PetPrimaryDeep, modifier = Modifier.size(20.dp))
                     }
-                    Spacer(Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("Vaksinasi", fontWeight = FontWeight.Bold, color = textPrimary)
+                    Spacer(Modifier.width(11.dp))
+                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                         Text(
-                            if (upcomingVaccinations.isNotEmpty()) "${upcomingVaccinations.size} follow-up reminder${if (upcomingVaccinations.size > 1) "s" else ""} coming up" else "No upcoming vaccination due",
-                            fontSize = 13.sp,
+                            "Vaksinasi",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = textPrimary
+                        )
+                        Text(
+                            if (upcomingVaccinations.isNotEmpty()) {
+                                "${upcomingVaccinations.size} pengingat jatuh tempo"
+                            } else {
+                                "Tidak ada vaksinasi mendatang"
+                            },
+                            fontSize = 11.5.sp,
                             color = textMuted
                         )
                     }
-                    TextButton(onClick = onAddVaccination) {
-                        Icon(Icons.Filled.Add, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Tambah")
-                    }
+                    PetSoftAction(label = "Tambah", icon = Icons.Filled.Add, onClick = onAddVaccination)
                 }
 
                 val preview = upcomingVaccinations.ifEmpty { vaccinations }.take(3)
                 if (preview.isEmpty()) {
-                    Text("Save vaccination history here so reminders and medical timelines stay complete.", fontSize = 13.sp, lineHeight = 20.sp, color = textMuted)
+                    Text(
+                        "Simpan riwayat vaksinasi di sini agar pengingat dan linimasa medis tetap lengkap.",
+                        fontSize = 12.5.sp,
+                        lineHeight = 19.sp,
+                        color = textMuted
+                    )
                 } else {
                     preview.forEach { vaccine ->
                         val dueStatus = vaccinationDueStatus(vaccine.nextDueDate)
@@ -1187,7 +1357,7 @@ private fun HealthTrackingSection(
                             subtitle = buildString {
                                 vaccine.dateAdministered?.let { append("Diberikan $it") }
                                 vaccine.nextDueDate?.let {
-                                    if (isNotEmpty()) append(" • ")
+                                    if (isNotEmpty()) append(" · ")
                                     append("Jatuh tempo $it")
                                 }
                             }.ifBlank { vaccine.veterinarian ?: "Catatan vaksinasi" },
@@ -1201,6 +1371,32 @@ private fun HealthTrackingSection(
                 }
             }
         }
+    }
+}
+
+/** Tombol kecil "Tambah" bergaya pil di header kartu. */
+@Composable
+private fun PetSoftAction(
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(PetPrimarySoft)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(3.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = PetPrimaryDeep, modifier = Modifier.size(13.dp))
+        Text(
+            text = label,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = PetPrimaryDeep
+        )
     }
 }
 
@@ -1243,27 +1439,27 @@ private fun HealthMiniRow(
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirm = false }) { Text("Batal") }
             },
-            containerColor = Color.White
+            containerColor = Surface
         )
     }
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(PetPrimary.copy(alpha = 0.06f))
-            .padding(12.dp),
+            .clip(RoundedCornerShape(14.dp))
+            .background(SurfaceMuted)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(8.dp)
+                .size(7.dp)
                 .clip(CircleShape)
                 .background(PetPrimary)
         )
         Spacer(Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-            Text(subtitle, fontSize = 12.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+            Text(subtitle, fontSize = 11.5.sp, color = textMuted, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
         if (badgeText != null && badgeColor != null) {
             Text(
@@ -1599,31 +1795,42 @@ private fun StatCard(
     textPrimary: Color,
     textMuted: Color
 ) {
-    Card(
+    Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        elevation = CardDefaults.cardElevation(0.dp)
+        shape = RoundedCornerShape(18.dp),
+        color = surfaceColor,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Icon(icon, null, tint = PetPrimary, modifier = Modifier.size(22.dp))
-            Spacer(modifier = Modifier.height(4.dp))
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(PetPrimarySoft),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, null, tint = PetPrimaryDeep, modifier = Modifier.size(16.dp))
+            }
             Text(
                 value,
-                fontSize = 16.sp,
+                fontSize = 14.5.sp,
                 fontWeight = FontWeight.Bold,
-                color = textPrimary
+                color = textPrimary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Text(
                 label,
                 fontSize = 10.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = textMuted
+                fontWeight = FontWeight.Medium,
+                color = textMuted,
+                maxLines = 1
             )
         }
     }
@@ -1643,82 +1850,88 @@ private fun HealthRecordCard(
     textMuted: Color,
     onClick: (() -> Unit)? = null
 ) {
-    Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        elevation = CardDefaults.cardElevation(0.dp)
+    val cardModifier = modifier
+        .fillMaxWidth()
+        .clip(RoundedCornerShape(22.dp))
+        .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+
+    Surface(
+        modifier = cardModifier,
+        shape = RoundedCornerShape(22.dp),
+        color = surfaceColor,
+        shadowElevation = 2.dp
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(PetPrimary.copy(alpha = 0.15f)),
+                    .size(46.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(PetPrimarySoft),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(icon, null, tint = PetPrimary, modifier = Modifier.size(24.dp))
+                Icon(icon, null, tint = PetPrimaryDeep, modifier = Modifier.size(22.dp))
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     title,
-                    fontSize = 15.sp,
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = textPrimary
+                    color = textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Text(
                     subtitle,
-                    fontSize = 13.sp,
+                    fontSize = 12.sp,
                     color = textMuted,
-                    lineHeight = 18.sp,
+                    lineHeight = 17.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     meta,
-                    fontSize = 11.sp,
+                    fontSize = 10.5.sp,
                     fontWeight = FontWeight.Medium,
-                    color = textMuted
+                    color = TextTertiary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
             if (isActive) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(PetPrimary.copy(alpha = 0.2f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .clip(RoundedCornerShape(999.dp))
+                        .background(PetPrimarySoft)
+                        .padding(horizontal = 9.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        "Follow-up",
+                        "Kontrol",
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = PetPrimary
+                        color = PetPrimaryDeep
                     )
                 }
             } else if (showChevron) {
                 Icon(
                     Icons.Filled.ChevronRight,
                     null,
-                    tint = textMuted,
-                    modifier = Modifier.size(24.dp)
+                    tint = TextTertiary,
+                    modifier = Modifier.size(18.dp)
                 )
             } else {
                 Icon(
                     Icons.Filled.Verified,
                     null,
                     tint = PetPrimary,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
@@ -1726,11 +1939,11 @@ private fun HealthRecordCard(
 }
 
 private fun formatMedicalRecordDate(value: String?): String {
-    if (value.isNullOrBlank()) return "Recorded recently"
+    if (value.isNullOrBlank()) return "Baru dicatat"
     return try {
-        "Recorded ${value.take(10)}"
+        "Dicatat ${formatDateSafe(value.take(10), "d MMM yyyy")}"
     } catch (_: Exception) {
-        "Recorded recently"
+        "Baru dicatat"
     }
 }
 
@@ -1744,11 +1957,11 @@ private fun PetStatCard(
     textMuted: Color,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = surfaceColor),
-        elevation = CardDefaults.cardElevation(2.dp)
+        shape = RoundedCornerShape(16.dp),
+        color = surfaceColor,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -1893,7 +2106,6 @@ fun EditPetScreen(
             it.replaceFirstChar { c -> c.uppercaseChar() }
         } ?: "Male",
         initialDateOfBirth = detailState.pet?.dateOfBirth ?: "",
-        initialAge         = detailState.pet?.age?.toString() ?: "",
         initialWeight      = detailState.pet?.weight?.toString() ?: "",
         existingPhotoUrl   = detailState.pet?.photo,
         onNavigateBack = onNavigateBack,
@@ -1937,7 +2149,6 @@ private fun PetFormScreen(
     initialBreed: String = "",
     initialGender: String = "Male",
     initialDateOfBirth: String = "",
-    initialAge: String = "",
     initialWeight: String = "",
     existingPhotoUrl: String? = null,
     onNavigateBack: () -> Unit,
@@ -1948,7 +2159,7 @@ private fun PetFormScreen(
     val bgColor      = PetBg
     val surfaceColor = Color.White
     val textPrimary  = OnBackground
-    val textMuted    = Color(0xFF61896F)
+    val textMuted    = PetMuted
     val borderColor  = Outline
     val focusManager = LocalFocusManager.current
 
@@ -2141,7 +2352,7 @@ private fun PetFormScreen(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    "Select Photo",
+                    "Pilih Foto",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = textPrimary,
@@ -2268,7 +2479,7 @@ private fun PetFormScreen(
                                 .clickable(onClick = onNavigateBack),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.ArrowBackIosNew, "Back", tint = PetPrimary, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Filled.ArrowBackIosNew, "Kembali", tint = PetPrimary, modifier = Modifier.size(18.dp))
                         }
                         Text(title, fontSize = 17.sp, fontWeight = FontWeight.Bold,
                             color = textPrimary, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
@@ -2438,9 +2649,9 @@ private fun PetFormScreen(
                     }
 
                     // Pet Name
-                    FormSection(label = "PET NAME") {
+                    FormSection(label = "NAMA HEWAN") {
                         PetTextField(value = name, onValueChange = { name = it },
-                            placeholder = "e.g. Buddy",
+                            placeholder = "Contoh: Buddy",
                             surfaceColor = surfaceColor, textPrimary = textPrimary,
                             textMuted = textMuted, borderColor = borderColor, imeAction = ImeAction.Next)
                     }
@@ -2449,7 +2660,7 @@ private fun PetFormScreen(
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         // Species Dropdown
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("SPECIES", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                            Text("JENIS", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                                 color = textMuted, letterSpacing = 0.8.sp)
                             Box {
                                 Row(
@@ -2464,11 +2675,14 @@ private fun PetFormScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     // PHASE 7: show the typed value once Other is specified.
+                                    // Nilai tersimpan tetap kanonik ("Dog", "Cat", …)
+                                    // agar ikon & data lama tidak berubah; yang
+                                    // diterjemahkan hanya yang dilihat pengguna.
                                     val speciesLabel = when {
                                         species == "Other" && customSpecies.isNotBlank() -> customSpecies
-                                        species == "Other" -> "Other…"
-                                        species.isBlank() -> "Select"
-                                        else -> species
+                                        species == "Other" -> "Lainnya…"
+                                        species.isBlank() -> "Pilih jenis"
+                                        else -> speciesLabelOf(species)
                                     }
                                     Text(speciesLabel, fontSize = 14.sp,
                                         color = if (species.isBlank()) textMuted else textPrimary,
@@ -2480,7 +2694,7 @@ private fun PetFormScreen(
                                     modifier = Modifier.background(surfaceColor)) {
                                     speciesOptions.forEach { option ->
                                         DropdownMenuItem(
-                                            text = { Text(option, color = textPrimary, fontSize = 14.sp) },
+                                            text = { Text(speciesLabelOf(option), color = textPrimary, fontSize = 14.sp) },
                                             onClick = { species = option; expandSpecies = false }
                                         )
                                     }
@@ -2508,7 +2722,7 @@ private fun PetFormScreen(
 
                         // Gender Toggle
                         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("GENDER", fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                            Text("KELAMIN", fontSize = 11.sp, fontWeight = FontWeight.Bold,
                                 color = textMuted, letterSpacing = 0.8.sp)
                             Row(
                                 modifier = Modifier
@@ -2519,7 +2733,7 @@ private fun PetFormScreen(
                                     .padding(4.dp),
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                listOf("Male", "Female").forEach { g ->
+                                listOf("Male" to "Jantan", "Female" to "Betina").forEach { (g, gLabel) ->
                                     val isSelected = gender == g
                                     Box(
                                         modifier = Modifier
@@ -2530,7 +2744,7 @@ private fun PetFormScreen(
                                             .padding(vertical = 8.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(g, fontSize = 12.sp, fontWeight = FontWeight.Bold,
+                                        Text(gLabel, fontSize = 12.sp, fontWeight = FontWeight.Bold,
                                             color = if (isSelected) Background else textMuted)
                                     }
                                 }
@@ -2539,15 +2753,15 @@ private fun PetFormScreen(
                     }
 
                     // Breed
-                    FormSection(label = "BREED") {
+                    FormSection(label = "RAS") {
                         PetTextField(value = breed, onValueChange = { breed = it },
-                            placeholder = "e.g. Golden Retriever",
+                            placeholder = "Contoh: Golden Retriever",
                             surfaceColor = surfaceColor, textPrimary = textPrimary,
                             textMuted = textMuted, borderColor = borderColor, imeAction = ImeAction.Next)
                     }
 
                     // Weight
-                    FormSection(label = "WEIGHT (KG)") {
+                    FormSection(label = "BERAT (KG)") {
                         PetTextField(
                             value = weight,
                             onValueChange = { weight = it },
@@ -2569,7 +2783,7 @@ private fun PetFormScreen(
                     }
 
                     // Date of Birth — tappable calendar picker
-                    FormSection(label = "DATE OF BIRTH") {
+                    FormSection(label = "TANGGAL LAHIR") {
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -2582,13 +2796,13 @@ private fun PetFormScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = if (dateOfBirth.isBlank()) "Select date of birth"
+                                text = if (dateOfBirth.isBlank()) "Pilih tanggal lahir"
                                        else {
                                            // Pretty-print: "15 Jan 2022"
                                            runCatching {
                                                val parts = dateOfBirth.split("-")
-                                               val months = listOf("","Jan","Feb","Mar","Apr","May","Jun",
-                                                   "Jul","Aug","Sep","Oct","Nov","Dec")
+                                               val months = listOf("","Jan","Feb","Mar","Apr","Mei","Jun",
+                                                   "Jul","Agu","Sep","Okt","Nov","Des")
                                                "${parts[2].toInt()} ${months[parts[1].toInt()]} ${parts[0]}"
                                            }.getOrDefault(dateOfBirth)
                                        },
@@ -2597,7 +2811,7 @@ private fun PetFormScreen(
                             )
                             Icon(
                                 Icons.Filled.CalendarMonth,
-                                contentDescription = "Pick date",
+                                contentDescription = "Pilih tanggal",
                                 tint = PetPrimary,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -2616,7 +2830,7 @@ private fun PetFormScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         Icon(Icons.Filled.Info, null, tint = PetPrimary, modifier = Modifier.size(20.dp))
-                        Text("Adding accurate info helps our AI provide better health recommendations for your pet.",
+                        Text("Data yang akurat membuat rekomendasi kesehatan untuk hewan Anda lebih tepat.",
                             fontSize = 12.sp, color = textMuted, lineHeight = 18.sp, modifier = Modifier.weight(1f))
                     }
                 }
@@ -2631,6 +2845,7 @@ private fun PetFormScreen(
                 .background(bgColor.copy(alpha = 0.95f))
                 .border(width = 1.dp, color = borderColor, shape = RoundedCornerShape(topStart = 0.dp, topEnd = 0.dp))
                 .navigationBarsPadding()
+                .imePadding()
                 .padding(horizontal = 24.dp, vertical = 20.dp)
         ) {
             // PHASE 7: "Other" submits the typed value; blank custom blocks.
@@ -2694,7 +2909,7 @@ private fun FormSection(
             label,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF61896F),
+            color = PetMuted,
             letterSpacing = 0.8.sp
         )
         content()

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -68,7 +69,9 @@ fun PetShopPaymentWebView(
         onCompleted()
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Surface)) {
+    // Pembayaran Midtrans: area WebView diangkat di atas gesture/nav bar
+    // agar tombol bayar di bagian bawah halaman tidak tertutup sistem.
+    Box(modifier = Modifier.fillMaxSize().navigationBarsPadding().background(Surface)) {
         AndroidView(
             factory = { context ->
                 WebView(context).apply {

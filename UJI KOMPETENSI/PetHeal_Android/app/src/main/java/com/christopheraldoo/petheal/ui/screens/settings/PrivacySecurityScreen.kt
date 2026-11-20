@@ -272,8 +272,7 @@ fun PrivacySecurityScreen(
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold
                         )
-                    },
-                    onClick = {}
+                    }
                 )
                 Divider(color = secondaryColor.copy(alpha = 0.2f))
                 SettingsActionRow(

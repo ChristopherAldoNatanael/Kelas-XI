@@ -8,8 +8,8 @@ import com.christopheraldoo.petheal.ui.theme.InfoSoft
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
 import com.christopheraldoo.petheal.ui.theme.PrimaryLight
-import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import com.christopheraldoo.petheal.ui.theme.Surface
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
@@ -24,17 +24,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -49,7 +49,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Photo
@@ -61,12 +61,10 @@ import androidx.compose.material.icons.filled.HealthAndSafety
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Button
@@ -75,10 +73,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -96,7 +91,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.platform.LocalUriHandler
@@ -118,6 +112,7 @@ import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.formatRupiah
 import com.christopheraldoo.petheal.util.formatRupiahCompact
+import com.christopheraldoo.petheal.util.speciesLabelOf
 
 private val MrBackground = Background
 private val MrSurface = Surface
@@ -126,7 +121,7 @@ private val MrBorder = Outline
 private val MrTextPrimary = OnBackground
 private val MrTextSecondary = TextSecondary
 private val MrPrimary = Primary
-private val MrPrimaryDeep = SuccessDeep
+private val MrPrimaryDeep = PrimaryDark
 private val MrPrimarySoft = PrimaryLight
 private val MrAmber = Tertiary
 private val MrAmberSoft = WarningSoft
@@ -186,7 +181,7 @@ fun MedicalRecordsScreen(
 
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 112.dp)
+                        contentPadding = PaddingValues(bottom = 132.dp)
                     ) {
                         item {
                             MedicalRecordListHero(
@@ -223,8 +218,8 @@ fun MedicalRecordsScreen(
                         if (upcoming.isNotEmpty()) {
                             item {
                                 SectionHeader(
-                                    title = "Kontrol Berikutnya",
-                                    subtitle = "Rekam medis dengan jadwal kunjungan"
+                                    title = "Kontrol berikutnya",
+                                    count = upcoming.size
                                 )
                             }
 
@@ -242,8 +237,8 @@ fun MedicalRecordsScreen(
                         if (history.isNotEmpty()) {
                             item {
                                 SectionHeader(
-                                    title = "Riwayat Klinis",
-                                    subtitle = "Rekam yang selesai dan siap dibaca"
+                                    title = "Riwayat klinis",
+                                    count = history.size
                                 )
                             }
 
@@ -405,12 +400,12 @@ fun MedicalRecordDetailScreen(
 private fun MedicalRecordSkeletonList() {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(top = 36.dp, start = 20.dp, end = 20.dp, bottom = 106.dp),
+        contentPadding = PaddingValues(top = 36.dp, start = 20.dp, end = 20.dp, bottom = 132.dp),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         item {
-            Surface(shape = RoundedCornerShape(30.dp), color = MrSurface) {
-                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Surface(shape = RoundedCornerShape(28.dp), color = MrPrimarySoft) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     SkeletonBlock(0.45f, 28.dp)
                     SkeletonBlock(0.85f, 16.dp)
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -420,9 +415,9 @@ private fun MedicalRecordSkeletonList() {
             }
         }
         items(4) {
-            Surface(shape = RoundedCornerShape(24.dp), color = MrSurface) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(58.dp).clip(RoundedCornerShape(18.dp)).background(MrBorder))
+            Surface(shape = RoundedCornerShape(22.dp), color = MrSurface) {
+                Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(48.dp).clip(RoundedCornerShape(15.dp)).background(MrBorder))
                     Spacer(Modifier.size(12.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         SkeletonBlock(0.60f, 18.dp)
@@ -496,160 +491,156 @@ private fun MedicalRecordListHero(
     onNavigateBack: () -> Unit,
     onRefresh: () -> Unit = {}
 ) {
+    // Gradasi brand yang sama dengan Beranda: hijau klinik → lebih gelap.
+    val heroBottom = androidx.compose.ui.graphics.lerp(MrPrimary, Color.Black, 0.22f)
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFDFF8EA), MrBackground)
-                )
-            )
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 18.dp)
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .background(Brush.verticalGradient(listOf(MrPrimary, heroBottom)))
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 64.dp, y = (-88).dp)
+                .size(200.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-56).dp, y = 56.dp)
+                .size(160.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
+                HeroIconButton(
                     onClick = onNavigateBack,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MrSurface.copy(alpha = 0.88f))
-                ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = MrTextPrimary)
-                }
-
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = MrSurface.copy(alpha = 0.82f),
-                    border = BorderStroke(1.dp, MrBorder)
-                ) {
-                    Text(
-                        text = "Arsip Kesehatan Hewan",
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                        color = MrPrimaryDeep,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-
+                    icon = Icons.Filled.ArrowBack,
+                    description = "Kembali"
+                )
                 // Fallback manual: muat ulang setelah payment sukses.
                 // Cara utama tetap otomatis via MedicalRefreshManager.
-                IconButton(
+                HeroIconButton(
                     onClick = onRefresh,
+                    icon = Icons.Filled.Refresh,
+                    description = "Muat ulang",
                     enabled = !isRefreshing,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MrSurface.copy(alpha = 0.88f))
-                ) {
-                    if (isRefreshing) {
-                        CircularProgressIndicator(
-                            color = MrPrimaryDeep,
-                            strokeWidth = 2.dp,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    } else {
-                        Icon(
-                            Icons.Filled.Refresh,
-                            contentDescription = "Muat ulang",
-                            tint = MrTextPrimary,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = "Rekam medis yang lebih mudah dibaca.",
-                    color = MrTextPrimary,
-                    fontSize = 28.sp,
-                    lineHeight = 34.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    text = "Pantau diagnosis, tindakan, dan status pembayaran tambahan dalam satu tempat yang rapi.",
-                    color = MrTextSecondary,
-                    fontSize = 14.sp,
-                    lineHeight = 21.sp
+                    isBusy = isRefreshing
                 )
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Spacer(Modifier.height(16.dp))
+
+            Text(
+                text = "Rekam Medis",
+                color = Color.White,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Riwayat diagnosis, tindakan, dan biaya perawatan",
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HeroStatCard(
-                    modifier = Modifier.weight(1f),
                     title = "Rekam",
                     value = totalRecords.toString(),
-                    icon = Icons.Filled.FolderShared,
-                    accent = MrPrimary,
-                    accentSoft = MrPrimarySoft
+                    modifier = Modifier.weight(1f)
                 )
                 HeroStatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Perlu Aksi",
+                    title = "Perlu aksi",
                     value = pendingExtra.toString(),
-                    icon = Icons.Filled.Payments,
-                    accent = MrAmber,
-                    accentSoft = MrAmberSoft
+                    modifier = Modifier.weight(1f)
                 )
                 HeroStatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Total Biaya",
+                    title = "Total biaya",
                     value = formatRupiahCompact(totalCost),
-                    icon = Icons.Filled.ReceiptLong,
-                    accent = MrSky,
-                    accentSoft = MrSkySoft
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
     }
 }
 
+/** Tombol bulat translusen di atas gradasi hero. */
+@Composable
+private fun HeroIconButton(
+    onClick: () -> Unit,
+    icon: ImageVector,
+    description: String,
+    enabled: Boolean = true,
+    isBusy: Boolean = false
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        if (isBusy) {
+            CircularProgressIndicator(
+                color = Color.White,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(18.dp)
+            )
+        } else {
+            Icon(icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(20.dp))
+        }
+    }
+}
+
+/** Angka ringkas di atas hero — bentuk sama dengan Beranda. */
 @Composable
 private fun HeroStatCard(
-    modifier: Modifier = Modifier,
     title: String,
     value: String,
-    icon: ImageVector,
-    accent: Color,
-    accentSoft: Color
+    modifier: Modifier = Modifier
 ) {
-    ElevatedCard(
-        modifier = modifier,
-        colors = CardDefaults.elevatedCardColors(containerColor = MrSurface.copy(alpha = 0.92f)),
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 0.dp),
-        shape = RoundedCornerShape(22.dp)
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, color = MrTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                Text(value, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            }
-
-            Box(
-                modifier = Modifier
-                    .size(38.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(accentSoft),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(20.dp))
-            }
-        }
+        Text(
+            text = title,
+            color = Color.White.copy(alpha = 0.80f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
     }
 }
 
@@ -660,35 +651,43 @@ private fun FilterSection(
     onFilterSelected: (String) -> Unit,
     labelFor: (String) -> String = { it }
 ) {
-    Column(
+    LazyRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp)
-            .padding(top = 12.dp, bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(top = 14.dp, bottom = 2.dp),
+        contentPadding = PaddingValues(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(
-            text = "Saring berdasarkan jenis rekam",
-            color = MrTextSecondary,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
-        )
-
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(filters) { filter ->
-                val selected = filter == selectedFilter
-                Surface(
-                    shape = RoundedCornerShape(999.dp),
-                    color = if (selected) MrPrimary else MrSurface,
-                    border = BorderStroke(1.dp, if (selected) MrPrimary else MrBorder),
-                    modifier = Modifier.clickable { onFilterSelected(filter) }
+        items(filters) { filter ->
+            val selected = filter == selectedFilter
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (selected) MrPrimary else MrSurface,
+                border = if (selected) null else BorderStroke(1.dp, MrBorder),
+                modifier = Modifier
+                    .heightIn(min = 36.dp)
+                    .clip(RoundedCornerShape(999.dp))
+                    .clickable { onFilterSelected(filter) }
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
+                    if (selected) {
+                        Icon(
+                            imageVector = Icons.Filled.CheckCircle,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(13.dp)
+                        )
+                    }
                     Text(
                         text = labelFor(filter),
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
                         color = if (selected) Color.White else MrTextSecondary,
-                        fontSize = 13.sp,
-                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium
+                        fontSize = 12.5.sp,
+                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                        maxLines = 1
                     )
                 }
             }
@@ -697,18 +696,36 @@ private fun FilterSection(
 }
 
 @Composable
-private fun SectionHeader(
-    title: String,
-    subtitle: String
-) {
-    Column(
+private fun SectionHeader(title: String, count: Int) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+            .padding(horizontal = 20.dp)
+            .padding(top = 18.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text(title, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-        Text(subtitle, color = MrTextSecondary, fontSize = 13.sp)
+        Text(
+            text = title,
+            color = MrTextPrimary,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold
+        )
+        if (count > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(999.dp))
+                    .background(MrPrimarySoft)
+                    .padding(horizontal = 7.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = count.toString(),
+                    color = MrPrimaryDeep,
+                    fontSize = 10.5.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
     }
 }
 
@@ -725,74 +742,80 @@ private fun MedicalRecordListCard(
     val extraStatus = record.extraPaymentStatus ?: "not_required"
     val statusPalette = paymentPalette(extraStatus)
 
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 7.dp)
+            .padding(horizontal = 20.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = MrSurface),
-        border = BorderStroke(1.dp, MrBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        shape = RoundedCornerShape(22.dp),
+        color = MrSurface,
+        shadowElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(RoundedCornerShape(15.dp))
+                        .background(MrPrimarySoft),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(MrPrimarySoft),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (!pet?.photo.isNullOrBlank()) {
-                            ThumbnailImage(
-                                model = buildPhotoUrl(pet?.photo),
-                                contentDescription = pet?.name,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(18.dp))
-                            )
-                        } else {
-                            Icon(Icons.Filled.Pets, contentDescription = null, tint = MrPrimary, modifier = Modifier.size(26.dp))
-                        }
+                    if (!pet?.photo.isNullOrBlank()) {
+                        ThumbnailImage(
+                            model = buildPhotoUrl(pet?.photo),
+                            contentDescription = pet?.name,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(15.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.Pets,
+                            contentDescription = null,
+                            tint = MrPrimary,
+                            modifier = Modifier.size(24.dp)
+                        )
                     }
+                }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
+                    Text(
+                        text = pet?.name ?: "Rekam hewan",
+                        color = MrTextPrimary,
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = doctor?.name?.let { "Ditangani oleh $it" } ?: "Rekam dokter hewan",
+                        color = MrTextSecondary,
+                        fontSize = 11.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    // MULTI-CLINIC: nama klinik penerbit. Tanpa label ini
+                    // pasien tidak bisa membedakan rekam dari klinik mana.
+                    record.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
                         Text(
-                            text = pet?.name ?: "Pet record",
-                            color = MrTextPrimary,
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.SemiBold
+                            text = clinicName,
+                            color = MrPrimaryDeep,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
                         )
-                        Text(
-                            text = doctor?.name?.let { "Handled by $it" } ?: "Veterinary record",
-                            color = MrTextSecondary,
-                            fontSize = 13.sp
-                        )
-                        // MULTI-CLINIC: nama klinik penerbit. Tanpa label ini
-                        // pasien tidak bisa membedakan rekam dari klinik mana.
-                        record.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
-                            Text(
-                                text = clinicName,
-                                color = MrPrimaryDeep,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
                     }
                 }
 
@@ -804,19 +827,21 @@ private fun MedicalRecordListCard(
             }
 
             Text(
-                text = record.diagnosis ?: "General consultation",
+                text = record.diagnosis?.takeIf { it.isNotBlank() } ?: "Konsultasi umum",
                 color = MrTextPrimary,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                fontWeight = FontWeight.Medium
+                fontSize = 13.5.sp,
+                lineHeight = 19.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
             if (!record.treatment.isNullOrBlank()) {
                 Text(
                     text = record.treatment.orEmpty(),
                     color = MrTextSecondary,
-                    fontSize = 13.sp,
-                    lineHeight = 20.sp,
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -824,51 +849,63 @@ private fun MedicalRecordListCard(
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                MetricMiniCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Total Cost",
-                    value = formatRupiahCompact(totalCost),
-                    icon = Icons.Filled.ReceiptLong,
-                    accent = MrPrimary,
-                    background = MrPrimarySoft
-                )
-                MetricMiniCard(
-                    modifier = Modifier.weight(1f),
-                    title = if (nextVisit != null) "Next Visit" else "Created",
-                    value = if (nextVisit != null) nextVisit.format(DateTimeFormatter.ofPattern("dd MMM")) else createdDate,
-                    icon = if (nextVisit != null) Icons.Filled.CalendarMonth else Icons.Filled.Schedule,
-                    accent = if (nextVisit != null) MrSky else Color(0xFF475569),
-                    background = if (nextVisit != null) MrSkySoft else MrSlateSoft
-                )
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = record.notes?.takeIf { it.isNotBlank() } ?: "Tap to review full medical record",
-                    color = MrTextSecondary,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f)
+                InlineInfo(
+                    icon = Icons.Filled.ReceiptLong,
+                    text = formatRupiahCompact(totalCost)
                 )
-                Text(
-                    text = "View details",
-                    color = MrPrimaryDeep,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                InlineInfo(
+                    icon = if (nextVisit != null) Icons.Filled.CalendarMonth else Icons.Filled.Schedule,
+                    text = if (nextVisit != null) {
+                        "Kontrol " + nextVisit.format(DateTimeFormatter.ofPattern("d MMM", Locale("id", "ID")))
+                    } else {
+                        createdDate
+                    }
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Lihat detail",
+                        color = MrPrimaryDeep,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = MrPrimaryDeep,
+                        modifier = Modifier.size(15.dp)
+                    )
+                }
             }
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** Chip kecil (biaya / tanggal) di dalam kartu rekam. */
+@Composable
+private fun InlineInfo(icon: ImageVector, text: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(MrPrimarySoft.copy(alpha = 0.7f))
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = MrPrimaryDeep, modifier = Modifier.size(12.dp))
+        Text(
+            text = text,
+            color = MrPrimaryDeep,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
+}
+
 @Composable
 private fun MedicalRecordDetailHero(
     record: MedicalRecord,
@@ -877,85 +914,88 @@ private fun MedicalRecordDetailHero(
     val pet = record.booking?.pet ?: record.pet
     val doctor = record.booking?.doctor ?: record.doctor
     val createdDate = formatDateSafe(record.createdAt, "dd MMM yyyy")
-    val paymentPalette = paymentPalette(record.extraPaymentStatus)
+    val heroBottom = androidx.compose.ui.graphics.lerp(MrPrimary, Color.Black, 0.22f)
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color(0xFFDFF8EA), MrBackground)
-                )
-            )
-            .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 18.dp)
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .background(Brush.verticalGradient(listOf(MrPrimary, heroBottom)))
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 64.dp, y = (-88).dp)
+                .size(200.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp)
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(
+                HeroIconButton(
                     onClick = onNavigateBack,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(MrSurface.copy(alpha = 0.9f))
+                    icon = Icons.Filled.ArrowBack,
+                    description = "Kembali"
+                )
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = Color.White.copy(alpha = 0.18f)
                 ) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = MrTextPrimary)
+                    Text(
+                        text = paymentStatusLabel(record.extraPaymentStatus),
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
-
-                PaymentStatusChip(
-                    label = paymentStatusLabel(record.extraPaymentStatus),
-                    accent = paymentPalette.first,
-                    background = paymentPalette.second
-                )
             }
 
-            Text(
-                text = record.diagnosis ?: "Medical record",
-                color = MrTextPrimary,
-                fontSize = 28.sp,
-                lineHeight = 34.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+            Spacer(Modifier.height(16.dp))
 
             Text(
-                text = "Clinical summary for ${pet?.name ?: "your pet"}${doctor?.name?.let { " with $it" } ?: ""}.",
-                color = MrTextSecondary,
-                fontSize = 14.sp,
-                lineHeight = 21.sp
+                text = record.diagnosis?.takeIf { it.isNotBlank() } ?: "Rekam medis",
+                color = Color.White,
+                fontSize = 20.sp,
+                lineHeight = 26.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis
+            )
+            Text(
+                text = listOfNotNull(
+                    pet?.name,
+                    doctor?.name,
+                    createdDate.takeIf { it != "-" }
+                ).joinToString(" · "),
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 12.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
             )
 
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                InfoPill(Icons.Filled.CalendarToday, createdDate)
-                doctor?.name?.takeIf { it.isNotBlank() }?.let { InfoPill(Icons.Filled.Person, it) }
-                pet?.species?.takeIf { it.isNotBlank() }?.let { InfoPill(Icons.Filled.Pets, it) }
-            }
+            Spacer(Modifier.height(16.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HeroStatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Total Cost",
+                    title = "Total biaya",
                     value = formatRupiahCompact(record.totalMedicalCost ?: recordTotalCost(record)),
-                    icon = Icons.Filled.Payments,
-                    accent = MrPrimary,
-                    accentSoft = MrPrimarySoft
+                    modifier = Modifier.weight(1f)
                 )
                 HeroStatCard(
-                    modifier = Modifier.weight(1f),
-                    title = "Extra Payment",
+                    title = "Biaya tambahan",
                     value = formatRupiahCompact(record.extraPaymentAmount ?: 0.0),
-                    icon = Icons.Filled.ReceiptLong,
-                    accent = MrAmber,
-                    accentSoft = MrAmberSoft
+                    modifier = Modifier.weight(1f)
                 )
             }
         }
@@ -968,19 +1008,19 @@ private fun MedicalRecordIdentitySection(record: MedicalRecord) {
     val doctor = record.booking?.doctor ?: record.doctor
 
     DetailSectionCard(
-        title = "Case Overview",
-        subtitle = "Patient and veterinarian information"
+        title = "Ringkasan Kasus",
+        subtitle = "Data pasien dan dokter"
     ) {
         IdentityCard(
             icon = Icons.Filled.Pets,
-            title = pet?.name ?: "Pet",
+            title = pet?.name ?: "Hewan",
             subtitle = buildString {
-                if (!pet?.species.isNullOrBlank()) append(pet?.species)
+                if (!pet?.species.isNullOrBlank()) append(speciesLabelOf(pet?.species))
                 if (!pet?.breed.isNullOrBlank()) {
                     if (isNotBlank()) append(" • ")
                     append(pet?.breed)
                 }
-                if (isBlank()) append("Pet profile")
+                if (isBlank()) append("Profil hewan")
             },
             accent = MrPrimary,
             background = MrPrimarySoft
@@ -1212,7 +1252,7 @@ private fun MedicalRecordNarrativeSection(record: MedicalRecord) {
             Spacer(Modifier.height(12.dp))
             NarrativeBlock(
                 icon = Icons.Filled.Article,
-                title = "Doctor Notes",
+                title = "Catatan dokter",
                 body = record.notes.orEmpty()
             )
         }
@@ -1299,10 +1339,10 @@ private fun MedicalRatingReminderCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp),
-        shape = RoundedCornerShape(26.dp),
+        shape = RoundedCornerShape(22.dp),
         colors = CardDefaults.cardColors(containerColor = MrSurface),
-        border = BorderStroke(1.dp, MrPrimary.copy(alpha = 0.25f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        border = BorderStroke(1.dp, MrPrimary.copy(alpha = 0.22f)),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Column(
             modifier = Modifier
@@ -1397,7 +1437,7 @@ private fun RecordMetaFooter(record: MedicalRecord) {
     ) {
         Divider(color = MrBorder)
         Text(
-            text = "Recorded ${formatDateSafe(record.createdAt, "dd MMM yyyy • HH:mm")}",
+            text = "Dicatat ${formatDateSafe(record.createdAt, "d MMM yyyy • HH:mm")}",
             color = MrTextSecondary,
             fontSize = 12.sp
         )
@@ -1410,24 +1450,23 @@ private fun DetailSectionCard(
     subtitle: String,
     content: @Composable () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = MrSurface),
-        shape = RoundedCornerShape(26.dp),
-        border = BorderStroke(1.dp, MrBorder),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+        shape = RoundedCornerShape(22.dp),
+        color = MrSurface,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(18.dp)
+                .padding(16.dp)
         ) {
-            Text(title, color = MrTextPrimary, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
-            Spacer(Modifier.height(4.dp))
-            Text(subtitle, color = MrTextSecondary, fontSize = 13.sp, lineHeight = 20.sp)
-            Spacer(Modifier.height(16.dp))
+            Text(title, color = MrTextPrimary, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(3.dp))
+            Text(subtitle, color = MrTextSecondary, fontSize = 12.sp, lineHeight = 17.sp)
+            Spacer(Modifier.height(14.dp))
             content()
         }
     }
@@ -1442,9 +1481,8 @@ private fun IdentityCard(
     background: Color
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MrSurfaceAlt,
-        border = BorderStroke(1.dp, MrBorder)
+        shape = RoundedCornerShape(16.dp),
+        color = MrSurfaceAlt
     ) {
         Row(
             modifier = Modifier
@@ -1485,9 +1523,8 @@ private fun AttachmentList(attachments: List<MedicalRecordAttachment>) {
     if (openable.isEmpty()) return
 
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MrSurfaceAlt,
-        border = BorderStroke(1.dp, MrBorder)
+        shape = RoundedCornerShape(16.dp),
+        color = MrSurfaceAlt
     ) {
         Column(
             modifier = Modifier
@@ -1562,9 +1599,8 @@ private fun NarrativeBlock(
     body: String
 ) {
     Surface(
-        shape = RoundedCornerShape(20.dp),
-        color = MrSurfaceAlt,
-        border = BorderStroke(1.dp, MrBorder)
+        shape = RoundedCornerShape(16.dp),
+        color = MrSurfaceAlt
     ) {
         Row(
             modifier = Modifier
@@ -1618,37 +1654,38 @@ private fun MetricMiniCard(
     accent: Color,
     background: Color
 ) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
-        color = MrSurfaceAlt,
-        border = BorderStroke(1.dp, MrBorder)
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(MrSurfaceAlt)
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(background),
+            contentAlignment = Alignment.Center
         ) {
-            Box(
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(background),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(18.dp))
-            }
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, color = MrTextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-                Text(
-                    text = value,
-                    color = MrTextPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(16.dp))
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(
+                text = title,
+                color = MrTextSecondary,
+                fontSize = 10.5.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1
+            )
+            Text(
+                text = value,
+                color = MrTextPrimary,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }
@@ -1671,24 +1708,6 @@ private fun PaymentStatusChip(
             fontSize = 11.sp,
             fontWeight = FontWeight.SemiBold
         )
-    }
-}
-
-@Composable
-private fun InfoPill(icon: ImageVector, label: String) {
-    Surface(
-        shape = RoundedCornerShape(999.dp),
-        color = MrSurface.copy(alpha = 0.86f),
-        border = BorderStroke(1.dp, MrBorder)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = MrTextSecondary, modifier = Modifier.size(15.dp))
-            Text(label, color = MrTextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-        }
     }
 }
 
@@ -1768,8 +1787,8 @@ private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
             Text(
                 text = "Belum ada rekam medis",
                 color = MrTextPrimary,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold
             )
             Text(
                 text = "Riwayat perawatan hewan akan tampil di sini setelah konsultasi selesai.",
@@ -1780,7 +1799,8 @@ private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
             )
             Button(
                 onClick = onNavigateBack,
-                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.height(44.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = Color.White)
             ) {
                 Text("Kembali", fontWeight = FontWeight.SemiBold)
@@ -1816,10 +1836,10 @@ private fun MedicalRecordErrorState(
             }
 
             Text(
-                text = "Unable to open medical record",
+                text = "Rekam medis tidak bisa dibuka",
                 color = MrTextPrimary,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center
             )
             Text(
@@ -1833,18 +1853,20 @@ private fun MedicalRecordErrorState(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedButton(
                     onClick = onRetry,
-                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(44.dp),
+                    shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, MrBorder)
                 ) {
-                    Text("Retry", color = MrTextPrimary, fontWeight = FontWeight.SemiBold)
+                    Text("Coba lagi", color = MrTextPrimary, fontWeight = FontWeight.SemiBold)
                 }
                 if (onBack != null) {
                     Button(
                         onClick = onBack,
-                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.height(44.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MrPrimary, contentColor = OnPrimaryStrong)
                     ) {
-                        Text("Back", fontWeight = FontWeight.SemiBold)
+                        Text("Kembali", fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

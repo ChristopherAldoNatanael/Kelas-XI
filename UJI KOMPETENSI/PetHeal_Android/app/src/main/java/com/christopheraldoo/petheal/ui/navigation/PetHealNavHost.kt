@@ -6,6 +6,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavHostController
+import androidx.navigation.NavOptionsBuilder
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -76,6 +78,23 @@ fun PetHealNavHost(
     // Klinik aktif untuk transaksi (dipakai memutuskan tujuan tombol booking
     // di layar perbandingan harga). Tidak mengubah klinik apa pun.
     val activeClinicSlug by viewModel.activeClinicSlug.collectAsState(initial = null)
+
+    // ── Gerbang navigasi (anti double-tap) ────────────────────────────────
+    // Dua ketukan cepat pada tombol yang sama tidak boleh menumpuk dua layar
+    // identik (gejala: Back terasa harus ditekan 2x). Semua tombol di file
+    // ini memakai goTo()/goBack(); satu-satunya navigasi yang sengaja
+    // melewati gerbang adalah logout karena sesi kedaluwarsa (401).
+    val navGate = remember { NavGate(windowMs = 400L) }
+    val backGate = remember { NavGate(windowMs = 300L) }
+    fun goTo(route: String, options: NavOptionsBuilder.() -> Unit = {}) {
+        if (!navGate.allow(route, navController.currentDestination?.route)) return
+        navController.navigate(route) { options() }
+    }
+    fun goBack() {
+        if (!backGate.allow(null, navController.currentDestination?.route)) return
+        navController.popBackStack()
+    }
+
     // PHASE 7 (§21): a 401 on any authenticated call ends the session
     // exactly once — return to login without loops or crashes.
     LaunchedEffect(Unit) {
@@ -91,7 +110,23 @@ fun PetHealNavHost(
 
     NavHost(
         navController = navController,
-        startDestination = Screen.Splash.route
+        startDestination = Screen.Splash.route,
+        // Satu sistem gerak untuk SELURUH halaman (lihat PetHealTransitions.kt):
+        // tab = fade-through, halaman detail = dorong ber-parallax, layar
+        // transaksi = naik dari bawah seperti lembar modal. Dipilih dari route
+        // tujuan, jadi tidak ada layar yang bisa lupa dianimasikan.
+        enterTransition = {
+            petHealEnterTransition(initialState.destination.route, targetState.destination.route)
+        },
+        exitTransition = {
+            petHealExitTransition(initialState.destination.route, targetState.destination.route)
+        },
+        popEnterTransition = {
+            petHealPopEnterTransition(initialState.destination.route, targetState.destination.route)
+        },
+        popExitTransition = {
+            petHealPopExitTransition(initialState.destination.route, targetState.destination.route)
+        }
     ) {
         // PHASE 9: unified tab switching — singleTop + popUpTo(Home) keeps one
         // tab entry on the stack (no stacking) and clears sub-screens above it.
@@ -107,17 +142,17 @@ fun PetHealNavHost(
         composable(Screen.Splash.route) {
             SplashScreen(
                 onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
+                    goTo(Screen.Login.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
                 onNavigateToHome = {
-                    navController.navigate(Screen.Home.route) {
+                    goTo(Screen.Home.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 },
                 onNavigateToOnboarding = {
-                    navController.navigate(Screen.Onboarding.route) {
+                    goTo(Screen.Onboarding.route) {
                         popUpTo(Screen.Splash.route) { inclusive = true }
                     }
                 }
@@ -128,7 +163,7 @@ fun PetHealNavHost(
         composable(Screen.Onboarding.route) {
             OnboardingScreen(
                 onNavigateToLogin = {
-                    navController.navigate(Screen.Login.route) {
+                    goTo(Screen.Login.route) {
                         popUpTo(Screen.Onboarding.route) { inclusive = true }
                     }
                 }
@@ -139,17 +174,17 @@ fun PetHealNavHost(
         composable(Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    goTo(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToCompleteSetup = {
-                    navController.navigate(Screen.CompleteSetup.route) {
+                    goTo(Screen.CompleteSetup.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToRegister = {
-                    navController.navigate(Screen.Register.route)
+                    goTo(Screen.Register.route)
                 }
             )
         }
@@ -157,20 +192,20 @@ fun PetHealNavHost(
         composable(Screen.Register.route) {
             RegisterScreen(
                 onRegisterSuccess = {
-                    navController.navigate(Screen.Home.route) {
+                    goTo(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToCompleteSetup = {
-                    navController.navigate(Screen.CompleteSetup.route) {
+                    goTo(Screen.CompleteSetup.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
                     }
                 },
                 onNavigateToOtpVerification = { email ->
-                    navController.navigate(Screen.VerifyOtp.createRoute(email))
+                    goTo(Screen.VerifyOtp.createRoute(email))
                 },
                 onNavigateBack = {
-                    navController.popBackStack()
+                    goBack()
                 }
             )
         }
@@ -183,17 +218,17 @@ fun PetHealNavHost(
             OtpVerificationScreen(
                 email = entry.arguments?.getString("email").orEmpty(),
                 onVerified = {
-                    navController.navigate(Screen.Home.route) {
+                    goTo(Screen.Home.route) {
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
                 onNavigateToCompleteSetup = {
-                    navController.navigate(Screen.CompleteSetup.route) {
+                    goTo(Screen.CompleteSetup.route) {
                         popUpTo(Screen.Register.route) { inclusive = true }
                     }
                 },
                 onNavigateBack = {
-                    navController.popBackStack()
+                    goBack()
                 }
             )
         }
@@ -202,12 +237,12 @@ fun PetHealNavHost(
         composable(Screen.CompleteSetup.route) {
             CompleteSetupScreen(
                 onSetupComplete = {
-                    navController.navigate(Screen.Home.route) {
+                    goTo(Screen.Home.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
                 onLoggedOut = {
-                    navController.navigate(Screen.Login.route) {
+                    goTo(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }
@@ -217,10 +252,10 @@ fun PetHealNavHost(
         // ── MULTI-CLINIC DISCOVERY ──────────────────────────────────────────
         composable(Screen.ClinicDiscovery.route) {
             ClinicDiscoveryScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onOpenClinic = { slug -> navController.navigate(Screen.ClinicDetail.createRoute(slug)) },
+                onNavigateBack = { goBack() },
+                onOpenClinic = { slug -> goTo(Screen.ClinicDetail.createRoute(slug)) },
                 onComparePrices = {
-                    navController.navigate(Screen.PriceCompare.createRoute())
+                    goTo(Screen.PriceCompare.createRoute())
                 }
             )
         }
@@ -230,15 +265,15 @@ fun PetHealNavHost(
             arguments = listOf(navArgument("slug") { type = NavType.StringType })
         ) {
             ClinicDetailScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onCompareService = { serviceId ->
-                    navController.navigate(Screen.PriceCompare.createRoute(serviceId = serviceId))
+                    goTo(Screen.PriceCompare.createRoute(serviceId = serviceId))
                 },
                 onBookAtClinic = { clinicSlug, _ ->
                     // MULTI-CLINIC: klinik yang diklik user diteruskan ke alur
                     // booking dan langsung terpilih di langkah 2. User tidak
                     // perlu menemukan kliniknya lagi di daftar.
-                    navController.navigate(Screen.BookingStart.createRoute(clinicSlug))
+                    goTo(Screen.BookingStart.createRoute(clinicSlug))
                 }
             )
         }
@@ -257,14 +292,14 @@ fun PetHealNavHost(
             )
         ) {
             PriceCompareScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onOpenClinic = { slug -> navController.navigate(Screen.ClinicDetail.createRoute(slug)) },
+                onNavigateBack = { goBack() },
+                onOpenClinic = { slug -> goTo(Screen.ClinicDetail.createRoute(slug)) },
                 onBookService = { clinicSlug, _ ->
                     // MULTI-CLINIC: klinik baris yang diklik langsung masuk
                     // alur booking dan terpilih di langkah 2. Tidak perlu lagi
                     // mampir ke detail klinik (yang dulu jadi jalan buntu).
                     // Klinik aktif hanya dipakai bila baris tidak menyebutnya.
-                    navController.navigate(
+                    goTo(
                         Screen.BookingStart.createRoute(
                             clinicSlug.ifBlank { activeClinicSlug }
                         )
@@ -276,12 +311,12 @@ fun PetHealNavHost(
         // ── PET SHOP ─────────────────────────────────────────────────────────
         composable(Screen.PetShop.route) {
             PetShopScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onOpenProduct = { productId ->
-                    navController.navigate(Screen.PetShopProduct.createRoute(productId))
+                    goTo(Screen.PetShopProduct.createRoute(productId))
                 },
-                onOpenCart = { navController.navigate(Screen.PetShopCheckout.route) },
-                onOpenOrders = { navController.navigate(Screen.PetShopOrders.route) }
+                onOpenCart = { goTo(Screen.PetShopCheckout.route) },
+                onOpenOrders = { goTo(Screen.PetShopOrders.route) }
             )
         }
 
@@ -290,22 +325,22 @@ fun PetHealNavHost(
             arguments = listOf(navArgument("productId") { type = NavType.IntType })
         ) {
             PetShopProductScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onOpenCart = { navController.navigate(Screen.PetShopCheckout.route) },
-                onOpenOrders = { navController.navigate(Screen.PetShopOrders.route) }
+                onNavigateBack = { goBack() },
+                onOpenCart = { goTo(Screen.PetShopCheckout.route) },
+                onOpenOrders = { goTo(Screen.PetShopOrders.route) }
             )
         }
 
         composable(Screen.PetShopCheckout.route) {
             PetShopCheckoutScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onContinueShopping = {
                     navController.popBackStack(Screen.PetShop.route, inclusive = false)
                 },
                 onOrderCreated = { orderId ->
                     // Keranjang sudah dikosongkan repository; buang layar
                     // checkout agar tombol kembali tidak membuka keranjang kosong.
-                    navController.navigate(Screen.PetShopOrderDetail.createRoute(orderId)) {
+                    goTo(Screen.PetShopOrderDetail.createRoute(orderId)) {
                         popUpTo(Screen.PetShopCheckout.route) { inclusive = true }
                     }
                 }
@@ -314,14 +349,14 @@ fun PetHealNavHost(
 
         composable(Screen.PetShopOrders.route) {
             PetShopOrdersScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onOpenOrder = { orderId ->
-                    navController.navigate(Screen.PetShopOrderDetail.createRoute(orderId))
+                    goTo(Screen.PetShopOrderDetail.createRoute(orderId))
                 },
                 onBrowseProducts = {
                     // Kembali ke katalog yang sudah ada di stack, bukan menumpuk
                     // layar Pet Shop kedua di atas daftar pesanan.
-                    navController.navigate(Screen.PetShop.route) {
+                    goTo(Screen.PetShop.route) {
                         popUpTo(Screen.PetShop.route) { inclusive = false }
                         launchSingleTop = true
                     }
@@ -334,9 +369,9 @@ fun PetHealNavHost(
             arguments = listOf(navArgument("orderId") { type = NavType.IntType })
         ) {
             PetShopOrderDetailScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onOpenReceipt = { orderId ->
-                    navController.navigate(Screen.PetShopReceipt.createRoute(orderId))
+                    goTo(Screen.PetShopReceipt.createRoute(orderId))
                 }
             )
         }
@@ -346,7 +381,7 @@ fun PetHealNavHost(
             arguments = listOf(navArgument("orderId") { type = NavType.IntType })
         ) {
             PetShopReceiptScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { goBack() }
             )
         }
 
@@ -354,27 +389,27 @@ fun PetHealNavHost(
         composable(Screen.Home.route) {
             HomeScreen(
                 onNavigateToPets = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Pets) },
-                onNavigateToDiscovery = { navController.navigate(Screen.ClinicDiscovery.route) },
-                onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
+                onNavigateToDiscovery = { goTo(Screen.ClinicDiscovery.route) },
+                onNavigateToDoctors = { goTo(Screen.Doctors.route) },
                 onNavigateToBookingStart = {
-                    navController.navigate(Screen.BookingStart.createRoute())
+                    goTo(Screen.BookingStart.createRoute())
                 },
                 onNavigateToDoctor = { doctorId, autoReview ->
-                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, autoReview))
+                    goTo(Screen.DoctorDetail.createRoute(doctorId, autoReview))
                 },
                 // Baris dokter di Beranda membawa id kliniknya; detail dibuka
                 // dengan scope klinik itu supaya tidak bergantung klinik sesi.
                 onNavigateToDoctorInClinic = { doctorId, clinicId ->
-                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
+                    goTo(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
                 },
                 onNavigateToBookings = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings) },
                 onNavigateToBookingDetail = { bookingId ->
-                    navController.navigate(Screen.BookingDetail.createRoute(bookingId))
+                    goTo(Screen.BookingDetail.createRoute(bookingId))
                 },
                 onNavigateToMedicalRecords = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Records) },
                 onNavigateToProfile = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Profile) },
-                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
-                onNavigateToPetShop = { navController.navigate(Screen.PetShop.route) },
+                onNavigateToNotifications = { goTo(Screen.Notifications.route) },
+                onNavigateToPetShop = { goTo(Screen.PetShop.route) },
                 onTabSelected = navigateTab
             )
         }
@@ -382,11 +417,11 @@ fun PetHealNavHost(
         // Pet Screens
         composable(Screen.Pets.route) {
             PetsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onNavigateToPetDetail = { petId ->
-                    navController.navigate(Screen.PetDetail.createRoute(petId))
+                    goTo(Screen.PetDetail.createRoute(petId))
                 },
-                onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
+                onNavigateToAddPet = { goTo(Screen.AddPet.route) },
                 onTabSelected = navigateTab
             )
         }
@@ -394,8 +429,8 @@ fun PetHealNavHost(
         // "pets/add" must be before "pets/{petId}"
         composable(Screen.AddPet.route) {
             AddPetScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onPetAdded = { navController.popBackStack() }
+                onNavigateBack = { goBack() },
+                onPetAdded = { goBack() }
             )
         }
 
@@ -406,8 +441,8 @@ fun PetHealNavHost(
             val petId = backStackEntry.arguments?.getInt("petId") ?: return@composable
             EditPetScreen(
                 petId = petId,
-                onNavigateBack = { navController.popBackStack() },
-                onPetUpdated = { navController.popBackStack() }
+                onNavigateBack = { goBack() },
+                onPetUpdated = { goBack() }
             )
         }
 
@@ -418,8 +453,8 @@ fun PetHealNavHost(
             val petId = backStackEntry.arguments?.getInt("petId") ?: return@composable
             PetDetailScreen(
                 petId = petId,
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToEdit = { navController.navigate(Screen.EditPet.createRoute(petId)) },
+                onNavigateBack = { goBack() },
+                onNavigateToEdit = { goTo(Screen.EditPet.createRoute(petId)) },
                 // Repro user: tombol ini pernah membuka tab lewat navigate()
                 // langsung sehingga tab "Rekam Medis" terduplikasi di atas
                 // PetDetail dan tombol tab berikutnya mendarat tidak menentu.
@@ -432,9 +467,9 @@ fun PetHealNavHost(
         // Doctor Screens
         composable(Screen.Doctors.route) {
             DoctorsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onNavigateToDoctorDetail = { doctorId, clinicId ->
-                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
+                    goTo(Screen.DoctorDetail.createRoute(doctorId, clinicId = clinicId))
                 }
             )
         }
@@ -461,23 +496,23 @@ fun PetHealNavHost(
                 doctorId = doctorId,
                 clinicId = detailClinicId,
                 autoOpenReview = autoReview,
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { goBack() }
             )
         }
 
         // Booking Screens
         composable(Screen.Bookings.route) {
             BookingsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToDoctors = { navController.navigate(Screen.Doctors.route) },
+                onNavigateBack = { goBack() },
+                onNavigateToDoctors = { goTo(Screen.Doctors.route) },
                 onNavigateToBookingStart = {
-                    navController.navigate(Screen.BookingStart.createRoute())
+                    goTo(Screen.BookingStart.createRoute())
                 },
                 onNavigateToBookingDetail = { bookingId ->
-                    navController.navigate(Screen.BookingDetail.createRoute(bookingId))
+                    goTo(Screen.BookingDetail.createRoute(bookingId))
                 },
                 onNavigateToPayment = { bookingId, isDp, totalAmount, isRemaining ->
-                    navController.navigate(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining))
+                    goTo(Screen.Payment.createRoute(bookingId, isDp, totalAmount, isRemaining))
                 },
                 onTabSelected = navigateTab
             )
@@ -503,10 +538,10 @@ fun PetHealNavHost(
         ) { backStackEntry ->
             val sourceRecordId = backStackEntry.arguments?.getInt("medicalRecordId") ?: 0
             BookingStartScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToAddPet = { navController.navigate(Screen.AddPet.route) },
+                onNavigateBack = { goBack() },
+                onNavigateToAddPet = { goTo(Screen.AddPet.route) },
                 onContinue = { doctorId, petId ->
-                    navController.navigate(
+                    goTo(
                         Screen.CreateBooking.createRoute(
                             doctorId = doctorId,
                             petId = petId,
@@ -538,16 +573,16 @@ fun PetHealNavHost(
             CreateBookingScreen(
                 doctorId = doctorId,
                 petId = petId,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onBookingCreated = { bookingId, isDp, amount, methodsCsv ->
                     // Navigate to payment screen with correct payment type and amount
-                    navController.navigate(Screen.Payment.createRoute(bookingId, isDp, amount, methodsCsv = methodsCsv)) {
+                    goTo(Screen.Payment.createRoute(bookingId, isDp, amount, methodsCsv = methodsCsv)) {
                         popUpTo(Screen.CreateBooking.route) { inclusive = true }
                     }
                 },
                 medicalRecordId = sourceRecordId.takeIf { it > 0 },
                 onRequestOtherService = { clinicSlug, requestPetId ->
-                    navController.navigate(
+                    goTo(
                         Screen.ServiceRequests.createRoute(
                             petId = requestPetId,
                             clinicSlug = clinicSlug
@@ -564,15 +599,15 @@ fun PetHealNavHost(
             val bookingId = backStackEntry.arguments?.getInt("bookingId") ?: return@composable
             BookingDetailScreen(
                 bookingId = bookingId,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onNavigateToPayment = { payBookingId, isDp, amount, isRemaining ->
-                    navController.navigate(Screen.Payment.createRoute(payBookingId, isDp, amount, isRemaining))
+                    goTo(Screen.Payment.createRoute(payBookingId, isDp, amount, isRemaining))
                 },
                 onNavigateToMedicalRecord = { recordId ->
-                    navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId))
+                    goTo(Screen.MedicalRecordDetail.createRoute(recordId))
                 },
                 onNavigateToMedicalExtraPayment = { recordId, payBookingId, amount ->
-                    navController.navigate(Screen.MedicalExtraPayment.createRoute(payBookingId, recordId, amount))
+                    goTo(Screen.MedicalExtraPayment.createRoute(payBookingId, recordId, amount))
                 }
             )
         }
@@ -580,9 +615,9 @@ fun PetHealNavHost(
         // Medical Record Screens
         composable(Screen.MedicalRecords.route) {
             MedicalRecordsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onNavigateToRecordDetail = { recordId ->
-                    navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId))
+                    goTo(Screen.MedicalRecordDetail.createRoute(recordId))
                 },
                 onTabSelected = navigateTab
             )
@@ -595,15 +630,15 @@ fun PetHealNavHost(
             val recordId = backStackEntry.arguments?.getInt("recordId") ?: return@composable
             MedicalRecordDetailScreen(
                 recordId = recordId,
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 onNavigateToExtraPayment = { bookingId, payRecordId, amount ->
-                    navController.navigate(Screen.MedicalExtraPayment.createRoute(bookingId, payRecordId, amount))
+                    goTo(Screen.MedicalExtraPayment.createRoute(bookingId, payRecordId, amount))
                 },
                 onNavigateToDoctor = { doctorId ->
-                    navController.navigate(Screen.DoctorDetail.createRoute(doctorId, true))
+                    goTo(Screen.DoctorDetail.createRoute(doctorId, true))
                 },
                 onBookFollowUp = { followUpPetId, clinicSlug ->
-                    navController.navigate(
+                    goTo(
                         Screen.BookingStart.createRoute(
                             clinicSlug = clinicSlug,
                             petId = followUpPetId,
@@ -636,7 +671,7 @@ fun PetHealNavHost(
             )
         ) { backStackEntry ->
             ServiceRequestsScreen(
-                onNavigateBack = { navController.popBackStack() },
+                onNavigateBack = { goBack() },
                 openId = backStackEntry.arguments?.getInt("openId")?.takeIf { it > 0 },
                 petId = backStackEntry.arguments?.getInt("petId")?.takeIf { it > 0 },
                 clinicSlug = backStackEntry.arguments
@@ -644,7 +679,7 @@ fun PetHealNavHost(
                     ?.takeIf { it.isNotBlank() },
                 medicalRecordId = backStackEntry.arguments?.getInt("medicalRecordId")?.takeIf { it > 0 },
                 onNavigateToBooking = { bookingId ->
-                    navController.navigate(Screen.BookingDetail.createRoute(bookingId))
+                    goTo(Screen.BookingDetail.createRoute(bookingId))
                 }
             )
         }
@@ -652,37 +687,37 @@ fun PetHealNavHost(
         // Profile Screens
         composable(Screen.Profile.route) {
             ProfileScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onNavigateToEdit = { navController.navigate(Screen.EditProfile.route) },
+                onNavigateBack = { goBack() },
+                onNavigateToEdit = { goTo(Screen.EditProfile.route) },
                 onLogout = {
-                    navController.navigate(Screen.Login.route) {
+                    goTo(Screen.Login.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 },
-                onNavigateToNotifications = { navController.navigate(Screen.Notifications.route) },
-                onNavigateToServiceRequests = { navController.navigate(Screen.ServiceRequests.createRoute()) },
-                onNavigateToPrivacy = { navController.navigate(Screen.PrivacySecurity.route) },
-                onNavigateToHelp = { navController.navigate(Screen.HelpSupport.route) },
-                onNavigateToAbout = { navController.navigate(Screen.About.route) },
+                onNavigateToNotifications = { goTo(Screen.Notifications.route) },
+                onNavigateToServiceRequests = { goTo(Screen.ServiceRequests.createRoute()) },
+                onNavigateToPrivacy = { goTo(Screen.PrivacySecurity.route) },
+                onNavigateToHelp = { goTo(Screen.HelpSupport.route) },
+                onNavigateToAbout = { goTo(Screen.About.route) },
                 onTabSelected = navigateTab
             )
         }
 
         composable(Screen.EditProfile.route) {
             EditProfileScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onProfileUpdated = { navController.popBackStack() }
+                onNavigateBack = { goBack() },
+                onProfileUpdated = { goBack() }
             )
         }
 
         // Notifications Screen
         composable(Screen.Notifications.route) {
             NotificationsScreen(
-                onNavigateBack = { navController.popBackStack() },
-                onOpenBooking = { bookingId -> navController.navigate(Screen.BookingDetail.createRoute(bookingId)) },
-                onOpenMedicalRecord = { recordId -> navController.navigate(Screen.MedicalRecordDetail.createRoute(recordId)) },
-                onOpenPet = { petId -> navController.navigate(Screen.PetDetail.createRoute(petId)) },
-                onOpenDoctor = { doctorId -> navController.navigate(Screen.DoctorDetail.createRoute(doctorId)) },
+                onNavigateBack = { goBack() },
+                onOpenBooking = { bookingId -> goTo(Screen.BookingDetail.createRoute(bookingId)) },
+                onOpenMedicalRecord = { recordId -> goTo(Screen.MedicalRecordDetail.createRoute(recordId)) },
+                onOpenPet = { petId -> goTo(Screen.PetDetail.createRoute(petId)) },
+                onOpenDoctor = { doctorId -> goTo(Screen.DoctorDetail.createRoute(doctorId)) },
                 // Kelas bug yang sama dengan PetDetail: buka tab dari
                 // sub-halaman wajib lewat mekanisme tab, bukan navigate().
                 onOpenBookings = { navigateTab(com.christopheraldoo.petheal.ui.components.PetHealTab.Bookings) },
@@ -693,19 +728,19 @@ fun PetHealNavHost(
         // Settings Screens
         composable(Screen.PrivacySecurity.route) {
             PrivacySecurityScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { goBack() }
             )
         }
 
         composable(Screen.HelpSupport.route) {
             HelpSupportScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { goBack() }
             )
         }
 
         composable(Screen.About.route) {
             AboutScreen(
-                onNavigateBack = { navController.popBackStack() }
+                onNavigateBack = { goBack() }
             )
         }
 
@@ -744,7 +779,7 @@ fun PetHealNavHost(
                         primaryActionText = stringResource(R.string.action_retry),
                         onPrimaryActionClick = { paymentNavViewModel.loadBookingAndUser(bookingId) },
                         secondaryActionText = stringResource(R.string.action_back),
-                        onSecondaryActionClick = { navController.popBackStack() }
+                        onSecondaryActionClick = { goBack() }
                     )
                 }
                 paymentNavState.booking != null -> {
@@ -761,7 +796,7 @@ fun PetHealNavHost(
                         // mencetak BUKTI pembayaran biaya tambahan (sekualitas
                         // bukti booking) lengkap dengan rincian tindakan/obat.
                         onPaymentSuccess = { orderId, paymentType ->
-                            navController.navigate(
+                            goTo(
                                 Screen.PaymentResult.createRoute(
                                     orderId, "success", "Pembayaran tambahan rekam medis berhasil!",
                                     bookingId = bookingId, recordId = recordId, method = paymentType
@@ -774,7 +809,7 @@ fun PetHealNavHost(
                             }
                         },
                         onPaymentPending = { orderId ->
-                            navController.navigate(Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran tambahan menunggu penyelesaian.")) {
+                            goTo(Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran tambahan menunggu penyelesaian.")) {
                                 // popUpTo butuh POLA route destination, bukan
                                 // route terisi — string terisi tidak match dan
                                 // diam-diam tidak mem-pop apa pun.
@@ -782,7 +817,7 @@ fun PetHealNavHost(
                             }
                         },
                         onPaymentFailed = { errorMsg ->
-                            navController.navigate(Screen.PaymentResult.createRoute("medical-$recordId", "failed", errorMsg)) {
+                            goTo(Screen.PaymentResult.createRoute("medical-$recordId", "failed", errorMsg)) {
                                 // popUpTo butuh POLA route destination, bukan
                                 // route terisi — string terisi tidak match dan
                                 // diam-diam tidak mem-pop apa pun.
@@ -853,7 +888,7 @@ fun PetHealNavHost(
                         primaryActionText = stringResource(R.string.action_retry),
                         onPrimaryActionClick = { paymentNavViewModel.loadBookingAndUser(bookingId) },
                         secondaryActionText = stringResource(R.string.action_back),
-                        onSecondaryActionClick = { navController.popBackStack() }
+                        onSecondaryActionClick = { goBack() }
                     )
                 }
                 paymentNavState.booking != null -> {
@@ -867,7 +902,7 @@ fun PetHealNavHost(
                         isRemainingPayment = isRemaining, // NEW: Pass isRemaining flag
                         enabledPayments = enabledPayments,
                         onPaymentSuccess = { orderId, _ ->
-                            navController.navigate(
+                            goTo(
                                 Screen.PaymentResult.createRoute(orderId, "success", "Pembayaran berhasil!", bookingId)
                             ) {
                                 // Pola route, bukan route terisi (lihat catatan
@@ -876,7 +911,7 @@ fun PetHealNavHost(
                             }
                         },
                         onPaymentPending = { orderId ->
-                            navController.navigate(
+                            goTo(
                                 Screen.PaymentResult.createRoute(orderId, "pending", "Pembayaran menunggu. Segera selesaikan.", bookingId)
                             ) {
                                 // Pola route, bukan route terisi (lihat catatan
@@ -885,7 +920,7 @@ fun PetHealNavHost(
                             }
                         },
                         onPaymentFailed = { errorMsg ->
-                            navController.navigate(
+                            goTo(
                                 Screen.PaymentResult.createRoute("booking-$bookingId", "failed", errorMsg, bookingId)
                             ) {
                                 // Pola route, bukan route terisi (lihat catatan

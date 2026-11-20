@@ -75,6 +75,7 @@ import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.Star
 import com.christopheraldoo.petheal.ui.theme.SuccessDeep
+import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.util.formatAvgRating
 import com.christopheraldoo.petheal.util.reviewCountLabel
@@ -459,7 +460,7 @@ fun DoctorDetailScreen(
         state.reviewMessage?.let { message ->
             Snackbar(
                 modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(16.dp),
-                containerColor = Color(0xFFE8FFF1),
+                containerColor = SuccessSoft,
                 contentColor = SuccessDeep,
                 dismissAction = { IconButton(onClick = viewModel::clearError) { Icon(Icons.Filled.Close, null, tint = SuccessDeep) } }
             ) { Text(message) }
@@ -700,7 +701,7 @@ private fun SubmitReviewDialog(
                             colors = RadioButtonDefaults.colors(selectedColor = Primary)
                         )
                         Column {
-                            Text(booking.pet?.name ?: "Pet", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(booking.pet?.name ?: "Hewan", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                             Text("${booking.bookingDate ?: "-"} ${booking.bookingTime ?: ""}", color = TextSecDark, fontSize = 11.sp)
                         }
                     }

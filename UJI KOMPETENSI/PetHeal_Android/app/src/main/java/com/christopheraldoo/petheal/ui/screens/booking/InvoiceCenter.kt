@@ -2,6 +2,8 @@ package com.christopheraldoo.petheal.ui.screens.booking
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.ReceiptLong
 import androidx.compose.material3.Button
@@ -29,8 +33,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -52,7 +54,6 @@ import com.christopheraldoo.petheal.data.model.Booking
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
 import com.christopheraldoo.petheal.ui.theme.InfoStrong
 import com.christopheraldoo.petheal.ui.theme.OnBackground
-import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.Primary
 import com.christopheraldoo.petheal.ui.theme.Success
@@ -121,7 +122,7 @@ fun InvoiceCenter(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 108.dp),
+        contentPadding = PaddingValues(start = 20.dp, top = 10.dp, end = 20.dp, bottom = 132.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (error != null) {
@@ -140,22 +141,10 @@ fun InvoiceCenter(
         item {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 items(InvoiceFilter.entries) { option ->
-                    FilterChip(
+                    InvoiceFilterChip(
+                        label = option.label,
                         selected = filter == option,
-                        onClick = { filter = option },
-                        label = {
-                            Text(
-                                text = option.label,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold
-                            )
-                        },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = Primary.copy(alpha = 0.14f),
-                            selectedLabelColor = OnPrimaryStrong,
-                            containerColor = SurfaceColor,
-                            labelColor = TextSecondary
-                        )
+                        onClick = { filter = option }
                     )
                 }
             }
@@ -299,13 +288,13 @@ private fun InvoiceCard(
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(22.dp),
         color = SurfaceColor,
-        border = BorderStroke(1.dp, Outline)
+        shadowElevation = 2.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -379,7 +368,7 @@ private fun InvoiceCard(
                 }
             }
 
-            Divider(color = Outline)
+            Divider(color = SurfaceMuted)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -408,7 +397,7 @@ private fun InvoiceCard(
                 OutlinedButton(
                     onClick = onOpen,
                     modifier = Modifier.weight(1f).height(44.dp),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(14.dp),
                     border = BorderStroke(1.dp, Outline),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = OnBackground)
                 ) {
@@ -419,7 +408,7 @@ private fun InvoiceCard(
                     OutlinedButton(
                         onClick = onOpenReceipt,
                         modifier = Modifier.weight(1f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         border = BorderStroke(1.dp, Primary.copy(alpha = 0.45f)),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = Primary)
                     ) {
@@ -437,10 +426,10 @@ private fun InvoiceCard(
                     Button(
                         onClick = onPay,
                         modifier = Modifier.weight(if (hasPaymentProof) 1.15f else 1.25f).height(44.dp),
-                        shape = RoundedCornerShape(12.dp),
+                        shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Primary,
-                            contentColor = OnPrimaryStrong
+                            contentColor = Color.White
                         )
                     ) {
                         Text(
@@ -502,12 +491,20 @@ private fun InvoiceEmptyState(hasAnyInvoice: Boolean, filter: InvoiceFilter) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Icon(
-            imageVector = Icons.Filled.ReceiptLong,
-            contentDescription = null,
-            tint = TextTertiary,
-            modifier = Modifier.size(40.dp)
-        )
+        Box(
+            modifier = Modifier
+                .size(64.dp)
+                .clip(RoundedCornerShape(20.dp))
+                .background(SurfaceMuted),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Filled.ReceiptLong,
+                contentDescription = null,
+                tint = TextTertiary,
+                modifier = Modifier.size(30.dp)
+            )
+        }
         Text(
             text = when {
                 !hasAnyInvoice -> "Belum ada tagihan"
@@ -527,6 +524,36 @@ private fun InvoiceEmptyState(hasAnyInvoice: Boolean, filter: InvoiceFilter) {
             fontSize = 12.sp,
             color = TextSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+    }
+}
+
+@Composable
+private fun InvoiceFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .heightIn(min = 34.dp)
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (selected) Primary else SurfaceColor)
+            .border(1.dp, if (selected) Primary else Outline, RoundedCornerShape(999.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Icons.Filled.Check,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(13.dp)
+            )
+        }
+        Text(
+            text = label,
+            fontSize = 12.sp,
+            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+            color = if (selected) Color.White else TextSecondary
         )
     }
 }

@@ -61,6 +61,7 @@ import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.util.normalizeWhatsAppNumber
 import com.christopheraldoo.petheal.util.openClinicEmail
 import com.christopheraldoo.petheal.util.openWhatsApp
+import com.christopheraldoo.petheal.ui.theme.WarningSoft
 
 /**
  * Halaman Bantuan & Dukungan.
@@ -209,7 +210,7 @@ fun HelpSupportScreen(
                             )
                         }
                     },
-                color = Color(0xFFFFF7ED),
+                color = WarningSoft.copy(alpha = 0.55f),
                 shape = RoundedCornerShape(22.dp)
             ) {
                 Row(
@@ -220,7 +221,7 @@ fun HelpSupportScreen(
                         modifier = Modifier
                             .size(48.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFF97316).copy(alpha = 0.14f)),
+                            .background(WarningDeep.copy(alpha = 0.14f)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(Icons.Filled.BugReport, contentDescription = null, tint = WarningDeep)

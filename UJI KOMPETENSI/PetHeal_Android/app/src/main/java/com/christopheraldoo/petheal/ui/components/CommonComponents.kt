@@ -3,6 +3,7 @@ package com.christopheraldoo.petheal.ui.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -84,7 +85,8 @@ fun PetHealTopAppBar(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 36.dp, bottom = 12.dp)
+                .statusBarsPadding()
+                .padding(top = 8.dp, bottom = 12.dp)
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

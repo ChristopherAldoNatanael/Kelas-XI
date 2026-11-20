@@ -226,7 +226,7 @@ fun ProfileScreen(
                         viewModel.logout(onLoggedOut = onLogout)
                     }
                 ) {
-                    Text("Keluar", color = Color(0xFFFF6B6B), fontWeight = FontWeight.SemiBold)
+                    Text("Keluar", color = Error, fontWeight = FontWeight.SemiBold)
                 }
             },
             dismissButton = {
@@ -635,7 +635,7 @@ fun ProfileScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
-                .padding(bottom = 110.dp)
+                .padding(bottom = 132.dp)
         ) {
                 Spacer(Modifier.height(16.dp))
 
@@ -708,7 +708,7 @@ fun ProfileScreen(
                     onClick = { showLogoutDialog = true },
                     shape = RoundedCornerShape(18.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        contentColor = Color(0xFFFF6B6B)
+                        contentColor = Error
                     ),
                     border = androidx.compose.foundation.BorderStroke(1.dp, ErrorSoft),
                     modifier = Modifier
@@ -740,7 +740,7 @@ fun ProfileScreen(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = Error
                     ),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFECACA)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Error.copy(alpha = 0.35f)),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(52.dp)
@@ -789,7 +789,7 @@ fun ProfileScreen(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(start = 16.dp, end = 16.dp, bottom = 110.dp),
-                containerColor = Color(0xFFE8FFF1),
+                containerColor = SuccessSoft,
                 contentColor = SuccessDeep,
                 dismissAction = {
                     IconButton(onClick = { viewModel.clearPhotoMessage() }) {

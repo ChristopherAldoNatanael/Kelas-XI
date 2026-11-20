@@ -27,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,6 +48,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -55,6 +58,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -78,6 +82,8 @@ import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Error
 import com.christopheraldoo.petheal.ui.theme.Info
 import com.christopheraldoo.petheal.ui.theme.Secondary
+import com.christopheraldoo.petheal.ui.theme.InfoSoft
+import kotlinx.coroutines.launch
 
 private val NPrimary = Primary
 private val NBg = Background
@@ -126,122 +132,161 @@ fun NotificationsScreen(
         )
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(NBg)
-    ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .background(Brush.verticalGradient(listOf(Color.White, PrimaryLight)))
-                .statusBarsPadding()
-                .padding(top = 8.dp, start = 8.dp, end = 16.dp, bottom = 18.dp)
+                .fillMaxSize()
+                .background(NBg)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onNavigateBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
-                }
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Pusat Notifikasi", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
-                    Text(
-                        text = if (uiState.notifications.isEmpty()) "Tidak ada pembaruan baru" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
-                        color = TextSecondary,
-                        fontSize = 12.sp
-                    )
-                }
-                if (uiState.notifications.isNotEmpty()) {
-                    IconButton(onClick = { showClearDialog = true }) {
-                        Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua notifikasi", tint = TextSecondary)
-                    }
-                }
-            }
-            Spacer(Modifier.height(14.dp))
-            Row(
-                modifier = Modifier.padding(start = 48.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Brush.verticalGradient(listOf(Color.White, PrimaryLight)))
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, start = 8.dp, end = 16.dp, bottom = 18.dp)
             ) {
-                NotificationMetric("Belum dibaca", unreadCount.toString(), NPrimary, Modifier.weight(1f))
-                NotificationMetric("Total", uiState.notifications.size.toString(), Secondary, Modifier.weight(1f))
-            }
-        }
-
-        Divider(color = NBorder, thickness = 0.5.dp)
-
-        when {
-            uiState.isLoading -> {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    repeat(5) { NotificationSkeletonCard() }
-                }
-            }
-            uiState.notifications.isEmpty() && uiState.syncError != null -> {
-                com.christopheraldoo.petheal.ui.components.ErrorState(
-                    title = "Gagal memuat notifikasi",
-                    message = uiState.syncError ?: "Periksa koneksi internet Anda lalu coba lagi.",
-                    primaryActionText = "Coba Lagi",
-                    onPrimaryActionClick = { viewModel.refresh() },
-                    secondaryActionText = "Kembali",
-                    onSecondaryActionClick = onNavigateBack
-                )
-            }
-            uiState.notifications.isEmpty() -> {
-                EmptyNotificationsState()
-            }
-            else -> {
-                if (uiState.syncError != null) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Kembali", tint = TextPrimary)
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Pusat Notifikasi", color = TextPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            "Gagal menyinkronkan yang terbaru. Menampilkan data tersimpan.",
+                            text = if (uiState.notifications.isEmpty()) "Tidak ada pembaruan baru" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
                             color = TextSecondary,
-                            fontSize = 12.sp,
-                            modifier = Modifier.weight(1f)
+                            fontSize = 12.sp
                         )
-                        TextButton(onClick = { viewModel.refresh() }) {
-                            Text("Coba Lagi", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    if (uiState.notifications.isNotEmpty()) {
+                        IconButton(onClick = { showClearDialog = true }) {
+                            Icon(Icons.Outlined.DeleteSweep, contentDescription = "Hapus semua notifikasi", tint = TextSecondary)
                         }
                     }
                 }
-                LazyColumn(
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        top = 14.dp,
-                        end = 16.dp,
-                        // Item terakhir harus bisa dibaca penuh di atas gesture bar.
-                        bottom = 14.dp + WindowInsets.navigationBars
-                            .asPaddingValues()
-                            .calculateBottomPadding()
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                Spacer(Modifier.height(14.dp))
+                Row(
+                    modifier = Modifier.padding(start = 48.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(items = uiState.notifications, key = { it.id }) { notif ->
-                        NotificationCard(
-                            notification = notif,
-                            onClick = {
-                                viewModel.markRead(notif.id)
-                                when {
-                                    notif.medicalRecordId != null -> onOpenMedicalRecord(notif.medicalRecordId)
-                                    notif.bookingId != null -> onOpenBooking(notif.bookingId)
-                                    notif.petId != null -> onOpenPet(notif.petId)
-                                    notif.doctorId != null -> onOpenDoctor(notif.doctorId)
-                                    notif.type == "booking_status" || notif.type == "booking_reminder" || notif.type == "payment_reminder" -> onOpenBookings()
-                                    notif.type == "vaccination_reminder" -> onOpenPets()
-                                }
-                            }
-                        )
+                    NotificationMetric("Belum dibaca", unreadCount.toString(), NPrimary, Modifier.weight(1f))
+                    NotificationMetric("Total", uiState.notifications.size.toString(), Secondary, Modifier.weight(1f))
+                }
+            }
+
+            Divider(color = NBorder, thickness = 0.5.dp)
+
+            when {
+                uiState.isLoading -> {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        repeat(5) { NotificationSkeletonCard() }
                     }
-                    item { Spacer(Modifier.height(80.dp)) }
+                }
+                uiState.notifications.isEmpty() && uiState.syncError != null -> {
+                    com.christopheraldoo.petheal.ui.components.ErrorState(
+                        title = "Gagal memuat notifikasi",
+                        message = uiState.syncError ?: "Periksa koneksi internet Anda lalu coba lagi.",
+                        primaryActionText = "Coba Lagi",
+                        onPrimaryActionClick = { viewModel.refresh() },
+                        secondaryActionText = "Kembali",
+                        onSecondaryActionClick = onNavigateBack
+                    )
+                }
+                uiState.notifications.isEmpty() -> {
+                    EmptyNotificationsState()
+                }
+                else -> {
+                    if (uiState.syncError != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "Gagal menyinkronkan yang terbaru. Menampilkan data tersimpan.",
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+                            TextButton(onClick = { viewModel.refresh() }) {
+                                Text("Coba Lagi", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    LazyColumn(
+                        contentPadding = PaddingValues(
+                            start = 16.dp,
+                            top = 14.dp,
+                            end = 16.dp,
+                            // Item terakhir harus bisa dibaca penuh di atas gesture bar.
+                            bottom = 14.dp + WindowInsets.navigationBars
+                                .asPaddingValues()
+                                .calculateBottomPadding()
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        items(items = uiState.notifications, key = { it.id }) { notif ->
+                            // Tujuan ditentukan dari id yang paling spesifik lebih
+                            // dulu (rekam medis > booking > hewan > dokter), baru
+                            // fallback ke daftar berdasarkan jenis notifikasi.
+                            // Bila sama sekali tidak ada tujuan (mis. pengumuman
+                            // promo), tap tetap menandai "dibaca" tetapi pengguna
+                            // diberi penjelasan lewat snackbar — bukan tap yang
+                            // diam tanpa reaksi apa pun.
+                            val recordId = notif.medicalRecordId
+                            val bookingId = notif.bookingId
+                            val petId = notif.petId
+                            val doctorId = notif.doctorId
+                            val target: (() -> Unit)? = when {
+                                recordId != null -> ({ onOpenMedicalRecord(recordId) })
+                                bookingId != null -> ({ onOpenBooking(bookingId) })
+                                petId != null -> ({ onOpenPet(petId) })
+                                doctorId != null -> ({ onOpenDoctor(doctorId) })
+                                notif.type == "booking_status" ||
+                                    notif.type == "booking_reminder" ||
+                                    notif.type == "payment_reminder" -> ({ onOpenBookings() })
+                                notif.type == "vaccination_reminder" -> ({ onOpenPets() })
+                                else -> null
+                            }
+                            NotificationCard(
+                                notification = notif,
+                                onClick = {
+                                    viewModel.markRead(notif.id)
+                                    if (target != null) {
+                                        target()
+                                    } else {
+                                        scope.launch {
+                                            // Ketukan berulang tidak boleh menumpuk
+                                            // antrean snackbar.
+                                            snackbarHostState.currentSnackbarData?.dismiss()
+                                            snackbarHostState.showSnackbar(
+                                                "Notifikasi ini hanya informasi, tidak ada halaman tujuan."
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                        item { Spacer(Modifier.height(80.dp)) }
+                    }
                 }
             }
         }
+
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(16.dp)
+        )
     }
 }
 
@@ -334,7 +379,7 @@ private fun NotificationCard(notification: AppNotification, onClick: () -> Unit)
                             .background(NPrimary)
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("New update", color = NPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text("Belum dibaca", color = NPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -370,8 +415,8 @@ private fun notificationIcon(type: String): ImageVector = when (type) {
 
 private fun notificationIconBg(type: String): Color = when (type) {
     "booking_status" -> PrimaryLight
-    "booking_reminder" -> Color(0xFFEFF6FF)
-    "vaccination_reminder" -> Color(0xFFF5F3FF)
+    "booking_reminder" -> InfoSoft
+    "vaccination_reminder" -> AccentViolet.copy(alpha = 0.12f)
     else -> Color.White
 }
 

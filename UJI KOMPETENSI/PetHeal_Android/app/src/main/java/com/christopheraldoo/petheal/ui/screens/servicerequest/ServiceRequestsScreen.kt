@@ -83,6 +83,8 @@ import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
+import com.christopheraldoo.petheal.util.speciesLabelOf
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -210,7 +212,7 @@ private enum class Tone { SUCCESS, ERROR }
 @Composable
 private fun Banner(message: String, tone: Tone, onDismiss: (() -> Unit)? = null) {
     val (bg, fg) = when (tone) {
-        Tone.SUCCESS -> SuccessSoft to Color(0xFF047857)
+        Tone.SUCCESS -> SuccessSoft to SuccessDeep
         Tone.ERROR -> ErrorSoft to Error
     }
     Row(
@@ -480,7 +482,7 @@ private fun ServiceRequestDetail(
             item {
                 Surface(shape = RoundedCornerShape(18.dp), color = SuccessSoft, modifier = Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Booking sudah dibuat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF047857))
+                        Text("Booking sudah dibuat", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SuccessDeep)
                         Text(
                             "Selesaikan pembayaran dari detail booking agar jadwal Anda terkonfirmasi.",
                             fontSize = 12.sp,
@@ -535,7 +537,7 @@ private fun ServiceRequestDetail(
     }
 }
 
-private val SnackGreen = Color(0xFF047857)
+private val SnackGreen = SuccessDeep
 
 @Composable
 private fun OfferCard(offer: ServiceRequestOffer) {
@@ -552,7 +554,7 @@ private fun OfferCard(offer: ServiceRequestOffer) {
                     if (offer.priceType == "estimate") "Estimasi biaya" else "Harga final",
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (offer.priceType == "estimate") WarningText else Color(0xFF047857)
+                    color = if (offer.priceType == "estimate") WarningText else SuccessDeep
                 )
             }
             Text(offer.serviceName ?: "Layanan", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = SrTextPrimary)
@@ -688,7 +690,7 @@ private fun ServiceRequestForm(
                                 SelectRow(
                                     selected = state.selectedPetId == pet.id,
                                     title = pet.name ?: "Hewan",
-                                    subtitle = pet.species,
+                                    subtitle = speciesLabelOf(pet.species),
                                     icon = Icons.Filled.Pets,
                                     onClick = { pet.id?.let(viewModel::selectPet) }
                                 )

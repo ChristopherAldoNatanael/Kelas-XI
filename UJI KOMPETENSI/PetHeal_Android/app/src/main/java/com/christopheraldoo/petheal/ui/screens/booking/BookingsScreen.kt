@@ -3,6 +3,8 @@ package com.christopheraldoo.petheal.ui.screens.booking
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
+import com.christopheraldoo.petheal.ui.theme.PrimaryLight
 import com.christopheraldoo.petheal.ui.theme.Surface
 
 import android.util.Log
@@ -54,7 +56,6 @@ import com.christopheraldoo.petheal.ui.components.ClinicHelpSheet
 import com.christopheraldoo.petheal.ui.components.EmptyBookingsState
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.ui.screens.payment.toMidtransCodes
-import com.christopheraldoo.petheal.ui.components.SkeletonBookingCard
 import com.christopheraldoo.petheal.ui.components.SkeletonBookingList
 import com.christopheraldoo.petheal.util.HapticFeedback
 import com.christopheraldoo.petheal.util.buildPhotoUrl
@@ -68,10 +69,6 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import androidx.compose.material3.ExperimentalMaterial3Api
 import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Error
@@ -84,8 +81,8 @@ import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.OutlineStrong
 import com.christopheraldoo.petheal.ui.theme.Star
-import com.christopheraldoo.petheal.ui.theme.StatusCompleted
 import com.christopheraldoo.petheal.ui.theme.Success
+import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
@@ -97,6 +94,7 @@ import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.formatRupiah
+import com.christopheraldoo.petheal.util.speciesLabelOf
 
 private const val TAG = "BookingPhoto"
 
@@ -125,7 +123,10 @@ private fun isTodayBooking(booking: com.christopheraldoo.petheal.data.model.Book
 
 // ── Brand tokens ───────────────────────────────────────────────────────────────
 private val BkPrimary       = Primary
-private val BkPrimaryFg     = OnPrimaryStrong
+private val BkPrimaryDark   = PrimaryDark
+private val BkPrimaryDeep   = PrimaryDark
+private val BkPrimarySoft   = PrimaryLight
+private val BkPrimaryFg     = Color.White
 private val BkBg       = Background
 private val BkSurface  = Surface
 
@@ -192,7 +193,6 @@ fun BookingsScreen(
     val surface = BkSurface
     val textPrimary   = OnBackground
     val textSecondary = TextSecondary
-    val border        = SurfaceMuted
 
     LaunchedEffect(Unit) { viewModel.loadBookings() }
 
@@ -228,118 +228,17 @@ fun BookingsScreen(
 
     Box(Modifier.fillMaxSize().background(bg)) {
         Column(Modifier.fillMaxSize()) {
-            // Header
-            Surface(color = surface.copy(alpha = 0.93f), shadowElevation = 0.dp) {
-                Column(Modifier.fillMaxWidth()) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 8.dp)
-                            .padding(top = 8.dp, bottom = 12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            Modifier.size(40.dp).clip(CircleShape).clickable { onNavigateBack() },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Filled.ArrowBack, "Kembali", tint = textPrimary, modifier = Modifier.size(24.dp))
-                        }
-                        Text("Booking Saya", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                        if (selectedTab == BookingTab.SCHEDULE) {
-                            Box(
-                                Modifier.size(40.dp).clip(CircleShape).clickable { showFilterSheet = true },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(Icons.Filled.FilterList, "Filter dan urutan", tint = textPrimary, modifier = Modifier.size(24.dp))
-                            }
-                        } else {
-                            Spacer(Modifier.size(40.dp))
-                        }
-                    }
-                    Divider(color = border, thickness = 1.dp)
-
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp)
-                    ) {
-                        Text(
-                            text = if (selectedTab == BookingTab.SCHEDULE) {
-                                "Pantau kunjungan, progres pembayaran, dan tindak lanjut dalam satu tempat."
-                            } else {
-                                "Satu tempat untuk melihat tagihan booking, DP, dan riwayat pembayaran."
-                            },
-                            fontSize = 13.sp,
-                            lineHeight = 19.sp,
-                            color = textSecondary
-                        )
-                        Spacer(modifier = Modifier.height(14.dp))
-                        BookingTabRow(
-                            selectedTab = selectedTab,
-                            outstandingCount = outstandingInvoiceCount,
-                            onSelect = { selectedTab = it }
-                        )
-                        if (selectedTab == BookingTab.SCHEDULE && state.allBookings.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(14.dp))
-                            BookingOverviewRow(
-                                activeCount = activeBookingsCount,
-                                completedCount = completedBookingsCount,
-                                paymentAttentionCount = paymentAttentionCount
-                            )
-                        }
-                    }
-                    
-                    // Active filters indicator
-                    if (selectedTab == BookingTab.SCHEDULE &&
-                        (state.sortOrder != BookingSortOrder.NEWEST_FIRST || state.dateFilter != BookingDateFilter.ALL)
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Filter:", fontSize = 12.sp, color = textSecondary, fontWeight = FontWeight.Medium)
-                            if (state.dateFilter != BookingDateFilter.ALL) {
-                                AssistChip(
-                                    onClick = { viewModel.setDateFilter(BookingDateFilter.ALL) },
-                                    label = { Text(getDateFilterLabel(state.dateFilter), fontSize = 11.sp) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Filled.Close,
-                                            contentDescription = "Hapus filter tanggal",
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = BkPrimary.copy(alpha = 0.15f)
-                                    )
-                                )
-                            }
-                            if (state.sortOrder == BookingSortOrder.OLDEST_FIRST) {
-                                AssistChip(
-                                    onClick = { viewModel.setSortOrder(BookingSortOrder.NEWEST_FIRST) },
-                                    label = { Text("Terlama", fontSize = 11.sp) },
-                                    leadingIcon = {
-                                        Icon(
-                                            Icons.Filled.Close,
-                                            contentDescription = "Hapus urutan",
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    },
-                                    colors = AssistChipDefaults.assistChipColors(
-                                        containerColor = BkPrimary.copy(alpha = 0.15f)
-                                    )
-                                )
-                            }
-                            TextButton(onClick = { viewModel.resetFilters() }) {
-                                Text("Atur Ulang", fontSize = 11.sp, color = BkPrimary)
-                            }
-                        }
-                    }
-                }
-            }
+            BookingHero(
+                selectedTab = selectedTab,
+                activeCount = activeBookingsCount,
+                completedCount = completedBookingsCount,
+                paymentAttentionCount = paymentAttentionCount,
+                outstandingCount = outstandingInvoiceCount,
+                hasBookings = state.allBookings.isNotEmpty(),
+                onNavigateBack = onNavigateBack,
+                onOpenFilter = { showFilterSheet = true },
+                onSelectTab = { selectedTab = it }
+            )
 
             if (state.isLoading && state.allBookings.isEmpty()) {
                 // Show skeleton loading on initial load
@@ -347,7 +246,7 @@ fun BookingsScreen(
             } else if (selectedTab == BookingTab.SCHEDULE) {
                 LazyColumn(
                     Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 108.dp),
+                    contentPadding = PaddingValues(start = 20.dp, top = 10.dp, end = 20.dp, bottom = 132.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (state.error != null) {
@@ -356,6 +255,24 @@ fun BookingsScreen(
                             ErrorBanner(
                                 listError ?: "Gagal memuat booking",
                                 onRetry = { viewModel.loadBookings(forceRefresh = true) }
+                            )
+                        }
+                    }
+
+                    // Filter aktif tampil sebagai chip ringkas, bukan blok
+                    // header tetap — supaya layar tidak terasa seperti form web.
+                    if (state.sortOrder != BookingSortOrder.NEWEST_FIRST ||
+                        state.dateFilter != BookingDateFilter.ALL
+                    ) {
+                        item(key = "active-filters") {
+                            ActiveFilterChips(
+                                dateLabel = state.dateFilter
+                                    .takeIf { it != BookingDateFilter.ALL }
+                                    ?.let { getDateFilterLabel(it) },
+                                sortLabel = if (state.sortOrder == BookingSortOrder.OLDEST_FIRST) "Terlama" else null,
+                                onClearDate = { viewModel.setDateFilter(BookingDateFilter.ALL) },
+                                onClearSort = { viewModel.setSortOrder(BookingSortOrder.NEWEST_FIRST) },
+                                onResetAll = { viewModel.resetFilters() }
                             )
                         }
                     }
@@ -388,21 +305,29 @@ fun BookingsScreen(
                         if (todayItems.isNotEmpty()) {
                             item(key = "queue-today-header") {
                                 Row(
-                                    Modifier.fillMaxWidth().padding(top = 4.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 2.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
                                         "Hari ini di klinik",
-                                        fontSize = 13.sp,
+                                        fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
                                         color = textPrimary
                                     )
-                                    Text(
-                                        "Kunjungan dan antrian hari ini",
-                                        fontSize = 11.sp,
-                                        color = textSecondary
-                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(999.dp))
+                                            .background(BkPrimarySoft)
+                                            .padding(horizontal = 7.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            todayItems.size.toString(),
+                                            fontSize = 10.5.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = BkPrimaryDeep
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -544,35 +469,183 @@ fun BookingsScreen(
 }
 
 @Composable
+private fun BookingHero(
+    selectedTab: BookingTab,
+    activeCount: Int,
+    completedCount: Int,
+    paymentAttentionCount: Int,
+    outstandingCount: Int,
+    hasBookings: Boolean,
+    onNavigateBack: () -> Unit,
+    onOpenFilter: () -> Unit,
+    onSelectTab: (BookingTab) -> Unit
+) {
+    // Gradasi brand yang sama dengan Beranda & Rekam Medis.
+    val heroBottom = androidx.compose.ui.graphics.lerp(BkPrimary, Color.Black, 0.22f)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .background(Brush.verticalGradient(listOf(BkPrimary, heroBottom)))
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = 64.dp, y = (-88).dp)
+                .size(200.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.08f))
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .offset(x = (-56).dp, y = 56.dp)
+                .size(160.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.06f))
+        )
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 20.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                BkHeroCircleButton(
+                    onClick = onNavigateBack,
+                    icon = Icons.Filled.ArrowBack,
+                    description = "Kembali"
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Booking Saya",
+                        color = Color.White,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = if (selectedTab == BookingTab.SCHEDULE) {
+                            "Jadwal, antrian, dan pembayaran"
+                        } else {
+                            "Tagihan, DP, dan riwayat pembayaran"
+                        },
+                        color = Color.White.copy(alpha = 0.82f),
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (selectedTab == BookingTab.SCHEDULE) {
+                    BkHeroCircleButton(
+                        onClick = onOpenFilter,
+                        icon = Icons.Filled.FilterList,
+                        description = "Filter dan urutan"
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            BookingTabRow(
+                selectedTab = selectedTab,
+                outstandingCount = outstandingCount,
+                onSelect = onSelectTab
+            )
+
+            if (selectedTab == BookingTab.SCHEDULE && hasBookings) {
+                Spacer(Modifier.height(14.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    BkHeroStat("Aktif", activeCount.toString(), Modifier.weight(1f))
+                    BkHeroStat("Selesai", completedCount.toString(), Modifier.weight(1f))
+                    BkHeroStat("Perlu bayar", paymentAttentionCount.toString(), Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+/** Tombol bulat translusen di atas gradasi hero. */
+@Composable
+private fun BkHeroCircleButton(
+    onClick: () -> Unit,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    description: String
+) {
+    Box(
+        modifier = Modifier
+            .size(42.dp)
+            .clip(CircleShape)
+            .background(Color.White.copy(alpha = 0.18f))
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** Angka ringkas di atas hero — bentuk sama dengan Beranda & Rekam Medis. */
+@Composable
+private fun BkHeroStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(Color.White.copy(alpha = 0.16f))
+            .padding(horizontal = 10.dp, vertical = 9.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.White.copy(alpha = 0.80f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+    }
+}
+
+@Composable
 private fun BookingTabRow(
     selectedTab: BookingTab,
     outstandingCount: Int,
     onSelect: (BookingTab) -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        color = SurfaceMuted
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.White.copy(alpha = 0.16f))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            BookingTabItem(
-                label = "Jadwal",
-                selected = selectedTab == BookingTab.SCHEDULE,
-                badgeCount = null,
-                onClick = { onSelect(BookingTab.SCHEDULE) },
-                modifier = Modifier.weight(1f)
-            )
-            BookingTabItem(
-                label = "Tagihan",
-                selected = selectedTab == BookingTab.INVOICES,
-                badgeCount = outstandingCount.takeIf { it > 0 },
-                onClick = { onSelect(BookingTab.INVOICES) },
-                modifier = Modifier.weight(1f)
-            )
-        }
+        BookingTabItem(
+            label = "Jadwal",
+            selected = selectedTab == BookingTab.SCHEDULE,
+            badgeCount = null,
+            onClick = { onSelect(BookingTab.SCHEDULE) },
+            modifier = Modifier.weight(1f)
+        )
+        BookingTabItem(
+            label = "Tagihan",
+            selected = selectedTab == BookingTab.INVOICES,
+            badgeCount = outstandingCount.takeIf { it > 0 },
+            onClick = { onSelect(BookingTab.INVOICES) },
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -585,23 +658,21 @@ private fun BookingTabItem(
     modifier: Modifier = Modifier
 ) {
     val background by animateColorAsState(
-        targetValue = if (selected) BkSurface else Color.Transparent,
+        targetValue = if (selected) Color.White else Color.Transparent,
         animationSpec = tween(180)
     )
-    val contentColor = if (selected) BkPrimary else TextSecondary
+    val contentColor = if (selected) BkPrimaryDark else Color.White.copy(alpha = 0.88f)
 
-    Surface(
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(11.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(11.dp),
-        color = background
+            .heightIn(min = 40.dp)
+            .clip(RoundedCornerShape(13.dp))
+            .background(background)
+            .clickable(onClick = onClick)
+            .padding(vertical = 9.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Row(
-            modifier = Modifier.padding(vertical = 10.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = label,
                 fontSize = 13.sp,
@@ -614,14 +685,14 @@ private fun BookingTabItem(
                     modifier = Modifier
                         .size(18.dp)
                         .clip(CircleShape)
-                        .background(WarningSoft),
+                        .background(if (selected) WarningSoft else Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = if (count > 9) "9+" else count.toString(),
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = WarningDeep
+                        color = if (selected) WarningDeep else Color.White
                     )
                 }
             }
@@ -629,72 +700,55 @@ private fun BookingTabItem(
     }
 }
 
+/** Chip filter yang sedang aktif — ketuk untuk melepas. */
 @Composable
-private fun BookingOverviewRow(
-    activeCount: Int,
-    completedCount: Int,
-    paymentAttentionCount: Int
+private fun ActiveFilterChips(
+    dateLabel: String?,
+    sortLabel: String?,
+    onClearDate: () -> Unit,
+    onClearSort: () -> Unit,
+    onResetAll: () -> Unit
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        BookingOverviewCard(
-            modifier = Modifier.weight(1f),
-            label = "Aktif",
-            value = activeCount.toString(),
-            accent = StatusCompleted
-        )
-        BookingOverviewCard(
-            modifier = Modifier.weight(1f),
-            label = "Selesai",
-            value = completedCount.toString(),
-            accent = Color(0xFF16A34A)
-        )
-        BookingOverviewCard(
-            modifier = Modifier.weight(1f),
-            label = "Perlu Bayar",
-            value = paymentAttentionCount.toString(),
-            accent = WarningDeep
+        dateLabel?.let { ActiveFilterPill(label = it, onClear = onClearDate) }
+        sortLabel?.let { ActiveFilterPill(label = it, onClear = onClearSort) }
+        if (dateLabel == null && sortLabel == null) return@Row
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = "Atur ulang",
+            fontSize = 11.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = BkPrimaryDeep,
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(onClick = onResetAll)
+                .padding(horizontal = 6.dp, vertical = 8.dp)
         )
     }
 }
 
 @Composable
-private fun BookingOverviewCard(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    accent: Color
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
-        color = Color.White,
-        border = BorderStroke(1.dp, accent.copy(alpha = 0.14f))
+private fun ActiveFilterPill(label: String, onClear: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(BkPrimarySoft)
+            .clickable(onClick = onClear)
+            .padding(start = 10.dp, end = 8.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(accent)
-            )
-            Text(
-                text = value,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = OnBackground
-            )
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                color = TextSecondary
-            )
-        }
+        Text(label, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = BkPrimaryDark)
+        Icon(
+            imageVector = Icons.Filled.Close,
+            contentDescription = "Hapus filter",
+            tint = BkPrimaryDark,
+            modifier = Modifier.size(13.dp)
+        )
     }
 }
 
@@ -722,11 +776,11 @@ private fun FilteredBookingsEmptyState(
     onClearFilter: () -> Unit,
     onResetAll: () -> Unit
 ) {
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Outline)
+        shape = RoundedCornerShape(22.dp),
+        color = Surface,
+        shadowElevation = 2.dp
     ) {
         Column(
             modifier = Modifier
@@ -765,10 +819,11 @@ private fun FilteredBookingsEmptyState(
             )
             Button(
                 onClick = onClearFilter,
-                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(44.dp),
+                shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = BkPrimary,
-                    contentColor = OnPrimaryStrong
+                    contentColor = Color.White
                 )
             ) {
                 Text("Tampilkan Semua", fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
@@ -919,67 +974,148 @@ private fun BookingCard(
     isCheckingIn: Boolean = false            // Request check-in sedang berjalan
 ) {
     val statusColor = when (booking.status?.lowercase()) {
-        "confirmed"  -> BkPrimary
-        "pending"    -> Tertiary
-        "cancelled"  -> ErrorStrong
-        "completed"  -> InfoStrong
-        else         -> Neutral
+        "confirmed" -> BkPrimaryDeep
+        "pending" -> WarningDeep
+        "cancelled" -> ErrorStrong
+        "completed" -> InfoStrong
+        else -> Neutral
     }
-    Card(
+    val statusLabel = booking.status?.replaceFirstChar { it.uppercase() } ?: "—"
+
+    // Check-in mandiri: hanya muncul pada hari jadwal untuk booking yang sudah
+    // dikonfirmasi dan belum punya nomor antrian.
+    val canCheckIn = onCheckIn != null && canCheckInNow(booking)
+
+    // Booking hari ini yang belum bisa check-in: sebut alasannya di tempat
+    // yang sama, bukan membiarkan pasien menebak.
+    val todayWhyBlocked = when {
+        onCheckIn == null || booking.id == null -> null
+        booking.queueNumber != null -> null
+        !isToday(booking.bookingDate) -> null
+        !isConfirmedLike(booking.status) -> "Menunggu konfirmasi klinik sebelum bisa check-in."
+        else -> null
+    }
+
+    val hasPaymentInfo = booking.paymentMethodId != null || booking.paymentStatus != null
+    val hasRemainingBalance = (booking.totalAmount ?: 0.0) > (booking.paidAmount ?: 0.0)
+    val shouldShowPayRemaining = booking.paymentType == "dp" &&
+        (booking.paymentStatus == "dp_paid" || booking.paymentStatus == "partial") &&
+        hasRemainingBalance &&
+        booking.id != null &&
+        onPayRemaining != null
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(24.dp), ambientColor = Color.Black.copy(alpha = 0.04f))
+            .clip(RoundedCornerShape(22.dp))
             .clickable(onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(containerColor = surface),
-        elevation = CardDefaults.cardElevation(0.dp),
-        border = BorderStroke(1.dp, Outline)
+        shape = RoundedCornerShape(22.dp),
+        color = surface,
+        shadowElevation = 2.dp
     ) {
-        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier.size(36.dp).clip(CircleShape).background(BkPrimary.copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(Icons.Filled.Pets, null, tint = BkPrimary, modifier = Modifier.size(20.dp)) }
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top
+            ) {
+                BkDateTile(isoDate = booking.bookingDate)
+
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(1.dp)
+                ) {
                     Text(
-                        "${booking.pet?.name ?: "–"} (${booking.pet?.species ?: "–"})",
-                        fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textPrimary,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis
+                        text = listOfNotNull(
+                            booking.pet?.name?.takeIf { it.isNotBlank() },
+                            speciesLabelOf(booking.pet?.species).takeIf { it.isNotBlank() }
+                        ).joinToString(" · ").ifBlank { "Hewan" },
+                        fontSize = 14.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
+                    Text(
+                        text = booking.doctor?.name ?: "Dokter",
+                        fontSize = 12.sp,
+                        color = textSecondary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    // MULTI-CLINIC: klinik transaksi. Pasien bisa booking di
+                    // beberapa klinik, jadi baris ini yang membedakan kartu
+                    // satu dengan lainnya. Hilang bila server tidak mengirim
+                    // klinik — tidak diganti klinik lain.
+                    booking.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Business,
+                                contentDescription = null,
+                                tint = TextTertiary,
+                                modifier = Modifier.size(11.dp)
+                            )
+                            Text(
+                                text = clinicName,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = BkPrimaryDeep,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                 }
+
                 Surface(
                     shape = RoundedCornerShape(999.dp),
                     color = statusColor.copy(alpha = 0.12f)
                 ) {
                     Text(
-                        booking.status?.replaceFirstChar { it.uppercase() } ?: "–",
-                        color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        text = statusLabel,
+                        color = statusColor,
+                        fontSize = 10.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        maxLines = 1
                     )
                 }
             }
-            // MULTI-CLINIC: klinik transaksi. Pasien bisa booking di beberapa
-            // klinik, jadi baris ini yang membedakan kartu satu dengan
-            // lainnya. Hilang bila server tidak mengirim klinik — tidak
-            // diganti klinik lain.
-            booking.clinic?.name?.takeIf { it.isNotBlank() }?.let { clinicName ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        Icons.Filled.Business,
-                        contentDescription = null,
-                        tint = textSecondary,
-                        modifier = Modifier.size(14.dp)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BkMetaPill(
+                    icon = Icons.Filled.Schedule,
+                    label = booking.bookingTime?.takeIf { it.isNotBlank() } ?: "Jam menyusul"
+                )
+                if (booking.paymentType != null) {
+                    BkMetaPill(
+                        icon = if (booking.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
+                        label = if (booking.paymentType == "dp") "DP" else "Bayar penuh"
                     )
+                }
+                Spacer(Modifier.weight(1f))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = clinicName,
-                        fontSize = 12.sp,
-                        color = textSecondary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = "Detail",
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = BkPrimaryDeep
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.ChevronRight,
+                        contentDescription = null,
+                        tint = BkPrimaryDeep,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
             }
@@ -987,178 +1123,177 @@ private fun BookingCard(
             // Antrian hanya ditampilkan bila pasien SUDAH punya nomor.
             // Tanpa nomor, tidak ada angka yang dikarang.
             if (booking.queueNumber != null) {
-                QueueStrip(booking = booking, textPrimary = textPrimary, textSecondary = textSecondary)
+                QueueStrip(booking = booking, textSecondary = textSecondary)
             }
 
-            Divider(color = SurfaceMuted)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {                    // Doctor photo
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(SuccessSoft),
-                        contentAlignment = Alignment.Center
+            if (hasPaymentInfo) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val (paymentStatusText, paymentStatusColor) = when (booking.paymentStatus?.lowercase()) {
+                        "paid" -> "Lunas" to SuccessDeep
+                        "dp_paid" -> "DP dibayar" to WarningDeep
+                        "dp_pending" -> "Menunggu DP" to InfoStrong
+                        "partial" -> "Dibayar sebagian" to WarningDeep
+                        "pending" -> "Belum dibayar" to ErrorStrong
+                        "failed" -> "Gagal" to ErrorStrong
+                        else -> (booking.paymentStatus?.replaceFirstChar { it.uppercase() }
+                            ?: "Tidak diketahui") to Neutral
+                    }
+                    Text(
+                        text = (booking.totalAmount ?: 0.0)
+                            .takeIf { it > 0 }
+                            ?.let { formatRupiah(it) }
+                            ?: "Biaya belum ditetapkan",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = paymentStatusColor.copy(alpha = 0.12f)
                     ) {
-                        BkDocPhoto(
-                            url = buildPhotoUrl(booking.doctor?.photo),
-                            size = 44.dp
+                        Text(
+                            text = paymentStatusText,
+                            color = paymentStatusColor,
+                            fontSize = 10.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         )
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(booking.doctor?.name ?: "–", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-                        Text(booking.doctor?.specialization ?: "Veterinarian", fontSize = 12.sp, color = textSecondary)
-                    }
-                }
-                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CalendarMonth, null, tint = BkPrimary, modifier = Modifier.size(14.dp))
-                        Text(booking.bookingDate ?: "–", fontSize = 12.sp, color = textSecondary)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Schedule, null, tint = BkPrimary, modifier = Modifier.size(14.dp))
-                        Text(booking.bookingTime ?: "–", fontSize = 12.sp, color = textSecondary)
-                    }
                 }
             }
-            // Check-in mandiri: hanya muncul pada hari jadwal untuk booking
-            // yang sudah dikonfirmasi dan belum punya nomor antrian.
-            //
-            // GERBANG INI PERNAH TERLALU KETAT (2026-11-11): status dibandingkan
-            // `== "confirmed"` sehingga staf yang menyimpan "Confirmed" atau
-            // " confirmed " tidak pernah melihat tombol, dan pasien menyimpulkan
-            // fitur antrian tidak ada. Sekarang dibandingkan ternormalisasi.
-            val canCheckIn = onCheckIn != null && canCheckInNow(booking)
 
             if (canCheckIn) {
-                Divider(color = SurfaceMuted)
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Button(
                         onClick = { booking.id?.let { id -> onCheckIn?.invoke(id) } },
                         enabled = !isCheckingIn,
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BkPrimary),
-                        shape = RoundedCornerShape(12.dp)
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = BkPrimary,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(Icons.Filled.HowToReg, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Icon(
+                            imageVector = Icons.Filled.HowToReg,
+                            contentDescription = null,
+                            modifier = Modifier.size(17.dp)
+                        )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            if (isCheckingIn) "Memproses check-in…" else "Check-in & ambil nomor antrian",
-                            fontWeight = FontWeight.SemiBold,
+                            text = if (isCheckingIn) "Memproses check-in…" else "Check-in & ambil nomor antrian",
+                            fontWeight = FontWeight.Bold,
                             fontSize = 13.sp
                         )
                     }
                     Text(
-                        "Check-in hanya bisa dilakukan pada hari jadwal.",
+                        text = "Check-in hanya bisa dilakukan pada hari jadwal.",
                         fontSize = 11.sp,
                         color = textSecondary
                     )
                 }
             }
 
-            // Booking hari ini yang belum bisa check-in: sebut alasannya di
-            // tempat yang sama, bukan membiarkan pasien menebak.
-            val todayWhyBlocked = when {
-                onCheckIn == null || booking.id == null -> null
-                booking.queueNumber != null -> null
-                !isToday(booking.bookingDate) -> null
-                !isConfirmedLike(booking.status) -> "Menunggu konfirmasi klinik sebelum bisa check-in."
-                else -> null
-            }
             if (todayWhyBlocked != null) {
-                Divider(color = SurfaceMuted)
                 Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        Icons.Filled.Info,
+                        imageVector = Icons.Filled.Info,
                         contentDescription = null,
-                        tint = textSecondary,
-                        modifier = Modifier.size(15.dp)
+                        tint = TextTertiary,
+                        modifier = Modifier.size(14.dp)
                     )
                     Text(todayWhyBlocked, fontSize = 11.sp, color = textSecondary)
                 }
             }
 
-            // Payment info
-            if (booking.paymentMethodId != null || booking.paymentStatus != null) {
-                Divider(color = SurfaceMuted)
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            if (booking.paymentType == "dp") Icons.Filled.Savings else Icons.Filled.Payment,
-                            null,
-                            tint = if (booking.paymentType == "dp") Tertiary else BkPrimary,
-                            modifier = Modifier.size(14.dp)
-                        )
-                        Text(
-                            if (booking.paymentType == "dp") "Down Payment" else "Full Payment",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = textSecondary
-                        )
-                    }
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Payment status badge with DP support
-                        val (paymentStatusText, paymentStatusColor) = when (booking.paymentStatus) {
-                            "paid" -> "Lunas" to Success // Green
-                            "dp_paid" -> "DP Dibayar (50%)" to Tertiary // Amber
-                            "dp_pending" -> "Menunggu DP" to InfoStrong // Blue
-                            "partial" -> "Sebagian Dibayar" to Color(0xFFF97316) // Orange
-                            "pending" -> "Belum Dibayar" to ErrorStrong // Red
-                            "failed" -> "Gagal" to Error // Dark Red
-                            else -> (booking.paymentStatus?.replaceFirstChar { it.uppercase() } ?: "Unknown") to Color.Gray
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = paymentStatusColor.copy(alpha = 0.12f)
-                        ) {
-                            Text(
-                                paymentStatusText,
-                                color = paymentStatusColor,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                            )
-                        }
-                    }
-                }
-            }
-            
-            // Pay Remaining button for DP bookings with outstanding balance
-            val hasRemainingBalance = (booking.totalAmount ?: 0.0) > (booking.paidAmount ?: 0.0)
-            val shouldShowPayRemaining = booking.paymentType == "dp" &&
-                (booking.paymentStatus == "dp_paid" || booking.paymentStatus == "partial") &&
-                hasRemainingBalance &&
-                booking.id != null &&
-                onPayRemaining != null
-
             if (shouldShowPayRemaining) {
-                Divider(color = SurfaceMuted)
                 Button(
                     onClick = { booking.id?.let { id -> onPayRemaining?.invoke(id) } },
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = InfoStrong),
-                    shape = RoundedCornerShape(8.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(44.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = InfoStrong,
+                        contentColor = Color.White
+                    ),
+                    shape = RoundedCornerShape(14.dp)
                 ) {
-                    Icon(Icons.Default.Payment, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("Bayar Sisa (Lunas)", fontWeight = FontWeight.Medium, fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.Filled.Payment,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("Bayar sisa (lunas)", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 }
             }
         }
+    }
+}
+
+/** Blok tanggal ringkas: angka hari + bulan singkat. */
+@Composable
+private fun BkDateTile(isoDate: String?) {
+    val date = remember(isoDate) {
+        runCatching { LocalDate.parse(isoDate?.take(10)) }.getOrNull()
+    }
+    Column(
+        modifier = Modifier
+            .size(52.dp)
+            .clip(RoundedCornerShape(15.dp))
+            .background(BkPrimarySoft),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            text = date?.dayOfMonth?.toString() ?: "—",
+            color = BkPrimaryDark,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1
+        )
+        Text(
+            text = date?.format(DateTimeFormatter.ofPattern("MMM", Locale("id", "ID"))) ?: "tgl",
+            color = BkPrimaryDark.copy(alpha = 0.85f),
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+    }
+}
+
+/** Chip kecil (jam / tipe pembayaran) di dalam kartu booking. */
+@Composable
+private fun BkMetaPill(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(SurfaceVariant)
+            .padding(horizontal = 9.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Icon(icon, contentDescription = null, tint = BkPrimaryDeep, modifier = Modifier.size(12.dp))
+        Text(
+            text = label,
+            fontSize = 10.5.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = TextSecondary,
+            maxLines = 1
+        )
     }
 }
 
@@ -1212,7 +1347,7 @@ private data class QueueTone(
  * tidak menampilkan "0 antrian" yang menyesatkan.
  */
 @Composable
-private fun QueueStrip(booking: Booking, textPrimary: Color, textSecondary: Color) {
+private fun QueueStrip(booking: Booking, textSecondary: Color) {
     val doctorName = booking.doctor?.name?.takeIf { it.isNotBlank() }
 
     val tone = when (booking.queueStatus) {
@@ -1265,9 +1400,8 @@ private fun QueueStrip(booking: Booking, textPrimary: Color, textSecondary: Colo
         ?: "-"
 
     Surface(
-        shape = RoundedCornerShape(16.dp),
-        color = tone.container,
-        border = BorderStroke(1.dp, tone.accent.copy(alpha = 0.25f))
+        shape = RoundedCornerShape(14.dp),
+        color = tone.container
     ) {
         Column(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
@@ -1316,22 +1450,6 @@ private fun QueueStrip(booking: Booking, textPrimary: Color, textSecondary: Colo
                 color = textSecondary
             )
         }
-    }
-}
-
-@Composable
-private fun BookingsEmptyState(textPrimary: Color, textSecondary: Color) {
-    Column(
-        Modifier.fillMaxWidth().padding(top = 64.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Box(
-            Modifier.size(80.dp).clip(CircleShape).background(BkPrimary.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Filled.CalendarMonth, null, tint = BkPrimary, modifier = Modifier.size(40.dp)) }
-        Text("Belum ada booking", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = textPrimary)
-        Text("Jadwal konsultasi Anda akan tampil di sini", fontSize = 14.sp, color = textSecondary, textAlign = TextAlign.Center)
     }
 }
 
@@ -1675,7 +1793,6 @@ fun BookingDetailScreen(
                         when {
                             detailBooking.queueNumber != null -> QueueStrip(
                                 booking = detailBooking,
-                                textPrimary = textPrimary,
                                 textSecondary = textSecondary
                             )
 
@@ -1797,7 +1914,7 @@ fun BookingDetailScreen(
                     // Detail cards
                     Surface(shape = RoundedCornerShape(16.dp), color = surface, tonalElevation = 2.dp) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            DetailRow(Icons.Filled.Pets,         "Pet",  "${booking?.pet?.name} (${booking?.pet?.species})", textPrimary, textSecondary)
+                            DetailRow(Icons.Filled.Pets,         "Hewan", "${booking?.pet?.name} (${speciesLabelOf(booking?.pet?.species)})", textPrimary, textSecondary)
                             Divider(color = SurfaceMuted)
                             DetailRow(Icons.Filled.CalendarMonth,"Date", booking?.bookingDate ?: "–", textPrimary, textSecondary)
                             Divider(color = SurfaceMuted)
@@ -1952,14 +2069,14 @@ fun BookingDetailScreen(
                                         modifier = Modifier.weight(1f),
                                         shape = RoundedCornerShape(18.dp),
                                         color = when (extraStatus) {
-                                            "paid", "not_required" -> Color(0xFFECFDF5)
-                                            "partial", "pending", "unpaid" -> Color(0xFFFFFBEB)
+                                            "paid", "not_required" -> SuccessSoft
+                                            "partial", "pending", "unpaid" -> WarningSoft
                                             else -> SurfaceVariant
                                         },
                                         border = BorderStroke(
                                             1.dp,
                                             when (extraStatus) {
-                                                "paid", "not_required" -> Color(0xFFA7F3D0)
+                                                "paid", "not_required" -> Success.copy(alpha = 0.30f)
                                                 "partial", "pending", "unpaid" -> WarningSoft
                                                 else -> dividerColor
                                             }
@@ -1975,7 +2092,7 @@ fun BookingDetailScreen(
                                 if (extraAmount > 0 && record.canViewFullRecord != true) {
                                     Surface(
                                         shape = RoundedCornerShape(18.dp),
-                                        color = Color(0xFFFFFBEB),
+                                        color = WarningSoft,
                                         border = BorderStroke(1.dp, WarningSoft)
                                     ) {
                                         Column(
@@ -2488,7 +2605,7 @@ fun CreateBookingScreen(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
                                     Icon(Icons.Filled.Pets, null, tint = chipText, modifier = Modifier.size(18.dp))
-                                    Text("${pet.name} (${pet.species})", fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = chipText)
+                                    Text("${pet.name} (${speciesLabelOf(pet.species)})", fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, color = chipText)
                                 }
                             }
                         }
@@ -2548,10 +2665,10 @@ fun CreateBookingScreen(
                                     val selected = state.selectedServiceId == service.id
                                     val paletteIndex = (rowIdx * 2 + colIdx) % 4
                                     val (bgLight, _) = when (paletteIndex) {
-                                        0 -> Pair(Color(0xFFDCFCE7), Color(0x2216A34A))
-                                        1 -> Pair(InfoSoft, Color(0x222563EB))
-                                        2 -> Pair(WarningSoft, Color(0x22EA580C))
-                                        else -> Pair(Color(0xFFFEE2E2), Color(0x22DC2626))
+                                        0 -> Pair(SuccessSoft, Success.copy(alpha = 0.13f))
+                                        1 -> Pair(InfoSoft, InfoStrong.copy(alpha = 0.13f))
+                                        2 -> Pair(WarningSoft, WarningDeep.copy(alpha = 0.13f))
+                                        else -> Pair(ErrorSoft, ErrorStrong.copy(alpha = 0.13f))
                                     }
                                     Card(
                                         modifier = Modifier
@@ -2574,9 +2691,9 @@ fun CreateBookingScreen(
                                                 ) {
                                                     Icon(Icons.Filled.MedicalServices, null, tint = BkPrimary, modifier = Modifier.size(24.dp))
                                                 }
-                                                Text(service.name ?: "Service", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
+                                                Text(service.name ?: "Layanan", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = textPrimary)
                                                 Text(
-                                                    service.description ?: (service.category ?: "Pet care service"),
+                                                    service.description ?: (service.category?.takeIf { it.isNotBlank() } ?: "Layanan perawatan hewan"),
                                                     fontSize = 11.sp,
                                                     color = textSecondary,
                                                     maxLines = 2,

@@ -94,6 +94,7 @@ import com.christopheraldoo.petheal.ui.theme.Star
 import com.christopheraldoo.petheal.util.ThumbnailImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.reviewCountLabel
+import com.christopheraldoo.petheal.util.speciesLabelOf
 
 private val BsPrimary = Primary
 private val BsPrimarySoft = PrimaryLight
@@ -694,7 +695,7 @@ private fun StartPetChip(pet: Pet, selected: Boolean, onClick: () -> Unit) {
                     color = if (selected) BsPrimaryFg else BsTextPrimary
                 )
                 Text(
-                    pet.species ?: "",
+                    speciesLabelOf(pet.species),
                     fontSize = 11.sp,
                     color = if (selected) BsPrimaryFg.copy(alpha = 0.8f) else BsTextSecondary
                 )

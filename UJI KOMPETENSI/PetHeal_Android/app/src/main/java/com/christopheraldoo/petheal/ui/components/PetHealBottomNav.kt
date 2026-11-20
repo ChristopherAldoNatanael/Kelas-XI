@@ -1,5 +1,9 @@
 package com.christopheraldoo.petheal.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,15 +27,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.christopheraldoo.petheal.ui.navigation.PetHealMotion
 import com.christopheraldoo.petheal.ui.navigation.Screen
 import com.christopheraldoo.petheal.ui.theme.OnSurface
 import com.christopheraldoo.petheal.ui.theme.Outline
@@ -162,6 +170,31 @@ private fun PetHealTabItem(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    // Perpindahan tab memakai durasi & kurva yang sama dengan transisi halaman
+    // (PetHealMotion), supaya navigasi terasa satu sistem — bukan dua animasi
+    // berbeda yang saling menunggu.
+    val capsuleColor by animateColorAsState(
+        targetValue = if (selected) Primary.copy(alpha = 0.12f) else Color.Transparent,
+        animationSpec = tween(PetHealMotion.TabMs, easing = PetHealMotion.EaseOut),
+        label = "tab-capsule"
+    )
+    val iconTint by animateColorAsState(
+        targetValue = if (selected) PrimaryDark else TextSecondary,
+        animationSpec = tween(PetHealMotion.TabMs, easing = PetHealMotion.EaseOut),
+        label = "tab-icon-tint"
+    )
+    val labelColor by animateColorAsState(
+        targetValue = if (selected) OnSurface else TextSecondary,
+        animationSpec = tween(PetHealMotion.TabMs, easing = PetHealMotion.EaseOut),
+        label = "tab-label-color"
+    )
+    // Ikon sedikit "pop" saat tab menjadi aktif — umpan balik visual halus.
+    val iconScale by animateFloatAsState(
+        targetValue = if (selected) 1f else 0.9f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 700f),
+        label = "tab-icon-scale"
+    )
+
     androidx.compose.foundation.layout.Column(
         modifier = Modifier
             .defaultMinSize(minWidth = 56.dp)
@@ -175,20 +208,25 @@ private fun PetHealTabItem(
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(14.dp))
-                .background(if (selected) Primary.copy(alpha = 0.12f) else androidx.compose.ui.graphics.Color.Transparent)
+                .background(capsuleColor)
                 .padding(horizontal = 10.dp, vertical = 5.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = tab.icon,
                 contentDescription = tab.label,
-                tint = if (selected) PrimaryDark else TextSecondary,
-                modifier = Modifier.size(22.dp)
+                tint = iconTint,
+                modifier = Modifier
+                    .size(22.dp)
+                    .graphicsLayer {
+                        scaleX = iconScale
+                        scaleY = iconScale
+                    }
             )
         }
         Text(
             text = tab.label,
-            color = if (selected) OnSurface else TextSecondary,
+            color = labelColor,
             fontSize = 11.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
             maxLines = 1,
