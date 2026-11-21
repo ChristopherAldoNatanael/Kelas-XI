@@ -137,7 +137,8 @@ class PetShopProductController extends Controller
         $movements = ProductStockMovement::with('variant')
             ->where('clinic_product_id', $product->id)
             ->orderByDesc('created_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.pet-shop.products.show', compact('product', 'movements'));
     }

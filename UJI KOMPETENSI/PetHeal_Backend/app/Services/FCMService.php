@@ -20,6 +20,12 @@ class FCMService
     private const FCM_SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
     private const TOKEN_URL = 'https://oauth2.googleapis.com/token';
 
+    /** Batas waktu koneksi ke Google (detik). */
+    private const CONNECT_TIMEOUT_SECONDS = 3;
+
+    /** Batas waktu satu permintaan FCM/OAuth (detik). */
+    private const REQUEST_TIMEOUT_SECONDS = 5;
+
     public function __construct()
     {
         $this->projectId = config('services.fcm.project_id', 'petheal-d8c3d');
@@ -50,10 +56,15 @@ class FCMService
                 ];
 
                 $jwt = JWT::encode($payload, $sa['private_key'], 'RS256');
-                $response = Http::asForm()->post(self::TOKEN_URL, [
-                    'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-                    'assertion' => $jwt,
-                ]);
+                $response = Http::asForm()
+                    // Batas waktu tegas: notifikasi tidak boleh menahan request
+                    // HTTP pasien kalau Google lambat merespons.
+                    ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                    ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+                    ->post(self::TOKEN_URL, [
+                        'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+                        'assertion' => $jwt,
+                    ]);
 
                 if ($response->successful()) {
                     return $response->json('access_token');
@@ -141,7 +152,14 @@ class FCMService
         $payload = ['message' => $message];
 
         try {
-            $response = Http::withToken($accessToken)->post(sprintf(self::FCM_URL, $this->projectId), $payload);
+            $response = Http::withToken($accessToken)
+                ->connectTimeout(self::CONNECT_TIMEOUT_SECONDS)
+                ->timeout(self::REQUEST_TIMEOUT_SECONDS)
+                // Satu percobaan ulang untuk gangguan jaringan sesaat. Tidak
+                // lebih: notifikasi bersifat informatif, dan pesan yang sama
+                // dikirim ulang akan diabaikan aplikasi lewat `queue_event_id`.
+                ->retry(1, 300, throw: false)
+                ->post(sprintf(self::FCM_URL, $this->projectId), $payload);
 
             if ($response->successful()) {
                 $this->touchToken($deviceToken);
@@ -227,6 +245,27 @@ class FCMService
     {
         $this->storeNotification($userId, $title, $body, $data);
 
+        // Riwayat notifikasi sudah tersimpan di atas (sumber kebenaran tetap
+        // database). Pengiriman ke perangkat bisa dilewatkan antrian supaya
+        // request HTTP pasien tidak menunggu Google: aktifkan `FCM_QUEUE=true`
+        // BERSAMAAN dengan worker (`start-queue.bat`). Default mati agar
+        // notifikasi tidak pernah diam-diam tertahan di tabel `jobs` ketika
+        // worker belum dijalankan.
+        if ((bool) config('services.fcm.queue', false)) {
+            \App\Jobs\SendFcmNotification::dispatch($userId, $title, $body, $data, $channelId);
+            return true;
+        }
+
+        return $this->deliverToUser($userId, $title, $body, $data, $channelId);
+    }
+
+    /**
+     * Kirim ke semua perangkat aktif milik satu pengguna (tanpa menulis
+     * riwayat). Dipakai `sendToUser()` dan worker antrian
+     * (`App\Jobs\SendFcmNotification`).
+     */
+    public function deliverToUser(int $userId, string $title, string $body, array $data = [], string $channelId = 'petheal_notifications'): bool
+    {
         $deviceTokens = \App\Models\DeviceToken::where('user_id', $userId)
             ->active()
             ->pluck('token')
@@ -243,10 +282,18 @@ class FCMService
     private function storeNotification(int $userId, string $title, string $body, array $data = []): void
     {
         try {
-            // PHASE 3 (J-06): attribute new rows to the recipient's clinic so
-            // clinic-scoped reporting keeps working (column was backfilled
-            // once but never written afterwards).
-            $clinicId = \App\Models\User::whereKey($userId)->value('clinic_id');
+            // PHASE 3 (J-06): attribute new rows to a clinic so clinic-scoped
+            // reporting keeps working.
+            //
+            // Urutan sumber: klinik yang dikirim pemanggil (booking/order yang
+            // memicu notifikasi) → `clinic_id` di payload → klinik milik akun.
+            // Pasien adalah akun GLOBAL (`users.clinic_id` = NULL), jadi tanpa
+            // dua sumber pertama seluruh notifikasi pasien akan tersimpan tanpa
+            // klinik dan hilang dari laporan per klinik.
+            $clinicId = $data['clinic_id'] ?? null;
+            if (! $clinicId) {
+                $clinicId = \App\Models\User::whereKey($userId)->value('clinic_id');
+            }
             Notification::create([
                 'user_id' => $userId,
                 'clinic_id' => $clinicId,
@@ -394,7 +441,8 @@ class FCMService
         ?string $bookingDate,
         ?int $bookingId = null,
         ?int $petId = null,
-        ?int $doctorId = null
+        ?int $doctorId = null,
+        ?int $clinicId = null
     ): bool {
         if (!$bookingDate) {
             return false;
@@ -426,6 +474,7 @@ class FCMService
             'booking_id' => $bookingId,
             'pet_id' => $petId,
             'doctor_id' => $doctorId,
+            'clinic_id' => $clinicId,
         ]);
     }
 
@@ -532,6 +581,7 @@ class FCMService
             'medical_record_id' => $medicalRecordId,
             'pet_name' => $petName,
             'clinic_name' => $clinicName,
+            'clinic_id' => $booking->clinic_id,
             // Bukan data-only: bila aplikasi tidak terlihat (background atau
             // proses sudah dihentikan), sistem yang menampilkan notifikasi di
             // channel `petheal_queue`. Aplikasi tetap membangun tray sendiri

@@ -3,10 +3,9 @@
 namespace App\Services;
 
 use App\Mail\OtpMail;
+use App\Support\VerificationMailer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 /**
  * Satu-satunya tempat kode OTP dibuat dan diperiksa — dipakai alur registrasi
@@ -121,25 +120,19 @@ class OtpService
      */
     public function send(string $email, string $purpose, string $code, array $context = []): bool
     {
-        try {
-            Mail::to($email)->send(new OtpMail(
+        // Jalur kirim dipilih di VerificationMailer (Brevo bila terkonfigurasi),
+        // dan kegagalannya sudah dicatat di sana lengkap dengan Message-ID.
+        return VerificationMailer::send(
+            $email,
+            new OtpMail(
                 $code,
                 $purpose,
                 $this->ttlMinutes($purpose),
                 $context['clinic_name'] ?? null,
                 $context['recipient_name'] ?? null,
-            ));
-
-            return true;
-        } catch (\Exception $e) {
-            Log::warning('OTP email gagal dikirim', [
-                'email' => $email,
-                'purpose' => $purpose,
-                'error' => $e->getMessage(),
-            ]);
-
-            return false;
-        }
+            ),
+            ['purpose' => $purpose],
+        );
     }
 
     /** Payload pendaftaran yang tersimpan — dipakai saat kirim ulang kode. */

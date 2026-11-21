@@ -181,7 +181,8 @@ class DoctorBookingController extends DoctorPortalController
             (string) $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
     }
 }

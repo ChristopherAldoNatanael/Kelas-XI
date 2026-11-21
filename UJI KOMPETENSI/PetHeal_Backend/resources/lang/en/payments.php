@@ -65,6 +65,7 @@ return [
     'test_connection' => 'Test connection',
     'activate' => 'Activate',
     'deactivate' => 'Deactivate',
+    'deactivate_confirm' => 'Deactivate online payments for this clinic? Patients cannot pay through Midtrans until the account is activated again.',
     'approve_production' => 'Approve production activation',
     'production_approved' => 'Production activation approved',
     'production_pending' => 'Production activation is not yet approved',

@@ -26,34 +26,11 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <x-admin.panel :title="__('admin.medicine_information')" :subtitle="__('admin.medicine_information_desc')">
             <form method="POST" action="{{ route('admin.medicines.update', $medicine->id) }}" class="space-y-8">
                 @csrf
                 @method('PUT')
-
-                @if($errors->any())
-                    <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-                        <ul class="list-inside list-disc space-y-1">
-                            @foreach($errors->all() as $error)
-                                <li>{{ $error }}</li>
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
 
                 <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
                     <div>
@@ -119,7 +96,7 @@
                 <div class="rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700">
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.medicine_stock_current') }}</p>
                     <p class="mt-1 text-3xl font-bold tabular-nums {{ $medicine->isLowStock() ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
-                        {{ rtrim(rtrim(number_format((float) $medicine->stock, 2, ',', '.'), '0'), ',') }}
+                        {{ format_qty((float) $medicine->stock) }}
                         <span class="text-sm font-medium text-slate-500">{{ $medicine->unit }}</span>
                     </p>
                     <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.medicine_available_stock') }}</p>
@@ -127,7 +104,7 @@
                         <div class="mt-3 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-2.5 dark:border-orange-900/60 dark:bg-orange-900/20">
                             <span class="text-xs font-semibold text-orange-800 dark:text-orange-300">{{ __('inventory.medicine_quarantine_stock') }}</span>
                             <span class="text-sm font-bold tabular-nums text-orange-800 dark:text-orange-300">
-                                {{ rtrim(rtrim(number_format((float) $medicine->quarantined_stock, 2, ',', '.'), '0'), ',') }}
+                                {{ format_qty((float) $medicine->quarantined_stock) }}
                                 {{ $medicine->unit }}
                             </span>
                         </div>
@@ -168,12 +145,12 @@
 
                                 @if($medicine->isDisposed())
                                     <p class="mt-2 text-xs font-semibold text-violet-700 dark:text-violet-300">
-                                        {{ __('admin.medicine_disposed_at', ['date' => $medicine->disposed_at->format('d M Y H:i')]) }}
+                                        {{ __('admin.medicine_disposed_at', ['date' => format_tanggal($medicine->disposed_at, 'datetime')]) }}
                                         @if($medicine->disposal_method)
                                             · {{ $medicine->disposal_method_label }}
                                         @endif
                                         @if($medicine->disposed_quantity)
-                                            · {{ rtrim(rtrim(number_format((float) $medicine->disposed_quantity, 2, ',', '.'), '0'), ',') }} {{ $medicine->unit }}
+                                            · {{ format_qty((float) $medicine->disposed_quantity) }} {{ $medicine->unit }}
                                         @endif
                                     </p>
                                     @if($medicine->disposal_reason)
@@ -218,9 +195,18 @@
                     </div>
                 @endif
 
-                <form method="POST" action="{{ route('admin.medicines.stock-in', $medicine->id) }}" class="mt-5 space-y-3">
+                <div class="mt-5 space-y-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('admin.medicine_stock_actions_title') }}</p>
+                    <p class="admin-hint">{{ __('admin.medicine_stock_actions_hint') }}</p>
+
+                    <details open class="group rounded-xl border border-slate-200 dark:border-slate-700">
+                        <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            <span class="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400" aria-hidden="true">add_box</span>
+                            {{ __('admin.medicine_stock_in') }}
+                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-400 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+                        </summary>
+                <form method="POST" action="{{ route('admin.medicines.stock-in', $medicine->id) }}" class="space-y-3 px-3 pb-3">
                     @csrf
-                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('admin.medicine_stock_in') }}</p>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
                             <label for="quantity" class="admin-label">{{ __('admin.medicine_quantity') }}</label>
@@ -246,12 +232,17 @@
                         {{ __('admin.medicine_stock_in_action') }}
                     </button>
                 </form>
+                    </details>
 
-                <form method="POST" action="{{ route('admin.medicines.adjust', $medicine->id) }}"
-                      class="mt-6 space-y-3 border-t border-slate-100 pt-5 dark:border-slate-800">
+                    <details class="group rounded-xl border border-slate-200 dark:border-slate-700">
+                        <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
+                            <span class="material-symbols-outlined text-[18px] text-sky-600 dark:text-sky-400" aria-hidden="true">published_with_changes</span>
+                            {{ __('admin.medicine_adjust') }}
+                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-400 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+                        </summary>
+                <form method="POST" action="{{ route('admin.medicines.adjust', $medicine->id) }}" class="space-y-3 px-3 pb-3">
                     @csrf
-                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('admin.medicine_adjust') }}</p>
-                    <p class="admin-hint">{{ __('admin.medicine_adjust_hint') }}</p>
+                    <p class="admin-hint !mt-0">{{ __('admin.medicine_adjust_hint') }}</p>
                     <div>
                         <label for="target_stock" class="admin-label">{{ __('admin.medicine_stock_target') }}</label>
                         <input type="number" name="target_stock" id="target_stock" min="0" step="0.01"
@@ -267,6 +258,16 @@
                         {{ __('admin.medicine_adjust_save') }}
                     </button>
                 </form>
+                    </details>
+
+                    <p class="flex items-start gap-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                        <span class="material-symbols-outlined text-[15px] text-slate-400" aria-hidden="true">info</span>
+                        {{ __('admin.medicine_mutations_link_hint') }}
+                        <a href="{{ route('admin.medicines.mutations.create') }}" class="font-semibold text-primary hover:underline">
+                            {{ __('menu.medicine_mutations_item') }}
+                        </a>
+                    </p>
+                </div>
             </x-admin.panel>
 
             {{-- Batch adalah sumber kebenaran stok; saldo obat hanya totalnya. --}}
@@ -299,13 +300,13 @@
                         <div class="flex items-center gap-2">
                             <div class="text-right">
                                 <p class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
-                                    {{ rtrim(rtrim(number_format((float) $batch->stock, 2, ',', '.'), '0'), ',') }}
+                                    {{ format_qty((float) $batch->stock) }}
                                     <span class="text-xs font-medium text-slate-500">{{ $medicine->unit }}</span>
                                 </p>
                                 @if((float) $batch->quarantined_stock > 0)
                                     <p class="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
                                         {{ __('inventory.stock_state_quarantine') }}:
-                                        {{ rtrim(rtrim(number_format((float) $batch->quarantined_stock, 2, ',', '.'), '0'), ',') }}
+                                        {{ format_qty((float) $batch->quarantined_stock) }}
                                     </p>
                                 @endif
                             </div>
@@ -352,7 +353,7 @@
                             <p class="text-[11px] text-slate-400">{{ $movement->created_at?->format('d M Y H:i') }}</p>
                         </div>
                         <p class="whitespace-nowrap text-sm font-bold tabular-nums {{ (float) $movement->quantity >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                            {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ rtrim(rtrim(number_format((float) $movement->quantity, 2, ',', '.'), '0'), ',') }}
+                            {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ format_qty((float) $movement->quantity) }}
                         </p>
                     </div>
                 @empty

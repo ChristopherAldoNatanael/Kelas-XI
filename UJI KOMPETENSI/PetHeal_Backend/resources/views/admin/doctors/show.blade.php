@@ -36,6 +36,8 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.last-updated :model="$doctor" :actions="['doctor.update', 'doctor.account.invite', 'doctor.account.revoke']" />
+
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {{-- Kartu identitas --}}
         <div class="space-y-6">
@@ -176,7 +178,7 @@
                             <ol class="mt-2 space-y-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
                                 <li class="flex gap-2">
                                     <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">1</span>
-                                    <span>Dokter membuka email <span class="font-semibold text-slate-600 dark:text-slate-300">"Aktivasi akun dokter"</span> dari PetHeal, lalu mengeklik tombol <span class="font-semibold text-slate-600 dark:text-slate-300">Buat Kata Sandi Portal Dokter</span>.</span>
+                                    <span>Dokter membuka email <span class="font-semibold text-slate-600 dark:text-slate-300">"PetHeal: akses portal dokter"</span> dari PetHeal, lalu mengeklik tombol <span class="font-semibold text-slate-600 dark:text-slate-300">Buat Kata Sandi Portal Dokter</span>.</span>
                                 </li>
                                 <li class="flex gap-2">
                                     <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">2</span>

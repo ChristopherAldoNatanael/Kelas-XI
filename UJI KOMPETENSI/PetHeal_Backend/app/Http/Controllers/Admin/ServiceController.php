@@ -26,7 +26,8 @@ class ServiceController extends Controller
         $services = Service::with('serviceCategory')
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
         return view('admin.services.index', compact('services'));
     }
 

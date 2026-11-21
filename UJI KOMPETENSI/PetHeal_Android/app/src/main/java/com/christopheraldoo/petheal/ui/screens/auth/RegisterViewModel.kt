@@ -43,8 +43,23 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = RegisterUiState(isLoading = true)
             when (val result = authRepository.requestRegisterOtp(name, email, password, clinicSlug)) {
-                is Result.Success ->
-                    _uiState.value = RegisterUiState(otpSentEmail = result.data.email ?: email)
+                is Result.Success -> {
+                    val body = result.data
+                    // `mail_sent = false` berarti kode terbit di server tetapi email
+                    // tidak keluar. Jangan pindah ke layar OTP: user akan menunggu
+                    // email yang tidak pernah datang. Tampilkan pesan server dan
+                    // biarkan form tetap terisi untuk dicoba lagi.
+                    if (body.mailSent == false) {
+                        _uiState.value = RegisterUiState(
+                            error = body.message
+                                ?: "Kode sudah dibuat, tetapi email gagal dikirim. Coba lagi beberapa saat lagi."
+                        )
+                    } else {
+                        _uiState.value = RegisterUiState(
+                            otpSentEmail = body.data?.email ?: email
+                        )
+                    }
+                }
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }

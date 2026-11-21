@@ -7,7 +7,7 @@
 <div class="space-y-6">
 
     <x-admin.page-header
-        :title="($booking->pet->name ?? 'Pasien') . ' · #' . $booking->id"
+        :title="($booking->pet->name ?? __('doctor.patient')) . ' · #' . $booking->id"
         eyebrow="Detail Booking"
         icon="event_note"
         :description="'Booking untuk layanan ' . ($booking->service->name ?? '—') . ' pada ' . \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('l, d F Y') . '.'">
@@ -21,7 +21,7 @@
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div class="space-y-6 lg:col-span-2">
-            <x-admin.panel title="Informasi Pasien">
+            <x-admin.panel title="{{ __('doctor.patient_info') }}">
                 <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hewan</p>
@@ -51,20 +51,20 @@
 
                 @if($booking->notes)
                     <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan dari pemilik</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.owner_notes') }}</p>
                         <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->notes }}</p>
                     </div>
                 @endif
 
                 @if($booking->status === 'cancelled' && $booking->cancellation_reason)
                     <div class="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-200">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500">Alasan pembatalan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-rose-500">{{ __('doctor.cancellation_reason') }}</p>
                         <p class="mt-1 leading-6">{{ $booking->cancellation_reason }}</p>
                     </div>
                 @endif
             </x-admin.panel>
 
-            <x-admin.panel title="Rekam Medis">
+            <x-admin.panel title="{{ __('doctor.medical_record') }}">
                 @if($booking->medicalRecord)
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
@@ -89,7 +89,7 @@
                 @elseif($booking->status !== 'cancelled')
                     <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">Belum ada rekam medis</p>
+                            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('doctor.no_medical_record') }}</p>
                             <p class="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                                 Menyimpan rekam medis akan menandai booking ini sebagai selesai.
                             </p>
@@ -100,7 +100,7 @@
                         </a>
                     </div>
                 @else
-                    <p class="text-sm text-slate-500 dark:text-slate-400">Booking dibatalkan, rekam medis tidak diperlukan.</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ __('doctor.cancelled_no_record') }}</p>
                 @endif
             </x-admin.panel>
         </div>
@@ -157,9 +157,9 @@
                             </summary>
                             <form method="POST" action="{{ route('doctor.bookings.cancel', $booking->id) }}" class="space-y-2 border-t border-rose-100 p-3 dark:border-rose-900/60">
                                 @csrf
-                                <label for="reason" class="block text-[10px] font-bold uppercase tracking-wider text-rose-500">Alasan pembatalan</label>
+                                <label for="reason" class="block text-[10px] font-bold uppercase tracking-wider text-rose-500">{{ __('doctor.cancellation_reason') }}</label>
                                 <textarea id="reason" name="reason" rows="3" required maxlength="500"
-                                          class="admin-input" placeholder="Contoh: dokter berhalangan hadir, mohon jadwalkan ulang."></textarea>
+                                          class="admin-input" placeholder="{{ __('doctor.cancel_reason_placeholder') }}"></textarea>
                                 <button type="submit" class="w-full rounded-lg bg-rose-600 px-3 py-2 text-xs font-bold text-white transition hover:bg-rose-700">
                                     Kirim Pembatalan
                                 </button>
@@ -169,7 +169,7 @@
                 </x-admin.panel>
             @endif
 
-            <x-admin.panel title="Keamanan Data">
+            <x-admin.panel title="{{ __('doctor.data_security') }}">
                 <p class="text-xs leading-6 text-slate-500 dark:text-slate-400">
                     Anda hanya dapat melihat dan mengubah booking atas nama Anda sendiri.
                     Perubahan jadwal di luar kewenangan dokter dilakukan oleh admin klinik.

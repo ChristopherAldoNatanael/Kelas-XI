@@ -112,6 +112,6 @@ class DoctorServiceRequestController extends DoctorPortalController
             $serviceRequest
         );
 
-        return back()->with('success', 'Evaluasi medis tersimpan. Admin akan menyusun penawaran untuk pemilik.');
+        return back()->with('success', __('doctor.review_saved'));
     }
 }

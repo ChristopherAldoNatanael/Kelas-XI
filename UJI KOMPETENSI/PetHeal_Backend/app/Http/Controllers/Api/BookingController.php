@@ -11,6 +11,7 @@ use App\Models\Service;
 use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
 use App\Services\QueueService;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -294,7 +295,10 @@ class BookingController extends Controller
 
         // If DP payment type, calculate DP as 50% if not provided
         if ($paymentType === 'dp') {
-            $dpAmount = $totalAmount * 0.5;
+            // DP 50% dibulatkan HALF_UP dalam rupiah integer (Money::percentOf).
+            // Perkalian float langsung bisa menghasilkan 74.999,9999 untuk
+            // harga ganjil sehingga sisa tagihan meleset satu rupiah.
+            $dpAmount = (float) Money::percentOf(Money::rupiah($totalAmount), 50);
             $paidAmount = 0; // Nothing paid yet - payment will be processed via Midtrans
             $remainingAmount = $dpAmount; // First payment is the DP amount
             $paymentStatus = 'dp_pending'; // Waiting for DP payment
@@ -376,7 +380,8 @@ class BookingController extends Controller
             $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         return response()->json([
@@ -445,9 +450,40 @@ class BookingController extends Controller
      */
     public function cancel(Request $request, $id)
     {
-        $booking = $request->user()->bookings()
-            ->whereIn('status', ['pending', 'confirmed'])
-            ->find($id);
+        $request->validate([
+            'reason' => 'nullable|string|max:500',
+        ]);
+
+        $userId = (int) $request->user()->id;
+        // PHASE 3 (B16): NULL instead of '' so reports/queries see one
+        // representation of "no reason" (admin side requires a reason).
+        $reason = $request->filled('reason') ? $request->input('reason') : null;
+
+        $booking = DB::transaction(function () use ($userId, $id, $reason) {
+            // Baris dikunci sebelum dibaca. Tanpa lock, admin bisa
+            // mengonfirmasi booking yang pada detik yang sama sedang
+            // dibatalkan pasien, sehingga pasien menerima notifikasi
+            // "dikonfirmasi" dan "dibatalkan" sekaligus.
+            $booking = Booking::where('user_id', $userId)
+                ->whereKey($id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $booking || ! in_array($booking->status, ['pending', 'confirmed'], true)) {
+                return null;
+            }
+
+            $booking->update([
+                'status' => 'cancelled',
+                'cancellation_reason' => $reason,
+            ]);
+
+            // Nomor antrian yang sudah terlanjur diberikan ikut dilepas,
+            // supaya pasien yang batal tidak dipanggil petugas.
+            $this->queue->releaseOnCancel($booking, $reason);
+
+            return $booking->fresh();
+        });
 
         if (!$booking) {
             return response()->json([
@@ -456,30 +492,20 @@ class BookingController extends Controller
             ], 404);
         }
 
-        $request->validate([
-            'reason' => 'nullable|string|max:500',
-        ]);
-
-        $booking->update([
-            'status' => 'cancelled',
-            // PHASE 3 (B16): NULL instead of '' so reports/queries see one
-            // representation of "no reason" (admin side requires a reason).
-            'cancellation_reason' => $request->filled('reason') ? $request->input('reason') : null,
-        ]);
-
         // Invoice/receipt consumers need the service name AND the clinic that
         // owns this booking (pasien bisa booking di klinik berbeda).
         $booking->load(['pet', 'doctor', 'service', 'clinic']);
 
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(
-            $request->user()->id,
+            $userId,
             $booking->pet->name,
             'cancelled',
             $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         return response()->json([
@@ -575,7 +601,8 @@ class BookingController extends Controller
             $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         return response()->json([

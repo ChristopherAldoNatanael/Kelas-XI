@@ -237,7 +237,7 @@ class PayloadGateAndPermissionFixesTest extends TestCase
 
     public function test_medical_record_writes_invalidate_dashboard_cache(): void
     {
-        $dashboardKey = 'dashboard_stats_v3_c' . $this->clinic->id . '_all';
+        $dashboardKey = 'dashboard_stats_v4_c' . $this->clinic->id . '_all';
         $paymentKey = 'payment_stats_c' . $this->clinic->id;
 
         Cache::put($dashboardKey, ['revenue' => 1], 300);

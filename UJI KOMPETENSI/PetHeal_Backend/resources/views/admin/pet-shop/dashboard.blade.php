@@ -39,13 +39,6 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if(session('success'))
-        <div id="flash-msg" class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
     @if($isSuperAdmin && !$clinicId)
         <div class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5 text-sm text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300">
             <span class="material-symbols-outlined text-[19px]" aria-hidden="true">info</span>
@@ -59,7 +52,7 @@
         <x-admin.stat-card :label="__('petshop.stat_active_products')" :value="$activeProducts" icon="check_circle" tone="blue" />
         <x-admin.stat-card :label="__('petshop.stat_variants')" :value="$totalVariants" icon="style" tone="violet" />
         <x-admin.stat-card :label="__('petshop.stat_stock')" :value="number_format($totalStock, 0, ',', '.')" icon="warehouse" tone="sky" />
-        <x-admin.stat-card :label="__('petshop.stat_sales')" :value="'Rp ' . number_format($salesTotal, 0, ',', '.')" icon="payments" tone="primary" />
+        <x-admin.stat-card :label="__('petshop.stat_sales')" :value="format_rupiah($salesTotal)" icon="payments" tone="primary" />
         <x-admin.stat-card :label="__('petshop.stat_transactions')" :value="$successfulTransactions" icon="verified" tone="amber" />
     </div>
 
@@ -71,12 +64,12 @@
                     @php($height = $day['total'] > 0 ? max(6, (int) round($day['total'] / $maxTotal * 100)) : 2)
                     <div class="flex flex-1 flex-col items-center gap-2">
                         <span class="text-[10px] font-semibold tabular-nums text-slate-400">
-                            {{ $day['total'] > 0 ? 'Rp ' . number_format($day['total'], 0, ',', '.') : '—' }}
+                            {{ $day['total'] > 0 ? format_rupiah($day['total']) : '—' }}
                         </span>
                         <div class="flex w-full flex-1 items-end">
                             <div class="w-full rounded-t-lg {{ $day['total'] > 0 ? 'bg-emerald-500/80' : 'bg-slate-200 dark:bg-slate-700' }}"
                                  style="height: {{ $height }}%"
-                                 title="{{ $day['date'] }} — Rp {{ number_format($day['total'], 0, ',', '.') }}"></div>
+                                 title="{{ $day['date'] }} — {{ format_rupiah($day['total']) }}"></div>
                         </div>
                         <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $day['label'] }}</span>
                     </div>
@@ -117,7 +110,7 @@
                     </div>
                     <div class="text-right">
                         <p class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ (int) $product->sold }} {{ __('petshop.sold') }}</p>
-                        <p class="text-[11px] tabular-nums text-slate-400">Rp {{ number_format((int) $product->revenue, 0, ',', '.') }}</p>
+                        <p class="text-[11px] tabular-nums text-slate-400">{{ format_rupiah((int) $product->revenue) }}</p>
                     </div>
                 </div>
             @empty

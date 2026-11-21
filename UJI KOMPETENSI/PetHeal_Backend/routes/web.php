@@ -181,6 +181,9 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/medicines/import', [App\Http\Controllers\Admin\MedicineController::class, 'import'])->name('medicines.import');
     // Aksi massal & pemusnahan. Harus SEBELUM resource supaya
     // `/medicines/bulk-destroy` tidak dicocokkan sebagai `{medicine}`.
+    // Alias lama: /medicines/disposals tidak lagi punya tampilan sendiri dan
+    // mengalihkan ke riwayat mutasi stok (filter Pemusnahan). Dipertahankan
+    // hanya agar tautan, bookmark, dan notifikasi lama tidak menjadi 404.
     Route::get('/medicines/disposals', [App\Http\Controllers\Admin\MedicineController::class, 'disposals'])->name('medicines.disposals');
     Route::post('/medicines/bulk-destroy', [App\Http\Controllers\Admin\MedicineController::class, 'bulkDestroy'])->name('medicines.bulk-destroy');
     Route::delete('/medicines/destroy-all', [App\Http\Controllers\Admin\MedicineController::class, 'destroyAll'])->name('medicines.destroy-all');
@@ -207,6 +210,8 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Payments (Midtrans Integration)
     Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
     Route::get('/payments/{id}/receipt', [PaymentController::class, 'receipt'])->name('payments.receipt');
+    // Alias lama: detail pembayaran kini menjadi bagian dari detail booking,
+    // jadi route ini hanya mengalihkan ke `admin.bookings.show#pembayaran`.
     Route::get('/payments/{id}', [PaymentController::class, 'show'])->name('payments.show');
     Route::post('/payments/{id}/confirm', [PaymentController::class, 'confirm'])->name('payments.confirm');
     // Refund manual: mencatat uang yang sudah dikembalikan ke pasien.

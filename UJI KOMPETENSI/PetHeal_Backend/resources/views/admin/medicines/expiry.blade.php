@@ -24,19 +24,6 @@
         $expiryFiltersActive = $status !== '' || request()->filled('q');
     @endphp
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <x-admin.stat-card
             :label="__('inventory.expiry_batches_expiring')"
@@ -52,7 +39,7 @@
             :hint="__('inventory.expiry_batches_expired_hint')" />
         <x-admin.stat-card
             :label="__('inventory.expiry_quarantine_stock')"
-            :value="rtrim(rtrim(number_format($quarantineQuantity, 2, ',', '.'), '0'), ',')"
+            :value="format_qty($quarantineQuantity)"
             icon="inventory_2"
             :tone="$quarantineQuantity > 0 ? 'orange' : 'slate'"
             :hint="__('inventory.expiry_quarantine_hint', ['count' => $quarantineBatchCount])" />
@@ -67,7 +54,7 @@
     <x-admin.panel :title="__('inventory.batches_panel_title')" :subtitle="__('inventory.batches_panel_desc')" flush>
         <x-slot:actions>
             <form method="GET" action="{{ route('admin.medicines.expiry') }}" class="flex flex-wrap items-center gap-2">
-                <input type="text" name="q" value="{{ request('q') }}"
+                <input type="text" name="search" value="{{ request('search', request('q')) }}"
                        placeholder="{{ __('inventory.search_batch') }}" class="admin-input !w-56 !py-2 text-sm">
                 <select name="sort" class="admin-input !w-auto !py-2 text-sm" onchange="this.form.submit()">
                     <option value="fefo" @selected($sort === 'fefo')>{{ __('inventory.sort_fefo') }}</option>
@@ -91,7 +78,7 @@
                 'quarantine' => __('inventory.filter_quarantine'),
                 'safe' => __('inventory.filter_safe'),
             ] as $value => $label)
-                <a href="{{ route('admin.medicines.expiry', array_filter(['status' => $value, 'q' => request('q'), 'sort' => $sort])) }}"
+                <a href="{{ route('admin.medicines.expiry', array_filter(['status' => $value, 'search' => request('search', request('q')), 'sort' => $sort])) }}"
                    class="admin-filter-chip {{ $status === $value ? 'admin-filter-chip--active' : '' }}">
                     {{ $label }}
                 </a>
@@ -151,7 +138,7 @@
                             <td class="px-5 py-3 text-sm">
                                 @if($batch->expiry_date)
                                     <span class="{{ $expiryStatus === 'expired' ? 'font-semibold text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300' }}">
-                                        {{ $batch->expiry_date->format('d M Y') }}
+                                        {{ format_tanggal($batch->expiry_date) }}
                                     </span>
                                     @if($daysLeft !== null && $daysLeft < 0)
                                         <p class="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
@@ -168,13 +155,13 @@
                             </td>
                             <td class="px-5 py-3">
                                 <p class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
-                                    {{ rtrim(rtrim(number_format((float) $batch->stock, 2, ',', '.'), '0'), ',') }}
+                                    {{ format_qty((float) $batch->stock) }}
                                     <span class="text-xs font-medium text-slate-500">{{ $batch->medicine?->unit }}</span>
                                 </p>
                                 @if((float) $batch->quarantined_stock > 0)
                                     <p class="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
                                         {{ __('inventory.stock_state_quarantine') }}:
-                                        {{ rtrim(rtrim(number_format((float) $batch->quarantined_stock, 2, ',', '.'), '0'), ',') }}
+                                        {{ format_qty((float) $batch->quarantined_stock) }}
                                         {{ $batch->medicine?->unit }}
                                     </p>
                                 @endif

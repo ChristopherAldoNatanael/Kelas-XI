@@ -38,17 +38,6 @@
             <div class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6 sm:py-5">
                 <div class="space-y-5">
 
-                    @if($errors->any())
-                        <div class="flex gap-2.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-                            <span class="material-symbols-outlined shrink-0 text-[18px]" aria-hidden="true">error</span>
-                            <ul class="min-w-0 list-inside list-disc space-y-1 text-[12px] leading-relaxed">
-                                @foreach($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
                     <div>
                         <label for="petshop-product-import-file" class="admin-label">{{ __('petshop.import_file') }}</label>
                         <label for="petshop-product-import-file"
@@ -225,8 +214,5 @@
 
         // Validasi gagal = modal dibuka lagi supaya pesan error terlihat di
         // tempat aksi terjadi, bukan tertinggal di halaman di belakangnya.
-        @if($errors->any())
-            window.openPetshopProductImport();
-        @endif
     })();
 </script>

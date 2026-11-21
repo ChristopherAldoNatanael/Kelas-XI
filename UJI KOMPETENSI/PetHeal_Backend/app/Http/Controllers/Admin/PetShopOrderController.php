@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PaymentRefund;
 use App\Models\ProductOrder;
 use App\Services\PaymentService;
+use App\Services\PickupPassService;
 use App\Services\ProductOrderService;
 use App\Services\ReceiptService;
 use Illuminate\Http\Request;
@@ -20,7 +21,8 @@ class PetShopOrderController extends Controller
     public function __construct(
         private readonly ProductOrderService $orders,
         private readonly PaymentService $payments,
-        private readonly ReceiptService $receipts
+        private readonly ReceiptService $receipts,
+        private readonly PickupPassService $pickups
     ) {}
 
     public function index(Request $request)
@@ -111,14 +113,35 @@ class PetShopOrderController extends Controller
         ]);
 
         try {
-            $updated = $this->orders->transition(
-                $order,
-                $validated['status'],
-                'clinic_admin',
-                $request->user(),
-                $validated['note'] ?? null,
-                $validated['reason'] ?? null
-            );
+            if ($validated['status'] === ProductOrder::STATUS_COMPLETED) {
+                // Satu jalur penyelesaian untuk dua pintu masuk (halaman Pesanan
+                // dan halaman Pengambilan): keduanya memakai confirmHandover,
+                // sehingga riwayat serah terima tidak pernah bolong. Bedanya
+                // hanya kode pengambilan diverifikasi atau tidak ("manual").
+                // Pesanan bayar-di-klinik dilunasi lebih dulu supaya aturan
+                // "barang hanya keluar setelah dibayar" tetap dipegang service.
+                $settled = $order->fresh();
+                if ($settled->isPayAtClinic() && !$settled->isPaid()) {
+                    $this->payments->recordCashPayment($settled, $request->user());
+                    // Samakan dengan perilaku transition(completed): pesanan
+                    // bayar-di-klinik dianggap lunas begitu kas dicatat, supaya
+                    // confirmHandover boleh menyerahkan barang.
+                    $settled->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
+                    $settled->refresh();
+                }
+
+                $result = $this->pickups->confirmHandover($settled, $request->user(), 'manual');
+                $updated = $result['order'];
+            } else {
+                $updated = $this->orders->transition(
+                    $order,
+                    $validated['status'],
+                    'clinic_admin',
+                    $request->user(),
+                    $validated['note'] ?? null,
+                    $validated['reason'] ?? null
+                );
+            }
         } catch (ValidationException $e) {
             return back()->withErrors($e->errors())->withInput();
         } catch (Throwable $e) {

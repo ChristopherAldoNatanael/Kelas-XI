@@ -88,8 +88,9 @@ class MedicineStockController extends Controller
             });
         }
 
-        if ($request->filled('q')) {
-            $term = trim((string) $request->query('q'));
+        // Parameter resmi `search`; `q` dipertahankan untuk tautan lama.
+        $term = trim((string) ($request->query('search') ?? $request->query('q') ?? ''));
+        if ($term !== '') {
             $query->where(function ($q) use ($term) {
                 $q->where('batch_number', 'like', '%' . $term . '%')
                     ->orWhereHas('medicine', fn ($m) => $m->where('name', 'like', '%' . $term . '%'));
@@ -145,8 +146,9 @@ class MedicineStockController extends Controller
             $query->whereDate('created_at', '<=', $request->query('to'));
         }
 
-        if ($request->filled('q')) {
-            $query->search(trim((string) $request->query('q')));
+        $stockTerm = trim((string) ($request->query('search') ?? $request->query('q') ?? ''));
+        if ($stockTerm !== '') {
+            $query->search($stockTerm);
         }
 
         $medicines = Medicine::where('clinic_id', $this->clinicId())

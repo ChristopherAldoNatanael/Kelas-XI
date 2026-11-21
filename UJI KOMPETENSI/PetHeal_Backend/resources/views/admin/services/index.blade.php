@@ -27,21 +27,6 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if(session('success'))
-        <div id="flash-msg" class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-        <script>setTimeout(() => { const el = document.getElementById('flash-msg'); if (el) el.style.display = 'none'; }, 3000);</script>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     {{-- Ringkasan import --}}
     @if(session('import_summary'))
         @php($summary = session('import_summary'))
@@ -118,7 +103,7 @@
                                 {{ $service->duration ? $service->duration . ' ' . __('admin.minutes') : '—' }}
                             </td>
                             <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
-                                Rp {{ number_format($service->price, 0, ',', '.') }}
+                                {{ format_rupiah($service->price) }}
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge

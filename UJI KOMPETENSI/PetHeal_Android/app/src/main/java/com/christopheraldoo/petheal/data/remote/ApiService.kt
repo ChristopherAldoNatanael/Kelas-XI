@@ -262,7 +262,9 @@ interface ApiService {
 
     // ============= BOOKINGS =============
     @GET("bookings")
-    suspend fun getBookings(): Response<BookingsResponse>
+    suspend fun getBookings(
+        @Query("page") page: Int = 1
+    ): Response<BookingsResponse>
 
     @GET("bookings/upcoming")
     suspend fun getUpcomingBookings(): Response<BookingsResponse>
@@ -312,7 +314,9 @@ interface ApiService {
 
     // ============= MEDICAL RECORDS =============
     @GET("medical-records")
-    suspend fun getMedicalRecords(): Response<MedicalRecordsResponse>
+    suspend fun getMedicalRecords(
+        @Query("page") page: Int = 1
+    ): Response<MedicalRecordsResponse>
 
     @GET("medical-records/{id}")
     suspend fun getMedicalRecord(@Path("id") id: Int): Response<MedicalRecordResponse>

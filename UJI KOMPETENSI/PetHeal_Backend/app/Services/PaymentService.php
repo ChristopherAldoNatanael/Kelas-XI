@@ -54,6 +54,53 @@ class PaymentService
     }
 
     /**
+     * Pembagian dana (komisi platform) untuk satu transaksi.
+     *
+     * Mengembalikan null — artinya "tidak ada split", perilaku yang berlaku
+     * sejak awal — kecuali SEMUA syarat berikut terpenuhi:
+     *  1. `MIDTRANS_SPLIT_ENABLED=true` (fitur Midtrans Partner sudah disetujui),
+     *  2. klinik punya `commission_percent` > 0,
+     *  3. merchant platform dikonfigurasi.
+     *
+     * Dengan begitu kalkulator komisi yang dulu hanya dipakai unit test kini
+     * benar-benar menulis `payments.split_settings`, tanpa mengubah checkout
+     * pada instalasi yang belum memakai split.
+     *
+     * Kesalahan konfigurasi TIDAK pernah menggagalkan pembayaran: dicatat di
+     * log dan dana dianggap tidak dibagi (perilaku paling aman bagi pasien).
+     */
+    private function splitFor(ResolvedPaymentAccount $account, int $gross, ?int $clinicId): ?array
+    {
+        if (! config('services.midtrans.partner.split_enabled', false) || ! $clinicId) {
+            return null;
+        }
+
+        $commission = (float) (ClinicMerchantConfig::where('clinic_id', $clinicId)->value('commission_percent') ?? 0);
+        if ($commission <= 0) {
+            return null;
+        }
+
+        try {
+            $result = (new PaymentSplitCalculator())->calculate(
+                $gross,
+                $commission,
+                (string) $account->merchantId,
+                $this->partnerGateway->platformMerchantId()
+            );
+
+            return $result['settings'];
+        } catch (\Throwable $e) {
+            Log::warning('Split pembayaran dilewati', [
+                'clinic_id' => $clinicId,
+                'gross_amount' => $gross,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Buat transaksi online untuk booking (DP, lunas, atau pelunasan).
      *
      * Nominal SELALU dihitung dari kolom booking di database, bukan dari
@@ -138,6 +185,7 @@ class PaymentService
             'status' => Payment::STATUS_UNPAID,
             'provider_status' => 'created',
             'expires_at' => now()->addMinutes(30),
+            'split_settings' => $this->splitFor($account, $amount, $booking->clinic_id),
             'metadata' => [
                 'booking_id' => $booking->id,
                 'intent' => $kind,
@@ -243,6 +291,7 @@ class PaymentService
             'status' => Payment::STATUS_UNPAID,
             'provider_status' => 'created',
             'expires_at' => now()->addMinutes((int) config('petshop.online_reservation_minutes', 30)),
+            'split_settings' => $this->splitFor($account, (int) $order->total_amount, $order->clinic_id),
             'metadata' => [
                 'order_number' => $order->order_number,
                 'customer_name' => $order->customer_name,
@@ -380,6 +429,7 @@ class PaymentService
             'status' => Payment::STATUS_UNPAID,
             'provider_status' => 'created',
             'expires_at' => now()->addMinutes(30),
+            'split_settings' => $this->splitFor($account, $amount, $clinicId),
             'metadata' => [
                 'medical_record_id' => $record->id,
                 'booking_id' => $booking->id,
@@ -978,6 +1028,19 @@ class PaymentService
             : 'BOOKING-' . $booking->id . '-' . $millis;
     }
 
+    /**
+     * Bagian payload Snap untuk pembagian dana.
+     *
+     * Kosong bila `split_settings` belum dihitung (default), sehingga payload
+     * yang dikirim ke Midtrans identik dengan sebelumnya.
+     */
+    private function splitPayload(Payment $payment): array
+    {
+        $settings = $payment->split_settings;
+
+        return empty($settings) ? [] : ['transaction_split_settings' => $settings];
+    }
+
     private function bookingSnapPayload(Booking $booking, Payment $payment, string $kind): array
     {
         $petName = $booking->pet?->name ?: 'Pet';
@@ -1007,7 +1070,7 @@ class PaymentService
             ],
             'enabled_payments' => $this->enabledPayments(),
             'credit_card' => ['secure' => true],
-        ];
+        ] + $this->splitPayload($payment);
     }
 
     private function medicalRecordOrderId(MedicalRecord $record): string
@@ -1067,7 +1130,7 @@ class PaymentService
             ],
             'enabled_payments' => $this->enabledPayments(),
             'credit_card' => ['secure' => true],
-        ];
+        ] + $this->splitPayload($payment);
     }
 
     private function enabledPayments(): array

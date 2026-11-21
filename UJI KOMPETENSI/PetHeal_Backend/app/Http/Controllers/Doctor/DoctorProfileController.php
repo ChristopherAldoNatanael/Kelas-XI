@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Doctor;
 use App\Models\AuditLog;
 use App\Services\ImageService;
 use App\Services\OtpService;
+use App\Services\PasswordOtpFlow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -78,7 +79,7 @@ class DoctorProfileController extends DoctorPortalController
 
         AuditLog::log('doctor.profile.update', "Dokter {$doctor->name} memperbarui profilnya.", $doctor);
 
-        return back()->with('success', 'Profil berhasil diperbarui.');
+        return back()->with('success', __('doctor.profile_updated'));
     }
 
     /**
@@ -88,7 +89,7 @@ class DoctorProfileController extends DoctorPortalController
      * Endpoint yang sama dipakai untuk "kirim ulang": bila sesi masih punya
      * kata sandi yang menunggu, kolom sandi tidak perlu diisi lagi.
      */
-    public function sendPasswordOtp(Request $request, OtpService $otp)
+    public function sendPasswordOtp(Request $request, PasswordOtpFlow $flow)
     {
         $doctor = $this->doctor();
         $user = $doctor->user;
@@ -100,32 +101,26 @@ class DoctorProfileController extends DoctorPortalController
             $data = $request->validate([
                 'password' => 'required|string|min:8|confirmed',
             ], [
-                'password.required' => 'Masukkan kata sandi baru.',
-                'password.min' => 'Kata sandi baru minimal 8 karakter.',
-                'password.confirmed' => 'Konfirmasi kata sandi baru tidak cocok.',
+                'password.required' => __('doctor.new_password_required'),
+                'password.min' => __('doctor.new_password_min'),
+                'password.confirmed' => __('doctor.new_password_mismatch'),
             ]);
 
             $hash = Hash::make($data['password']);
         }
 
-        $email = $otp->normalize($user->email);
-
-        $code = $otp->issue($email, OtpService::PURPOSE_DOCTOR_PASSWORD, [
+        $result = $flow->start($user, OtpService::PURPOSE_DOCTOR_PASSWORD, [
             'user_id' => $user->id,
             'doctor_id' => $doctor->id,
             'clinic_id' => $doctor->clinic_id,
-        ]);
+        ], $doctor->clinic?->name ?? 'PetHeal', $doctor->name);
 
-        $sent = $otp->send($email, OtpService::PURPOSE_DOCTOR_PASSWORD, $code, [
-            'clinic_name' => $doctor->clinic?->name ?? 'PetHeal',
-            'recipient_name' => $doctor->name,
-        ]);
-
-        if (!$sent) {
-            return back()->with('error', 'Kode verifikasi gagal dikirim ke email. Coba lagi beberapa saat lagi.');
+        if (!$result['sent']) {
+            return back()->with('error', __('doctor.password_otp_failed'));
         }
 
-        $ttl = $otp->ttlMinutes(OtpService::PURPOSE_DOCTOR_PASSWORD);
+        $email = $result['email'];
+        $ttl = $result['ttl'];
 
         $request->session()->put(self::PASSWORD_PENDING, [
             'user_id' => $user->id,
@@ -135,7 +130,7 @@ class DoctorProfileController extends DoctorPortalController
         ]);
         $request->session()->put(self::PASSWORD_SENT_AT, now()->timestamp);
 
-        return back()->with('success', "Kode verifikasi dikirim ke {$email}. Berlaku {$ttl} menit.");
+        return back()->with('success', __('doctor.password_otp_sent', ['email' => $email, 'minutes' => $ttl]));
     }
 
     /**
@@ -143,15 +138,15 @@ class DoctorProfileController extends DoctorPortalController
      * disiapkan. Tidak ada kolom kata sandi lama — kode email adalah bukti
      * bahwa yang mengganti memang pemilik akun.
      */
-    public function updatePassword(Request $request, OtpService $otp)
+    public function updatePassword(Request $request, PasswordOtpFlow $flow)
     {
         $request->validate([
             'code' => ['required', 'array', 'size:6'],
             'code.*' => ['required', 'digits:1'],
         ], [
-            'code.required' => 'Masukkan 6 digit kode verifikasi.',
-            'code.size' => 'Kode verifikasi terdiri dari 6 digit.',
-            'code.*.digits' => 'Kode verifikasi hanya berisi angka.',
+            'code.required' => __('doctor.code_required'),
+            'code.size' => __('doctor.code_size'),
+            'code.*.digits' => __('doctor.code_digits'),
         ]);
 
         $user = $this->doctor()->user;
@@ -160,15 +155,14 @@ class DoctorProfileController extends DoctorPortalController
         if (!$pending) {
             $this->forgetPasswordState($request);
 
-            return back()->withErrors(['code' => 'Sesi verifikasi sudah berakhir. Minta kode baru.']);
+            return back()->withErrors(['code' => __('doctor.verification_expired')]);
         }
 
-        $email = $otp->normalize($user->email);
-        $result = $otp->verify(
-            $email,
+        $result = $flow->verify(
+            $user,
             OtpService::PURPOSE_DOCTOR_PASSWORD,
-            implode('', $request->input('code')),
-            'Kode verifikasi'
+            $request->input('code'),
+            __('doctor.verification_code')
         );
 
         if (!$result['ok']) {
@@ -177,24 +171,23 @@ class DoctorProfileController extends DoctorPortalController
 
         $user->update(['password' => $pending['hash']]);
 
-        $otp->consume($email, OtpService::PURPOSE_DOCTOR_PASSWORD);
         $this->forgetPasswordState($request);
         $request->session()->regenerate();
 
         AuditLog::log('doctor.password.change', 'Dokter mengganti kata sandi portal setelah verifikasi kode email.', $user);
 
-        return back()->with('success', 'Kata sandi berhasil diperbarui. Gunakan kata sandi baru saat login berikutnya.');
+        return back()->with('success', __('doctor.password_updated'));
     }
 
     /** Batalkan verifikasi yang belum selesai; kata sandi tidak diubah. */
-    public function cancelPasswordOtp(Request $request, OtpService $otp)
+    public function cancelPasswordOtp(Request $request, PasswordOtpFlow $flow)
     {
         $user = $this->doctor()->user;
 
-        $otp->consume($otp->normalize($user->email), OtpService::PURPOSE_DOCTOR_PASSWORD);
+        $flow->cancel($user, OtpService::PURPOSE_DOCTOR_PASSWORD);
         $this->forgetPasswordState($request);
 
-        return back()->with('success', 'Verifikasi dibatalkan. Kata sandi tidak diubah.');
+        return back()->with('success', __('doctor.password_otp_cancelled'));
     }
 
     /**

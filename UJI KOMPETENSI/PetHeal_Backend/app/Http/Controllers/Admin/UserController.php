@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Services\PatientScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -21,7 +22,13 @@ class UserController extends Controller
 
         // Satu query dasar untuk daftar + statistik, supaya angka di kartu
         // tidak pernah dihitung dari sebagian halaman saja.
-        $base = User::query()->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId));
+        //
+        // Definisi "akun klinik" (PatientScope::scopeClinicUsers): staf yang
+        // terikat klinik ini ATAU pasien yang pernah booking/berekam medis di
+        // sini. Pasien adalah akun global, jadi `users.clinic_id` saja akan
+        // menyembunyikan seluruh pasien yang mendaftar dari aplikasi.
+        $base = User::query();
+        PatientScope::scopeClinicUsers($base, $clinicId);
 
         $stats = [
             'total' => (clone $base)->count(),
@@ -71,10 +78,17 @@ class UserController extends Controller
         $clinicId = currentClinicId();
         $query = User::with([
             'pets',
-            'bookings' => fn ($query) => $query->with(['pet', 'doctor'])->latest()->limit(10),
+            // Riwayat yang tampil hanya transaksi di klinik ini. Pasien global
+            // bisa punya booking di klinik lain, dan itu bukan urusan admin
+            // klinik ini (data minimization).
+            'bookings' => fn ($query) => $query
+                ->when($clinicId, fn ($bookingQuery) => $bookingQuery->where('clinic_id', $clinicId))
+                ->with(['pet', 'doctor'])
+                ->latest()
+                ->limit(10),
         ])->where('id', $id);
         if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
+            PatientScope::scopeClinicUsers($query, $clinicId);
         }
         $user = $query->firstOrFail();
         $firebaseData = null;
@@ -132,7 +146,7 @@ class UserController extends Controller
         $clinicId = currentClinicId();
         $query = User::where('id', $id);
         if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
+            PatientScope::scopeClinicUsers($query, $clinicId);
         }
         $user = $query->firstOrFail();
 
@@ -168,7 +182,7 @@ class UserController extends Controller
         $clinicId = currentClinicId();
         $query = User::where('id', $id);
         if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
+            PatientScope::scopeClinicUsers($query, $clinicId);
         }
         $user = $query->firstOrFail();
 
@@ -204,7 +218,7 @@ class UserController extends Controller
         $clinicId = currentClinicId();
         $query = User::where('id', $id);
         if ($clinicId) {
-            $query->where('clinic_id', $clinicId);
+            PatientScope::scopeClinicUsers($query, $clinicId);
         }
         $user = $query->firstOrFail();
 

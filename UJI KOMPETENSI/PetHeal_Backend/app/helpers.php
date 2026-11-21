@@ -162,3 +162,89 @@ if (!function_exists('applyClinicScope')) {
         return $query->whereRaw('1 = 0');
     }
 }
+
+if (!function_exists('format_rupiah')) {
+    /**
+     * Satu-satunya cara menulis rupiah di tampilan.
+     *
+     * Sebelumnya setiap halaman menyusun sendiri `'Rp ' . number_format(...)`,
+     * sehingga pemisah ribuan dan spasi berbeda antar halaman. Helper ini
+     * memakai format Indonesia yang sama di seluruh panel: "Rp 1.250.000".
+     */
+    function format_rupiah(mixed $value, bool $withPrefix = true): string
+    {
+        $amount = number_format((float) $value, 0, ',', '.');
+
+        return $withPrefix ? 'Rp ' . $amount : $amount;
+    }
+}
+
+if (!function_exists('format_qty')) {
+    /**
+     * Angka stok/jumlah tanpa nol di belakang koma: 42, 42,5, 0,25.
+     * Dipakai pada stok obat, batch, dan mutasi agar tidak tampil "42,00".
+     */
+    function format_qty(mixed $value): string
+    {
+        $number = number_format((float) $value, 2, ',', '.');
+
+        $number = rtrim(rtrim($number, '0'), ',');
+
+        return $number === '' || $number === '-' ? '0' : $number;
+    }
+}
+
+if (!function_exists('format_tanggal')) {
+    /**
+     * Tanggal yang mengikuti bahasa antarmuka (id/en).
+     *
+     * `->format('d M Y')` selalu menghasilkan nama bulan Inggris, sehingga
+     * dashboard berbahasa Indonesia menampilkan "Nov" di tengah teks Indonesia.
+     *
+     * @param \DateTimeInterface|string|null $value
+     */
+    function format_tanggal(mixed $value, string $preset = 'date', string $fallback = '-'): string
+    {
+        if (empty($value)) {
+            return $fallback;
+        }
+
+        $date = $value instanceof \DateTimeInterface
+            ? \Carbon\Carbon::instance($value)
+            : \Carbon\Carbon::parse($value);
+
+        $pattern = match ($preset) {
+            'datetime' => 'd M Y H:i',
+            'time' => 'H:i',
+            'long' => 'd F Y',
+            'iso' => 'Y-m-d',
+            default => 'd M Y',
+        };
+
+        return $date->locale(app()->getLocale())->translatedFormat($pattern);
+    }
+}
+
+if (!function_exists('has_active_filters')) {
+    /**
+     * Apakah ada filter yang benar-benar terisi pada query string.
+     *
+     * Form filter selalu mengirim semua field (`search=`, `status=`, `date=`),
+     * sehingga `request()->hasAny([...])` hampir selalu true. Akibatnya pesan
+     * "tidak ada hasil untuk filter ini" muncul padahal pengguna belum
+     * memfilter apa pun, dan tombol Reset ikut tampil terus. Helper ini hanya
+     * menghitung nilai yang benar-benar berisi.
+     *
+     * @param array<int, string> $keys
+     */
+    function has_active_filters(array $keys): bool
+    {
+        foreach ($keys as $key) {
+            if (trim((string) request($key)) !== '') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+}

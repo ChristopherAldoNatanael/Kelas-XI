@@ -7,7 +7,7 @@
 @php
     $verifiedOrder = $verified['order'] ?? null;
     $verifiedPass = $verified['pass'] ?? null;
-    $currency = fn ($value) => 'Rp ' . number_format((int) $value, 0, ',', '.');
+    $currency = static fn ($value) => format_rupiah($value);
 
     // Teks untuk modul pemindai QR (resources/js/pickup-scanner.js). Diteruskan
     // lewat data attribute supaya tidak ada logika bisnis di dalam JavaScript.
@@ -39,38 +39,6 @@
         :eyebrow="__('menu.pet_shop')"
         icon="qr_code_scanner"
         :description="__('petshop.pickup_desc')" />
-
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('info'))
-        <div class="flex items-center gap-3 rounded-2xl border border-sky-200 bg-sky-50 px-5 py-3.5 text-sm font-medium text-sky-700 dark:border-sky-900/60 dark:bg-sky-900/20 dark:text-sky-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">info</span>
-            <span>{{ session('info') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <p class="font-semibold">{{ __('petshop.pickup_verify_failed') }}</p>
-            <ul class="mt-1 list-disc space-y-0.5 pl-5">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
 
     <div class="grid gap-6 lg:grid-cols-2">
         {{-- Pemindai QR: jalur utama. Kamera otomatis hidup; kode manual

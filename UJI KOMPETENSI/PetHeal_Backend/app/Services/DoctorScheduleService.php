@@ -23,6 +23,15 @@ class DoctorScheduleService
     public const SLOT_INTERVAL_MINUTES = 30;
 
     /**
+     * Toleransi beberapa menit untuk slot yang baru saja lewat.
+     *
+     * Pasien yang membuka form pukul 09.59 lalu menekan "Booking" pukul 10.01
+     * tidak boleh ditolak hanya karena jendela satu menit. Di luar toleransi
+     * ini, slot dianggap sudah lewat.
+     */
+    public const PAST_SLOT_GRACE_MINUTES = 5;
+
+    /**
      * Pengecualian aktif untuk dokter pada tanggal tertentu (clinic-scoped).
      */
     public function exceptionFor(Doctor $doctor, string $date): ?DoctorScheduleException
@@ -111,11 +120,24 @@ class DoctorScheduleService
             ->all();
 
         $slots = [];
+        $now = Carbon::now();
+        $isToday = Carbon::parse($date)->isSameDay($now);
+
         for ($minute = $start; $minute < $end; $minute += self::SLOT_INTERVAL_MINUTES) {
             $time = sprintf('%02d:%02d', intdiv($minute, 60), $minute % 60);
+            $taken = in_array($time, $booked, true);
+
+            // Slot hari ini yang jamnya sudah lewat tidak ditawarkan lagi.
+            // Penandaan di sini membuat aplikasi menyembunyikan/menonaktifkan
+            // slot tersebut sebelum pasien memilih.
+            $past = $isToday
+                && Carbon::parse($date . ' ' . $time)
+                    ->addMinutes(self::PAST_SLOT_GRACE_MINUTES)
+                    ->isPast();
+
             $slots[] = [
                 'time' => $time,
-                'available' => !in_array($time, $booked, true),
+                'available' => !$taken && !$past,
             ];
         }
 
@@ -163,6 +185,19 @@ class DoctorScheduleService
             return sprintf(
                 'Jam %s bukan slot yang tersedia. Pilih salah satu jam pada jadwal.',
                 substr($time, 0, 5)
+            );
+        }
+
+        // Slot yang sudah lewat tidak boleh dibooking. Sebelum ini, penjagaan
+        // hanya ada di aplikasi sehingga request yang dimanipulasi (atau form
+        // yang dibiarkan terbuka lama) tetap bisa membuat booking untuk jam
+        // yang sudah lewat.
+        $slotMoment = Carbon::parse($date . ' ' . substr($time, 0, 5));
+        if ($slotMoment->copy()->addMinutes(self::PAST_SLOT_GRACE_MINUTES)->isPast()) {
+            return sprintf(
+                'Jam %s pada %s sudah lewat. Silakan pilih jam atau tanggal lain.',
+                substr($time, 0, 5),
+                $slotMoment->translatedFormat('d F Y')
             );
         }
 

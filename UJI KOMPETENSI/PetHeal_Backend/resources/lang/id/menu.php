@@ -20,6 +20,7 @@ return [
     'medicines_list' => 'Daftar Obat',
     'medicines_expiry' => 'Monitoring Kedaluwarsa',
     'medicine_mutations' => 'Mutasi Stok',
+    'medicine_mutations_item' => 'Mutasi stok (multi-obat)',
     'medical_records' => 'Rekam Medis',
     'payments' => 'Pembayaran',
     'clinics' => 'Klinik',

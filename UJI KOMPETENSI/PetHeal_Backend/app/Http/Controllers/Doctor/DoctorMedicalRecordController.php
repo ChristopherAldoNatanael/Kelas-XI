@@ -39,7 +39,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
     {
         $suffix = $clinicId ?: 'all';
         Cache::forget('payment_stats_c' . $suffix);
-        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
+        Cache::forget('dashboard_stats_v4_c' . $suffix . '_all');
     }
 
     public function index(Request $request)
@@ -84,7 +84,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
 
         if ($booking->status === 'cancelled') {
             return redirect()->route('doctor.bookings.show', $booking->id)
-                ->with('error', 'Booking yang dibatalkan tidak bisa dibuatkan rekam medis.');
+                ->with('error', __('doctor.cancelled_booking_no_record'));
         }
 
         if ($booking->medicalRecord) {
@@ -155,7 +155,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
 
         if ($booking->status === 'cancelled') {
             return redirect()->back()->withInput()
-                ->with('error', 'Booking yang dibatalkan tidak bisa dibuatkan rekam medis.');
+                ->with('error', __('doctor.cancelled_booking_no_record'));
         }
 
         if (MedicalRecord::where('booking_id', $booking->id)->exists()) {
@@ -257,7 +257,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
         AuditLog::log('doctor.medical_record.create', "Dokter membuat rekam medis #{$record->id} untuk {$booking->pet->name}.", $record);
 
         return redirect()->route('doctor.medical-records.show', $record->id)
-            ->with('success', 'Rekam medis tersimpan dan booking ditandai selesai.');
+            ->with('success', __('doctor.record_saved'));
     }
 
     public function show($id)
@@ -393,7 +393,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
         AuditLog::log('doctor.medical_record.update', "Dokter memperbarui rekam medis #{$record->id}.", $record);
 
         return redirect()->route('doctor.medical-records.show', $record->id)
-            ->with('success', 'Rekam medis diperbarui.');
+            ->with('success', __('doctor.record_updated'));
     }
 
     private function normalizeMoneyInput(Request $request, string $key, float $fallback = 0): float

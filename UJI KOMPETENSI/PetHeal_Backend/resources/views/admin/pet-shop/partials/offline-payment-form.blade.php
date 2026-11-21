@@ -1,5 +1,5 @@
 @php
-    $currency = fn ($value) => 'Rp ' . number_format((int) $value, 0, ',', '.');
+    $currency = static fn ($value) => format_rupiah($value);
 @endphp
 
 {{-- Form pencatatan pembayaran di klinik (offline). Dipakai di halaman detail

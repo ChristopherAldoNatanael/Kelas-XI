@@ -61,7 +61,7 @@
                                     data-price="{{ (float) $medicine->price }}"
                                     @selected((string) ($row['medicine_id'] ?? '') === (string) $medicine->id)>
                                     {{ $medicine->name }} · stok
-                                    {{ rtrim(rtrim(number_format((float) $medicine->stock, 2, ',', '.'), '0'), ',') }} {{ $medicine->unit }}
+                                    {{ format_qty((float) $medicine->stock) }} {{ $medicine->unit }}
                                 </option>
                             @endforeach
                         </select>
@@ -102,7 +102,7 @@
                         @foreach($medicines as $medicine)
                             <option value="{{ $medicine->id }}" data-price="{{ (float) $medicine->price }}">
                                 {{ $medicine->name }} · stok
-                                {{ rtrim(rtrim(number_format((float) $medicine->stock, 2, ',', '.'), '0'), ',') }} {{ $medicine->unit }}
+                                {{ format_qty((float) $medicine->stock) }} {{ $medicine->unit }}
                             </option>
                         @endforeach
                     </select>

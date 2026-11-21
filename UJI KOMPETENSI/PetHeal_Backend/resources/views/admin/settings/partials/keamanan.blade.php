@@ -10,13 +10,6 @@
         <x-admin.badge :label="__('admin.two_step_badge')" tone="sky" />
     </x-slot:actions>
 
-    @if(session('warning'))
-        <div class="mb-5 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-900/20 dark:text-amber-300">
-            <span class="material-symbols-outlined text-[18px] shrink-0" aria-hidden="true">warning</span>
-            <span>{{ session('warning') }}</span>
-        </div>
-    @endif
-
     @if($passwordErrors !== [])
         <div class="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300">
             @foreach($passwordErrors as $e) <p>{{ $e }}</p> @endforeach

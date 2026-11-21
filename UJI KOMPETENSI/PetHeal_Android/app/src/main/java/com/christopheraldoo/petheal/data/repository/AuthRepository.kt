@@ -293,13 +293,18 @@ class AuthRepository @Inject constructor(
      * Pendaftaran email langkah 1: minta kode OTP ke email pendaftar.
      * Akun BELUM dibuat di sini — backend baru membuatnya di
      * [verifyRegisterOtp] setelah kode diverifikasi.
+     *
+     * Mengembalikan seluruh respons (bukan hanya `data`) karena backend bisa
+     * menjawab sukses dengan `mail_sent = false`: kode sudah terbit di server,
+     * tetapi emailnya gagal dikirim. Tanpa informasi itu aplikasi akan
+     * memindahkan user ke layar OTP padahal tidak ada email yang menyusul.
      */
     suspend fun requestRegisterOtp(
         name: String,
         email: String,
         password: String,
         clinicSlug: String? = null
-    ): Result<OtpSentData> {
+    ): Result<OtpSentResponse> {
         return try {
             val response = apiService.requestRegisterOtp(
                 RegisterOtpRequest(
@@ -309,8 +314,9 @@ class AuthRepository @Inject constructor(
                     clinicSlug = clinicSlug
                 )
             )
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.Success(response.body()?.data ?: OtpSentData(email = email))
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body)
             } else {
                 errorResultFrom(response, "Gagal mengirim kode OTP")
             }
@@ -320,11 +326,12 @@ class AuthRepository @Inject constructor(
     }
 
     /** Kirim ulang kode pendaftaran (payload form masih tersimpan server). */
-    suspend fun resendRegisterOtp(email: String): Result<Unit> {
+    suspend fun resendRegisterOtp(email: String): Result<OtpSentResponse> {
         return try {
             val response = apiService.resendRegisterOtp(ResendOtpRequest(email = email))
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.Success(Unit)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body)
             } else {
                 errorResultFrom(response, "Gagal mengirim ulang kode")
             }

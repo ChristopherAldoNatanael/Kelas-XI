@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use App\Services\OtpService;
+use App\Support\VerificationMailer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -21,6 +22,16 @@ use Illuminate\Queue\SerializesModels;
  */
 class OtpMail extends Mailable
 {
+    /*
+     * Subjek email TIDAK boleh berpola "Kode OTP ...".
+     *
+     * Bukti uji A/B 21 Nov 2026: email dengan isi template OTP lengkap (berisi
+     * kode + kotak kode) tetapi subjek netral MASUK ke Gmail, sedangkan email
+     * dengan isi kosong tetapi subjek "Kode OTP pendaftaran PetHeal" DITAHAN.
+     * Jadi pemicunya subjek, bukan isi. Semua subjek memakai pola
+     * "PetHeal: <tindakan>" supaya lolos filter sekaligus tetap jelas.
+     */
+
     use Queueable, SerializesModels;
 
     public function __construct(
@@ -34,11 +45,13 @@ class OtpMail extends Mailable
 
     public function build()
     {
-        if (OtpService::isDashboardPurpose($this->purpose)) {
-            return $this->buildAdminMail();
-        }
+        $mailable = OtpService::isDashboardPurpose($this->purpose)
+            ? $this->buildAdminMail()
+            : $this->buildMemberMail();
 
-        return $this->buildMemberMail();
+        // Email verifikasi punya jalur kirim sendiri (Brevo) agar tidak
+        // ditahan filter Gmail. Lihat App\Support\VerificationMailer.
+        return VerificationMailer::applyTo($mailable);
     }
 
     /**
@@ -50,25 +63,25 @@ class OtpMail extends Mailable
     {
         $config = match ($this->purpose) {
             OtpService::PURPOSE_REGISTER => [
-                'subject' => 'Kode OTP pendaftaran PetHeal',
+                'subject' => 'PetHeal: pendaftaran akun Anda',
                 'title' => 'Verifikasi email pendaftaran',
                 'intro' => 'Masukkan kode ini di aplikasi untuk menyelesaikan pendaftaran akun PetHeal Anda.',
                 'reason' => 'pendaftaran akun',
             ],
             OtpService::PURPOSE_DELETE_ACCOUNT => [
-                'subject' => 'Kode konfirmasi hapus akun PetHeal',
+                'subject' => 'PetHeal: konfirmasi hapus akun',
                 'title' => 'Konfirmasi hapus akun',
                 'intro' => 'Masukkan kode ini di aplikasi untuk mengonfirmasi penghapusan akun PetHeal Anda secara permanen.',
                 'reason' => 'penghapusan akun',
             ],
             OtpService::PURPOSE_EMAIL_CHANGE => [
-                'subject' => 'Kode konfirmasi email baru PetHeal',
+                'subject' => 'PetHeal: konfirmasi email baru akun Anda',
                 'title' => 'Konfirmasi alamat email baru',
                 'intro' => 'Masukkan kode ini di aplikasi untuk menyelesaikan perubahan alamat email akun PetHeal Anda.',
                 'reason' => 'perubahan alamat email',
             ],
             default => [
-                'subject' => 'Kode OTP reset kata sandi PetHeal',
+                'subject' => 'PetHeal: atur ulang kata sandi akun Anda',
                 'title' => 'Reset kata sandi',
                 'intro' => 'Masukkan kode ini di aplikasi untuk mengatur ulang kata sandi akun PetHeal Anda.',
                 'reason' => 'reset kata sandi',
@@ -97,7 +110,7 @@ class OtpMail extends Mailable
 
         if ($isDoctor) {
             return $this
-                ->subject("Verifikasi kata sandi dokter — {$clinic}")
+                ->subject("PetHeal: kata sandi portal dokter — {$clinic}")
                 ->view('emails.otp-admin')
                 ->text('emails.otp-admin-text')
                 ->with([
@@ -119,8 +132,8 @@ class OtpMail extends Mailable
         }
 
         $subject = $isRegister
-            ? "Kode akses admin — {$clinic}"
-            : "Verifikasi kata sandi admin — {$clinic}";
+            ? "PetHeal: pendaftaran admin — {$clinic}"
+            : "PetHeal: kata sandi admin — {$clinic}";
 
         return $this
             ->subject($subject)

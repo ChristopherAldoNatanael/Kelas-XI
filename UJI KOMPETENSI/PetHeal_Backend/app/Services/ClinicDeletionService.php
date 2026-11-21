@@ -35,12 +35,38 @@ class ClinicDeletionService
 {
     /**
      * @return array<string,int> ringkasan jumlah baris yang terhapus
+     *
+     * @throws RuntimeException bila klinik masih menyimpan jejak keuangan/medis
+     *                          dan pemanggil tidak meminta penghapusan paksa.
      */
-    public function delete(Clinic $clinic): array
+    public function delete(Clinic $clinic, bool $force = false): array
     {
         $clinicId = (int) $clinic->id;
         $clinicName = $clinic->name;
         $clinicSlug = $clinic->slug;
+
+        // Penjaga riwayat (TEMUAN F-07). Menghapus klinik berarti menghapus
+        // rekam medis pasien secara permanen, dan tabel `payments` memakai
+        // FK SET NULL sehingga nominalnya akan tertinggal tanpa klinik dan
+        // tanpa objek (`payable_id` yatim).
+        //
+        // Klinik yang benar-benar sudah beroperasi karenanya hanya boleh
+        // DINONAKTIFKAN. Penghapusan permanen tetap tersedia untuk klinik uji
+        // (tanpa riwayat) atau bila super admin menyatakan sadar lewat
+        // `force`.
+        if (! $force) {
+            $history = $this->financialHistory($clinicId);
+            if ($history['payments'] > 0 || $history['orders'] > 0 || $history['records'] > 0) {
+                throw new RuntimeException(sprintf(
+                    'Klinik "%s" masih menyimpan riwayat: %d pembayaran, %d pesanan Pet Shop, %d rekam medis. '
+                    . 'Nonaktifkan klinik ini alih-alih menghapusnya, atau ulangi dengan persetujuan hapus riwayat.',
+                    $clinicName,
+                    $history['payments'],
+                    $history['orders'],
+                    $history['records']
+                ));
+            }
+        }
 
         [$counts, $files] = DB::transaction(function () use ($clinicId, $clinicName, $clinicSlug) {
             // Kunci baris klinik supaya dua request hapus bersamaan tidak
@@ -215,6 +241,24 @@ class ClinicDeletionService
         }
 
         return $counts;
+    }
+
+    /**
+     * Jumlah baris riwayat yang membuat sebuah klinik tidak boleh dihapus
+     * permanen tanpa persetujuan eksplisit.
+     *
+     * Dipakai guard di delete() dan ditampilkan ulang di halaman super admin
+     * supaya alasan "klinik ini tidak bisa dihapus" bukan angka misterius.
+     *
+     * @return array{payments:int, orders:int, records:int}
+     */
+    public function financialHistory(int $clinicId): array
+    {
+        return [
+            'payments' => (int) DB::table('payments')->where('clinic_id', $clinicId)->count(),
+            'orders' => (int) DB::table('product_orders')->where('clinic_id', $clinicId)->count(),
+            'records' => (int) DB::table('medical_records')->where('clinic_id', $clinicId)->count(),
+        ];
     }
 
     /**

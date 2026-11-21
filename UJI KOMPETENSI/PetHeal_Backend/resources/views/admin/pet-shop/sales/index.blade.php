@@ -19,7 +19,7 @@
     </x-admin.page-header>
 
     <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <x-admin.stat-card :label="__('petshop.revenue')" :value="'Rp ' . number_format($summary['revenue'], 0, ',', '.')" icon="payments" tone="primary" />
+        <x-admin.stat-card :label="__('petshop.revenue')" :value="format_rupiah($summary['revenue'])" icon="payments" tone="primary" />
         <x-admin.stat-card :label="__('petshop.nav_orders')" :value="$summary['orders']" icon="receipt_long" tone="blue" />
         <x-admin.stat-card :label="__('petshop.total_items_sold')" :value="number_format($summary['items'], 0, ',', '.')" icon="inventory_2" tone="violet" />
     </div>
@@ -40,7 +40,7 @@
             </select>
             <div class="flex items-center gap-2">
                 <button type="submit" class="admin-btn-secondary">{{ __('petshop.search') }}</button>
-                @if(request()->hasAny(['search','from','to','payment_method','payment_status']))
+                @if(has_active_filters(['search','from','to','payment_method','payment_status']))
                     <a href="{{ route('admin.pet-shop.sales.index') }}" class="admin-btn-ghost">{{ __('petshop.reset') }}</a>
                 @endif
             </div>
@@ -66,7 +66,7 @@
                             <td class="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{{ $order->customer_name }}</td>
                             <td class="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">{{ $order->items->sum('quantity') }} item</td>
                             <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.payment_method.' . $order->payment_method) }}</td>
-                            <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                            <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ format_rupiah($order->total_amount) }}</td>
                             <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $order->completed_at?->format('d M Y H:i') }}</td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.pet-shop.orders.show', $order) }}" class="admin-btn-ghost !p-2">

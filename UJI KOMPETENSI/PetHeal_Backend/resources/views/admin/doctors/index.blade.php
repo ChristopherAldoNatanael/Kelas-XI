@@ -29,6 +29,23 @@
             <x-admin.badge :label="__('admin.total') . ' · ' . $doctors->total()" tone="slate" />
         </x-slot:actions>
 
+        <form method="GET" action="{{ route('admin.doctors.index') }}"
+              class="flex flex-wrap items-center gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
+            <label for="doctor-search" class="sr-only">{{ __('common.search') }}</label>
+            <input id="doctor-search" type="search" name="search" value="{{ request('search') }}"
+                   placeholder="{{ __('admin.search_doctor_placeholder') }}" class="admin-input !w-64 !py-2 text-sm">
+            <button type="submit" class="admin-btn-secondary !px-3 !py-2 !text-xs">
+                <span class="material-symbols-outlined text-[16px]" aria-hidden="true">search</span>
+                {{ __('common.search') }}
+            </button>
+            @if(request('search'))
+                <a href="{{ route('admin.doctors.index') }}" class="admin-btn-ghost !px-3 !py-2 !text-xs">
+                    <span class="material-symbols-outlined text-[16px]" aria-hidden="true">restart_alt</span>
+                    {{ __('admin.reset_filter_short') }}
+                </a>
+            @endif
+        </form>
+
         <div class="overflow-x-auto">
             <table class="w-full text-left">
                 <thead class="admin-table-head">

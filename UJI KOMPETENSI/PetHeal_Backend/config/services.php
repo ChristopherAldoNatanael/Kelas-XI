@@ -57,15 +57,19 @@ return [
     |--------------------------------------------------------------------------
     | FCM (Firebase Cloud Messaging) Configuration
     |--------------------------------------------------------------------------
-    | NOTE: This project uses FCM V1 API with Service Account JWT authentication.
-    | The 'server_key' below is for LEGACY API only and is NOT USED by FCMService.php.
-    | FCM V1 API authenticates via the service account JSON file above.
+    | NOTE: This project uses the FCM V1 API with Service Account JWT
+    | authentication (`services.firebase.credentials`). There is deliberately
+    | no legacy server key: the FCM legacy API is shut down and the key was
+    | never read by FCMService.
     |--------------------------------------------------------------------------
     */
     'fcm' => [
-        'server_key' => env('FCM_API_KEY'),       // Legacy - not used by current implementation
         'sender_id' => env('FCM_SENDER_ID'),      // Used for Android client-side registration
         'project_id' => env('FIREBASE_PROJECT_ID', 'petheal-d8c3d'),
+        // Kirim notifikasi lewat antrian (`jobs`) alih-alih di dalam request.
+        // Hanya aktifkan bila worker benar-benar berjalan (`start-queue.bat`),
+        // kalau tidak notifikasi akan menumpuk tanpa terkirim.
+        'queue' => env('FCM_QUEUE', false),
     ],
 
     /*
@@ -137,6 +141,10 @@ return [
             'server_key' => env('MIDTRANS_PARTNER_SERVER_KEY'),
             'client_key' => env('MIDTRANS_PARTNER_CLIENT_KEY'),
             'platform_merchant_id' => env('MIDTRANS_PARTNER_MERCHANT_ID'),
+            // Pembagian dana (komisi platform) per transaksi. Hanya boleh
+            // diaktifkan setelah Midtrans Partner menyetujui split untuk
+            // merchant tersebut — bila belum, Snap akan menolak transaksi.
+            'split_enabled' => filter_var(env('MIDTRANS_SPLIT_ENABLED', false), FILTER_VALIDATE_BOOLEAN),
             'snap_url' => env('MIDTRANS_PARTNER_SNAP_URL') ?: (filter_var(env('MIDTRANS_IS_PRODUCTION', false), FILTER_VALIDATE_BOOLEAN)
                 ? 'https://app.midtrans.com/snap/v1/transactions'
                 : 'https://app.sandbox.midtrans.com/snap/v1/transactions'),
@@ -144,6 +152,20 @@ return [
                 ? 'https://api.midtrans.com/v2'
                 : 'https://api.sandbox.midtrans.com/v2'),
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Brevo (pembacaan statistik pengiriman email verifikasi)
+    |--------------------------------------------------------------------------
+    |
+    | Hanya untuk `php artisan petheal:brevo-events`. Pengiriman email tetap
+    | memakai SMTP relay (BREVO_SMTP_*). Kunci API berbeda dari SMTP key.
+    |
+    */
+
+    'brevo' => [
+        'key' => env('BREVO_API_KEY'),
     ],
 
 ];

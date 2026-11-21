@@ -8,6 +8,7 @@ use App\Models\Booking;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Database\Eloquent\Builder;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\ValidationException;
@@ -316,12 +317,14 @@ class PaymentController extends Controller
             }
             $booking = $query->lockForUpdate()->firstOrFail();
 
-            $remaining = max(0, (float) $booking->remaining_amount);
-            $amount = (float) $request->input('amount');
+            // Rupiah integer: nominal dari form dibulatkan sekali, lalu
+            // dibandingkan apa adanya. Tidak ada lagi toleransi 0,001 rupiah.
+            $remaining = max(0, Money::rupiah($booking->remaining_amount));
+            $amount = Money::rupiah($request->input('amount'));
 
             // Backend guard for the UI's max attribute: never let a manual
             // confirmation exceed the outstanding balance.
-            if ($amount > $remaining + 0.001) {
+            if ($amount > $remaining) {
                 $locale = app()->getLocale();
                 throw ValidationException::withMessages([
                     'amount' => __('admin.payment_amount_exceeds_remaining', [
@@ -335,8 +338,10 @@ class PaymentController extends Controller
                 ]);
             }
 
-            $booking->paid_amount = min((float) $booking->total_amount, (float) $booking->paid_amount + $amount);
-            $booking->remaining_amount = max(0, (float) $booking->total_amount - (float) $booking->paid_amount);
+            $total = Money::rupiah($booking->total_amount);
+            $paidAfter = min($total, Money::rupiah($booking->paid_amount) + $amount);
+            $booking->paid_amount = Money::toFloat($paidAfter);
+            $booking->remaining_amount = Money::toFloat(max(0, $total - $paidAfter));
             $booking->payment_date = now();
 
             if ($booking->remaining_amount <= 0) {
@@ -366,7 +371,7 @@ class PaymentController extends Controller
 
         $cacheClinicId = $booking->clinic_id ?: currentClinicId();
         Cache::forget('payment_stats_c' . ($cacheClinicId ?: 'all'));
-        Cache::forget('dashboard_stats_v3_c' . ($cacheClinicId ?: 'all') . '_all');
+        Cache::forget('dashboard_stats_v4_c' . ($cacheClinicId ?: 'all') . '_all');
 
         return redirect()->back()->with('success', __('admin.payment_confirmed'));
     }

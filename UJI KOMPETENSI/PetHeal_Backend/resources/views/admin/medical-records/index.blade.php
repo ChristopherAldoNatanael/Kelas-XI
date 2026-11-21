@@ -1,7 +1,7 @@
 @php
 /** @var \Illuminate\Pagination\LengthAwarePaginator $records */
 $pageItems = $records->count();
-$currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ',', '.');
+$currency = static fn ($amount) => format_rupiah($amount);
 @endphp
 
 @extends('layouts.admin')

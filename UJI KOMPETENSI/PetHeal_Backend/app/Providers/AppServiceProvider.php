@@ -4,11 +4,13 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\Paginator;
+use App\Support\Mail\BrevoApiTransport;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -25,6 +27,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Transport email verifikasi lewat Brevo REST API (bukan SMTP relay).
+        Mail::extend('brevo-api', fn () => new BrevoApiTransport((string) config('services.brevo.key')));
+
         // Force HTTPS hanya di production, atau kalau APP_URL pakai ngrok/https
         // Di local dengan APP_URL=http://127.0.0.1:8000 → TIDAK force HTTPS
         $appUrl = config('app.url', '');
@@ -40,6 +45,22 @@ class AppServiceProvider extends ServiceProvider
         // asing di konsol admin, jadi seluruh admin memakai view "petheal"
         // (resources/views/vendor/pagination/petheal.blade.php).
         Paginator::defaultView('pagination::petheal');
+
+        // Tunnel publik (ngrok/Cloudflare) sering dipakai untuk mencoba aplikasi
+        // dari perangkat lain. Halaman WEB (admin & portal dokter) tidak
+        // melewati sanitasi error milik API, sehingga stack trace + query +
+        // path server bisa tampil di browser saat APP_DEBUG=true.
+        //
+        // Debug dimatikan HANYA untuk host tunnel: pengembangan di localhost
+        // tetap menampilkan pesan lengkap, demo lewat tunnel tidak membocorkan
+        // isi server. Error tetap tercatat di storage/logs.
+        if (! $this->app->runningInConsole() && $this->app->bound('request')) {
+            $host = strtolower(request()->getHost());
+
+            if (preg_match('/(^|\.)(ngrok(-free)?\.(dev|app|io)|ngrok\.io|trycloudflare\.com|loca\.lt)$/', $host)) {
+                config(['app.debug' => false]);
+            }
+        }
 
         // Share $isSuperAdmin and $allClinics with all admin views
         View::composer('admin.*', function ($view) {

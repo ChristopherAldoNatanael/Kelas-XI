@@ -81,8 +81,21 @@ class OtpVerificationViewModel @Inject constructor(
 
             when (val result = authRepository.resendRegisterOtp(email)) {
                 is Result.Success -> {
-                    _uiState.value = _uiState.value.copy(isResending = false, resendSent = true)
-                    startCountdown()
+                    // Sama seperti kirim pertama: sukses HTTP belum tentu berarti
+                    // email benar-benar keluar. Bila `mail_sent = false`, tampilkan
+                    // pesan server sebagai error — jangan bilang "kode terkirim".
+                    val body = result.data
+
+                    if (body.mailSent == false) {
+                        _uiState.value = _uiState.value.copy(
+                            isResending = false,
+                            error = body.message
+                                ?: "Kode baru sudah dibuat, tetapi email gagal dikirim. Coba lagi beberapa saat lagi."
+                        )
+                    } else {
+                        _uiState.value = _uiState.value.copy(isResending = false, resendSent = true)
+                        startCountdown()
+                    }
                 }
                 is Result.Error ->
                     _uiState.value = _uiState.value.copy(isResending = false, error = result.message)

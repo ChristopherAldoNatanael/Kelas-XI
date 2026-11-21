@@ -34,16 +34,6 @@
         @endif
     @endforeach
 
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_1fr]">
         <div class="space-y-6">
             <x-admin.panel title="Pengajuan Pemilik" subtitle="Kebutuhan yang ditulis pemilik hewan">
@@ -82,7 +72,7 @@
                                 <a href="{{ route('admin.medical-records.show', $request->medicalRecord->id) }}" class="font-semibold text-primary hover:underline">
                                     Rekam medis #{{ $request->medicalRecord->id }}
                                 </a>
-                                · {{ $request->medicalRecord->created_at?->format('d M Y') }}
+                                · {{ format_tanggal($request->medicalRecord->created_at) }}
                             </dd>
                         </div>
                     @endif
@@ -102,7 +92,7 @@
             @endif
 
             @if($request->offered_at)
-                <x-admin.panel title="Penawaran Aktif" subtitle="Dikirim {{ $request->offered_at->format('d M Y H:i') }}">
+                <x-admin.panel title="Penawaran Aktif" subtitle="Dikirim {{ format_tanggal($request->offered_at, 'datetime') }}">
                     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
                             <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Layanan</dt>
@@ -114,7 +104,7 @@
                         <div>
                             <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Harga</dt>
                             <dd class="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                                Rp {{ number_format((float) $request->offer_price, 0, ',', '.') }}
+                                {{ format_rupiah((float) $request->offer_price) }}
                                 <span class="text-[10px] font-bold uppercase {{ $request->offer_price_type === 'estimate' ? 'text-amber-600' : 'text-emerald-600' }}">
                                     {{ $request->offer_price_type === 'estimate' ? 'Estimasi' : 'Final' }}
                                 </span>
@@ -187,7 +177,7 @@
                                 <option value="">— Layanan khusus / belum ada di katalog —</option>
                                 @foreach($services as $serviceOption)
                                     <option value="{{ $serviceOption->id }}" @selected($request->offer_service_id === $serviceOption->id)>
-                                        {{ $serviceOption->name }} — Rp {{ number_format((float) $serviceOption->price, 0, ',', '.') }}
+                                        {{ $serviceOption->name }} — {{ format_rupiah((float) $serviceOption->price) }}
                                     </option>
                                 @endforeach
                             </select>

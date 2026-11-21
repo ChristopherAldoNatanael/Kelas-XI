@@ -65,7 +65,13 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    // Domain operasional PetHeal adalah WIB. Sebelumnya nilai ini hard-code
+    // 'UTC', sehingga antara 00:00-06:59 WIB `today()` di server menunjuk
+    // tanggal kemarin: pasien tidak bisa check-in, tanggal kemarin masih lolos
+    // validasi, dan nomor antrian dini hari masuk ke `queue_date` hari
+    // sebelumnya. Nilai default tetap UTC supaya lingkungan lain tidak
+    // berubah perilaku tanpa disengaja.
+    'timezone' => env('APP_TIMEZONE', 'UTC'),
 
     /*
     |--------------------------------------------------------------------------

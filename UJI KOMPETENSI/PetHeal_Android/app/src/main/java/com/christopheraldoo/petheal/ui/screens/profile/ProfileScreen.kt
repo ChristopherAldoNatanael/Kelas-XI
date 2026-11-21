@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.ui.screens.profile
 
+import com.christopheraldoo.petheal.R
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.OnPrimaryStrong
@@ -38,6 +39,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
@@ -349,8 +351,7 @@ fun ProfileScreen(
                                     )
                                     if (!deleteOtp.mailSent) {
                                         Text(
-                                            "Email mungkin terlambat masuk. Periksa folder Spam/Promosi " +
-                                                "atau kirim ulang kode.",
+                                            stringResource(R.string.otp_mail_delayed_hint),
                                             fontSize = 12.sp,
                                             color = WarningText
                                         )
@@ -1115,8 +1116,7 @@ private fun EmailChangeDialog(
                         }
 
                         !otp.mailSent -> Text(
-                            "Email mungkin terlambat masuk. Periksa folder Spam/Promosi " +
-                                "atau kirim ulang kode.",
+                            stringResource(R.string.otp_mail_delayed_hint),
                             fontSize = 12.sp,
                             color = WarningText
                         )

@@ -112,6 +112,7 @@ return [
     'delete_type_slug' => 'Ketik slug klinik untuk mengonfirmasi:',
     'delete_slug_hint' => 'Slug belum cocok. Klinik tidak akan dihapus.',
     'delete_confirm' => 'Hapus permanen',
+    'delete_force_history' => 'Saya mengerti klinik ini punya riwayat pembayaran/rekam medis dan tetap ingin menghapusnya permanen.',
     'delete_slug_mismatch' => 'Slug konfirmasi tidak cocok. Klinik :slug tidak dihapus.',
     'deleted_success' => 'Klinik :name beserta seluruh datanya berhasil dihapus (:users akun, :doctors dokter, :bookings booking, :records rekam medis).',
 
@@ -182,6 +183,7 @@ return [
     'category_created' => 'Kategori layanan ditambahkan.',
     'category_updated' => 'Kategori layanan diperbarui.',
     'category_deleted' => 'Kategori layanan dihapus.',
+    'category_delete_confirm' => 'Hapus kategori ":name"? Kategori yang masih dipakai layanan akan dinonaktifkan, bukan dihapus.',
     'category_in_use' => 'Kategori ini masih dipakai :count layanan. Nonaktifkan saja agar riwayat tetap utuh.',
     'category_none' => 'Belum ada kategori layanan.',
     'category_uncategorized' => 'Tanpa kategori',

@@ -201,7 +201,8 @@ class PetShopPickupController extends Controller
                 'staff:id,name',
             ])
             ->orderByDesc('handed_over_at')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.pet-shop.pickups.history', compact('handovers'));
     }

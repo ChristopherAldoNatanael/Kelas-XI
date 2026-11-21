@@ -27,7 +27,8 @@ class ServiceCategoryController extends Controller
                 'services as active_services_count' => fn ($q) => $q->where('is_active', true),
             ])
             ->orderBy('name')
-            ->paginate(30);
+            ->paginate(30)
+            ->withQueryString();
 
         // Layanan yang belum punya kategori standar: tidak bisa dibandingkan.
         $uncategorizedCount = \App\Models\Service::whereNull('service_category_id')->count();

@@ -24,7 +24,9 @@
 <body style="margin:0;padding:0;background-color:#EEF1F3;">
 
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#EEF1F3;">
-    {{ $accessLabel }} {{ $clinicName }} &mdash; {{ $code }} &mdash; berlaku {{ $ttlMinutes }} menit.
+    {{-- Kode sengaja tidak ditulis di teks tersembunyi: pola itu ditandai filter
+         spam dan membuat kode ikut tampil di pratinjau notifikasi. --}}
+    {{ $accessLabel }} {{ $clinicName }} &mdash; berlaku {{ $ttlMinutes }} menit.
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#EEF1F3;">

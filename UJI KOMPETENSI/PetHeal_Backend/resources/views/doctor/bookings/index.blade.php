@@ -1,13 +1,13 @@
 @extends('layouts.admin')
 
 @section('title', 'Booking Saya — ' . ($doctor->clinic?->name ?? 'PetHeal'))
-@section('header', 'Booking Saya')
+@section('header', __('doctor.header_bookings'))
 
 @section('content')
 <div class="space-y-6">
 
     <x-admin.page-header
-        title="Booking Saya"
+        title="{{ __('doctor.bookings_title') }}"
         eyebrow="Praktik"
         icon="calendar_month"
         description="Hanya booking dengan nama Anda yang tampil di sini. Konfirmasi, selesaikan, atau batalkan sesuai kondisi pasien.">
@@ -36,12 +36,12 @@
                 <div class="w-full lg:w-44">
                     <label for="date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
                     <input type="date" id="date" name="date" value="{{ $date }}" class="admin-input">
-                    <p class="mt-1 text-[10px] text-slate-400">Kosongkan untuk semua tanggal.</p>
+                    <p class="mt-1 text-[10px] text-slate-400">{{ __('doctor.clear_for_all_dates') }}</p>
                 </div>
                 <div class="w-full lg:w-44">
                     <label for="status" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
                     <select id="status" name="status" class="admin-input">
-                        <option value="">Semua status</option>
+                        <option value="">{{ __('doctor.all_statuses') }}</option>
                         @foreach(['pending', 'confirmed', 'completed', 'cancelled'] as $option)
                             <option value="{{ $option }}" @selected($status === $option)>
                                 {{ \App\Support\AdminStatus::bookingLabel($option) }}
@@ -50,7 +50,7 @@
                     </select>
                 </div>
                 <div class="w-full flex-1">
-                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Cari pasien / pemilik</label>
+                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.search_patient_owner') }}</label>
                     <input type="search" id="q" name="q" value="{{ $search }}" placeholder="Nama hewan atau pemilik" class="admin-input">
                 </div>
                 <div class="flex items-center gap-2">
@@ -122,7 +122,7 @@
                                         @if($booking->status === 'pending')
                                             <form method="POST" action="{{ route('doctor.bookings.confirm', $booking->id) }}">
                                                 @csrf
-                                                <button type="submit" class="admin-icon-btn hover:!text-sky-600" title="Konfirmasi booking">
+                                                <button type="submit" class="admin-icon-btn hover:!text-sky-600" title="{{ __('doctor.confirm_booking') }}">
                                                     <span class="material-symbols-outlined text-[20px]" aria-hidden="true">event_available</span>
                                                 </button>
                                             </form>
@@ -131,12 +131,12 @@
                                             <form method="POST" action="{{ route('doctor.bookings.complete', $booking->id) }}"
                                                   onsubmit="return confirm('Tandai booking ini selesai?')">
                                                 @csrf
-                                                <button type="submit" class="admin-icon-btn hover:!text-emerald-600" title="Tandai selesai">
+                                                <button type="submit" class="admin-icon-btn hover:!text-emerald-600" title="{{ __('doctor.mark_completed') }}">
                                                     <span class="material-symbols-outlined text-[20px]" aria-hidden="true">check_circle</span>
                                                 </button>
                                             </form>
                                         @endif
-                                        <a href="{{ route('doctor.bookings.show', $booking->id) }}" class="admin-icon-btn hover:!text-primary" title="Lihat detail">
+                                        <a href="{{ route('doctor.bookings.show', $booking->id) }}" class="admin-icon-btn hover:!text-primary" title="{{ __('doctor.view_detail') }}">
                                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
                                         </a>
                                     </div>
@@ -149,7 +149,7 @@
         @else
             <div class="p-5">
                 <x-admin.empty-state
-                    title="Tidak ada booking yang cocok"
+                    title="{{ __('doctor.no_bookings_match') }}"
                     description="Coba ubah tanggal, status, atau kata kunci pencarian."
                     icon="event_busy"
                     tone="slate" />

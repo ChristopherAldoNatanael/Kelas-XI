@@ -22,16 +22,6 @@
         <form method="POST" action="{{ route('admin.doctors.store') }}" enctype="multipart/form-data" class="space-y-8">
             @csrf
 
-            @if($errors->any())
-                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-                    <ul class="list-disc list-inside space-y-1">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             <div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
                 <div class="space-y-5">
                     <div>

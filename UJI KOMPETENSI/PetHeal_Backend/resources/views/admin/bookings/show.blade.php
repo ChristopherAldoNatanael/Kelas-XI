@@ -3,7 +3,7 @@
     $hasPayment = (bool) ($booking->payment_type || $booking->total_amount > 0);
     $progress = $booking->total_amount > 0 ? min(100, round(($booking->paid_amount / $booking->total_amount) * 100)) : 0;
     $canFinish = in_array($booking->status, ['pending', 'confirmed'], true);
-    $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ',', '.');
+    $currency = static fn ($amount) => format_rupiah($amount);
     $date = \Carbon\Carbon::parse($booking->booking_date);
 @endphp
 
@@ -64,8 +64,21 @@
                         </a>
                     @endif
 
-                    <form method="POST" action="{{ route('admin.bookings.complete', $booking->id) }}">
+                    <form method="POST" action="{{ route('admin.bookings.complete', $booking->id) }}" class="space-y-2">
                         @csrf
+                        @unless($settled ?? false)
+                            {{-- Booking boleh diselesaikan tanpa pelunasan, tetapi harus
+                                 disengaja: checkbox ini yang membedakan klik tidak sengaja
+                                 dari keputusan klinik (aturan sama dengan Pet Shop). --}}
+                            <label class="flex max-w-xs cursor-pointer items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] font-medium leading-relaxed text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-200">
+                                <input type="checkbox" name="confirm_unpaid" value="1" required
+                                       class="mt-0.5 h-3.5 w-3.5 rounded border-amber-300 text-amber-600 focus:ring-amber-400">
+                                <span>{{ __('admin.complete_unpaid_confirm', [
+                                    'id' => $booking->id,
+                                    'amount' => format_rupiah((float) $booking->remaining_amount),
+                                ]) }}</span>
+                            </label>
+                        @endunless
                         <button type="submit" class="admin-btn-primary">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">task_alt</span>
                             {{ __('admin.finish_booking') }}
@@ -475,6 +488,7 @@
                 <div>
                     <h3 id="reminder-modal-title" class="text-sm font-bold text-slate-900 dark:text-white">{{ __('admin.reminder_modal_title') }}</h3>
                     <p class="text-[11px] text-slate-400">{{ __('admin.reminder_to', ['name' => $booking->user->name ?? __('admin.owner_placeholder')]) }}</p>
+                    <p class="mt-1 max-w-md text-[11px] leading-5 text-slate-500 dark:text-slate-400">{{ __('admin.reminder_modal_desc') }}</p>
                 </div>
             </div>
             <button type="button" onclick="document.getElementById('reminder-modal').style.display='none'"

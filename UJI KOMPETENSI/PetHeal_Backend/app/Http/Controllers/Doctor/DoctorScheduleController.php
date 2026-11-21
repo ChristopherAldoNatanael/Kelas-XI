@@ -165,6 +165,6 @@ class DoctorScheduleController extends DoctorPortalController
         );
 
         return redirect()->route('doctor.schedule.index', ['date' => $date])
-            ->with('success', 'Pengecualian jadwal dihapus.');
+            ->with('success', __('doctor.exception_deleted'));
     }
 }

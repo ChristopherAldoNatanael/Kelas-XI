@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'income_total' => 'Income received',
+    'income_total_desc' => 'Money actually collected from every source of this clinic within the selected date range.',
+    'income_received' => 'Total received',
+    'income_booking' => 'Bookings',
+    'income_extras' => 'Treatment fees',
+    'income_petshop' => 'Pet Shop',
+    'income_refund_note' => 'Booking figures are net of refunds. Pet Shop orders count once they are completed.',
+    'income_refund_line' => 'Booking refunds: :amount',
     // Super admin dashboard
     'system_overview' => 'System Overview',
     'total_clinics' => 'Total Clinics',

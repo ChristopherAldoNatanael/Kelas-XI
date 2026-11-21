@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Booking;
 use App\Models\BookingRefund;
+use App\Support\Money;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
 
@@ -53,18 +54,22 @@ class RefundService
                 );
             }
 
-            $paid = (float) $locked->paid_amount;
-            $alreadyRefunded = (float) BookingRefund::where('booking_id', $locked->id)->sum('amount');
+            // Seluruh perbandingan uang memakai rupiah integer (Money::rupiah)
+            // sehingga tidak ada lagi toleransi epsilon 0,009 yang membuat
+            // batas refund bergantung pada pembulatan float.
+            $paid = Money::rupiah($locked->paid_amount);
+            $alreadyRefunded = Money::rupiah(BookingRefund::where('booking_id', $locked->id)->sum('amount'));
             $refundable = max(0, $paid - $alreadyRefunded);
+            $amount = Money::rupiah($amount);
 
-            if ($refundable <= 0.009) {
+            if ($refundable <= 0) {
                 throw new RuntimeException(
                     'Tidak ada dana yang bisa dikembalikan: yang dibayar '
                     . $this->money($paid) . ', sudah dikembalikan ' . $this->money($alreadyRefunded) . '.'
                 );
             }
 
-            if ($amount - 0.009 > $refundable) {
+            if ($amount > $refundable) {
                 throw new RuntimeException(
                     'Nominal melebihi dana yang bisa dikembalikan (' . $this->money($refundable) . ').'
                 );

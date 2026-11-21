@@ -56,7 +56,7 @@
                                     </ul>
                                 </td>
                                 <td class="px-5 py-3 text-xs">
-                                    <div class="font-semibold text-slate-900 dark:text-white">Rp {{ number_format((int) ($handover->order?->total_amount ?? 0), 0, ',', '.') }}</div>
+                                    <div class="font-semibold text-slate-900 dark:text-white">{{ format_rupiah((int) ($handover->order?->total_amount ?? 0)) }}</div>
                                     <div class="text-slate-500">{{ __('petshop.payment_status.' . ($handover->order?->payment_status ?? 'unpaid')) }}</div>
                                 </td>
                                 <td class="px-5 py-3 text-sm">{{ $handover->staff?->name ?? '-' }}</td>

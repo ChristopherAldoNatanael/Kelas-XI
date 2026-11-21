@@ -24,30 +24,6 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     @if(session('petshop_product_import_summary'))
         @php
             $sum = session('petshop_product_import_summary');
@@ -130,7 +106,7 @@
                 <option value="inactive" @selected(request('status') === 'inactive')>{{ __('petshop.status_inactive') }}</option>
             </select>
             <button type="submit" class="admin-btn-secondary">{{ __('petshop.search') }}</button>
-            @if(request()->hasAny(['search','category','status']))
+            @if(has_active_filters(['search','category','status']))
                 <a href="{{ route('admin.pet-shop.products.index') }}" class="admin-btn-ghost">{{ __('petshop.reset') }}</a>
             @endif
         </form>
@@ -179,9 +155,9 @@
                                 @if($prices->isEmpty())
                                     —
                                 @elseif($prices->min() === $prices->max())
-                                    Rp {{ number_format($prices->min(), 0, ',', '.') }}
+                                    {{ format_rupiah($prices->min()) }}
                                 @else
-                                    Rp {{ number_format($prices->min(), 0, ',', '.') }} – {{ number_format($prices->max(), 0, ',', '.') }}
+                                    {{ format_rupiah($prices->min()) }} – {{ number_format($prices->max(), 0, ',', '.') }}
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm font-semibold tabular-nums {{ $stock > 0 ? 'text-slate-700 dark:text-slate-300' : 'text-rose-600 dark:text-rose-400' }}">
@@ -215,7 +191,7 @@
                             <td colspan="7">
                                 <x-admin.empty-state
                                     icon="inventory_2"
-                                    :title="request()->hasAny(['search','category','status']) ? __('petshop.no_products_filter') : __('petshop.no_products')" />
+                                    :title="has_active_filters(['search','category','status']) ? __('petshop.no_products_filter') : __('petshop.no_products')" />
                             </td>
                         </tr>
                     @endforelse

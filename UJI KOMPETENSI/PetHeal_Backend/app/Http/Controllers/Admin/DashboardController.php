@@ -13,6 +13,7 @@ use App\Models\Service;
 use App\Models\User;
 use App\Models\Clinic;
 use App\Models\ClinicJoinRequest;
+use App\Services\PatientScope;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -52,13 +53,19 @@ class DashboardController extends Controller
         // Today's statistics — clinic scoped
         $todayBookings = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->today()->count();
         $pendingBookings = Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->pending()->count();
-        $totalPatients = Pet::when($clinicId, fn($q) => $q->whereHas('user', fn($uq) => $uq->where('clinic_id', $clinicId)))->count();
+        // Pasien klinik = AKUN pemilik hewan yang punya booking/rekam medis di
+        // klinik ini (PatientScope). Pasien adalah akun global, jadi filter
+        // `users.clinic_id` akan menghilangkan mayoritas pasien. Hitung akun,
+        // bukan hewan: satu pemilik dengan tiga hewan tetap satu pasien.
+        $totalPatients = User::where('role', 'user')
+            ->when($clinicId, fn ($q) => PatientScope::scopeClinicUsers($q, $clinicId))
+            ->count();
         $totalDoctors = Doctor::where('is_active', true)->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))->count();
 
         // Cache key includes the clinic and a schema version. Bump the version
         // whenever the shared payload changes so old cached arrays cannot
         // reach the view missing keys.
-        $cacheKey = 'dashboard_stats_v3_c' . ($clinicId ?: 'all') . '_all';
+        $cacheKey = 'dashboard_stats_v4_c' . ($clinicId ?: 'all') . '_all';
 
         $buildDashboardStats = function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
             // Revenue statistics — clinic scoped
@@ -136,12 +143,37 @@ class DashboardController extends Controller
                 ? (int) round(($totalCollected / $totalBilled) * 100)
                 : 0;
 
+            // SATU angka "uang yang benar-benar diterima" klinik ini.
+            // Sebelumnya setiap modul memakai definisi sendiri (rekam medis,
+            // pembayaran booking, Pet Shop) sehingga pemilik klinik tidak punya
+            // total yang bisa dipercaya. Rinciannya tetap ditampilkan supaya
+            // angkanya bisa ditelusuri.
+            $incomeExtras = (float) MedicalRecord::when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+                ->when($hasDateFilter, fn ($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
+                ->sum('extra_payment_paid_amount');
+
+            $incomePetShop = (float) \Illuminate\Support\Facades\DB::table('product_orders')
+                ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+                ->when($hasDateFilter, fn ($q) => $q->whereBetween('created_at', [$startDate, $endDate]))
+                ->where('status', 'completed')
+                ->sum('total_amount');
+
+            $incomeTotal = (int) round($totalCollected + $incomeExtras + $incomePetShop);
+
+            $incomeBreakdown = [
+                ['label' => __('dashboard.income_booking'), 'amount' => (int) round($totalCollected)],
+                ['label' => __('dashboard.income_extras'), 'amount' => (int) round($incomeExtras)],
+                ['label' => __('dashboard.income_petshop'), 'amount' => (int) round($incomePetShop)],
+            ];
+
             return compact(
                 'todayRevenue', 'monthlyRevenue',
                 'monthlyRevenueGrowth', 'dailyRevenueGrowth',
                 'monthlyBookingData', 'monthlyRevenueData', 'dailyRevenueData',
                 'unpaidBookings', 'pendingPayment', 'dpPendingBookings', 'dpPaidBookings', 'paidInFull', 'failedPayments',
-                'totalCollected', 'totalOutstanding', 'totalBilled', 'collectionRate'
+                'totalCollected', 'totalOutstanding', 'totalBilled', 'collectionRate',
+                'incomeExtras', 'incomePetShop', 'incomeTotal', 'incomeBreakdown',
+                'refundedTotal'
             );
         };
 
@@ -172,6 +204,13 @@ class DashboardController extends Controller
         $collectionRate = $dashboardStats['collectionRate'];
         $monthlyRevenueGrowth = $dashboardStats['monthlyRevenueGrowth'];
         $dailyRevenueGrowth = $dashboardStats['dailyRevenueGrowth'];
+        // Pendapatan diterima (booking + biaya tindakan + Pet Shop). `?? 0`
+        // menjaga payload cache versi lama tidak membuat halaman error.
+        $incomeExtras = $dashboardStats['incomeExtras'] ?? 0;
+        $incomePetShop = $dashboardStats['incomePetShop'] ?? 0;
+        $incomeTotal = $dashboardStats['incomeTotal'] ?? 0;
+        $incomeBreakdown = $dashboardStats['incomeBreakdown'] ?? [];
+        $refundedTotal = $dashboardStats['refundedTotal'] ?? 0;
 
         // Recent bookings — clinic scoped
         $recentBookings = Booking::select('id', 'user_id', 'pet_id', 'doctor_id', 'status', 'booking_date', 'booking_time', 'created_at')
@@ -272,6 +311,11 @@ class DashboardController extends Controller
             'totalOutstanding',
             'totalBilled',
             'collectionRate',
+            'incomeExtras',
+            'incomePetShop',
+            'incomeTotal',
+            'incomeBreakdown',
+            'refundedTotal',
             'monthlyRevenueGrowth',
             'dailyRevenueGrowth',
             'recentPayments',
@@ -382,7 +426,8 @@ class DashboardController extends Controller
         $logs = AuditLog::with('user')
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
             ->latest()
-            ->paginate(50);
+            ->paginate(50)
+            ->withQueryString();
         return view('admin.audit-logs', compact('logs'));
     }
 
@@ -484,8 +529,9 @@ class DashboardController extends Controller
             ])
             ->values();
 
-        $pets = Pet::with('user:id,name,clinic_id')
-            ->when($clinicId, fn ($q) => $q->whereHas('user', fn ($uq) => $uq->where('clinic_id', $clinicId)))
+        $pets = Pet::with('user:id,name,clinic_id');
+        PatientScope::scopeClinicPets($pets, $clinicId);
+        $pets = $pets
             ->where(function ($q) use ($like) {
                 $q->where('name', 'like', $like)
                     ->orWhere('species', 'like', $like)
@@ -509,8 +555,9 @@ class DashboardController extends Controller
             ->values();
 
         $owners = User::query()
-            ->where('role', 'user')
-            ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
+            ->where('role', 'user');
+        PatientScope::scopeClinicUsers($owners, $clinicId);
+        $owners = $owners
             ->where(function ($q) use ($like) {
                 $q->where('name', 'like', $like)
                     ->orWhere('email', 'like', $like)

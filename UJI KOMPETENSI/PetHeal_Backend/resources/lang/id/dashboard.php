@@ -1,6 +1,14 @@
 <?php
 
 return [
+    'income_total' => 'Pendapatan diterima',
+    'income_total_desc' => 'Uang yang benar-benar masuk dari seluruh sumber klinik ini pada rentang tanggal yang dipilih.',
+    'income_received' => 'Total diterima',
+    'income_booking' => 'Booking',
+    'income_extras' => 'Biaya tindakan',
+    'income_petshop' => 'Pet Shop',
+    'income_refund_note' => 'Angka booking sudah dikurangi refund. Pesanan Pet Shop dihitung saat berstatus selesai.',
+    'income_refund_line' => 'Refund booking: :amount',
     // Super admin dashboard
     'system_overview' => 'Ringkasan Sistem',
     'total_clinics' => 'Total Klinik',

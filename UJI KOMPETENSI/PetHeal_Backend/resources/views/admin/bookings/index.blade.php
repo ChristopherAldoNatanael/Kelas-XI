@@ -7,13 +7,31 @@
 @section('header', __('menu.appointments_schedule'))
 
 @section('content')
+@php
+    // Filter dianggap aktif hanya kalau benar-benar ada isinya (lihat
+    // has_active_filters() di app/helpers.php). Tanpa ini tombol Reset selalu
+    // tampil dan pesan kosong memakai teks "tidak ada pada filter ini".
+    $filterKeys = ['search', 'status', 'date'];
+    $activeFilters = array_filter(
+        array_intersect_key(request()->only($filterKeys), array_flip($filterKeys)),
+        static fn ($value) => trim((string) $value) !== ''
+    );
+    $hasFilters = has_active_filters($filterKeys);
+@endphp
+
 <div class="space-y-6">
 
     @include('admin.bookings._tabs')
 
     {{-- Filter --}}
     <x-admin.panel :title="__('common.filter')" :subtitle="__('admin.bookings_export_hint')">
-        <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <form method="GET" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div class="sm:col-span-2 lg:col-span-1">
+                <label for="filter-search" class="admin-label">{{ __('common.search') }}</label>
+                <input id="filter-search" type="search" name="search" value="{{ request('search') }}"
+                       placeholder="{{ __('admin.search_booking_placeholder') }}" class="admin-input">
+            </div>
+
             <div>
                 <label for="filter-status" class="admin-label">{{ __('common.status') }}</label>
                 <select id="filter-status" name="status" class="admin-input">
@@ -35,13 +53,13 @@
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">filter_list</span>
                     {{ __('admin.apply_filter') }}
                 </button>
-                @if(request()->hasAny(['status', 'date']))
+                @if($hasFilters)
                     <a href="{{ route('admin.bookings.index') }}" class="admin-btn-ghost">
                         <span class="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
                         {{ __('admin.reset_filter_short') }}
                     </a>
                 @endif
-                <a href="{{ route('admin.bookings.export', request()->only(['status', 'date'])) }}" target="_blank" rel="noopener"
+                <a href="{{ route('admin.bookings.export', $activeFilters) }}" target="_blank" rel="noopener"
                    class="admin-btn-secondary">
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">print</span>
                     {{ __('admin.export_pdf') }}
@@ -110,7 +128,7 @@
                                 </span>
                                 @if($booking->service?->price)
                                     <span class="block text-[11px] tabular-nums text-slate-400">
-                                        Rp {{ number_format($booking->service->price, 0, ',', '.') }}
+                                        {{ format_rupiah($booking->service->price) }}
                                     </span>
                                 @endif
                             </td>
@@ -130,7 +148,7 @@
                                             :tone="\App\Support\AdminStatus::paymentTone($booking->payment_status)" />
                                         @if($booking->total_amount > 0)
                                             <span class="text-[11px] tabular-nums text-slate-500">
-                                                Rp {{ number_format($booking->total_amount, 0, ',', '.') }}
+                                                {{ format_rupiah($booking->total_amount) }}
                                                 @if($booking->remaining_amount > 0)
                                                     <span class="text-orange-600 dark:text-orange-400">
                                                         · {{ __('admin.remaining_amount_short', ['amount' => number_format($booking->remaining_amount, 0, ',', '.')]) }}
@@ -197,12 +215,12 @@
                         <tr>
                             <td colspan="8">
                                 <x-admin.empty-state
-                                    :title="request()->hasAny(['status', 'date']) ? __('admin.bookings_filtered_title') : __('admin.bookings_empty_title')"
-                                    :description="request()->hasAny(['status', 'date']) ? __('admin.bookings_filtered_desc') : __('admin.bookings_empty_desc')"
+                                    :title="$hasFilters ? __('admin.bookings_filtered_title') : __('admin.bookings_empty_title')"
+                                    :description="$hasFilters ? __('admin.bookings_filtered_desc') : __('admin.bookings_empty_desc')"
                                     icon="event_none"
                                     tone="slate">
                                     <x-slot:actions>
-                                        @if(request()->hasAny(['status', 'date']))
+                                        @if($hasFilters)
                                             <a href="{{ route('admin.bookings.index') }}" class="admin-btn-secondary">
                                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">restart_alt</span>
                                                 {{ __('admin.reset_filter_short') }}

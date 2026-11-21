@@ -1,12 +1,12 @@
 @extends('layouts.admin')
 
 @section('title', 'Profil Saya — ' . ($doctor->clinic?->name ?? 'PetHeal'))
-@section('header', 'Profil Saya')
+@section('header', __('doctor.header_profile'))
 
 @php
     $dayLabels = [
-        'monday' => 'Senin', 'tuesday' => 'Selasa', 'wednesday' => 'Rabu',
-        'thursday' => 'Kamis', 'friday' => 'Jumat', 'saturday' => 'Sabtu', 'sunday' => 'Minggu',
+        'monday' => __('doctor.day_monday'), 'tuesday' => __('doctor.day_tuesday'), 'wednesday' => __('doctor.day_wednesday'),
+        'thursday' => __('doctor.day_thursday'), 'friday' => __('doctor.day_friday'), 'saturday' => __('doctor.day_saturday'), 'sunday' => __('doctor.day_sunday'),
     ];
     $days = collect($doctor->available_days ?? [])
         ->map(fn ($day) => $dayLabels[strtolower((string) $day)] ?? ucfirst((string) $day))
@@ -21,8 +21,8 @@
 <div class="space-y-6">
 
     <x-admin.page-header
-        title="Profil Saya"
-        eyebrow="Akun"
+        title="{{ __('doctor.header_profile') }}"
+        eyebrow="{{ __('doctor.eyebrow_account') }}"
         icon="manage_accounts"
         description="Perbarui nama, nomor telepon, dan foto profil. Email serta jadwal mingguan dikelola admin klinik agar data praktik tetap konsisten.">
         <x-slot:actions>
@@ -33,9 +33,11 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.last-updated :model="$doctor" :actions="['doctor.profile.update', 'doctor.update']" />
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.15fr]">
         <div class="space-y-6">
-            <x-admin.panel title="Identitas praktik" :subtitle="($doctor->clinic->name ?? null) ? ('Tampil sebagai dokter di ' . $doctor->clinic->name) : null">
+            <x-admin.panel title="{{ __('doctor.practice_identity') }}" :subtitle="($doctor->clinic->name ?? null) ? (__('doctor.shown_as_doctor_at') . ' ' . $doctor->clinic->name) : null">
                 <div class="flex items-center gap-4">
                     @if($doctor->photo_url)
                         <img id="avatarPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}"
@@ -104,11 +106,11 @@
 
                 <div class="mt-4 flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
                     <span class="material-symbols-outlined text-[16px]" aria-hidden="true">lock</span>
-                    <p>Email, spesialisasi, dan jadwal mingguan hanya dapat diubah admin klinik. Hubungi admin bila ada yang perlu diperbarui.</p>
+                    <p>{{ __('doctor.admin_managed_fields') }}</p>
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel title="Ganti kata sandi" :subtitle="($user->email ?? null) ? ('Untuk akun ' . $user->email) : null">
+            <x-admin.panel title="{{ __('doctor.change_password') }}" :subtitle="($user->email ?? null) ? (__('doctor.for_account') . ' ' . $user->email) : null">
                 <x-slot:actions>
                     <x-admin.badge label="Verifikasi email" tone="sky" />
                 </x-slot:actions>
@@ -128,7 +130,7 @@
                         @method('PUT')
 
                         <div>
-                            <label for="doctor-otp-digit-1" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Kode verifikasi</label>
+                            <label for="doctor-otp-digit-1" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.verification_code') }}</label>
                             <div class="flex gap-2" data-doctor-otp>
                                 @for($i = 0; $i < 6; $i++)
                                     <input id="doctor-otp-digit-{{ $i + 1 }}"
@@ -145,7 +147,7 @@
 
                         <div class="flex items-start gap-2 rounded-lg bg-slate-50 px-3.5 py-2.5 text-[11px] leading-5 text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
                             <span class="material-symbols-outlined text-[15px]" aria-hidden="true">info</span>
-                            <p>Kata sandi baru sudah disiapkan dan hanya tersimpan setelah kode di atas diverifikasi.</p>
+                            <p>{{ __('doctor.password_prepared') }}</p>
                         </div>
 
                         <button type="submit" class="admin-btn-primary w-full justify-center" id="passwordSubmit">
@@ -155,7 +157,7 @@
                     </form>
 
                     <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                        <span>Belum menerima kode?</span>
+                        <span>{{ __('doctor.no_code_yet') }}</span>
                         <form method="POST" action="{{ route('doctor.profile.password.otp') }}" class="inline">
                             @csrf
                             <button type="submit" id="passwordResend" data-wait="{{ $passwordOtp['resend_wait'] }}"
@@ -187,18 +189,18 @@
 
                         <div class="flex items-start gap-2.5 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
                             <span class="material-symbols-outlined text-[16px]" aria-hidden="true">shield</span>
-                            <p>Kata sandi saat ini tidak perlu dimasukkan. Sebagai gantinya, kami mengirim kode 6 digit ke email akun ini untuk memastikan hanya Anda yang mengganti kata sandi.</p>
+                            <p>{{ __('doctor.otp_explainer') }}</p>
                         </div>
 
                         <div>
-                            <label for="password" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Kata sandi baru</label>
+                            <label for="password" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.new_password') }}</label>
                             <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8"
                                    class="admin-input @error('password') admin-input-error @enderror">
                             @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
-                            <label for="password_confirmation" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Ulangi kata sandi baru</label>
+                            <label for="password_confirmation" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.repeat_new_password') }}</label>
                             <input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password"
                                    class="admin-input @error('password_confirmation') admin-input-error @enderror">
                             @error('password_confirmation')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -206,7 +208,7 @@
 
                         <div class="flex items-start gap-2 rounded-lg bg-slate-50 px-3.5 py-2.5 text-[11px] leading-5 text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
                             <span class="material-symbols-outlined text-[15px]" aria-hidden="true">tips_and_updates</span>
-                            <p>Minimal 8 karakter — gabungkan huruf, angka, dan simbol. Hindari sandi yang dipakai di layanan lain.</p>
+                            <p>{{ __('doctor.password_hint') }}</p>
                         </div>
 
                         <button type="submit" class="admin-btn-primary w-full justify-center" id="passwordSubmit">
@@ -218,17 +220,17 @@
             </x-admin.panel>
         </div>
 
-        <x-admin.panel title="Ubah data profil" subtitle="Nama dan foto tampil pada rekam medis pasien">
+        <x-admin.panel title="{{ __('doctor.edit_profile') }}" subtitle="{{ __('doctor.edit_profile_hint') }}">
             <form method="POST" action="{{ route('doctor.profile.update') }}" enctype="multipart/form-data" class="space-y-5" id="profileForm">
                 @csrf
                 @method('PUT')
 
                 <div>
-                    <label for="photo" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Foto profil</label>
+                    <label for="photo" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.profile_photo') }}</label>
                     <div class="flex items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4 dark:border-slate-600 dark:bg-slate-800/30">
                         <label for="photo" class="group relative cursor-pointer">
                             @if($doctor->photo_url)
-                                <img id="photoPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="Foto saat ini"
+                                <img id="photoPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ __('doctor.current_photo') }}"
                                      class="h-16 w-16 flex-shrink-0 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700">
                             @else
                                 <span id="photoPreview" class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
@@ -242,23 +244,23 @@
                         <div class="min-w-0 flex-1">
                             <input type="file" id="photo" name="photo" accept="image/png,image/jpeg,image/webp"
                                    class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border file:border-emerald-200 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-emerald-700 hover:file:bg-emerald-100 dark:text-slate-300 dark:file:border-emerald-900/50 dark:file:bg-emerald-900/30 dark:file:text-emerald-300">
-                            <p class="mt-1.5 text-[11px] text-slate-400">JPG, PNG, atau WEBP. Maksimal 5 MB. Foto dikompres otomatis setelah diunggah.</p>
+                            <p class="mt-1.5 text-[11px] text-slate-400">{{ __('doctor.photo_hint') }}</p>
                             @error('photo')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <label for="name" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Nama lengkap</label>
+                    <label for="name" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.full_name') }}</label>
                     <input type="text" id="name" name="name" required maxlength="255"
                            value="{{ old('name', $doctor->name) }}"
                            class="admin-input @error('name') admin-input-error @enderror">
                     @error('name')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                    <p class="mt-1 text-[11px] text-slate-400">Nama ini juga dipakai pada akun login Anda.</p>
+                    <p class="mt-1 text-[11px] text-slate-400">{{ __('doctor.name_hint') }}</p>
                 </div>
 
                 <div>
-                    <label for="phone" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Nomor telepon</label>
+                    <label for="phone" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.phone') }}</label>
                     <input type="tel" id="phone" name="phone" maxlength="20"
                            value="{{ old('phone', $doctor->phone) }}"
                            placeholder="08xxxxxxxxxx"

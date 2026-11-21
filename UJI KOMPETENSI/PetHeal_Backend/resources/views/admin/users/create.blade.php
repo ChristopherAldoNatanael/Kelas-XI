@@ -22,16 +22,6 @@
         <form method="POST" action="{{ route('admin.users.store') }}" class="space-y-5">
             @csrf
 
-            @if($errors->any())
-                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-                    <ul class="list-disc list-inside space-y-1">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
             <div>
                 <label for="name" class="admin-label">{{ __('admin.full_name') }} <span class="text-rose-500">*</span></label>
                 <input id="name" type="text" name="name" required value="{{ old('name') }}"

@@ -33,6 +33,8 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.last-updated :model="$doctor" :actions="['doctor.schedule_exception.save', 'doctor.schedule_exception.delete', 'doctor.update']" />
+
     @foreach(['success' => 'check_circle', 'warning' => 'warning', 'error' => 'error'] as $flashKey => $flashIcon)
         @if(session($flashKey))
             <div class="flex items-start gap-3 rounded-xl border px-5 py-4 text-sm font-medium

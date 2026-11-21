@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Jadwal & Cuti — ' . ($doctor->clinic?->name ?? 'PetHeal'))
-@section('header', 'Jadwal & Cuti')
+@section('title', __('doctor.header_schedule') . ' — ' . ($doctor->clinic?->name ?? 'PetHeal'))
+@section('header', __('doctor.header_schedule'))
 
 @php
     $dayLabels = [
@@ -31,11 +31,13 @@
         </x-slot:actions>
     </x-admin.page-header>
 
+    <x-admin.last-updated :model="$doctor" :actions="['doctor.schedule_exception.save', 'doctor.schedule_exception.delete', 'doctor.update']" />
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(0,1fr)]">
 
         {{-- Kolom utama: aksi dulu, lalu daftar hasilnya --}}
         <div class="space-y-6">
-            <x-admin.panel title="Atur cuti atau jam khusus" subtitle="Satu tanggal hanya punya satu pengaturan">
+            <x-admin.panel title="{{ __('doctor.set_leave') }}" subtitle="{{ __('doctor.set_leave_hint') }}">
                 <form method="POST" action="{{ route('doctor.schedule.store') }}" class="space-y-5" id="scheduleForm">
                     @csrf
 
@@ -50,17 +52,17 @@
                         </div>
 
                         <div>
-                            <label for="reason" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Alasan (opsional)</label>
+                            <label for="reason" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.reason_optional') }}</label>
                             <input type="text" id="reason" name="reason" maxlength="160"
                                    value="{{ old('reason') }}"
-                                   placeholder="Contoh: cuti keluarga"
+                                   placeholder="{{ __('doctor.reason_placeholder') }}"
                                    class="admin-input @error('reason') admin-input-error @enderror">
                             @error('reason')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
                     </div>
 
                     <div>
-                        <p class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Jenis pengecualian</p>
+                        <p class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.exception_type') }}</p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <label class="mode-card flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition dark:border-slate-700">
                                 <input type="radio" name="mode" value="closed" class="mt-0.5" @checked(old('mode', 'closed') === 'closed')>
@@ -80,7 +82,7 @@
                                 <span>
                                     <span class="flex items-center gap-1.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
                                         <span class="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400" aria-hidden="true">schedule</span>
-                                        Jam khusus
+                                        {{ __('doctor.custom_hours') }}
                                     </span>
                                     <span class="mt-0.5 block text-[11px] leading-5 text-slate-500 dark:text-slate-400">
                                         Ganti jam praktik hanya pada tanggal ini.
@@ -111,7 +113,7 @@
 
                     <div class="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[11px] leading-5 text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
                         <span class="material-symbols-outlined text-[16px]" aria-hidden="true">info</span>
-                        <p>Menyimpan pada tanggal yang sudah punya pengecualian akan menimpanya. Booking yang berada di luar jadwal baru tetap tersimpan dan ditandai untuk ditindaklanjuti.</p>
+                        <p>{{ __('doctor.overwrite_warning') }}</p>
                     </div>
 
                     <div class="flex items-center justify-end gap-2 border-t border-slate-100 pt-4 dark:border-slate-800">
@@ -125,7 +127,7 @@
             </x-admin.panel>
 
             <x-admin.panel
-                title="Pengecualian mendatang"
+                title="{{ __('doctor.upcoming_exceptions') }}"
                 :subtitle="$exceptions->isNotEmpty() ? $exceptions->count() . ' tanggal · urut dari yang terdekat' : null"
                 flush>
                 @if($exceptions->isNotEmpty())
@@ -170,22 +172,22 @@
                                         <td class="px-5 py-3">
                                             @if($conflicts > 0)
                                                 <x-admin.badge :label="$conflicts . ' booking di luar jadwal'" tone="amber" />
-                                                <p class="mt-1 text-[11px] text-slate-400">Tidak dibatalkan otomatis</p>
+                                                <p class="mt-1 text-[11px] text-slate-400">{{ __('doctor.not_cancelled_automatically') }}</p>
                                             @else
-                                                <span class="text-xs text-slate-400">Tidak ada bentrok</span>
+                                                <span class="text-xs text-slate-400">{{ __('doctor.no_conflict') }}</span>
                                             @endif
                                         </td>
                                         <td class="px-5 py-3">
                                             <div class="flex items-center justify-end gap-1">
                                                 <a href="{{ route('doctor.schedule.index', ['date' => $exception->date]) }}"
-                                                   class="admin-icon-btn hover:!text-primary" title="Isi formulir dengan tanggal ini" aria-label="Ubah pengecualian {{ $exception->date }}">
+                                                   class="admin-icon-btn hover:!text-primary" title="{{ __('doctor.fill_with_date') }}" aria-label="Ubah pengecualian {{ $exception->date }}">
                                                     <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit_calendar</span>
                                                 </a>
                                                 <form method="POST" action="{{ route('doctor.schedule.destroy', $exception->id) }}"
                                                       onsubmit="return confirm('Hapus pengecualian pada tanggal ini? Jadwal mingguan akan dipakai kembali.')">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="admin-icon-btn hover:!text-rose-600" title="Hapus pengecualian" aria-label="Hapus pengecualian {{ $exception->date }}">
+                                                    <button type="submit" class="admin-icon-btn hover:!text-rose-600" title="{{ __('doctor.delete_exception') }}" aria-label="Hapus pengecualian {{ $exception->date }}">
                                                         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
                                                     </button>
                                                 </form>
@@ -199,7 +201,7 @@
                 @else
                     <div class="p-5">
                         <x-admin.empty-state
-                            title="Belum ada cuti atau jam khusus"
+                            title="{{ __('doctor.no_exceptions') }}"
                             description="Semua tanggal masih mengikuti jadwal mingguan. Tambahkan lewat formulir di atas."
                             icon="event_available"
                             tone="primary" />
@@ -210,7 +212,7 @@
 
         {{-- Sidebar: konteks sebelum mengubah jadwal --}}
         <div class="space-y-6">
-            <x-admin.panel title="Jadwal mingguan" subtitle="Dasar slot booking — diatur admin klinik" flush>
+            <x-admin.panel title="{{ __('doctor.weekly_schedule') }}" subtitle="{{ __('doctor.weekly_schedule_hint') }}" flush>
                 <ul class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
                     @foreach($dayOrder as $key)
                         @php
@@ -223,7 +225,7 @@
                                     {{ $dayLabels[$key] }}
                                 </span>
                                 @if($isToday)
-                                    <span class="rounded-full bg-slate-900 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white dark:bg-slate-100 dark:text-slate-900">Hari ini</span>
+                                    <span class="rounded-full bg-slate-900 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white dark:bg-slate-100 dark:text-slate-900">{{ __('doctor.today') }}</span>
                                 @endif
                             </div>
                             <span class="flex-shrink-0 text-[11px] font-semibold tabular-nums {{ $isPractice ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500' }}">
@@ -240,7 +242,7 @@
                 </x-slot:footer>
             </x-admin.panel>
 
-            <x-admin.panel title="Booking aktif terdekat" subtitle="Pantau sebelum mengubah jadwal" flush>
+            <x-admin.panel title="{{ __('doctor.upcoming_bookings') }}" subtitle="{{ __('doctor.upcoming_bookings_hint') }}" flush>
                 <x-slot:actions>
                     <a href="{{ route('doctor.bookings.index') }}" class="text-[11px] font-bold text-emerald-700 hover:underline dark:text-emerald-300">
                         Semua booking
@@ -269,7 +271,7 @@
                         @endforeach
                     </ul>
                 @else
-                    <p class="p-5 text-sm text-slate-500 dark:text-slate-400">Tidak ada booking aktif dalam waktu dekat.</p>
+                    <p class="p-5 text-sm text-slate-500 dark:text-slate-400">{{ __('doctor.no_upcoming_bookings') }}</p>
                 @endif
             </x-admin.panel>
         </div>

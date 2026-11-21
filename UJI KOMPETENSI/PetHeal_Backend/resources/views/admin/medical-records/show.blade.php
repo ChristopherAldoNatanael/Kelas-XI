@@ -1,6 +1,6 @@
 @php
     $extraStatus = $record->extra_payment_status ?? 'not_required';
-    $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ',', '.');
+    $currency = static fn ($amount) => format_rupiah($amount);
     $owner = $record->booking?->user;
 @endphp
 
@@ -96,9 +96,9 @@
                                             @endif
                                         </span>
                                         <span class="whitespace-nowrap tabular-nums text-slate-500 dark:text-slate-400">
-                                            {{ rtrim(rtrim(number_format((float) $item->quantity, 2, ',', '.'), '0'), ',') }}
+                                            {{ format_qty((float) $item->quantity) }}
                                             {{ $item->unit }}
-                                            · Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                            · {{ format_rupiah($item->subtotal) }}
                                         </span>
                                     </li>
                                 @endforeach

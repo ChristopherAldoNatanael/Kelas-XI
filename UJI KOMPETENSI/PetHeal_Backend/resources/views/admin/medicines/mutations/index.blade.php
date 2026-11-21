@@ -21,21 +21,8 @@
     @include('admin.medicines.partials.section-nav')
 
     @php
-        $mutationFiltersActive = request()->hasAny(['status', 'type', 'medicine_id', 'from', 'to', 'q']);
+        $mutationFiltersActive = has_active_filters(['status', 'type', 'medicine_id', 'from', 'to', 'search', 'q']);
     @endphp
-
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
 
     <x-admin.panel :title="__('inventory.mutations_history_title')" :subtitle="__('inventory.mutations_history_desc')" flush>
         <x-slot:actions>
@@ -44,7 +31,7 @@
 
         <form method="GET" action="{{ route('admin.medicines.mutations.index') }}"
               class="flex flex-wrap items-end gap-2 border-b border-slate-100 px-5 py-3 dark:border-slate-800">
-            <input type="text" name="q" value="{{ request('q') }}"
+            <input type="text" name="search" value="{{ request('search', request('q')) }}"
                    placeholder="{{ __('inventory.search_mutation') }}" class="admin-input !w-52 !py-2 text-sm">
 
             <select name="status" class="admin-input !w-auto !py-2 text-sm">
@@ -122,7 +109,7 @@
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
-                                {{ rtrim(rtrim(number_format((float) $transaction->quantity, 2, ',', '.'), '0'), ',') }}
+                                {{ format_qty((float) $transaction->quantity) }}
                                 <span class="text-xs font-medium text-slate-500">{{ $transaction->medicine?->unit }}</span>
                             </td>
                             <td class="hidden px-5 py-3 text-sm text-slate-600 dark:text-slate-300 md:table-cell">

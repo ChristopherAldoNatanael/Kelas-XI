@@ -20,6 +20,7 @@ return [
     'medicines_list' => 'Medicine List',
     'medicines_expiry' => 'Expiry Monitoring',
     'medicine_mutations' => 'Stock Mutations',
+    'medicine_mutations_item' => 'Stock mutation (multi-item)',
     'medical_records' => 'Medical Records',
     'payments' => 'Payments',
     'clinics' => 'Clinics',

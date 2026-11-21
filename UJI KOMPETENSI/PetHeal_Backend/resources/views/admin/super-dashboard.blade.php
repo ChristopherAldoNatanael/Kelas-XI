@@ -210,7 +210,7 @@
                     {{ __('dashboard.total_revenue') }}
                 </p>
                 <p class="mt-1.5 text-2xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                    Rp {{ number_format($totalRevenue, 0, ',', '.') }}
+                    {{ format_rupiah($totalRevenue) }}
                 </p>
             </div>
         </x-admin.panel>

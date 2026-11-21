@@ -365,3 +365,29 @@ ada jarak yang dikarang.
 | `ui/screens/home/HomeScreen.kt` | handler izin + Snackbar + observer GPS |
 | `ui/screens/home/HomeViewModel.kt` | `nearbyMessage`, `clearNearbyMessage()`, `Job` untuk pemuatan |
 | `ui/location/LocationPermission.kt` | `request(onResult)` |
+
+## 14. Riwayat panjang tidak lagi terpotong di 20 item (F-09 audit backend)
+
+Backend memaginasi daftar booking dan rekam medis 20 per halaman. Aplikasi
+sebelumnya hanya meminta halaman pertama, jadi pasien dengan lebih dari 20
+riwayat tidak pernah melihat sisanya — tanpa pesan apa pun.
+
+Sekarang:
+
+- `data/remote/ApiService.kt` — `getBookings(page)` dan `getMedicalRecords(page)`
+  menerima nomor halaman.
+- `data/repository/BookingRepository.kt` — mengambil halaman 1..`last_page`,
+  menggabung hasil, dan membuang duplikat berdasarkan `id`. Bila halaman lanjutan
+  gagal, data yang sudah terkumpul tetap dipakai (dicatat di log), bukan dibuang.
+- `data/repository/MedicalRecordRepository.kt` — pola sama, cache detail per id
+  tetap terisi.
+- Batas `MAX_PAGES = 10` (200 riwayat terbaru) mencegah unduhan tanpa henti pada
+  akun lama; batas ini dicatat di log bila tercapai agar tidak tersembunyi.
+
+Tanda tangan fungsi repository tidak berubah, sehingga `BookingViewModel`,
+`DoctorsViewModel`, `HomeViewModel`, dan `MedicalRecordsViewModel` tidak perlu
+disentuh.
+
+**Yang perlu diperiksa:** akun dengan > 20 booking — tab Booking dan Rekam Medis
+harus menampilkan seluruh riwayat, dan log perangkat tidak berisi
+`failed on page`.

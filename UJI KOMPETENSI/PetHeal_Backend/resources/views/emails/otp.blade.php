@@ -17,8 +17,11 @@
 <body style="margin:0;padding:0;background-color:#F4F6F5;">
 
 {{-- Teks pratinjau di daftar inbox (tidak tampil di dalam email). --}}
+{{-- Kode TIDAK ditulis di sini: teks tersembunyi berisi kode adalah pola khas
+     phishing (filter spam Gmail menandainya) sekaligus membocorkan kode di
+     pratinjau notifikasi layar kunci. --}}
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;font-size:1px;line-height:1px;color:#F4F6F5;">
-    Kode {{ $code }} &mdash; berlaku {{ $ttlMinutes }} menit.
+    Kode verifikasi PetHeal &mdash; berlaku {{ $ttlMinutes }} menit.
 </div>
 
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#F4F6F5;">

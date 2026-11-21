@@ -9,10 +9,10 @@ use App\Models\Doctor;
 use App\Models\MedicalRecord;
 use App\Models\User;
 use App\Services\DoctorScheduleService;
+use App\Support\VerificationMailer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -26,12 +26,24 @@ class DoctorController extends Controller
     /**
      * List all doctors — clinic scoped
      */
-    public function index()
+    public function index(Request $request)
     {
         $clinicId = currentClinicId();
 
+        // Pencarian: nama dokter, spesialisasi, atau email akun login.
+        $term = trim((string) $request->input('search'));
+
         $doctors = Doctor::query()
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+            ->when($term !== '', function ($q) use ($term) {
+                $like = '%' . $term . '%';
+                $q->where(function ($inner) use ($like) {
+                    $inner->where('name', 'like', $like)
+                        ->orWhere('specialization', 'like', $like)
+                        ->orWhere('email', 'like', $like)
+                        ->orWhereHas('user', fn ($u) => $u->where('email', 'like', $like));
+                });
+            })
             ->with('user:id,name,email')
             ->withCount([
                 'reviews',
@@ -42,7 +54,8 @@ class DoctorController extends Controller
             ])
             ->withAvg('reviews', 'rating')
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.doctors.index', compact('doctors'));
     }
@@ -226,22 +239,16 @@ class DoctorController extends Controller
 
         $activationUrl = route('doctor.activate.token', ['token' => $token]);
 
-        try {
-            Mail::to($email)->send(new DoctorInviteMail(
+        $sent = VerificationMailer::send(
+            $email,
+            new DoctorInviteMail(
                 $activationUrl,
                 $clinic?->name ?? 'PetHeal',
                 $doctor->name,
                 $ttlMinutes,
-            ));
-            $sent = true;
-        } catch (\Throwable $e) {
-            Log::warning('Email undangan dokter gagal dikirim', [
-                'doctor_id' => $doctor->id,
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ]);
-            $sent = false;
-        }
+            ),
+            ['doctor_id' => $doctor->id, 'tujuan' => 'undangan_dokter'],
+        );
 
         AuditLog::log(
             'doctor.account.invite',
@@ -254,7 +261,7 @@ class DoctorController extends Controller
         return back()->with(
             $sent ? 'success' : 'warning',
             $sent
-                ? "Undangan dikirim ke {$email}. Minta dokter membuka email \"Aktivasi akun dokter\" dan mengeklik tombol Buat Kata Sandi Portal Dokter. Tautan berlaku {$ttlMinutes} menit dan hanya sekali pakai."
+                ? "Undangan dikirim ke {$email}. Minta dokter membuka email \"PetHeal: akses portal dokter\" dan mengeklik tombol Buat Kata Sandi Portal Dokter. Tautan berlaku {$ttlMinutes} menit dan hanya sekali pakai."
                 : 'Tautan undangan sudah dibuat, tetapi email gagal dikirim. Coba kirim ulang beberapa saat lagi.'
         );
     }

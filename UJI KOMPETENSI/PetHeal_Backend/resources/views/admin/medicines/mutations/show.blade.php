@@ -30,19 +30,6 @@
 
     @include('admin.medicines.partials.section-nav')
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.5fr_1fr]">
         <div class="space-y-6">
             <x-admin.panel :title="__('inventory.section_transaction')">
@@ -71,7 +58,7 @@
                     <div>
                         <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.col_quantity') }}</dt>
                         <dd class="mt-1 text-lg font-bold tabular-nums text-slate-900 dark:text-white">
-                            {{ rtrim(rtrim(number_format($quantity, 2, ',', '.'), '0'), ',') }}
+                            {{ format_qty($quantity) }}
                             <span class="text-xs font-medium text-slate-500">{{ $unit }}</span>
                         </dd>
                     </div>
@@ -106,7 +93,7 @@
                         </div>
                         <div>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_return_date') }}</p>
-                            <p class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->return_date?->format('d M Y') ?? '—' }}</p>
+                            <p class="mt-1 text-slate-700 dark:text-slate-300">{{ format_tanggal($transaction->return_date, 'date', '—') }}</p>
                         </div>
                         @if($transaction->document_path)
                             <div class="sm:col-span-2">
@@ -122,7 +109,7 @@
                     @if($transaction->type === \App\Models\MedicineStockTransaction::TYPE_DISPOSAL)
                         <div>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_destruction_date') }}</p>
-                            <p class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->destruction_date?->format('d M Y') ?? '—' }}</p>
+                            <p class="mt-1 text-slate-700 dark:text-slate-300">{{ format_tanggal($transaction->destruction_date, 'date', '—') }}</p>
                         </div>
                         <div>
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_destruction_method') }}</p>
@@ -195,10 +182,10 @@
                                         {{ $movement->stockStateLabel() }}
                                     </td>
                                     <td class="px-5 py-3 text-sm font-bold tabular-nums {{ (float) $movement->quantity >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                        {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ rtrim(rtrim(number_format((float) $movement->quantity, 2, ',', '.'), '0'), ',') }}
+                                        {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ format_qty((float) $movement->quantity) }}
                                     </td>
                                     <td class="px-5 py-3 text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                                        {{ rtrim(rtrim(number_format((float) $movement->stock_after, 2, ',', '.'), '0'), ',') }}
+                                        {{ format_qty((float) $movement->stock_after) }}
                                     </td>
                                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
                                         {{ $movement->created_at?->format('d M Y H:i') }}
@@ -226,7 +213,7 @@
                                     <p class="font-mono text-xs font-bold text-primary">{{ $followUp->reference }}</p>
                                     <p class="text-xs text-slate-500 dark:text-slate-400">
                                         {{ $followUp->typeLabel() }} ·
-                                        {{ rtrim(rtrim(number_format((float) $followUp->quantity, 2, ',', '.'), '0'), ',') }} {{ $unit }}
+                                        {{ format_qty((float) $followUp->quantity) }} {{ $unit }}
                                     </p>
                                 </div>
                                 <x-admin.badge :label="$followUp->statusLabel()" :tone="$followUp->statusTone()" />
@@ -312,7 +299,7 @@
                     @if($transaction->needsFollowUp())
                         <div class="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-xs leading-5 text-orange-800 dark:border-orange-900/60 dark:bg-orange-900/20 dark:text-orange-300">
                             {{ __('inventory.follow_up_hint', [
-                                'qty' => rtrim(rtrim(number_format($transaction->remainingFollowUpQuantity(), 2, ',', '.'), '0'), ','),
+                                'qty' => format_qty($transaction->remainingFollowUpQuantity()),
                                 'unit' => $unit,
                             ]) }}
                         </div>

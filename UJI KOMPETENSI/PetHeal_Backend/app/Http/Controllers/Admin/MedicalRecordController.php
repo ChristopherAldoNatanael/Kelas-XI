@@ -42,7 +42,7 @@ class MedicalRecordController extends Controller
     {
         $suffix = $clinicId ?: 'all';
         Cache::forget('payment_stats_c' . $suffix);
-        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
+        Cache::forget('dashboard_stats_v4_c' . $suffix . '_all');
     }
 
     private function normalizeMoneyInput(Request $request, string $key, float $fallback = 0): float

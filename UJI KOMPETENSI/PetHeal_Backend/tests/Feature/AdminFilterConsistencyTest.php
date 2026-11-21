@@ -315,4 +315,76 @@ class AdminFilterConsistencyTest extends TestCase
         $this->assertSame(205, substr_count($csv, 'CSVROW'));
         $this->assertStringContainsString('Booking ID', $lines[0]);
     }
+
+    /**
+     * Regresi: /admin/bookings?search=&status=&date= pernah selalu kosong.
+     *
+     * Form filter mengirim `status=` dan `date=` walau dikosongkan, sedangkan
+     * `$request->has()` tetap bernilai true untuk nilai kosong. Akibatnya
+     * layar menampilkan "Tidak ada booking pada filter ini" untuk klinik yang
+     * jelas punya booking.
+     */
+    public function test_booking_list_treats_empty_query_params_as_no_filter(): void
+    {
+        $booking = $this->makeBooking($this->makePet('EmptyParamPet'));
+
+        $response = $this->actingAs($this->admin)
+            ->get('/admin/bookings?search=&status=&date=')
+            ->assertOk();
+
+        $this->assertSame(1, $response->viewData('bookings')->total());
+        $this->assertSame($booking->id, $response->viewData('bookings')->first()->id);
+    }
+
+    public function test_booking_list_filters_by_status_date_and_keyword(): void
+    {
+        $confirmed = $this->makeBooking($this->makePet('AlphaPet'), [
+            'status' => 'confirmed',
+            'booking_date' => Carbon::today()->format('Y-m-d'),
+        ]);
+        $completed = $this->makeBooking($this->makePet('BetaPet'), [
+            'status' => 'completed',
+            'booking_date' => Carbon::today()->subDays(3)->format('Y-m-d'),
+        ]);
+
+        $byStatus = $this->actingAs($this->admin)
+            ->get('/admin/bookings?status=completed')
+            ->assertOk();
+        $this->assertSame(1, $byStatus->viewData('bookings')->total());
+        $this->assertSame($completed->id, $byStatus->viewData('bookings')->first()->id);
+
+        $byDate = $this->actingAs($this->admin)
+            ->get('/admin/bookings?date=' . Carbon::today()->format('Y-m-d'))
+            ->assertOk();
+        $this->assertSame(1, $byDate->viewData('bookings')->total());
+        $this->assertSame($confirmed->id, $byDate->viewData('bookings')->first()->id);
+
+        // Pencarian harus menemukan hewan, pemilik, dan dokter.
+        foreach (['Alpha', 'Owner AlphaPet', 'Dr Filter'] as $term) {
+            $found = $this->actingAs($this->admin)
+                ->get('/admin/bookings?search=' . urlencode($term))
+                ->assertOk();
+
+            $this->assertGreaterThan(0, $found->viewData('bookings')->total(), "Kata kunci '{$term}' tidak menemukan apa pun.");
+        }
+
+        $noMatch = $this->actingAs($this->admin)
+            ->get('/admin/bookings?search=zzz-tidak-ada')
+            ->assertOk();
+        $this->assertSame(0, $noMatch->viewData('bookings')->total());
+    }
+
+    public function test_booking_export_pdf_follows_the_search_keyword(): void
+    {
+        $this->makeBooking($this->makePet('ExportKeepPet'));
+        $this->makeBooking($this->makePet('ExportDropPet'));
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.bookings.export', ['search' => 'ExportKeepPet']))
+            ->assertOk();
+
+        $text = $this->pdfText($response->getContent());
+        $this->assertStringContainsString('ExportKeepPet', $text);
+        $this->assertStringNotContainsString('ExportDropPet', $text);
+    }
 }

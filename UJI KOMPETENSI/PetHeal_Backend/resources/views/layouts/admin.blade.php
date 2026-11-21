@@ -44,12 +44,54 @@
 <body class="bg-background-light dark:bg-background-dark text-slate-800 dark:text-slate-100 h-full">
     <a href="#main-content" class="skip-link">{{ __('admin.skip_to_content') }}</a>
     <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+    {{-- Satu sumber data untuk modul JavaScript konsol admin: pesan flash,
+         label terjemahan, dan URL yang dipakai command palette. Blade tidak
+         lagi menulis <script> berisi @json(__('...')) di setiap halaman. --}}
+    <script type="application/json" id="admin-boot">
+        {!! json_encode([
+            'flashes' => array_values(array_filter([
+                session('success') ? ['type' => 'success', 'message' => session('success')] : null,
+                session('error') ? ['type' => 'error', 'message' => session('error')] : null,
+                session('warning') ? ['type' => 'warning', 'message' => session('warning')] : null,
+                session('info') ? ['type' => 'info', 'message' => session('info')] : null,
+            ])),
+            'labels' => [
+                'close_notification' => __('admin.close_notification'),
+                'untitled' => __('admin.untitled'),
+                'try_again' => __('admin.try_again'),
+                'command_quick_actions' => __('admin.command_quick_actions'),
+                'command_min_chars' => __('admin.command_min_chars'),
+                'command_board_title' => __('admin.command_board_title'),
+                'command_board_desc' => __('admin.command_board_desc'),
+                'command_list_title' => __('admin.command_list_title'),
+                'command_list_desc' => __('admin.command_list_desc'),
+                'command_payments_title' => __('admin.command_payments_title'),
+                'command_payments_desc' => __('admin.command_payments_desc'),
+                'command_type_booking' => __('admin.command_type_booking'),
+                'command_type_pet' => __('admin.command_type_pet'),
+                'command_type_owner' => __('admin.command_type_owner'),
+                'command_type_action' => __('admin.command_type_action'),
+                'command_no_results_title' => __('admin.command_no_results_title'),
+                'command_no_results_desc' => __('admin.command_no_results_desc'),
+                'command_select_clinic_title' => __('admin.command_select_clinic_title'),
+                'command_search_failed_title' => __('admin.command_search_failed_title'),
+                'command_search_failed_desc' => __('admin.command_search_failed_desc'),
+            ],
+            'routes' => [
+                'search' => route('admin.search'),
+                'board' => route('admin.bookings.schedule'),
+                'bookings' => route('admin.bookings.index'),
+                'payments' => route('admin.payments.index'),
+            ],
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) !!}
+    </script>
     <div id="sidebar-backdrop" class="fixed inset-0 z-50 hidden bg-slate-950/50 backdrop-blur-sm lg:hidden"></div>
 
     <div class="flex h-full">
         <!-- Sidebar -->
         <aside id="sidebar"
-               class="flex-shrink-0 flex flex-col border-r border-white/5 h-full overflow-hidden bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950"
+               class="flex-shrink-0 flex flex-col border-r border-white/5 h-full overflow-hidden bg-emerald-950"
                aria-label="{{ __('admin.main_navigation') }}">
             <div class="sidebar-header p-4 pb-4 flex items-center gap-3 flex-shrink-0">
                 <div class="logo-text-wrap flex items-center gap-3 flex-1 min-w-0">
@@ -74,6 +116,31 @@
                 </button>
             </div>
 
+            {{-- Konteks klinik untuk layar kecil: pemilih ini hanya ada di topbar
+                 pada layar >= md, sehingga tanpa blok ini super admin di ponsel
+                 tidak tahu klinik mana yang sedang aktif. --}}
+            <div class="lg:hidden px-3 pb-3">
+                @if($isSuperAdmin)
+                    <form method="POST" action="{{ route('admin.switch-clinic') }}" class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                        @csrf
+                        <span class="material-symbols-outlined text-base text-slate-300" aria-hidden="true">swap_horiz</span>
+                        <label for="clinic-switcher-mobile" class="sr-only">{{ __('admin.choose_clinic') }}</label>
+                        <select name="clinic_id" id="clinic-switcher-mobile" onchange="this.form.submit()"
+                                class="w-full bg-transparent text-xs font-semibold text-white outline-none [&>option]:text-slate-900">
+                            <option value="" {{ session('current_clinic_id') ? '' : 'selected' }}>— {{ __('menu.system_overview') }} —</option>
+                            @foreach(($allClinics ?? collect()) as $c)
+                                <option value="{{ $c->id }}" {{ ($clinic?->id === $c->id) ? 'selected' : '' }}>{{ $c->name }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                @else
+                    <div class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/90">
+                        <span class="material-symbols-outlined text-base text-slate-300" aria-hidden="true">local_hospital</span>
+                        <span class="truncate">{{ $clinicName }}</span>
+                    </div>
+                @endif
+            </div>
+
             <nav class="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar pb-4">
                 @if($isDoctorPortal)
                 {{-- Navigasi portal dokter: hanya area praktik milik sendiri. --}}
@@ -84,7 +151,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">dashboard</span>
-                    <span class="sidebar-text text-sm">Ringkasan Hari Ini</span>
+                    <span class="sidebar-text text-sm">{{ __('doctor.nav_today') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.bookings.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.bookings.index') }}" @if(request()->routeIs('doctor.bookings.*')) aria-current="page" @endif>
@@ -92,7 +159,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">calendar_month</span>
-                    <span class="sidebar-text">Booking Saya</span>
+                    <span class="sidebar-text">{{ __('doctor.nav_bookings') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.queue.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.queue.index') }}" @if(request()->routeIs('doctor.queue.*')) aria-current="page" @endif>
@@ -100,7 +167,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">groups</span>
-                    <span class="sidebar-text">Antrian Pasien</span>
+                    <span class="sidebar-text">{{ __('doctor.nav_queue') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.service-requests.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.service-requests.index') }}" @if(request()->routeIs('doctor.service-requests.*')) aria-current="page" @endif>
@@ -108,7 +175,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medical_information</span>
-                    <span class="sidebar-text">Evaluasi Layanan</span>
+                    <span class="sidebar-text">{{ __('doctor.nav_service_requests') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.medical-records.index') }}" @if(request()->routeIs('doctor.medical-records.*')) aria-current="page" @endif>
@@ -116,7 +183,7 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">clinical_notes</span>
-                    <span class="sidebar-text">Rekam Medis</span>
+                    <span class="sidebar-text">{{ __('doctor.nav_records') }}</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.schedule.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.schedule.index') }}" @if(request()->routeIs('doctor.schedule.*')) aria-current="page" @endif>
@@ -124,23 +191,23 @@
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">event_busy</span>
-                    <span class="sidebar-text">Jadwal & Cuti</span>
+                    <span class="sidebar-text">{{ __('doctor.nav_schedule') }}</span>
                 </a>
                 <div class="pt-8">
-                    <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">Akun</p>
+                    <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">{{ __('doctor.account_section') }}</p>
                     <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.profile.*') ? 'active-nav-item' : '' }} relative"
                        href="{{ route('doctor.profile.edit') }}" @if(request()->routeIs('doctor.profile.*')) aria-current="page" @endif>
                         @if(request()->routeIs('doctor.profile.*'))
                         <div class="active-indicator" aria-hidden="true"></div>
                         @endif
                         <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">manage_accounts</span>
-                        <span class="sidebar-text">Profil Saya</span>
+                        <span class="sidebar-text">{{ __('doctor.nav_profile') }}</span>
                     </a>
                     <form method="POST" action="{{ route('doctor.logout') }}">
                         @csrf
                         <button type="submit" class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium w-full text-left">
                             <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">logout</span>
-                            <span class="sidebar-text">Keluar</span>
+                            <span class="sidebar-text">{{ __('menu.logout') }}</span>
                         </button>
                     </form>
                 </div>
@@ -486,6 +553,9 @@
             </header>
 
             <div class="flex-1 overflow-y-auto p-4 sm:p-6">
+                {{-- Satu-satunya tempat error validasi ditampilkan. Halaman tidak
+                     lagi merender bloknya sendiri agar tidak ada pesan ganda. --}}
+                <x-admin.validation-errors />
                 @yield('content')
             </div>
         </main>
@@ -516,446 +586,6 @@
         </div>
     </div>
 
-    <script>
-        (function () {
-            const sidebar = document.getElementById('sidebar');
-            const backdrop = document.getElementById('sidebar-backdrop');
-            const openBtn = document.getElementById('sidebar-open');
-            const closeBtn = document.getElementById('sidebar-close');
-            const toggleBtn = document.getElementById('sidebar-toggle');
-            if (!sidebar) return;
-
-            const desktop = window.matchMedia('(min-width: 1024px)');
-
-            function setDrawer(open) {
-                sidebar.classList.toggle('is-open', open);
-                document.body.classList.toggle('sidebar-open', open);
-                backdrop.classList.toggle('hidden', !open);
-                if (openBtn) openBtn.setAttribute('aria-expanded', String(open));
-            }
-
-            function setCollapsed(collapsed) {
-                sidebar.classList.toggle('sidebar-collapsed', collapsed);
-                if (toggleBtn) toggleBtn.setAttribute('aria-expanded', String(!collapsed));
-                try {
-                    localStorage.setItem('sidebar-collapsed', String(collapsed));
-                } catch (e) { /* ignore */ }
-            }
-
-            try {
-                setCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
-            } catch (e) { /* ignore */ }
-
-            if (openBtn) openBtn.addEventListener('click', function () { setDrawer(true); });
-            if (closeBtn) closeBtn.addEventListener('click', function () { setDrawer(false); });
-            if (backdrop) backdrop.addEventListener('click', function () { setDrawer(false); });
-            if (toggleBtn) toggleBtn.addEventListener('click', function () {
-                setCollapsed(!sidebar.classList.contains('sidebar-collapsed'));
-            });
-
-            sidebar.querySelectorAll('[data-nav-group-toggle]').forEach(function (btn) {
-                var group = btn.closest('[data-nav-group]');
-                var submenu = group ? group.querySelector('.sidebar-submenu') : null;
-                if (!submenu) return;
-
-                btn.addEventListener('click', function () {
-                    // Saat rail diciutkan submenu tidak punya ruang; buka sidebar
-                    // dulu agar anak menu tetap bisa dijangkau.
-                    if (sidebar.classList.contains('sidebar-collapsed')) {
-                        setCollapsed(false);
-                        submenu.classList.remove('hidden');
-                    } else {
-                        submenu.classList.toggle('hidden');
-                    }
-
-                    var open = !submenu.classList.contains('hidden');
-                    btn.setAttribute('aria-expanded', String(open));
-                    btn.querySelector('.nav-group-chevron')?.classList.toggle('is-open', open);
-                });
-            });
-
-            sidebar.querySelectorAll('a[href]').forEach(function (link) {
-                link.addEventListener('click', function () {
-                    if (!desktop.matches) setDrawer(false);
-                });
-            });
-
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') setDrawer(false);
-            });
-
-            desktop.addEventListener('change', function (event) {
-                if (event.matches) setDrawer(false);
-            });
-        })();
-    </script>
-
-    <script>
-        (function () {
-            const html = document.documentElement;
-            const toggle = document.getElementById('darkModeToggle');
-            const icon = document.getElementById('darkModeIcon');
-
-            function applyDark(isDark) {
-                html.classList.toggle('dark', isDark);
-                html.classList.toggle('light', !isDark);
-                if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
-                try {
-                    localStorage.setItem('dark-mode', String(isDark));
-                } catch (e) { /* ignore */ }
-                window.dispatchEvent(new CustomEvent('petheal:themechange', { detail: { isDark: isDark } }));
-            }
-
-            applyDark(html.classList.contains('dark'));
-
-            if (toggle) {
-                toggle.addEventListener('click', function () {
-                    applyDark(!html.classList.contains('dark'));
-                });
-            }
-        })();
-    </script>
-
-    <script>
-        function showToast(message, type) {
-            type = type || 'success';
-            const container = document.getElementById('toast-container');
-            if (!container) return;
-
-            const icons = { success: 'check_circle', error: 'error', info: 'info', warning: 'warning' };
-            const toast = document.createElement('div');
-            toast.className = 'toast toast-' + type;
-            toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-
-            const icon = document.createElement('span');
-            icon.className = 'material-symbols-outlined text-base flex-shrink-0';
-            icon.setAttribute('aria-hidden', 'true');
-            icon.textContent = icons[type] || 'info';
-
-            const text = document.createElement('span');
-            text.className = 'flex-1 text-sm';
-            text.textContent = message;
-
-            const close = document.createElement('button');
-            close.className = 'toast-close material-symbols-outlined';
-            close.type = 'button';
-            close.setAttribute('aria-label', @json(__('admin.close_notification')));
-            close.textContent = 'close';
-            close.addEventListener('click', function () { toast.remove(); });
-
-            toast.append(icon, text, close);
-            container.appendChild(toast);
-            requestAnimationFrame(function () { toast.classList.add('show'); });
-            setTimeout(function () {
-                toast.classList.remove('show');
-                setTimeout(function () { toast.remove(); }, 350);
-            }, 4500);
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            @if(session('success'))
-                showToast(@json(session('success')), 'success');
-            @endif
-            @if(session('error'))
-                showToast(@json(session('error')), 'error');
-            @endif
-            @if(session('warning'))
-                showToast(@json(session('warning')), 'warning');
-            @endif
-        });
-    </script>
-    <script>
-        (function () {
-            const modal = document.getElementById('commandPalette');
-            const input = document.getElementById('commandPaletteInput');
-            const body = document.getElementById('commandPaletteBody');
-            const trigger = document.getElementById('commandPaletteTrigger');
-            const spinner = document.getElementById('commandPaletteSpinner');
-            if (!modal || !input || !body || !trigger) return;
-
-            const searchUrl = @json(route('admin.search'));
-            const quickActions = [
-                {
-                    type: 'action',
-                    title: @json(__('admin.command_board_title')),
-                    subtitle: @json(__('admin.command_board_desc')),
-                    url: @json(route('admin.bookings.schedule')),
-                    icon: 'calendar_view_day'
-                },
-                {
-                    type: 'action',
-                    title: @json(__('admin.command_list_title')),
-                    subtitle: @json(__('admin.command_list_desc')),
-                    url: @json(route('admin.bookings.index')),
-                    icon: 'calendar_today'
-                },
-                {
-                    type: 'action',
-                    title: @json(__('admin.command_payments_title')),
-                    subtitle: @json(__('admin.command_payments_desc')),
-                    url: @json(route('admin.payments.index')),
-                    icon: 'receipt_long'
-                }
-            ];
-
-            let results = [];
-            let activeIndex = -1;
-            let debounceTimer = null;
-            let requestSeq = 0;
-            let controller = null;
-
-            function isOpen() {
-                return !modal.classList.contains('hidden');
-            }
-
-            function openPalette() {
-                modal.classList.remove('hidden');
-                modal.setAttribute('aria-hidden', 'false');
-                document.body.classList.add('overflow-hidden');
-                input.value = '';
-                renderQuickActions();
-                setTimeout(function () { input.focus(); }, 30);
-            }
-
-            function closePalette() {
-                modal.classList.add('hidden');
-                modal.setAttribute('aria-hidden', 'true');
-                document.body.classList.remove('overflow-hidden');
-                if (controller) controller.abort();
-                spinner.classList.add('hidden');
-                input.value = '';
-                results = [];
-                activeIndex = -1;
-            }
-
-            function navigate(url) {
-                if (!url) return;
-                window.location.href = url;
-            }
-
-            function createHeading(text) {
-                const heading = document.createElement('p');
-                heading.className = 'px-3 pt-3 pb-1 text-[9px] font-bold uppercase tracking-[0.18em] text-slate-400';
-                heading.textContent = text;
-                return heading;
-            }
-
-            function createResultRow(item, index) {
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.dataset.commandItem = 'true';
-                button.dataset.index = String(index);
-                button.className = 'command-result w-full flex items-start gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/70';
-                button.setAttribute('role', 'option');
-                button.setAttribute('aria-selected', 'false');
-
-                const iconWrap = document.createElement('span');
-                iconWrap.className = 'w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-300 flex items-center justify-center flex-shrink-0';
-                const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined text-[17px]';
-                icon.textContent = item.icon || (item.type === 'pet' ? 'pets' : item.type === 'owner' ? 'person' : 'calendar_today');
-                iconWrap.appendChild(icon);
-
-                const copy = document.createElement('span');
-                copy.className = 'min-w-0 flex-1';
-                const title = document.createElement('span');
-                title.className = 'block text-sm font-semibold text-slate-800 dark:text-slate-100 truncate';
-                title.textContent = item.title || @json(__('admin.untitled'));
-                const subtitle = document.createElement('span');
-                subtitle.className = 'block text-[11px] text-slate-500 truncate mt-0.5';
-                subtitle.textContent = item.subtitle || '';
-                copy.append(title, subtitle);
-
-                const type = document.createElement('span');
-                type.className = 'text-[9px] font-bold uppercase tracking-wider text-slate-400 flex-shrink-0 mt-1';
-                type.textContent = item.type === 'booking'
-                    ? @json(__('admin.command_type_booking'))
-                    : item.type === 'pet'
-                        ? @json(__('admin.command_type_pet'))
-                        : item.type === 'owner'
-                            ? @json(__('admin.command_type_owner'))
-                            : @json(__('admin.command_type_action'));
-
-                button.append(iconWrap, copy, type);
-                button.addEventListener('mouseenter', function () { setActive(index, false); });
-                button.addEventListener('click', function () { navigate(item.url); });
-                return button;
-            }
-
-            function setActive(index, scroll) {
-                if (!results.length) return;
-                const bounded = Math.max(0, Math.min(index, results.length - 1));
-                activeIndex = bounded;
-                body.querySelectorAll('[data-command-item]').forEach(function (node) {
-                    const isActive = Number(node.dataset.index) === bounded;
-                    node.classList.toggle('bg-slate-50', isActive);
-                    node.classList.toggle('dark:bg-slate-800/70', isActive);
-                    node.classList.toggle('ring-1', isActive);
-                    node.classList.toggle('ring-primary/30', isActive);
-                    node.setAttribute('aria-selected', isActive ? 'true' : 'false');
-                    if (isActive && scroll) node.scrollIntoView({ block: 'nearest' });
-                });
-            }
-
-            function renderQuickActions() {
-                body.replaceChildren();
-                results = quickActions;
-                activeIndex = -1;
-                body.appendChild(createHeading(@json(__('admin.command_quick_actions'))));
-                quickActions.forEach(function (item, index) {
-                    body.appendChild(createResultRow(item, index));
-                });
-                const hint = document.createElement('p');
-                hint.className = 'px-3 pt-3 pb-2 text-[11px] text-slate-400';
-                hint.textContent = @json(__('admin.command_min_chars'));
-                body.appendChild(hint);
-            }
-
-            function renderGroups(payload) {
-                const groups = [
-                    { label: @json(__('admin.command_type_booking')), items: payload.bookings || [] },
-                    { label: @json(__('admin.command_type_pet')), items: payload.pets || [] },
-                    { label: @json(__('admin.command_type_owner')), items: payload.owners || [] }
-                ];
-                const allItems = groups.reduce(function (items, group) { return items.concat(group.items); }, []);
-                if (!allItems.length) {
-                    renderEmpty();
-                    return;
-                }
-
-                body.replaceChildren();
-                results = allItems;
-                activeIndex = -1;
-                let index = 0;
-
-                groups.forEach(function (group) {
-                    if (!group.items.length) return;
-                    body.appendChild(createHeading(group.label));
-                    group.items.forEach(function (item) {
-                        body.appendChild(createResultRow(item, index));
-                        index += 1;
-                    });
-                });
-                setActive(0, false);
-            }
-
-            function renderMessage(title, message, withRetry) {
-                body.replaceChildren();
-                results = [];
-                activeIndex = -1;
-                const wrap = document.createElement('div');
-                wrap.className = 'px-4 py-10 text-center';
-                const icon = document.createElement('span');
-                icon.className = 'material-symbols-outlined text-slate-300 text-4xl';
-                icon.textContent = withRetry ? 'cloud_off' : 'search_off';
-                const heading = document.createElement('p');
-                heading.className = 'text-sm font-semibold text-slate-700 dark:text-slate-200 mt-2';
-                heading.textContent = title;
-                const copy = document.createElement('p');
-                copy.className = 'text-[11px] text-slate-500 mt-1';
-                copy.textContent = message;
-                wrap.append(icon, heading, copy);
-                if (withRetry) {
-                    const retry = document.createElement('button');
-                    retry.type = 'button';
-                    retry.className = 'mt-4 px-3 py-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors';
-                    retry.textContent = @json(__('admin.try_again'));
-                    retry.addEventListener('click', function () { runSearch(input.value); });
-                    wrap.appendChild(retry);
-                }
-                body.appendChild(wrap);
-            }
-
-            function renderEmpty() {
-                renderMessage(@json(__('admin.command_no_results_title')), @json(__('admin.command_no_results_desc')), false);
-            }
-
-            function runSearch(query) {
-                const term = (query || '').trim();
-                if (term.length < 2) {
-                    requestSeq += 1;
-                    if (controller) controller.abort();
-                    spinner.classList.add('hidden');
-                    renderQuickActions();
-                    return;
-                }
-
-                const seq = ++requestSeq;
-                if (controller) controller.abort();
-                controller = new AbortController();
-                spinner.classList.remove('hidden');
-
-                fetch(searchUrl + '?q=' + encodeURIComponent(term), {
-                    headers: { 'Accept': 'application/json' },
-                    credentials: 'same-origin',
-                    signal: controller.signal
-                })
-                    .then(function (response) {
-                        if (!response.ok) throw new Error('Search failed');
-                        return response.json();
-                    })
-                    .then(function (payload) {
-                        if (seq !== requestSeq) return;
-                        if (payload.message) {
-                            renderMessage(@json(__('admin.command_select_clinic_title')), payload.message, false);
-                            return;
-                        }
-                        renderGroups(payload.data || {});
-                    })
-                    .catch(function (error) {
-                        if (error.name === 'AbortError') return;
-                        if (seq !== requestSeq) return;
-                        renderMessage(@json(__('admin.command_search_failed_title')), @json(__('admin.command_search_failed_desc')), true);
-                    })
-                    .finally(function () {
-                        if (seq === requestSeq) spinner.classList.add('hidden');
-                    });
-            }
-
-            trigger.addEventListener('click', function () {
-                if (isOpen()) closePalette();
-                else openPalette();
-            });
-
-            input.addEventListener('input', function () {
-                clearTimeout(debounceTimer);
-                const value = input.value;
-                debounceTimer = setTimeout(function () { runSearch(value); }, 180);
-            });
-
-            input.addEventListener('keydown', function (event) {
-                if (event.key === 'ArrowDown') {
-                    event.preventDefault();
-                    setActive(activeIndex + 1, true);
-                } else if (event.key === 'ArrowUp') {
-                    event.preventDefault();
-                    setActive(activeIndex - 1, true);
-                } else if (event.key === 'Enter') {
-                    event.preventDefault();
-                    if (results.length) {
-                        navigate(results[activeIndex >= 0 ? activeIndex : 0].url);
-                    }
-                }
-            });
-
-            document.addEventListener('keydown', function (event) {
-                const isShortcut = (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k';
-                if (isShortcut) {
-                    event.preventDefault();
-                    if (isOpen()) closePalette();
-                    else openPalette();
-                    return;
-                }
-                if (event.key === 'Escape' && isOpen()) {
-                    closePalette();
-                }
-            });
-
-            modal.addEventListener('click', function (event) {
-                if (event.target === modal) closePalette();
-            });
-        })();
-    </script>
     @stack('scripts')
 </body>
 </html>

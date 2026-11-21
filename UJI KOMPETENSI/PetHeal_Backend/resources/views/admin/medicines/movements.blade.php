@@ -21,16 +21,16 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <x-admin.stat-card
             :label="__('admin.medicine_stock_current')"
-            :value="rtrim(rtrim(number_format((float) $medicine->stock, 2, ',', '.'), '0'), ',') . ' ' . $medicine->unit"
+            :value="format_qty((float) $medicine->stock) . ' ' . $medicine->unit"
             icon="inventory_2"
             tone="{{ $medicine->isLowStock() ? 'rose' : 'primary' }}" />
         <x-admin.stat-card
             :label="__('admin.medicine_min_stock')"
-            :value="rtrim(rtrim(number_format((float) $medicine->min_stock, 2, ',', '.'), '0'), ',') . ' ' . $medicine->unit"
+            :value="format_qty((float) $medicine->min_stock) . ' ' . $medicine->unit"
             icon="rule" tone="slate" />
         <x-admin.stat-card
             :label="__('admin.medicine_expiry')"
-            :value="$medicine->expiry_date?->format('d M Y') ?? '—'"
+            :value="format_tanggal($medicine->expiry_date, 'date', '—')"
             icon="event_busy"
             tone="{{ $medicine->isExpired() ? 'rose' : ($medicine->expiresWithin(60) ? 'amber' : 'slate') }}" />
     </div>
@@ -61,10 +61,10 @@
                                     dot />
                             </td>
                             <td class="px-5 py-3 text-sm font-bold tabular-nums {{ (float) $movement->quantity >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
-                                {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ rtrim(rtrim(number_format((float) $movement->quantity, 2, ',', '.'), '0'), ',') }}
+                                {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ format_qty((float) $movement->quantity) }}
                             </td>
                             <td class="px-5 py-3 text-sm tabular-nums text-slate-600 dark:text-slate-300">
-                                {{ rtrim(rtrim(number_format((float) $movement->stock_after, 2, ',', '.'), '0'), ',') }} {{ $medicine->unit }}
+                                {{ format_qty((float) $movement->stock_after) }} {{ $medicine->unit }}
                             </td>
                             <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">
                                 {{ $movement->reason ?: '—' }}

@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\PatientScope;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -93,9 +94,12 @@ class ApiAuthenticate
     /**
      * Pasien = akun global yang tidak dikelola klinik (role `user`).
      * Role lain (super_admin, clinic_admin, admin, doctor) tetap tenant-scoped.
+     *
+     * Aturannya tinggal di PatientScope supaya middleware ini, daftar akun
+     * admin, dan dashboard tidak pernah punya definisi pasien yang berbeda.
      */
     private function isPatient($user): bool
     {
-        return ($user->role ?? null) === 'user';
+        return PatientScope::isPatient($user);
     }
 }

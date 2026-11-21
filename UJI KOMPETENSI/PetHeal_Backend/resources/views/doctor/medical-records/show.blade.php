@@ -1,19 +1,19 @@
 @extends('layouts.admin')
 
 @php
-    $currency = static fn ($amount) => 'Rp ' . number_format((float) $amount, 0, ',', '.');
+    $currency = static fn ($amount) => format_rupiah($amount);
     $owner = $record->booking?->user;
     $extraStatus = $record->extra_payment_status ?? 'not_required';
 @endphp
 
-@section('title', 'Rekam Medis #' . $record->id . ' — ' . ($doctor->clinic?->name ?? 'PetHeal'))
+@section('title', __('doctor.record_number') . $record->id . ' — ' . ($doctor->clinic?->name ?? 'PetHeal'))
 @section('header', 'Rekam Medis')
 
 @section('content')
 <div class="space-y-6">
 
     <x-admin.page-header
-        :title="'Rekam Medis #' . $record->id"
+        :title="__('doctor.record_number') . $record->id"
         eyebrow="Dokumentasi Klinis"
         icon="clinical_notes"
         :description="'Hasil pemeriksaan ' . ($record->pet->name ?? 'pasien') . ' pada ' . \Carbon\Carbon::parse($record->booking?->booking_date)->locale(app()->getLocale())->translatedFormat('d F Y') . '.'">
@@ -35,7 +35,7 @@
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_0.95fr]">
         <div class="space-y-6">
-            <x-admin.panel title="Ringkasan Klinis" subtitle="Diagnosis, tindakan, dan resep">
+            <x-admin.panel title="{{ __('doctor.clinical_summary') }}" subtitle="{{ __('doctor.clinical_summary_hint') }}">
                 <div class="space-y-4">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Diagnosis</p>
@@ -43,27 +43,27 @@
                     </div>
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tindakan / Terapi</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.treatment') }}</p>
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->treatment ?: '—' }}</p>
                     </div>
 
                     @if($record->medicine)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Obat / Resep</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.prescription') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->medicine }}</p>
                         </div>
                     @endif
 
                     @if($record->notes)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan Tambahan</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.additional_notes') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->notes }}</p>
                         </div>
                     @endif
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel title="Rincian Biaya" subtitle="Biaya medis yang tercatat pada kunjungan ini">
+            <x-admin.panel title="{{ __('doctor.cost_breakdown') }}" subtitle="{{ __('doctor.cost_breakdown_hint') }}">
                 <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <x-admin.stat-card label="Konsultasi" :value="$currency($record->cost ?? 0)" icon="stethoscope" tone="blue" />
                     <x-admin.stat-card label="Tindakan" :value="$currency($record->treatment_cost ?? 0)" icon="medical_services" tone="violet" />
@@ -72,7 +72,7 @@
 
                 <div class="mt-5 flex flex-col gap-4 rounded-2xl border border-emerald-200/70 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between dark:border-emerald-900/60 dark:bg-emerald-900/20">
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">Total biaya medis</p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-400">{{ __('doctor.total_medical_cost') }}</p>
                         <p class="mt-1.5 text-3xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
                             {{ $currency($record->total_medical_cost ?? 0) }}
                         </p>
@@ -91,7 +91,7 @@
         </div>
 
         <div class="space-y-6">
-            <x-admin.panel title="Pasien & Pemilik">
+            <x-admin.panel title="{{ __('doctor.patient_and_owner') }}">
                 <div class="space-y-3">
                     <div class="flex items-center gap-3 rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
                         @if($record->pet?->photo_url)
@@ -123,7 +123,7 @@
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel title="Kunjungan & Tindak Lanjut">
+            <x-admin.panel title="{{ __('doctor.visit_follow_up') }}">
                 <div class="space-y-3">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kunjungan</p>
@@ -137,7 +137,7 @@
 
                     @if($record->next_visit_date)
                         <div class="rounded-xl border border-amber-200/70 bg-amber-50/70 p-4 dark:border-amber-900/60 dark:bg-amber-900/20">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">Kunjungan berikutnya</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400">{{ __('doctor.next_visit') }}</p>
                             <p class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
                                 {{ \Carbon\Carbon::parse($record->next_visit_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                             </p>
@@ -151,7 +151,7 @@
                     @endif
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Riwayat catatan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.note_history') }}</p>
                         <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
                             Dibuat: {{ optional($record->created_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}
                         </p>
@@ -165,7 +165,7 @@
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel title="Kewenangan Dokter">
+            <x-admin.panel title="{{ __('doctor.doctor_authority') }}">
                 <p class="text-xs leading-6 text-slate-500 dark:text-slate-400">
                     Dokter dapat memperbarui isi klinis dan biaya medis pada rekam medis miliknya.
                     Penagihan, verifikasi pembayaran, dan perubahan jadwal di luar praktik sendiri tetap dikelola admin klinik.

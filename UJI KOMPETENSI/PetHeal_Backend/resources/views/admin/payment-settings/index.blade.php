@@ -11,30 +11,6 @@
         icon="account_balance_wallet"
         :description="__('payments.subtitle')" />
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div role="alert" aria-live="assertive" class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     {{-- Akun pusat: hanya informasi, tidak dapat diubah dari sini. --}}
     <x-admin.panel :title="__('payments.central_account')" :subtitle="__('payments.fallback_hint')">
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -260,7 +236,8 @@
             </div>
 
             @if($account->status !== 'not_configured')
-                <form method="POST" action="{{ route('admin.payment-settings.deactivate') }}" class="mt-4">
+                <form method="POST" action="{{ route('admin.payment-settings.deactivate') }}" class="mt-4"
+                      data-confirm="{{ __('payments.deactivate_confirm') }}">
                     @csrf
                     <button type="submit" class="admin-btn-secondary">{{ __('payments.deactivate') }}</button>
                 </form>

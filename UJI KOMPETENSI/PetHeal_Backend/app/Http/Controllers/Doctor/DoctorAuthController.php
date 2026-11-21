@@ -87,7 +87,7 @@ class DoctorAuthController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('doctor.login')
-            ->with('success', 'Anda telah keluar dari portal dokter.');
+            ->with('success', __('doctor.logged_out'));
     }
 
     public function showActivationNotice()
@@ -109,7 +109,7 @@ class DoctorAuthController extends Controller
 
         if (!$doctor) {
             return redirect()->route('doctor.activate')
-                ->withErrors(['email' => 'Tautan aktivasi tidak valid atau sudah kedaluwarsa. Minta admin klinik mengirim ulang undangan.']);
+                ->withErrors(['email' => __('doctor.activation_invalid')]);
         }
 
         if (!$doctor->clinic || !$doctor->clinic->is_active) {
@@ -182,7 +182,7 @@ class DoctorAuthController extends Controller
                 'inactive_clinic' => __('auth.inactive_clinic'),
                 'email_missing' => 'Profil dokter belum memiliki email yang valid. Hubungi admin klinik Anda.',
                 'email_taken' => 'Email ini sudah dipakai akun lain. Hubungi admin klinik untuk memakai alamat email berbeda.',
-                default => 'Tautan aktivasi tidak valid atau sudah kedaluwarsa. Minta admin klinik mengirim ulang undangan.',
+                default => __('doctor.activation_invalid'),
             };
 
             return redirect()->route('doctor.activate')->withErrors(['email' => $message]);

@@ -156,7 +156,7 @@
                 <div>
                     <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.revenue_mtd') }}</p>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
-                        Rp {{ number_format($monthlyRevenue, 0, ',', '.') }}
+                        {{ format_rupiah($monthlyRevenue) }}
                     </p>
                 </div>
                 <span class="rounded-full px-2.5 py-1 text-[10px] font-bold {{ $mtdBadge['class'] }}">
@@ -176,7 +176,7 @@
                 <div>
                     <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.revenue_daily') }}</p>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
-                        Rp {{ number_format($todayRevenue, 0, ',', '.') }}
+                        {{ format_rupiah($todayRevenue) }}
                     </p>
                 </div>
                 <span class="rounded-full px-2.5 py-1 text-[10px] font-bold {{ $dailyBadge['class'] }}">
@@ -198,7 +198,7 @@
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">{{ $collectionRate }}%</p>
                 </div>
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
-                    Rp {{ number_format($totalCollected, 0, ',', '.') }}
+                    {{ format_rupiah($totalCollected) }}
                 </span>
             </div>
             <div class="mt-4">
@@ -209,14 +209,46 @@
                 </div>
                 <div class="mt-2 flex justify-between text-[11px] text-slate-400">
                     <span>{{ __('dashboard.collected') }}</span>
-                    <span class="tabular-nums">{{ __('dashboard.billed') }} Rp {{ number_format($totalBilled, 0, ',', '.') }}</span>
+                    <span class="tabular-nums">{{ __('dashboard.billed') }} {{ format_rupiah($totalBilled) }}</span>
                 </div>
             </div>
             <p class="mt-3 text-[11px] text-slate-400">
-                {{ __('dashboard.outstanding_amount') }} Rp {{ number_format($totalOutstanding, 0, ',', '.') }}
+                {{ __('dashboard.outstanding_amount') }} {{ format_rupiah($totalOutstanding) }}
             </p>
         </div>
     </div>
+
+    {{-- Pendapatan diterima: satu angka untuk SEMUA sumber uang klinik ini.
+         Sebelumnya booking, biaya tambahan tindakan, dan pesanan Pet Shop
+         dihitung di halaman berbeda dengan definisi berbeda, sehingga tidak ada
+         angka yang bisa dipakai pemilik klinik. Rincian di kanan menjaga angka
+         utama tetap bisa ditelusuri. --}}
+    <x-admin.panel :title="__('dashboard.income_total')" :subtitle="__('dashboard.income_total_desc')">
+        <div class="flex flex-wrap items-end justify-between gap-5">
+            <div class="min-w-0">
+                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.income_received') }}</p>
+                <p class="mt-1 text-3xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
+                    {{ format_rupiah($incomeTotal) }}
+                </p>
+                <p class="mt-1 text-[11px] text-slate-400">{{ __('dashboard.income_refund_note') }}</p>
+                @if(($refundedTotal ?? 0) > 0)
+                    <p class="mt-0.5 text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                        {{ __('dashboard.income_refund_line', ['amount' => format_rupiah($refundedTotal)]) }}
+                    </p>
+                @endif
+            </div>
+            <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
+                @foreach($incomeBreakdown as $row)
+                    <div class="rounded-xl border border-slate-200/70 px-3 py-2 dark:border-slate-800">
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $row['label'] }}</p>
+                        <p class="mt-0.5 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-100">
+                            {{ format_rupiah($row['amount']) }}
+                        </p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+    </x-admin.panel>
 
     {{-- Grafik --}}
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -249,6 +281,10 @@
     <x-admin.panel :title="__('dashboard.payment_status_overview')" :subtitle="__('dashboard.payment_midtrans_desc')">
         <x-slot:actions>
             <x-admin.badge :label="__('dashboard.midtrans_transactions') . ' · ' . $midtransTransactions" tone="blue" />
+            <a href="{{ route('admin.payments.index') }}"
+               class="text-xs font-semibold text-primary transition hover:opacity-80">
+                {{ __('dashboard.view_all_payments') }}
+            </a>
         </x-slot:actions>
 
         <div class="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
@@ -278,20 +314,6 @@
             @endforeach
         </div>
 
-        <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div class="rounded-xl border border-emerald-200/60 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-900/15">
-                <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">{{ __('dashboard.total_collected') }}</p>
-                <p class="mt-1 text-xl font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                    Rp {{ number_format($totalCollected, 0, ',', '.') }}
-                </p>
-            </div>
-            <div class="rounded-xl border border-orange-200/60 bg-orange-50/60 p-4 dark:border-orange-900/50 dark:bg-orange-900/15">
-                <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-orange-700 dark:text-orange-400">{{ __('dashboard.total_outstanding') }}</p>
-                <p class="mt-1 text-xl font-bold tabular-nums text-orange-700 dark:text-orange-300">
-                    Rp {{ number_format($totalOutstanding, 0, ',', '.') }}
-                </p>
-            </div>
-        </div>
     </x-admin.panel>
 
     {{-- Pembayaran terbaru & saldo tertunggak --}}
@@ -323,10 +345,10 @@
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                                        Rp {{ number_format($booking->paid_amount, 0, ',', '.') }}
+                                        {{ format_rupiah($booking->paid_amount) }}
                                     </p>
                                     <p class="text-[11px] tabular-nums text-slate-400">
-                                        {{ __('common.of') }} Rp {{ number_format($booking->total_amount, 0, ',', '.') }}
+                                        {{ __('common.of') }} {{ format_rupiah($booking->total_amount) }}
                                     </p>
                                 </td>
                                 <td class="px-5 py-3">
@@ -382,7 +404,7 @@
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">
-                                        Rp {{ number_format($booking->remaining_amount, 0, ',', '.') }}
+                                        {{ format_rupiah($booking->remaining_amount) }}
                                     </p>
                                 </td>
                                 <td class="px-5 py-3">
@@ -538,7 +560,7 @@
                     <div>
                         <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ __('dashboard.outstanding_balance') }}</p>
                         <p class="mt-1 text-sm font-bold tabular-nums text-slate-900 dark:text-white">
-                            Rp {{ number_format($totalOutstanding, 0, ',', '.') }}
+                            {{ format_rupiah($totalOutstanding) }}
                         </p>
                     </div>
                     <a href="{{ route('admin.payments.index') }}"

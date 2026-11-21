@@ -116,7 +116,7 @@
                     <span class="num">1</span>
                     <div>
                         <small>Langkah 1</small>
-                        <p>Buka email <strong>"Aktivasi akun dokter"</strong> dari PetHeal. Cek folder Spam/Promosi bila belum terlihat.</p>
+                        <p>Buka email <strong>"PetHeal: akses portal dokter"</strong> dari PetHeal. Cek folder Spam/Promosi bila belum terlihat.</p>
                     </div>
                 </div>
                 <div class="step">

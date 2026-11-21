@@ -15,6 +15,13 @@ class BookingRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "BookingRepository"
+
+        /**
+         * Batas jumlah halaman yang diambil berurutan. 20 data per halaman,
+         * jadi 10 halaman = 200 riwayat terbaru. Batas ini menjaga aplikasi
+         * tidak mengunduh ratusan halaman tanpa henti pada akun lama.
+         */
+        private const val MAX_PAGES = 10
     }
 
     /**
@@ -70,17 +77,56 @@ class BookingRepository @Inject constructor(
         return code to message
     }
 
+    /**
+     * Seluruh riwayat booking milik pengguna.
+     *
+     * Server memaginasi 20 per halaman (`BookingController::index`). Sebelumnya
+     * aplikasi hanya membaca halaman pertama, sehingga booking ke-21 dan
+     * seterusnya tidak pernah terlihat pengguna — tanpa pesan apa pun.
+     *
+     * Halaman diambil berurutan sampai `last_page`, lalu digabung dan
+     * dideduplikasi berdasarkan `id` (urutan bisa bergeser bila ada booking
+     * baru di antara dua permintaan). Batas [MAX_PAGES] menjaga aplikasi tetap
+     * responsif bila data pengguna sangat banyak; bila batas tercapai, hal itu
+     * dicatat di log supaya ketahuan, bukan disembunyikan.
+     */
     suspend fun getBookings(): Result<List<Booking>> {
         return try {
-            val response = apiService.getBookings()
+            val collected = LinkedHashMap<Int, Booking>()
+            var page = 1
+            var lastPage = 1
 
-            if (response.isSuccessful && response.body()?.success == true) {
-                Result.Success(response.body()?.data ?: emptyList())
-            } else {
-                val error = getErrorMessage(response.code(), response.body()?.message)
-                Log.e(TAG, "getBookings failed: $error (HTTP ${response.code()})")
-                Result.Error(error)
+            while (page <= lastPage && page <= MAX_PAGES) {
+                val response = apiService.getBookings(page = page)
+
+                if (!response.isSuccessful || response.body()?.success != true) {
+                    val error = getErrorMessage(response.code(), response.body()?.message)
+                    Log.e(TAG, "getBookings failed on page $page: $error (HTTP ${response.code()})")
+                    // Halaman pertama gagal = memang tidak ada data yang bisa
+                    // ditampilkan. Halaman lanjutan gagal = tetap tampilkan
+                    // yang sudah terkumpul, jangan buang hasil sebelumnya.
+                    return if (collected.isEmpty()) {
+                        Result.Error(error)
+                    } else {
+                        Log.w(TAG, "getBookings: menampilkan ${collected.size} data sampai halaman ${page - 1}")
+                        Result.Success(collected.values.toList())
+                    }
+                }
+
+                val body = response.body()
+                body?.data?.forEach { booking ->
+                    val id = booking.id
+                    if (id != null) collected[id] = booking else collected[-(collected.size + 1)] = booking
+                }
+                lastPage = body?.pagination?.lastPage ?: page
+                page++
             }
+
+            if (page > MAX_PAGES && lastPage > MAX_PAGES) {
+                Log.w(TAG, "getBookings: berhenti di batas $MAX_PAGES halaman (last_page=$lastPage)")
+            }
+
+            Result.Success(collected.values.toList())
         } catch (e: Exception) {
             Log.e(TAG, "getBookings exception", e)
             Result.Error(userFriendlyExceptionMessage(e))

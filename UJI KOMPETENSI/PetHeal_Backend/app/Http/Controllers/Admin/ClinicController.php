@@ -109,7 +109,8 @@ class ClinicController extends Controller
             'scheduleExceptions',
         ])
             ->orderBy('name')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.clinics.index', compact('clinics'));
     }
@@ -257,7 +258,15 @@ class ClinicController extends Controller
         $clinicId = (int) $clinic->id;
         $clinicName = $clinic->name;
 
-        $summary = $deletion->delete($clinic);
+        try {
+            // Klinik yang sudah punya riwayat keuangan/medis hanya boleh
+            // dinonaktifkan. Penghapusan permanen butuh centang eksplisit
+            // (`force_delete_history`), supaya riwayat pasien tidak hilang
+            // karena satu klik.
+            $summary = $deletion->delete($clinic, $request->boolean('force_delete_history'));
+        } catch (\RuntimeException $e) {
+            return redirect()->route('admin.clinics.index')->with('error', $e->getMessage());
+        }
 
         // Jangan biarkan sesi menunjuk klinik yang sudah tidak ada.
         if ((int) session('current_clinic_id') === $clinicId) {

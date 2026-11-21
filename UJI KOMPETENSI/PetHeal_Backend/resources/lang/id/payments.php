@@ -70,6 +70,7 @@ return [
     'test_connection' => 'Uji koneksi',
     'activate' => 'Aktifkan',
     'deactivate' => 'Nonaktifkan',
+    'deactivate_confirm' => 'Nonaktifkan pembayaran online klinik ini? Pasien tidak akan bisa membayar lewat Midtrans sampai akun diaktifkan kembali.',
     'approve_production' => 'Setujui aktivasi production',
     'production_approved' => 'Aktivasi production disetujui',
     'production_pending' => 'Aktivasi production belum disetujui super admin',

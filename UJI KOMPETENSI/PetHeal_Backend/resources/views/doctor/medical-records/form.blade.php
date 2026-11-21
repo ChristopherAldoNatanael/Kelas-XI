@@ -25,14 +25,14 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    <x-admin.panel title="Informasi Booking">
+    <x-admin.panel title="{{ __('doctor.booking_info') }}">
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pasien</p>
                 <p class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $booking->pet->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Spesies / Ras</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.species_breed') }}</p>
                 <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">
                     {{ ucfirst($booking->pet->species ?? '—') }}{{ $booking->pet->breed ? ' · ' . $booking->pet->breed : '' }}
                 </p>
@@ -59,7 +59,7 @@
 
         @if($booking->notes)
             <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan pemilik:</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.owner_notes') }}</span>
                 {{ $booking->notes }}
             </div>
         @endif
@@ -76,39 +76,39 @@
 
         <div class="grid grid-cols-1 gap-6 xl:grid-cols-3">
             <div class="space-y-6 xl:col-span-2">
-                <x-admin.panel title="Hasil Pemeriksaan">
+                <x-admin.panel title="{{ __('doctor.exam_result') }}">
                     <div class="space-y-4">
                         <div>
                             <label for="diagnosis" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Diagnosis <span class="text-rose-500">*</span></label>
                             <textarea id="diagnosis" name="diagnosis" rows="3" required class="admin-input @error('diagnosis') admin-input-error @enderror"
-                                      placeholder="Contoh: Dermatitis alergi pada kulit dorsal.">{{ old('diagnosis', $record?->diagnosis) }}</textarea>
+                                      placeholder="{{ __('doctor.diagnosis_placeholder') }}">{{ old('diagnosis', $record?->diagnosis) }}</textarea>
                             @error('diagnosis')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
-                            <label for="treatment" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tindakan / Terapi <span class="text-rose-500">*</span></label>
+                            <label for="treatment" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.treatment') }} <span class="text-rose-500">*</span></label>
                             <textarea id="treatment" name="treatment" rows="3" required class="admin-input @error('treatment') admin-input-error @enderror"
-                                      placeholder="Contoh: Pembersihan area, pemberian salep, edukasi pemilik.">{{ old('treatment', $record?->treatment) }}</textarea>
+                                      placeholder="{{ __('doctor.treatment_placeholder') }}">{{ old('treatment', $record?->treatment) }}</textarea>
                             @error('treatment')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
-                            <label for="medicine" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Obat / Resep</label>
+                            <label for="medicine" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.prescription') }}</label>
                             <textarea id="medicine" name="medicine" rows="3" class="admin-input"
-                                      placeholder="Nama obat, dosis, dan durasi.">{{ old('medicine', $record?->medicine) }}</textarea>
+                                      placeholder="{{ __('doctor.prescription_placeholder') }}">{{ old('medicine', $record?->medicine) }}</textarea>
                         </div>
 
                         <div>
-                            <label for="notes" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Catatan Tambahan</label>
+                            <label for="notes" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.additional_notes') }}</label>
                             <textarea id="notes" name="notes" rows="2" class="admin-input"
-                                      placeholder="Informasi lain yang perlu diingat.">{{ old('notes', $record?->notes) }}</textarea>
+                                      placeholder="{{ __('doctor.additional_notes_placeholder') }}">{{ old('notes', $record?->notes) }}</textarea>
                         </div>
                     </div>
                 </x-admin.panel>
             </div>
 
             <div class="space-y-6">
-                <x-admin.panel title="Kunjungan Berikutnya">
+                <x-admin.panel title="{{ __('doctor.next_visit') }}">
                     <div class="space-y-4">
                         <div>
                             <label for="next_visit_date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
@@ -118,7 +118,7 @@
                             @error('next_visit_date')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
-                            <label for="next_visit_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Jam (opsional)</label>
+                            <label for="next_visit_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.time_optional') }}</label>
                             <input type="time" id="next_visit_time" name="next_visit_time"
                                    value="{{ old('next_visit_time', $record?->next_visit_time ? substr((string) $record->next_visit_time, 0, 5) : '') }}"
                                    class="admin-input">
@@ -129,35 +129,35 @@
                     </div>
                 </x-admin.panel>
 
-                <x-admin.panel title="Resep Obat">
+                <x-admin.panel title="{{ __('doctor.prescription_title') }}">
                     @include('admin.medical-records.partials.prescription-fields', [
                         'record' => $record,
                         'medicines' => $medicines ?? collect(),
                     ])
                 </x-admin.panel>
 
-                <x-admin.panel title="Lampiran Pemeriksaan">
+                <x-admin.panel title="{{ __('doctor.attachments') }}">
                     @include('admin.medical-records.partials.attachments-fields', [
                         'record' => $record,
                     ])
                 </x-admin.panel>
 
-                <x-admin.panel title="Biaya Medis">
+                <x-admin.panel title="{{ __('doctor.medical_cost') }}">
                     <div class="space-y-4">
                         <div>
-                            <label for="cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Biaya konsultasi</label>
+                            <label for="cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.consultation_fee') }}</label>
                             <input type="number" min="0" step="0.01" id="cost" name="cost"
                                    value="{{ old('cost', $record?->cost ?? $booking->total_amount) }}"
                                    class="admin-input tabular-nums">
                         </div>
                         <div>
-                            <label for="treatment_cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Biaya tindakan</label>
+                            <label for="treatment_cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.treatment_fee') }}</label>
                             <input type="number" min="0" step="0.01" id="treatment_cost" name="treatment_cost"
                                    value="{{ old('treatment_cost', $record?->treatment_cost ?? 0) }}"
                                    class="admin-input tabular-nums">
                         </div>
                         <div>
-                            <label for="medicine_cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Biaya obat</label>
+                            <label for="medicine_cost" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.medicine_fee') }}</label>
                             <input type="number" min="0" step="0.01" id="medicine_cost" name="medicine_cost"
                                    value="{{ old('medicine_cost', $record?->medicine_cost ?? 0) }}"
                                    class="admin-input tabular-nums">

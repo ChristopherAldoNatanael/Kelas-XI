@@ -17,7 +17,7 @@ class PaymentStatusService
         // per-range key to invalidate.
         $suffix = $clinicId ?: 'all';
         Cache::forget('payment_stats_c' . $suffix);
-        Cache::forget('dashboard_stats_v3_c' . $suffix . '_all');
+        Cache::forget('dashboard_stats_v4_c' . $suffix . '_all');
     }
 
     /**

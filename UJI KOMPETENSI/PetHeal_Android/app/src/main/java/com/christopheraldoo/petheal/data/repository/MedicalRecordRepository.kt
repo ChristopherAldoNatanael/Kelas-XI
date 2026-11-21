@@ -13,6 +13,13 @@ class MedicalRecordRepository @Inject constructor(
 ) {
     companion object {
         private const val TAG = "MedicalRecordRepository"
+
+        /**
+         * Batas jumlah halaman yang diambil berurutan. 20 data per halaman,
+         * jadi 10 halaman = 200 riwayat terbaru. Batas ini menjaga aplikasi
+         * tidak mengunduh ratusan halaman tanpa henti pada akun lama.
+         */
+        private const val MAX_PAGES = 10
     }
 
     private var recordsCache: List<MedicalRecord>? = null
@@ -57,17 +64,44 @@ class MedicalRecordRepository @Inject constructor(
             recordsCache?.let { return Result.Success(it) }
         }
         return try {
-            val response = apiService.getMedicalRecords()
-            if (response.isSuccessful && response.body()?.success == true) {
-                val records = response.body()?.data ?: emptyList()
+            // Server memaginasi 20 per halaman; riwayat medis pasien panjang
+            // dan halaman pertama saja akan menyembunyikan rekam medis lama.
+            // Semua halaman digabung & dideduplikasi berdasarkan id.
+            val collected = LinkedHashMap<Int, MedicalRecord>()
+            var page = 1
+            var lastPage = 1
+            var failureMessage: String? = null
+
+            while (page <= lastPage && page <= MAX_PAGES) {
+                val response = apiService.getMedicalRecords(page = page)
+
+                if (!response.isSuccessful || response.body()?.success != true) {
+                    failureMessage = response.body()?.message
+                    Log.e(TAG, "getMedicalRecords failed on page $page: $failureMessage (HTTP ${response.code()})")
+                    break
+                }
+
+                val body = response.body()
+                body?.data?.forEach { record ->
+                    val id = record.id
+                    if (id != null) collected[id] = record else collected[-(collected.size + 1)] = record
+                }
+                lastPage = body?.pagination?.lastPage ?: page
+                page++
+            }
+
+            if (collected.isEmpty() && failureMessage != null) {
+                Result.Error(failureMessage ?: "Failed to get medical records")
+            } else {
+                if (page > MAX_PAGES && lastPage > MAX_PAGES) {
+                    Log.w(TAG, "getMedicalRecords: berhenti di batas $MAX_PAGES halaman (last_page=$lastPage)")
+                }
+                val records = collected.values.toList()
                 recordsCache = records
                 records.forEach { record ->
                     record.id?.let { recordDetailCache[it] = record }
                 }
                 Result.Success(records)
-            } else {
-                Log.e(TAG, "getMedicalRecords failed: ${response.body()?.message} (HTTP ${response.code()})")
-                Result.Error(response.body()?.message ?: "Failed to get medical records")
             }
         } catch (e: Exception) {
             Log.e(TAG, "getMedicalRecords exception", e)

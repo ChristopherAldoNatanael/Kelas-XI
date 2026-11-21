@@ -85,7 +85,9 @@
         <div class="clinic-pin__status-row">
             <span class="clinic-pin__status" data-status></span>
             <span class="clinic-pin__coords" data-coords hidden></span>
-            <a data-gmaps-link href="#" target="_blank" rel="noopener noreferrer"
+            {{-- Tautan tanpa href sampai koordinat ada: `href="#"` akan
+                 melompat ke atas halaman bila skrip peta gagal dimuat. --}}
+            <a data-gmaps-link target="_blank" rel="noopener noreferrer"
                class="font-semibold text-primary hover:underline" hidden>{{ __('clinics.pin_view_maps') }}</a>
             <button type="button" data-clear class="font-semibold text-rose-600 hover:underline" hidden>
                 {{ __('clinics.pin_clear') }}

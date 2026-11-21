@@ -74,7 +74,8 @@
                                                     </label>
                                                     <button type="submit" class="admin-btn-primary w-full !py-2 text-xs">{{ __('admin.save_changes') }}</button>
                                                 </form>
-                                                <form method="POST" action="{{ route('admin.service-categories.destroy', $category) }}" class="mt-2">
+                                                <form method="POST" action="{{ route('admin.service-categories.destroy', $category) }}" class="mt-2"
+                                                      data-confirm="{{ __('clinics.category_delete_confirm', ['name' => $category->name]) }}">
                                                     @csrf
                                                     @method('DELETE')
                                                     <button type="submit" class="w-full rounded-xl border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:border-rose-900/60 dark:hover:bg-rose-900/20">{{ __('admin.delete') }}</button>

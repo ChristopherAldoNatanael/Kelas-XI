@@ -11,20 +11,6 @@
         icon="receipt_long"
         :description="__('petshop.orders_desc')" />
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <x-admin.panel flush>
         <form method="GET" class="grid gap-2 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-6 dark:border-slate-800">
             <div class="relative lg:col-span-2">
@@ -55,7 +41,7 @@
             <input type="date" name="to" value="{{ request('to') }}" class="admin-input" aria-label="{{ __('petshop.date_to') }}">
             <div class="flex items-center gap-2 sm:col-span-2 lg:col-span-6">
                 <button type="submit" class="admin-btn-secondary">{{ __('petshop.search') }}</button>
-                @if(request()->hasAny(['search','status','payment_status','payment_method','from','to']))
+                @if(has_active_filters(['search','status','payment_status','payment_method','from','to']))
                     <a href="{{ route('admin.pet-shop.orders.index') }}" class="admin-btn-ghost">{{ __('petshop.reset') }}</a>
                 @endif
             </div>
@@ -95,7 +81,7 @@
                                 {{ $order->items->sum('quantity') }} item
                             </td>
                             <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
-                                Rp {{ number_format($order->total_amount, 0, ',', '.') }}
+                                {{ format_rupiah($order->total_amount) }}
                             </td>
                             <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
                                 {{ __('petshop.payment_method.' . $order->payment_method) }}
@@ -116,7 +102,7 @@
                             <td colspan="9">
                                 <x-admin.empty-state
                                     icon="receipt_long"
-                                    :title="request()->hasAny(['search','status','payment_status','payment_method','from','to']) ? __('petshop.no_orders_filter') : __('petshop.no_orders')" />
+                                    :title="has_active_filters(['search','status','payment_status','payment_method','from','to']) ? __('petshop.no_orders_filter') : __('petshop.no_orders')" />
                             </td>
                         </tr>
                     @endforelse

@@ -13,12 +13,6 @@
         @endif
     </x-slot:actions>
 
-    @if($errors->any())
-        <div class="mb-5 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-900/20 dark:text-rose-300">
-            @foreach($errors->all() as $error) <p>{{ $error }}</p> @endforeach
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1fr,300px]">
 
         <form method="POST" action="{{ route('admin.settings.clinic.update') }}" enctype="multipart/form-data" class="space-y-6">
@@ -128,7 +122,7 @@
                 <p class="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 dark:bg-slate-800/50">
                     {{ __('clinics.preview_sidebar') }}
                 </p>
-                <div class="bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950 p-4">
+                <div class="bg-emerald-950 p-4">
                     <div class="mb-5 flex items-center gap-3">
                         <span class="block rounded-lg bg-white p-1.5">
                             <img id="preview_sidebar_logo" src="{{ $clinic->logo_url ?? '' }}" alt=""

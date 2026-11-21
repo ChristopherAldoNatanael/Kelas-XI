@@ -15,10 +15,13 @@ class SendFcmNotification implements ShouldQueue
         protected string $title,
         protected string $body,
         protected array $data = [],
+        protected string $channelId = 'petheal_notifications',
     ) {}
 
     public function handle(FCMService $fcm): void
     {
-        $fcm->sendToUser($this->userId, $this->title, $this->body, $this->data);
+        // Riwayat notifikasi sudah ditulis oleh FCMService::sendToUser() saat
+        // request berjalan, jadi worker hanya mengirim ke perangkat.
+        $fcm->deliverToUser($this->userId, $this->title, $this->body, $this->data, $this->channelId);
     }
 }

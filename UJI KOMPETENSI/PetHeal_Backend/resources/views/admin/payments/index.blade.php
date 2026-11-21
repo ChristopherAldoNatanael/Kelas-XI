@@ -38,13 +38,13 @@
 
         <x-admin.stat-card
             :label="__('admin.stat_total_collected')"
-            :value="'Rp ' . number_format($stats['total_collected'], 0, ',', '.')"
+            :value="format_rupiah($stats['total_collected'])"
             icon="trending_up"
             tone="primary" />
 
         <x-admin.stat-card
             :label="__('admin.stat_outstanding')"
-            :value="'Rp ' . number_format($stats['total_outstanding'], 0, ',', '.')"
+            :value="format_rupiah($stats['total_outstanding'])"
             icon="pending_actions"
             tone="amber" />
 
@@ -146,15 +146,15 @@
                                 <p class="text-[11px] text-slate-400">{{ $payment->pet->name }}</p>
                             </td>
                             <td class="px-5 py-3 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                                Rp {{ number_format($payment->total_amount, 0, ',', '.') }}
+                                {{ format_rupiah($payment->total_amount) }}
                             </td>
                             <td class="px-5 py-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                                Rp {{ number_format($payment->paid_amount, 0, ',', '.') }}
+                                {{ format_rupiah($payment->paid_amount) }}
                             </td>
                             <td class="px-5 py-3">
                                 @if($payment->remaining_amount > 0)
                                     <p class="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">
-                                        Rp {{ number_format($payment->remaining_amount, 0, ',', '.') }}
+                                        {{ format_rupiah($payment->remaining_amount) }}
                                     </p>
                                 @else
                                     <span class="text-xs text-slate-400">—</span>

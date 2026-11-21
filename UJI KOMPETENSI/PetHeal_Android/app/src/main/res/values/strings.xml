@@ -29,6 +29,7 @@
     <string name="otp_title">Verifikasi Email</string>
     <string name="otp_heading">Masukkan Kode OTP</string>
     <string name="otp_subtitle">Kode 6 digit telah dikirim ke %1$s</string>
+    <string name="otp_mail_delayed_hint">Email mungkin terlambat masuk. Periksa folder Spam/Promosi atau kirim ulang kode.</string>
     <string name="otp_spam_hint">Tidak menemukannya? Cek folder Spam atau Promosi, lalu kirim ulang.</string>
     <string name="otp_resend_prompt">Belum menerima kode?</string>
     <string name="otp_resend_action">Kirim ulang</string>

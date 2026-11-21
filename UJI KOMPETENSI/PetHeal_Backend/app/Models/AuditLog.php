@@ -27,6 +27,29 @@ class AuditLog extends Model
         return $this->belongsTo(Clinic::class);
     }
 
+    /**
+     * Jejak perubahan terakhir untuk satu record.
+     *
+     * Dipakai halaman detail/ubah untuk menjawab "siapa mengubah ini terakhir"
+     * tanpa membuka halaman audit log terpisah (lihat UIX-02 pada
+     * docs/AUDIT_FIXES_REPORT.md). Bila `$actions` diisi, hanya aksi tersebut
+     * yang dipertimbangkan.
+     */
+    public static function latestFor(?Model $model, array $actions = [])
+    {
+        if (!$model || !$model->exists) {
+            return null;
+        }
+
+        return static::query()
+            ->with('user:id,name')
+            ->where('model_type', $model::class)
+            ->where('model_id', $model->getKey())
+            ->when($actions, fn ($query) => $query->whereIn('action', $actions))
+            ->latest('id')
+            ->first();
+    }
+
     public static function log($action, $description = null, $model = null, $userId = null)
     {
         return static::create([

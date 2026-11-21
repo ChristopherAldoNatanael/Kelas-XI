@@ -28,23 +28,6 @@
         </div>
     </x-admin.panel>
 
-    @if(session('success'))
-        <div class="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <p class="font-semibold">{{ __('admin.templates_failed') }}</p>
-            <ul class="mt-2 list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     <form method="POST" action="{{ route('admin.notification-settings.update') }}" class="space-y-6">
         @csrf
         @method('PUT')

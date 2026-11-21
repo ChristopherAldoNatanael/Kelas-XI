@@ -47,7 +47,7 @@
             <div>
                 <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.col_total_amount') }}</p>
                 <p class="mt-1 text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-                    Rp {{ number_format($booking->total_amount ?? 0, 0, ',', '.') }}
+                    {{ format_rupiah($booking->total_amount ?? 0) }}
                 </p>
             </div>
         </div>
@@ -58,16 +58,6 @@
               enctype="multipart/form-data" class="space-y-6">
             @csrf
             <input type="hidden" name="booking_id" value="{{ $booking->id }}">
-
-            @if($errors->any())
-                <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-                    <ul class="list-disc list-inside space-y-1">
-                        @foreach($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 <div>

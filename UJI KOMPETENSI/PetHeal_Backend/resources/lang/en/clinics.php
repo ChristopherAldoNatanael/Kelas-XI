@@ -112,6 +112,7 @@ return [
     'delete_type_slug' => 'Type the clinic slug to confirm:',
     'delete_slug_hint' => 'Slug does not match. The clinic will not be deleted.',
     'delete_confirm' => 'Delete permanently',
+    'delete_force_history' => 'I understand this clinic has payment/medical history and still want to delete it permanently.',
     'delete_slug_mismatch' => 'Confirmation slug does not match. Clinic :slug was not deleted.',
     'deleted_success' => 'Clinic :name and all of its data were deleted (:users accounts, :doctors doctors, :bookings bookings, :records medical records).',
 
@@ -180,6 +181,7 @@ return [
     'category_created' => 'Service category added.',
     'category_updated' => 'Service category updated.',
     'category_deleted' => 'Service category deleted.',
+    'category_delete_confirm' => 'Delete the ":name" category? A category still used by services will be deactivated instead of deleted.',
     'category_in_use' => 'This category is used by :count services. Deactivate it instead to keep history intact.',
     'category_none' => 'No service categories yet.',
     'category_uncategorized' => 'Uncategorized',

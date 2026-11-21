@@ -98,6 +98,35 @@ class QueueService
      *
      * @throws RuntimeException bila booking tidak memenuhi syarat.
      */
+    /**
+     * Lepas nomor antrian ketika booking dibatalkan.
+     *
+     * Dipanggil dari kedua jalur pembatalan (aplikasi & web admin) SETELAH
+     * status booking menjadi `cancelled`. Antrian harian tidak berubah
+     * historis: nomor tetap tercatat dengan status `no_show` dan catatan
+     * sebabnya, sehingga papan "selesai" masih bisa menjelaskan kejadiannya.
+     *
+     * Aman dipanggil kapan pun: booking yang belum check-in atau yang
+     * antriannya sudah selesai tidak diapa-apakan.
+     */
+    public function releaseOnCancel(Booking $booking, ?string $reason = null): Booking
+    {
+        if (! $booking->queue_number
+            || ! in_array($booking->queue_status, self::ACTIVE_STATUSES, true)) {
+            return $booking;
+        }
+
+        $note = trim('Booking dibatalkan' . ($reason ? ': ' . $reason : '.'));
+
+        $booking->forceFill([
+            'queue_status' => self::STATUS_NO_SHOW,
+            'queue_finished_at' => now(),
+            'queue_note' => mb_substr($note, 0, 255),
+        ])->save();
+
+        return $booking;
+    }
+
     public function checkIn(Booking $booking, ?string $date = null, ?string $userId = null): Booking
     {
         $queueDate = $date ?: today()->toDateString();
@@ -302,6 +331,9 @@ class QueueService
         $next = Booking::where('clinic_id', $clinicId)
             ->whereDate('queue_date', $queueDate)
             ->where('queue_status', self::STATUS_WAITING)
+            // Booking yang dibatalkan tidak boleh dipanggil lagi: pasiennya
+            // sudah tidak datang, dan satu giliran terbuang sia-sia.
+            ->where('status', '!=', 'cancelled')
             ->orderBy('queue_number')
             ->first();
 
@@ -321,6 +353,10 @@ class QueueService
             ->where('clinic_id', $clinicId)
             ->whereDate('queue_date', $queueDate)
             ->whereNotNull('queue_number')
+            // Papan antrian hanya berisi pasien yang masih berlaku. Booking
+            // batal tetap tersimpan di database (riwayat utuh) tetapi tidak
+            // mengotori layar antrian maupun hitungan `total`.
+            ->where('status', '!=', 'cancelled')
             ->orderBy('queue_number')
             ->get();
 
@@ -365,6 +401,8 @@ class QueueService
         return Booking::where('clinic_id', $booking->clinic_id)
             ->whereDate('queue_date', $booking->queue_date)
             ->whereIn('queue_status', [self::STATUS_WAITING, self::STATUS_CALLED])
+            // Nomor milik booking batal tidak lagi "di depan" siapa pun.
+            ->where('status', '!=', 'cancelled')
             ->where('queue_number', '<', $booking->queue_number)
             ->count();
     }

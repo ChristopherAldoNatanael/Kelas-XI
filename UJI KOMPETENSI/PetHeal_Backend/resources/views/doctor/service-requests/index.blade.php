@@ -10,17 +10,17 @@
 @section('content')
 <div class="space-y-6">
     <x-admin.page-header
-        title="Permintaan Layanan untuk Dievaluasi"
-        eyebrow="Portal Dokter"
+        title="{{ __('doctor.requests_to_review') }}"
+        eyebrow="{{ __('doctor.portal_eyebrow') }}"
         icon="medical_information"
         description="Permintaan yang ditugaskan admin klinik kepada Anda. Berikan rekomendasi medis; harga dan penawaran tetap disusun admin.">
         <x-slot:actions>
             <form method="GET" action="{{ route('doctor.service-requests.index') }}" class="flex items-center gap-2">
                 <select name="status" class="admin-input !w-52 !py-2">
-                    <option value="">Semua status</option>
-                    <option value="waiting_doctor_review" @selected($status === 'waiting_doctor_review')>Menunggu evaluasi</option>
-                    <option value="waiting_offer" @selected($status === 'waiting_offer')>Sudah dievaluasi</option>
-                    <option value="offered" @selected($status === 'offered')>Penawaran terkirim</option>
+                    <option value="">{{ __('doctor.all_statuses') }}</option>
+                    <option value="waiting_doctor_review" @selected($status === 'waiting_doctor_review')>{{ __('doctor.waiting_review') }}</option>
+                    <option value="waiting_offer" @selected($status === 'waiting_offer')>{{ __('doctor.reviewed') }}</option>
+                    <option value="offered" @selected($status === 'offered')>{{ __('doctor.offer_sent') }}</option>
                 </select>
                 <button class="admin-btn-secondary !py-2">Filter</button>
             </form>
@@ -32,19 +32,12 @@
             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">pending_actions</span>
             <div>
                 <p class="font-semibold">{{ $pendingCount }} permintaan menunggu evaluasi medis Anda.</p>
-                <p class="mt-0.5 text-xs leading-5">Evaluasi membantu admin menyusun penawaran yang sesuai kebutuhan hewan.</p>
+                <p class="mt-0.5 text-xs leading-5">{{ __('doctor.review_helps_admin') }}</p>
             </div>
         </div>
     @endif
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    <x-admin.panel title="Daftar Permintaan" :subtitle="$doctor->name" flush>
+    <x-admin.panel title="{{ __('doctor.request_list') }}" :subtitle="$doctor->name" flush>
         @forelse($requests as $item)
             <a href="{{ route('doctor.service-requests.show', $item->id) }}"
                class="flex items-start gap-4 border-b border-slate-100 px-5 py-4 last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
@@ -64,7 +57,7 @@
         @empty
             <div class="px-5 py-10">
                 <x-admin.empty-state
-                    title="Tidak ada permintaan untuk dievaluasi"
+                    title="{{ __('doctor.no_requests') }}"
                     description="Admin klinik akan menugaskan permintaan layanan yang membutuhkan evaluasi medis."
                     icon="medical_information"
                     tone="slate" />

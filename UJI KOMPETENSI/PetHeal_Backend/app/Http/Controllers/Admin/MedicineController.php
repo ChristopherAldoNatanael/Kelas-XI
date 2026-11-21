@@ -62,8 +62,10 @@ class MedicineController extends Controller
         if ($request->boolean('disposed')) {
             $query->disposed();
         }
-        if ($request->filled('q')) {
-            $term = trim((string) $request->input('q'));
+        // Parameter resmi adalah `search`; `q` tetap diterima karena masih
+        // dipakai tautan lama (bookmark, chip filter, dan notifikasi stok).
+        $term = trim((string) ($request->input('search') ?? $request->input('q') ?? ''));
+        if ($term !== '') {
             $query->where('name', 'like', '%' . $term . '%');
         }
 
@@ -233,7 +235,7 @@ class MedicineController extends Controller
 
         return view('admin.medicines.movements', [
             'medicine' => $medicine,
-            'movements' => $medicine->movements()->with(['batch', 'transaction'])->latest()->paginate(50),
+            'movements' => $medicine->movements()->with(['batch', 'transaction'])->latest()->paginate(50)->withQueryString(),
         ]);
     }
 

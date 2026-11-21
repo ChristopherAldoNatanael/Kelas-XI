@@ -146,12 +146,12 @@
                         <td>{{ $item['variant_name'] ?: '-' }}</td>
                         <td class="right">{{ $item['quantity'] }}</td>
                         <td class="right">
-                            Rp {{ number_format($item['unit_price'], 0, ',', '.') }}
+                            {{ format_rupiah($item['unit_price']) }}
                             @if($item['discount_price'] !== null && $item['discount_price'] < $item['unit_price'])
-                                <div class="muted">Rp {{ number_format($item['discount_price'], 0, ',', '.') }}</div>
+                                <div class="muted">{{ format_rupiah($item['discount_price']) }}</div>
                             @endif
                         </td>
-                        <td class="right">Rp {{ number_format($item['subtotal'], 0, ',', '.') }}</td>
+                        <td class="right">{{ format_rupiah($item['subtotal']) }}</td>
                     </tr>
                 @endforeach
             </tbody>
@@ -160,28 +160,28 @@
         <table class="totals">
             <tr>
                 <td class="muted">Subtotal</td>
-                <td class="right">Rp {{ number_format($receipt['totals']['subtotal'], 0, ',', '.') }}</td>
+                <td class="right">{{ format_rupiah($receipt['totals']['subtotal']) }}</td>
             </tr>
             @if($receipt['totals']['discount_total'] > 0)
                 <tr>
                     <td class="muted">Diskon</td>
-                    <td class="right">- Rp {{ number_format($receipt['totals']['discount_total'], 0, ',', '.') }}</td>
+                    <td class="right">- {{ format_rupiah($receipt['totals']['discount_total']) }}</td>
                 </tr>
             @endif
             <tr>
                 <td class="grand">Total</td>
-                <td class="grand right">Rp {{ number_format($receipt['totals']['total_amount'], 0, ',', '.') }}</td>
+                <td class="grand right">{{ format_rupiah($receipt['totals']['total_amount']) }}</td>
             </tr>
             @if($receipt['totals']['refunded_amount'] > 0)
                 <tr>
                     <td class="muted">Dikembalikan</td>
-                    <td class="right">Rp {{ number_format($receipt['totals']['refunded_amount'], 0, ',', '.') }}</td>
+                    <td class="right">{{ format_rupiah($receipt['totals']['refunded_amount']) }}</td>
                 </tr>
             @endif
             @if($receipt['is_settled'])
                 <tr>
                     <td class="muted">Diterima</td>
-                    <td class="right">Rp {{ number_format($receipt['totals']['paid_amount'], 0, ',', '.') }}</td>
+                    <td class="right">{{ format_rupiah($receipt['totals']['paid_amount']) }}</td>
                 </tr>
             @endif
         </table>

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', 'Rekam Medis Saya — ' . ($doctor->clinic?->name ?? 'PetHeal'))
+@section('title', __('doctor.header_records') . ' — ' . ($doctor->clinic?->name ?? 'PetHeal'))
 @section('header', 'Rekam Medis')
 
 @section('content')
@@ -20,24 +20,24 @@
     </x-admin.page-header>
 
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <x-admin.stat-card label="Total Rekam Medis" :value="$total" icon="description" tone="primary" />
+        <x-admin.stat-card label="{{ __('doctor.records_total') }}" :value="$total" icon="description" tone="primary" />
         <x-admin.stat-card label="Ditampilkan" :value="$records->total()" icon="filter_alt" tone="blue" />
-        <x-admin.stat-card label="Halaman Ini" :value="$records->count()" icon="list_alt" tone="slate" />
+        <x-admin.stat-card label="{{ __('doctor.records_on_page') }}" :value="$records->count()" icon="list_alt" tone="slate" />
     </div>
 
     <x-admin.panel flush>
         <div class="border-b border-slate-100 p-4 dark:border-slate-800">
             <form method="GET" action="{{ route('doctor.medical-records.index') }}" class="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div class="w-full lg:w-44">
-                    <label for="from" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Dari tanggal</label>
+                    <label for="from" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.from_date') }}</label>
                     <input type="date" id="from" name="from" value="{{ request('from') }}" class="admin-input">
                 </div>
                 <div class="w-full lg:w-44">
-                    <label for="to" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Sampai tanggal</label>
+                    <label for="to" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.to_date') }}</label>
                     <input type="date" id="to" name="to" value="{{ request('to') }}" class="admin-input">
                 </div>
                 <div class="w-full flex-1">
-                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Cari pasien</label>
+                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.search_patient') }}</label>
                     <input type="search" id="q" name="q" value="{{ request('q') }}" placeholder="Nama hewan" class="admin-input">
                 </div>
                 <div class="flex items-center gap-2">
@@ -58,7 +58,7 @@
                             <th class="px-5 py-3">Tanggal</th>
                             <th class="px-5 py-3">Pasien</th>
                             <th class="px-5 py-3">Diagnosis</th>
-                            <th class="px-5 py-3">Biaya Medis</th>
+                            <th class="px-5 py-3">{{ __('doctor.medical_cost') }}</th>
                             <th class="px-5 py-3 text-right">Aksi</th>
                         </tr>
                     </thead>
@@ -80,14 +80,14 @@
                                     <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $record->diagnosis }}</p>
                                 </td>
                                 <td class="whitespace-nowrap px-5 py-3 text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                                    Rp {{ number_format((float) ($record->total_medical_cost ?? 0), 0, ',', '.') }}
+                                    {{ format_rupiah((float) ($record->total_medical_cost ?? 0)) }}
                                 </td>
                                 <td class="px-5 py-3">
                                     <div class="flex items-center justify-end gap-1">
-                                        <a href="{{ route('doctor.medical-records.show', $record->id) }}" class="admin-icon-btn hover:!text-primary" title="Lihat rekam medis">
+                                        <a href="{{ route('doctor.medical-records.show', $record->id) }}" class="admin-icon-btn hover:!text-primary" title="{{ __('doctor.view_record') }}">
                                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
                                         </a>
-                                        <a href="{{ route('doctor.medical-records.edit', $record->id) }}" class="admin-icon-btn hover:!text-emerald-600" title="Perbarui rekam medis">
+                                        <a href="{{ route('doctor.medical-records.edit', $record->id) }}" class="admin-icon-btn hover:!text-emerald-600" title="{{ __('doctor.edit_record') }}">
                                             <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
                                         </a>
                                     </div>
@@ -100,7 +100,7 @@
         @else
             <div class="p-5">
                 <x-admin.empty-state
-                    title="Belum ada rekam medis"
+                    title="{{ __('doctor.no_records') }}"
                     description="Rekam medis dibuat dari halaman booking pasien yang sudah Anda tangani."
                     icon="clinical_notes"
                     tone="primary">

@@ -50,7 +50,9 @@ Route::middleware('throttle:otp-verify')->group(function () {
     Route::post('/auth/register/verify-otp', [AuthController::class, 'verifyRegisterOtp']);
 });
 
-Route::get('/health', [HealthController::class, 'index']);
+// Health check dipanggil monitoring, bukan manusia: batasnya sama dengan
+// katalog publik supaya tidak bisa dipakai membanjiri server.
+Route::get('/health', [HealthController::class, 'index'])->middleware('throttle:public-catalog');
 
 // Public clinic routes (no auth required)
 Route::prefix('public')->middleware('throttle:public-catalog')->group(function () {
@@ -66,12 +68,15 @@ Route::prefix('public')->middleware('throttle:public-catalog')->group(function (
 });
 
 // Payment methods (public - no auth required)
-Route::get('/payment-methods', [App\Http\Controllers\Api\PaymentMethodController::class, 'index']);
+Route::get('/payment-methods', [App\Http\Controllers\Api\PaymentMethodController::class, 'index'])
+    ->middleware('throttle:public-catalog');
 
 // Services (public list for backward compat, but also available authenticated with clinic filter)
 // Public access shows all active services; authenticated access filters by user's clinic
-Route::get('/services', [App\Http\Controllers\Api\ServiceController::class, 'index']);
-Route::get('/services/{id}', [App\Http\Controllers\Api\ServiceController::class, 'show']);
+Route::get('/services', [App\Http\Controllers\Api\ServiceController::class, 'index'])
+    ->middleware('throttle:public-catalog');
+Route::get('/services/{id}', [App\Http\Controllers\Api\ServiceController::class, 'show'])
+    ->middleware('throttle:public-catalog');
 
 // Midtrans webhook (public - Midtrans will call this without auth token)
 Route::post('/midtrans/webhook', [App\Http\Controllers\Api\MidtransWebhookController::class, 'handle'])

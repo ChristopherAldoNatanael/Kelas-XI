@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Support\VerificationMailer;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Queue\SerializesModels;
@@ -30,13 +31,16 @@ class DoctorInviteMail extends Mailable
         $name = trim((string) $this->recipientName);
         $greeting = $name !== '' ? 'Halo ' . $name . ',' : 'Halo,';
 
-        return $this
-            ->subject("Aktivasi akun dokter — {$this->clinicName}")
+        $mailable = $this
+            ->subject("PetHeal: akses portal dokter — {$this->clinicName}")
             ->view('emails.doctor-invite')
             ->text('emails.doctor-invite-text')
             ->with([
                 'greeting' => $greeting,
                 'validMinutes' => $this->validMinutes,
             ]);
+
+        // Email verifikasi punya jalur kirim sendiri (Brevo).
+        return VerificationMailer::applyTo($mailable);
     }
 }

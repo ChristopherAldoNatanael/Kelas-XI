@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
-@section('title', 'Antrian Pasien — ' . ($doctor->clinic?->name ?? 'PetHeal'))
-@section('header', 'Antrian Pasien')
+@section('title', __('doctor.queue_title') . ' — ' . ($doctor->clinic?->name ?? 'PetHeal'))
+@section('header', __('doctor.header_queue'))
 
 @php
     use App\Services\QueueService;
@@ -10,8 +10,8 @@
 @section('content')
 <div class="space-y-6">
     <x-admin.page-header
-        title="Antrian Pasien Saya"
-        eyebrow="Portal Dokter"
+        title="{{ __('doctor.queue_title') }}"
+        eyebrow="{{ __('doctor.portal_eyebrow') }}"
         icon="groups"
         description="Pasien yang check-in untuk praktik Anda. Pemeriksaan selesai tercatat otomatis saat rekam medis disimpan.">
         <x-slot:actions>
@@ -23,7 +23,7 @@
                  tidak perlu membuka date picker. --}}
             <div class="flex items-center gap-1">
                 <a href="{{ route('doctor.queue.index', ['date' => today()->toDateString()]) }}"
-                   class="admin-btn-ghost !py-2 text-xs @if($date === today()->toDateString()) !bg-primary/10 !text-primary @endif">Hari ini</a>
+                   class="admin-btn-ghost !py-2 text-xs @if($date === today()->toDateString()) !bg-primary/10 !text-primary @endif">{{ __('doctor.today') }}</a>
                 <a href="{{ route('doctor.queue.index', ['date' => today()->addDay()->toDateString()]) }}"
                    class="admin-btn-ghost !py-2 text-xs @if($date === today()->addDay()->toDateString()) !bg-primary/10 !text-primary @endif">Besok</a>
             </div>
@@ -43,13 +43,13 @@
 
     <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
         <x-admin.stat-card label="Menunggu" :value="$stats['waiting']" icon="hourglass_top" tone="amber" />
-        <x-admin.stat-card label="Sedang ditangani" :value="$stats['serving']" icon="stethoscope" tone="primary" />
+        <x-admin.stat-card label="{{ __('doctor.in_progress') }}" :value="$stats['serving']" icon="stethoscope" tone="primary" />
         <x-admin.stat-card label="Selesai" :value="$stats['done']" icon="task_alt" tone="blue" />
-        <x-admin.stat-card label="Tidak datang" :value="$stats['no_show']" icon="person_off" tone="rose" />
+        <x-admin.stat-card label="{{ __('doctor.no_show') }}" :value="$stats['no_show']" icon="person_off" tone="rose" />
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <x-admin.panel title="Sedang Ditangani" subtitle="Lanjutkan pemeriksaan melalui rekam medis" flush>
+        <x-admin.panel title="{{ __('doctor.in_progress_title') }}" subtitle="{{ __('doctor.in_progress_hint') }}" flush>
             @forelse($serving as $booking)
                 <div class="border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800">
                     <div class="flex items-start gap-4">
@@ -71,21 +71,21 @@
                     </div>
                     <div class="mt-3 flex flex-wrap gap-2">
                         @if($booking->medicalRecord)
-                            <a href="{{ route('doctor.medical-records.show', $booking->medicalRecord->id) }}" class="admin-btn-secondary !py-2 text-xs">Buka rekam medis</a>
+                            <a href="{{ route('doctor.medical-records.show', $booking->medicalRecord->id) }}" class="admin-btn-secondary !py-2 text-xs">{{ __('doctor.open_record') }}</a>
                         @else
-                            <a href="{{ route('doctor.medical-records.create', $booking->id) }}" class="admin-btn-primary !py-2 text-xs">Buat rekam medis</a>
+                            <a href="{{ route('doctor.medical-records.create', $booking->id) }}" class="admin-btn-primary !py-2 text-xs">{{ __('doctor.create_record') }}</a>
                         @endif
-                        <a href="{{ route('doctor.bookings.show', $booking->id) }}" class="admin-btn-ghost !py-2 text-xs">Detail booking</a>
+                        <a href="{{ route('doctor.bookings.show', $booking->id) }}" class="admin-btn-ghost !py-2 text-xs">{{ __('doctor.booking_detail') }}</a>
                     </div>
                 </div>
             @empty
                 <div class="px-5 py-8">
-                    <x-admin.empty-state title="Tidak ada pasien yang sedang ditangani" icon="stethoscope" tone="slate" />
+                    <x-admin.empty-state title="{{ __('doctor.no_in_progress') }}" icon="stethoscope" tone="slate" />
                 </div>
             @endforelse
         </x-admin.panel>
 
-        <x-admin.panel title="Menunggu" subtitle="Panggil sesuai urutan nomor" flush>
+        <x-admin.panel title="Menunggu" subtitle="{{ __('doctor.call_in_order') }}" flush>
             @forelse($waiting as $booking)
                 <div class="border-b border-slate-100 px-5 py-4 last:border-0 dark:border-slate-800">
                     <div class="flex items-start gap-4">
@@ -117,16 +117,16 @@
                         @else
                             <form method="POST" action="{{ route('doctor.queue.recall', $booking->id) }}">
                                 @csrf
-                                <button class="admin-btn-secondary !py-2 text-xs">Panggil ulang</button>
+                                <button class="admin-btn-secondary !py-2 text-xs">{{ __('doctor.recall') }}</button>
                             </form>
                         @endif
                         <form method="POST" action="{{ route('doctor.queue.start', $booking->id) }}">
                             @csrf
-                            <button class="admin-btn-secondary !py-2 text-xs">Mulai pemeriksaan</button>
+                            <button class="admin-btn-secondary !py-2 text-xs">{{ __('doctor.start_exam') }}</button>
                         </form>
                         <form method="POST" action="{{ route('doctor.queue.skip', $booking->id) }}" class="flex items-center gap-2">
                             @csrf
-                            <input type="text" name="reason" placeholder="Alasan dilewati" class="admin-input !w-40 !py-1.5 !text-xs">
+                            <input type="text" name="reason" placeholder="{{ __('doctor.skip_reason') }}" class="admin-input !w-40 !py-1.5 !text-xs">
                             <button class="admin-btn-ghost !py-2 text-xs"
                                     onclick="return confirm('Tandai pasien tidak merespons panggilan?')">Lewati</button>
                         </form>
@@ -134,14 +134,14 @@
                 </div>
             @empty
                 <div class="px-5 py-8">
-                    <x-admin.empty-state title="Tidak ada pasien menunggu" icon="hourglass_empty" tone="slate" />
+                    <x-admin.empty-state title="{{ __('doctor.no_waiting') }}" icon="hourglass_empty" tone="slate" />
                 </div>
             @endforelse
         </x-admin.panel>
     </div>
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <x-admin.panel title="Belum Check-in" subtitle="Booking Anda hari ini yang belum tiba" flush>
+        <x-admin.panel title="{{ __('doctor.not_checked_in') }}" subtitle="{{ __('doctor.not_checked_in_hint') }}" flush>
             @forelse($notCheckedIn as $booking)
                 <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3 last:border-0 dark:border-slate-800">
                     <div class="min-w-0 flex-1">
@@ -154,12 +154,12 @@
                 </div>
             @empty
                 <div class="px-5 py-6">
-                    <p class="text-sm text-slate-500 dark:text-slate-400">Semua pasien hari ini sudah check-in.</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ __('doctor.all_checked_in') }}</p>
                 </div>
             @endforelse
         </x-admin.panel>
 
-        <x-admin.panel title="Selesai & Dilewati" flush>
+        <x-admin.panel title="{{ __('doctor.finished_and_skipped') }}" flush>
             @forelse($finished as $booking)
                 <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3 last:border-0 dark:border-slate-800">
                     <span class="w-9 text-sm font-bold tabular-nums text-slate-400">{{ $booking->queue_number }}</span>
@@ -175,7 +175,7 @@
                 </div>
             @empty
                 <div class="px-5 py-6">
-                    <p class="text-sm text-slate-500 dark:text-slate-400">Belum ada pemeriksaan yang selesai.</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400">{{ __('doctor.no_finished') }}</p>
                 </div>
             @endforelse
         </x-admin.panel>

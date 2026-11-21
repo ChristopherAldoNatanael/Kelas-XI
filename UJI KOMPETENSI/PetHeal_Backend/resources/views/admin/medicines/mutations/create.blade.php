@@ -37,23 +37,6 @@
 
     @include('admin.medicines.partials.section-nav')
 
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
-
     @if($source)
         <div class="flex items-start gap-3 rounded-2xl border border-orange-200 bg-orange-50 px-5 py-3.5 text-sm text-orange-800 dark:border-orange-900/60 dark:bg-orange-900/20 dark:text-orange-300">
             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">inventory_2</span>
@@ -61,7 +44,7 @@
                 <p class="font-semibold">{{ __('inventory.source_quarantine', ['reference' => $source->reference]) }}</p>
                 <p class="mt-0.5 text-xs">
                     {{ __('inventory.source_quarantine_hint', [
-                        'qty' => rtrim(rtrim(number_format($source->remainingFollowUpQuantity(), 2, ',', '.'), '0'), ','),
+                        'qty' => format_qty($source->remainingFollowUpQuantity()),
                         'unit' => $source->medicine?->unit,
                     ]) }}
                 </p>

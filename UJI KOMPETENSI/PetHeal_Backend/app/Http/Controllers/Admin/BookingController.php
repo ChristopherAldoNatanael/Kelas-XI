@@ -10,6 +10,7 @@ use App\Models\Doctor;
 use App\Models\DoctorScheduleException;
 use App\Services\DoctorScheduleService;
 use App\Services\FCMService;
+use App\Services\QueueService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -20,7 +21,8 @@ class BookingController extends Controller
 
     public function __construct(
         FCMService $fcmService,
-        private readonly DoctorScheduleService $schedule
+        private readonly DoctorScheduleService $schedule,
+        private readonly QueueService $queue
     ) {
         $this->fcmService = $fcmService;
     }
@@ -35,19 +37,42 @@ class BookingController extends Controller
         $query = Booking::with(['user', 'pet', 'doctor', 'service'])
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId));
 
-        // Filter by status
-        if ($request->has('status')) {
-            $query->where('status', $request->input('status'));
+        // Filter status. PENTING: pakai filled(), bukan has(). Form filter
+        // selalu mengirim `status=` dan `date=` walau dikosongkan, sedangkan
+        // has() tetap bernilai true untuk nilai kosong sehingga
+        // `where('status', '')` membuat tabel selalu kosong.
+        if ($request->filled('status')) {
+            $query->where('status', (string) $request->input('status'));
         }
 
-        // Filter by date
-        if ($request->has('date')) {
-            $query->whereDate('booking_date', $request->input('date'));
+        // Filter tanggal. String kosong atau tanggal tidak valid diabaikan,
+        // supaya form yang belum diisi tidak mengosongkan hasil.
+        $date = trim((string) $request->input('date'));
+        if ($date !== '') {
+            $query->whereDate('booking_date', $date);
+        }
+
+        // Pencarian bebas: nomor booking, nama pemilik, nama hewan, nama
+        // dokter, atau nomor telepon pemilik. Semua kondisi berada di dalam
+        // satu grup supaya tidak melebarkan hasil dari klinik lain.
+        $term = trim((string) $request->input('search'));
+        if ($term !== '') {
+            $query->where(function ($q) use ($term) {
+                $like = '%' . $term . '%';
+                $q->where('id', 'like', $like)
+                    ->orWhereHas('user', function ($u) use ($like) {
+                        $u->where('name', 'like', $like)
+                            ->orWhere('phone', 'like', $like);
+                    })
+                    ->orWhereHas('pet', fn ($p) => $p->where('name', 'like', $like))
+                    ->orWhereHas('doctor', fn ($d) => $d->where('name', 'like', $like));
+            });
         }
 
         $bookings = $query->orderBy('booking_date', 'desc')
             ->orderBy('booking_time', 'desc')
-            ->paginate(20);
+            ->paginate(20)
+            ->withQueryString();
 
         return view('admin.bookings.index', compact('bookings'));
     }
@@ -165,7 +190,11 @@ class BookingController extends Controller
         $refundedTotal = $refundService->refundedTotal($booking);
         $refundable = $refundService->refundableAmount($booking);
 
-        return view('admin.bookings.show', compact('booking', 'refunds', 'refundedTotal', 'refundable'));
+        // "Selesai" tanpa pelunasan hanya boleh lewat konfirmasi eksplisit
+        // (checkbox di halaman). Status lunas = pembayaran penuh tercatat.
+        $settled = $booking->payment_status === 'paid' || (float) $booking->remaining_amount <= 0.0;
+
+        return view('admin.bookings.show', compact('booking', 'refunds', 'refundedTotal', 'refundable', 'settled'));
     }
 
     /**
@@ -199,7 +228,8 @@ class BookingController extends Controller
             (string) $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         AuditLog::log('booking.confirm', "Confirmed booking #{$id} for {$booking->pet->name}", $booking);
@@ -213,17 +243,33 @@ class BookingController extends Controller
     /**
      * Complete booking — clinic scoped
      */
-    public function complete($id)
+    public function complete(Request $request, $id)
     {
         $clinicId = currentClinicId();
 
+        // Penanda bila transisi ditolak karena tagihan belum lunas. Ditangani
+        // di luar transaksi supaya pengguna mendapat pesan yang bisa
+        // ditindaklanjuti, bukan halaman error 500.
+        $blockedByUnpaid = null;
+
         // PHASE 3 (C-01): see confirm().
-        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId) {
+        $booking = \Illuminate\Support\Facades\DB::transaction(function () use ($id, $clinicId, $request, &$blockedByUnpaid) {
             $query = Booking::with(['pet'])->whereIn('status', ['pending', 'confirmed'])->where('id', $id);
             if ($clinicId) {
                 $query->where('clinic_id', $clinicId);
             }
             $booking = $query->lockForUpdate()->firstOrFail();
+
+            // Aturan sama dengan Pet Shop (ProductOrderService::complete):
+            // transaksi yang belum lunas tidak boleh ditutup tanpa tindakan
+            // sadar. "Lunas" = tercatat paid atau sisa tagihan sudah 0.
+            $settled = $booking->payment_status === 'paid' || (float) $booking->remaining_amount <= 0.0;
+
+            if (! $settled && ! $request->boolean('confirm_unpaid')) {
+                $blockedByUnpaid = $booking;
+
+                return null;
+            }
 
             $booking->update([
                 'status' => 'completed',
@@ -233,6 +279,13 @@ class BookingController extends Controller
             return $booking;
         });
 
+        if ($blockedByUnpaid) {
+            return redirect()->back()->with('error', __('admin.complete_unpaid_blocked', [
+                'id' => $blockedByUnpaid->id,
+                'amount' => 'Rp ' . number_format((float) $blockedByUnpaid->remaining_amount, 0, ',', '.'),
+            ]));
+        }
+
         $sent = $this->fcmService->sendBookingStatusUpdate(
             $booking->user_id,
             $booking->pet->name,
@@ -240,7 +293,8 @@ class BookingController extends Controller
             (string) $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         AuditLog::log('booking.complete', "Completed booking #{$id} for {$booking->pet->name}", $booking);
@@ -275,6 +329,8 @@ class BookingController extends Controller
                 'cancellation_reason' => $request->input('reason'),
             ]);
 
+            $this->queue->releaseOnCancel($booking, $request->input('reason'));
+
             return $booking;
         });
 
@@ -285,7 +341,8 @@ class BookingController extends Controller
             (string) $booking->booking_date,
             $booking->id,
             $booking->pet_id,
-            $booking->doctor_id
+            $booking->doctor_id,
+            $booking->clinic_id
         );
 
         AuditLog::log('booking.cancel', "Cancelled booking #{$id} for {$booking->pet->name}", $booking);
@@ -307,6 +364,7 @@ class BookingController extends Controller
             // PHASE 4: honor the index filters the UI hint promises.
             'status' => 'nullable|in:pending,confirmed,completed,cancelled',
             'date' => 'nullable|date',
+            'search' => 'nullable|string|max:100',
         ]);
 
         $clinicId = currentClinicId();
@@ -328,6 +386,22 @@ class BookingController extends Controller
 
         if (!empty($validated['to'])) {
             $query->whereDate('booking_date', '<=', $validated['to']);
+        }
+
+        // Kata kunci yang sama dengan layar daftar, supaya berkas yang diunduh
+        // benar-benar berisi baris yang sedang dilihat admin.
+        $term = trim((string) ($validated['search'] ?? ''));
+        if ($term !== '') {
+            $like = '%' . $term . '%';
+            $query->where(function ($q) use ($like) {
+                $q->where('id', 'like', $like)
+                    ->orWhereHas('user', function ($u) use ($like) {
+                        $u->where('name', 'like', $like)
+                            ->orWhere('phone', 'like', $like);
+                    })
+                    ->orWhereHas('pet', fn ($p) => $p->where('name', 'like', $like))
+                    ->orWhereHas('doctor', fn ($d) => $d->where('name', 'like', $like));
+            });
         }
 
         $bookings = $query->get();

@@ -13,6 +13,12 @@
         'completed' => 'complete_order',
         'rejected' => 'reject_order',
     ];
+    // Pesanan yang sudah punya kode pengambilan sebaiknya diselesaikan dari
+    // halaman Pengambilan (kode diverifikasi). Tombol di sini tetap tersedia
+    // untuk kasus kode hilang/rusak, tetapi diberi penanda jelas.
+    $pickupUrl = route('admin.pet-shop.pickups.index', ['search' => $order->order_number]);
+    $canCompleteHere = in_array('completed', $nextStatuses, true);
+    $hasActivePass = $order->pickupPass !== null;
 @endphp
 
 @section('content')
@@ -29,30 +35,6 @@
             </a>
         </x-slot:actions>
     </x-admin.page-header>
-
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
 
     <div class="grid gap-4 lg:grid-cols-3">
         <x-admin.panel :title="__('petshop.order_items')" class="lg:col-span-2" flush>
@@ -76,11 +58,11 @@
                                 </td>
                                 <td class="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{{ $item->sku }}</td>
                                 <td class="px-5 py-3 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
-                                    Rp {{ number_format($item->discount_price ?? $item->unit_price, 0, ',', '.') }}
+                                    {{ format_rupiah($item->discount_price ?? $item->unit_price) }}
                                 </td>
                                 <td class="px-5 py-3 text-center text-sm tabular-nums text-slate-700 dark:text-slate-300">{{ $item->quantity }}</td>
                                 <td class="px-5 py-3 text-right text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                                    Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                    {{ format_rupiah($item->subtotal) }}
                                 </td>
                             </tr>
                         @endforeach
@@ -88,17 +70,17 @@
                     <tfoot class="border-t border-slate-100 dark:border-slate-800">
                         <tr>
                             <td colspan="4" class="px-5 py-2 text-right text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.subtotal') }}</td>
-                            <td class="px-5 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">Rp {{ number_format($order->subtotal, 0, ',', '.') }}</td>
+                            <td class="px-5 py-2 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">{{ format_rupiah($order->subtotal) }}</td>
                         </tr>
                         @if($order->discount_total > 0)
                             <tr>
                                 <td colspan="4" class="px-5 py-2 text-right text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.discount') }}</td>
-                                <td class="px-5 py-2 text-right text-sm tabular-nums text-emerald-600 dark:text-emerald-400">− Rp {{ number_format($order->discount_total, 0, ',', '.') }}</td>
+                                <td class="px-5 py-2 text-right text-sm tabular-nums text-emerald-600 dark:text-emerald-400">− {{ format_rupiah($order->discount_total) }}</td>
                             </tr>
                         @endif
                         <tr>
                             <td colspan="4" class="px-5 py-3 text-right text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">{{ __('petshop.total') }}</td>
-                            <td class="px-5 py-3 text-right text-base font-bold tabular-nums text-slate-900 dark:text-white">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</td>
+                            <td class="px-5 py-3 text-right text-base font-bold tabular-nums text-slate-900 dark:text-white">{{ format_rupiah($order->total_amount) }}</td>
                         </tr>
                     </tfoot>
                 </table>
@@ -127,7 +109,7 @@
                     @if($order->reservation_expires_at)
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.expires_at') }}</span>
-                            <span class="text-slate-700 dark:text-slate-300">{{ $order->reservation_expires_at->format('d M Y H:i') }}</span>
+                            <span class="text-slate-700 dark:text-slate-300">{{ format_tanggal($order->reservation_expires_at, 'datetime') }}</span>
                         </div>
                     @endif
                 </div>
@@ -148,11 +130,42 @@
                                         <button type="submit" class="admin-btn-danger w-full">{{ __('petshop.reject_order') }}</button>
                                     </form>
                                 </details>
+                            @elseif($nextStatus === 'completed')
+                                @if($hasActivePass)
+                                    <a href="{{ $pickupUrl }}" class="admin-btn-primary w-full justify-center">
+                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">qr_code_scanner</span>
+                                        {{ __('petshop.complete_with_code') }}
+                                    </a>
+                                    <p class="text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                                        {{ __('petshop.complete_with_code_hint') }}
+                                    </p>
+                                    <details>
+                                        <summary class="cursor-pointer list-none text-center text-[11px] font-semibold text-slate-500 underline decoration-dotted underline-offset-2 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200">
+                                            {{ __('petshop.complete_without_code') }}
+                                        </summary>
+                                        <form method="POST" action="{{ route('admin.pet-shop.orders.transition', $order) }}" class="mt-2"
+                                              data-confirm="{{ __('petshop.complete_without_code_confirm') }}">
+                                            @csrf
+                                            <input type="hidden" name="status" value="completed">
+                                            <button type="submit" class="admin-btn-secondary w-full">
+                                                {{ __('petshop.complete_without_code') }}
+                                            </button>
+                                        </form>
+                                    </details>
+                                @else
+                                    <form method="POST" action="{{ route('admin.pet-shop.orders.transition', $order) }}">
+                                        @csrf
+                                        <input type="hidden" name="status" value="completed">
+                                        <button type="submit" class="admin-btn-primary w-full">
+                                            {{ __('petshop.' . $actionLabels[$nextStatus]) }}
+                                        </button>
+                                    </form>
+                                @endif
                             @else
                                 <form method="POST" action="{{ route('admin.pet-shop.orders.transition', $order) }}">
                                     @csrf
                                     <input type="hidden" name="status" value="{{ $nextStatus }}">
-                                    <button type="submit" class="{{ $nextStatus === 'completed' ? 'admin-btn-primary' : 'admin-btn-secondary' }} w-full">
+                                    <button type="submit" class="admin-btn-secondary w-full">
                                         {{ __('petshop.' . $actionLabels[$nextStatus]) }}
                                     </button>
                                 </form>
@@ -233,7 +246,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.total') }}</span>
-                        <span class="font-semibold tabular-nums text-slate-800 dark:text-slate-200">Rp {{ number_format($payment->gross_amount, 0, ',', '.') }}</span>
+                        <span class="font-semibold tabular-nums text-slate-800 dark:text-slate-200">{{ format_rupiah($payment->gross_amount) }}</span>
                     </div>
 
                     {{-- Uang diterima & kembalian hanya ada pada transaksi offline;
@@ -242,13 +255,13 @@
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_amount_received') }}</span>
                             <span class="font-semibold tabular-nums text-slate-800 dark:text-slate-200">
-                                {{ $payment->amount_received !== null ? 'Rp ' . number_format((int) $payment->amount_received, 0, ',', '.') : '—' }}
+                                {{ $payment->amount_received !== null ? format_rupiah((int) $payment->amount_received) : '—' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between gap-3">
                             <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.pickup_change') }}</span>
                             <span class="font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
-                                {{ $payment->change_amount !== null ? 'Rp ' . number_format((int) $payment->change_amount, 0, ',', '.') : '—' }}
+                                {{ $payment->change_amount !== null ? format_rupiah((int) $payment->change_amount) : '—' }}
                             </span>
                         </div>
                         <div class="flex items-center justify-between gap-3">
@@ -297,7 +310,7 @@
                                         <span class="font-mono text-[11px] text-slate-500 dark:text-slate-400">{{ $refund->refund_code }}</span>
                                         <x-admin.badge :label="$refund->status" :tone="$refund->status === 'succeeded' ? 'primary' : ($refund->status === 'failed' ? 'rose' : 'amber')" />
                                     </div>
-                                    <p class="mt-1 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">Rp {{ number_format($refund->amount, 0, ',', '.') }}</p>
+                                    <p class="mt-1 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">{{ format_rupiah($refund->amount) }}</p>
                                     @if($refund->note)
                                         <p class="mt-1 text-[11px] text-slate-400">{{ $refund->note }}</p>
                                     @endif

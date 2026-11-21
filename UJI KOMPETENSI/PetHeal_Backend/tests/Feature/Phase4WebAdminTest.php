@@ -282,9 +282,38 @@ class Phase4WebAdminTest extends TestCase
             ->post('/admin/bookings/' . $this->bookingA->id . '/confirm')
             ->assertNotFound();
 
+        // Booking contoh belum lunas. Sejak aturan penyelesaian disamakan
+        // dengan Pet Shop, "Selesaikan" tanpa pelunasan ditolak dengan pesan —
+        // bukan diam-diam menutup tagihan.
         $this->actingAs($this->adminA)
             ->post('/admin/bookings/' . $this->bookingA->id . '/complete')
+            ->assertRedirect()
+            ->assertSessionHas('error');
+        $this->assertEquals('confirmed', $this->bookingA->fresh()->status);
+
+        // Klinik tetap boleh menyelesaikan tanpa pelunasan, tetapi harus
+        // menyatakannya secara eksplisit.
+        $this->actingAs($this->adminA)
+            ->post('/admin/bookings/' . $this->bookingA->id . '/complete', ['confirm_unpaid' => 1])
             ->assertRedirect();
+        $this->assertEquals('completed', $this->bookingA->fresh()->status);
+    }
+
+    public function test_booking_complete_is_allowed_when_fully_paid(): void
+    {
+        $this->bookingA->update([
+            'status' => 'confirmed',
+            'payment_status' => 'paid',
+            'paid_amount' => $this->bookingA->total_amount,
+            'remaining_amount' => 0,
+        ]);
+
+        // Lunas: tidak perlu centang apa pun.
+        $this->actingAs($this->adminA)
+            ->post('/admin/bookings/' . $this->bookingA->id . '/complete')
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
         $this->assertEquals('completed', $this->bookingA->fresh()->status);
     }
 

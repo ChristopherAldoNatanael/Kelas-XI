@@ -10,6 +10,7 @@ use App\Models\Clinic;
 use App\Models\ClinicJoinRequest;
 use App\Models\User;
 use App\Services\OtpService;
+use App\Services\PasswordOtpFlow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -873,7 +874,7 @@ class AdminAuthController extends Controller
     /**
      * Kirim kode verifikasi ganti sandi ke email akun admin yang sedang login.
      */
-    public function sendPasswordOtp(Request $request, OtpService $otp)
+    public function sendPasswordOtp(Request $request, PasswordOtpFlow $flow)
     {
         $admin = Auth::user();
 
@@ -882,38 +883,32 @@ class AdminAuthController extends Controller
         }
 
         $clinic = currentClinic();
-        $email = $otp->normalize($admin->email);
 
-        $code = $otp->issue($email, OtpService::PURPOSE_ADMIN_PASSWORD, [
+        $result = $flow->start($admin, OtpService::PURPOSE_ADMIN_PASSWORD, [
             'admin_id' => $admin->id,
             'clinic_id' => $clinic?->id,
-        ]);
-
-        $sent = $otp->send($email, OtpService::PURPOSE_ADMIN_PASSWORD, $code, [
-            'clinic_name' => $clinic?->name ?? 'PetHeal',
-            'recipient_name' => $admin->name,
-        ]);
+        ], $clinic?->name ?? 'PetHeal', $admin->name);
 
         $request->session()->put(self::PASSWORD_SENT_AT, now()->timestamp);
 
         return back()->with(
-            $sent ? 'success' : 'error',
-            $sent
+            $result['sent'] ? 'success' : 'error',
+            $result['sent']
                 ? __('admin.password_otp_sent', [
-                    'email' => $email,
-                    'minutes' => $otp->ttlMinutes(OtpService::PURPOSE_ADMIN_PASSWORD),
+                    'email' => $result['email'],
+                    'minutes' => $result['ttl'],
                 ])
                 : __('admin.password_otp_failed')
         );
     }
 
     /** Batalkan kode ganti sandi yang belum dipakai. */
-    public function cancelPasswordOtp(Request $request, OtpService $otp)
+    public function cancelPasswordOtp(Request $request, PasswordOtpFlow $flow)
     {
         $admin = Auth::user();
 
         if ($admin) {
-            $otp->consume($otp->normalize($admin->email), OtpService::PURPOSE_ADMIN_PASSWORD);
+            $flow->cancel($admin, OtpService::PURPOSE_ADMIN_PASSWORD);
         }
 
         $request->session()->forget(self::PASSWORD_SENT_AT);
@@ -927,7 +922,7 @@ class AdminAuthController extends Controller
      * Urutan sengaja: cek password lama dulu (kesalahan ketik umum tidak
      * menghabiskan percobaan kode), baru verifikasi kode, baru simpan.
      */
-    public function updatePassword(Request $request, OtpService $otp)
+    public function updatePassword(Request $request, PasswordOtpFlow $flow)
     {
         $request->validate([
             'current_password' => 'required|string',
@@ -946,11 +941,10 @@ class AdminAuthController extends Controller
             return back()->withErrors(['current_password' => __('auth.password_incorrect')]);
         }
 
-        $email = $otp->normalize($admin->email);
-        $result = $otp->verify(
-            $email,
+        $result = $flow->verify(
+            $admin,
             OtpService::PURPOSE_ADMIN_PASSWORD,
-            implode('', $request->input('code')),
+            $request->input('code'),
             __('admin.password_code_label')
         );
 
@@ -959,7 +953,6 @@ class AdminAuthController extends Controller
         }
 
         $admin->update(['password' => Hash::make($request->input('new_password'))]);
-        $otp->consume($email, OtpService::PURPOSE_ADMIN_PASSWORD);
         $request->session()->forget(self::PASSWORD_SENT_AT);
         $request->session()->regenerate();
 

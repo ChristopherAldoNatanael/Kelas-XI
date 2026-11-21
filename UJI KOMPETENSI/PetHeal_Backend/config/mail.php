@@ -49,6 +49,26 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'brevo' => [
+            // Relay SMTP Brevo. Dipakai HANYA oleh email verifikasi (OTP dan
+            // tautan aktivasi) lewat App\Support\VerificationMailer.
+            // Port 587 = STARTTLS, port 465 = SSL/TLS.
+            'transport' => 'smtp',
+            'scheme' => 'smtp',
+            'host' => env('BREVO_SMTP_HOST', 'smtp-relay.brevo.com'),
+            'port' => env('BREVO_SMTP_PORT', 587),
+            'username' => env('BREVO_SMTP_USERNAME'),
+            'password' => env('BREVO_SMTP_PASSWORD'),
+            'timeout' => null,
+            'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        'brevo-api' => [
+            // Brevo REST API. Dipakai lebih dulu daripada SMTP relay bila
+            // BREVO_API_KEY terisi; lihat App\Support\VerificationMailer.
+            'transport' => 'brevo-api',
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
@@ -109,6 +129,24 @@ return [
     | used globally for all emails that are sent by your application.
     |
     */
+
+    /*
+    |--------------------------------------------------------------------------
+    | Pengirim email verifikasi (OTP & tautan aktivasi)
+    |--------------------------------------------------------------------------
+    |
+    | Alamat ini WAJIB terdaftar sebagai sender yang sudah diverifikasi di
+    | dashboard Brevo, karena Brevo menolak mengirim dengan alamat asing.
+    | Kalau dikosongkan, email verifikasi memakai MAIL_FROM_ADDRESS.
+    |
+    */
+
+    'verification' => [
+        'from' => [
+            'address' => env('VERIFICATION_MAIL_FROM_ADDRESS'),
+            'name' => env('VERIFICATION_MAIL_FROM_NAME', 'PetHeal'),
+        ],
+    ],
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),

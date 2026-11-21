@@ -27,20 +27,6 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined text-[19px]" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-
     <div class="grid gap-4 lg:grid-cols-3">
         <x-admin.panel :title="__('petshop.product_detail')" class="lg:col-span-2">
             <div class="flex flex-col gap-5 sm:flex-row">
@@ -129,10 +115,10 @@
                             <td class="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{{ $variant->sku }}</td>
                             <td class="px-5 py-3 text-sm tabular-nums text-slate-700 dark:text-slate-300">
                                 @if($variant->hasDiscount())
-                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">Rp {{ number_format($variant->effectivePrice(), 0, ',', '.') }}</span>
-                                    <span class="block text-[10px] text-slate-400 line-through">Rp {{ number_format($variant->price, 0, ',', '.') }}</span>
+                                    <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ format_rupiah($variant->effectivePrice()) }}</span>
+                                    <span class="block text-[10px] text-slate-400 line-through">{{ format_rupiah($variant->price) }}</span>
                                 @else
-                                    Rp {{ number_format($variant->price, 0, ',', '.') }}
+                                    {{ format_rupiah($variant->price) }}
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm tabular-nums text-slate-700 dark:text-slate-300">{{ $variant->stock_on_hand }}</td>

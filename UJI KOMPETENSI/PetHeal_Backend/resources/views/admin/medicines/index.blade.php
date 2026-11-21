@@ -19,6 +19,25 @@
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
                 {{ __('admin.add_medicine') }}
             </a>
+            {{-- Operasi darurat: hanya tampil saat konteks klinik sudah dipilih,
+                 dan wajib mengetik HAPUS. Server memeriksa kata yang sama. --}}
+            @if(currentClinicId())
+                <form method="POST" action="{{ route('admin.medicines.destroy-all') }}"
+                      data-confirm-type="HAPUS"
+                      data-confirm-field="confirmation"
+                      data-confirm-title="{{ __('admin.medicine_delete_all') }}"
+                      data-confirm-message="{{ __('admin.medicine_delete_all_desc') }}"
+                      data-confirm-label="{{ __('admin.medicine_delete_all_confirmation') }}"
+                      data-confirm-cancel="{{ __('admin.confirm_cancel') }}"
+                      data-confirm-submit="{{ __('admin.medicine_delete_all_action') }}">
+                    @csrf
+                    @method('DELETE')
+                    <button type="submit" class="admin-btn-secondary !text-rose-600 hover:!bg-rose-50 dark:!text-rose-400 dark:hover:!bg-rose-900/20">
+                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete_sweep</span>
+                        {{ __('admin.medicine_delete_all') }}
+                    </button>
+                </form>
+            @endif
         </x-slot:actions>
     </x-admin.page-header>
 
@@ -29,34 +48,6 @@
             || request()->boolean('disposed');
         $medicineFiltersActive = request()->filled('q') || $medicineStatusFilterActive;
     @endphp
-
-    @if(session('success'))
-        <div class="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-3.5 text-sm font-medium text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-900/20 dark:text-emerald-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">check_circle</span>
-            <span>{{ session('success') }}</span>
-        </div>
-    @endif
-    @if(session('error'))
-        <div class="flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <span class="material-symbols-outlined" aria-hidden="true">error</span>
-            <span>{{ session('error') }}</span>
-        </div>
-    @endif
-    @if(session('warning'))
-        <div class="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3.5 text-sm font-medium text-amber-800 dark:border-amber-900/60 dark:bg-amber-900/20 dark:text-amber-300">
-            <span class="material-symbols-outlined text-[18px]" aria-hidden="true">warning</span>
-            <span>{{ session('warning') }}</span>
-        </div>
-    @endif
-    @if($errors->any())
-        <div class="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-3.5 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-inside list-disc space-y-1">
-                @foreach($errors->all() as $error)
-                    <li>{{ $error }}</li>
-                @endforeach
-            </ul>
-        </div>
-    @endif
 
     {{-- Hasil import terakhir pada sesi ini. Angka datang dari importer,
          bukan dihitung ulang di view. --}}
@@ -170,20 +161,20 @@
     <x-admin.panel :title="__('admin.medicines_list_panel_title')" :subtitle="__('admin.medicines_list_panel_desc')" flush>
         <x-slot:actions>
             <form method="GET" action="{{ route('admin.medicines.index') }}" class="flex flex-wrap items-center gap-2">
-                <input type="text" name="q" value="{{ request('q') }}"
+                <input type="text" name="search" value="{{ request('search', request('q')) }}"
                        placeholder="{{ __('admin.search_medicine') }}" class="admin-input !w-56 !py-2 text-sm">
                 <button type="submit" class="admin-btn-secondary !py-2" aria-label="{{ __('admin.search') }}">
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">search</span>
                 </button>
-                <a href="{{ route('admin.medicines.index', array_filter(['q' => request('q')])) }}"
+                <a href="{{ route('admin.medicines.index', array_filter(['search' => request('search', request('q'))])) }}"
                    class="admin-filter-chip {{ $medicineStatusFilterActive ? '' : 'admin-filter-chip--active' }}">
                     {{ __('admin.medicines_filter_all') }}
                 </a>
-                <a href="{{ route('admin.medicines.index', array_filter(['low_stock' => 1, 'q' => request('q')])) }}"
+                <a href="{{ route('admin.medicines.index', array_filter(['low_stock' => 1, 'search' => request('search', request('q'))])) }}"
                    class="admin-filter-chip {{ request()->boolean('low_stock') ? 'admin-filter-chip--active' : '' }}">
                     {{ __('admin.medicines_low_stock') }}
                 </a>
-                <a href="{{ route('admin.medicines.index', array_filter(['disposed' => 1, 'q' => request('q')])) }}"
+                <a href="{{ route('admin.medicines.index', array_filter(['disposed' => 1, 'search' => request('search', request('q'))])) }}"
                    class="admin-filter-chip {{ request()->boolean('disposed') ? 'admin-filter-chip--active' : '' }}">
                     {{ __('admin.medicines_disposed') }}
                 </a>
@@ -247,7 +238,7 @@
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-bold tabular-nums {{ $medicine->isLowStock() ? 'text-rose-600 dark:text-rose-400' : 'text-slate-800 dark:text-slate-200' }}">
-                                        {{ rtrim(rtrim(number_format((float) $medicine->stock, 2, ',', '.'), '0'), ',') }}
+                                        {{ format_qty((float) $medicine->stock) }}
                                         <span class="text-xs font-medium text-slate-500">{{ $medicine->unit }}</span>
                                     </p>
                                     @if($medicine->isLowStock())
@@ -255,15 +246,15 @@
                                     @endif
                                 </td>
                                 <td class="hidden whitespace-nowrap px-5 py-3 text-sm tabular-nums text-slate-600 dark:text-slate-300 md:table-cell">
-                                    {{ rtrim(rtrim(number_format((float) $medicine->min_stock, 2, ',', '.'), '0'), ',') }}
+                                    {{ format_qty((float) $medicine->min_stock) }}
                                 </td>
                                 <td class="hidden whitespace-nowrap px-5 py-3 text-sm tabular-nums text-slate-600 dark:text-slate-300 md:table-cell">
-                                    Rp {{ number_format((float) $medicine->price, 0, ',', '.') }}
+                                    {{ format_rupiah((float) $medicine->price) }}
                                 </td>
                                 <td class="px-5 py-3 text-sm">
                                     @if($medicine->expiry_date)
                                         <span class="{{ $status === 'expired' ? 'font-semibold text-rose-600 dark:text-rose-400' : 'text-slate-600 dark:text-slate-300' }}">
-                                            {{ $medicine->expiry_date->format('d M Y') }}
+                                            {{ format_tanggal($medicine->expiry_date) }}
                                         </span>
 
                                         @if($status === 'expired')
@@ -278,7 +269,7 @@
 
                                         @if($medicine->isDisposed())
                                             <p class="text-[11px] text-violet-600 dark:text-violet-400">
-                                                {{ __('admin.medicine_disposed_at', ['date' => $medicine->disposed_at->format('d M Y')]) }}
+                                                {{ __('admin.medicine_disposed_at', ['date' => format_tanggal($medicine->disposed_at)]) }}
                                                 @if($medicine->disposal_method)
                                                     · {{ $medicine->disposal_method_label }}
                                                 @endif

@@ -17,14 +17,6 @@
         </x-slot:actions>
     </x-admin.page-header>
 
-    @if($errors->any())
-        <div class="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
-            <ul class="list-disc list-inside space-y-1">
-                @foreach($errors->all() as $error) <li>{{ $error }}</li> @endforeach
-            </ul>
-        </div>
-    @endif
-
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
         {{-- Form --}}
         <form method="POST" action="{{ route('admin.clinics.update', $clinic) }}" enctype="multipart/form-data" class="lg:col-span-3">
@@ -116,9 +108,9 @@
                 <div class="p-4 border-b border-slate-100">
                     <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_sidebar') }}</p>
                 </div>
-                <div class="bg-gradient-to-b from-emerald-950 via-teal-950 to-slate-950 p-4">
+                <div class="bg-emerald-950 p-4">
                     <div class="flex items-center gap-3 mb-6">
-                        <a href="#" class="bg-white/10 p-1.5 rounded-lg block">
+                        <div class="bg-white/10 p-1.5 rounded-lg block">
                             @if($clinic->logo_url)
                                 <img id="preview_sidebar_logo" src="{{ $clinic->logo_url }}" alt="" class="h-7 w-auto">
                                 <div id="preview_sidebar_initials" class="h-7 w-7 rounded items-center justify-center text-white text-xs font-bold hidden" style="background-color: {{ $clinic->primary_color }}"></div>
