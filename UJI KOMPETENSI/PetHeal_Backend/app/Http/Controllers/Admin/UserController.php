@@ -228,10 +228,25 @@ class UserController extends Controller
                 ->with('error', __('admin.cannot_delete_self'));
         }
 
-        if ($user->role !== 'user') {
+        // Akun staf klinik (`clinic_admin`/`admin`) lahir dari approval join
+        // request. Salah approve harus bisa dibatalkan tanpa menghapus klinik
+        // beserta seluruh datanya, jadi super admin boleh menghapus AKUN-nya
+        // saja; klinik tetap utuh dan bisa dihapus terpisah bila memang perlu.
+        // Admin klinik tidak boleh menghapus sesama admin.
+        if (in_array($user->role, ['clinic_admin', 'admin'], true)) {
+            if (auth()->user()?->role !== 'super_admin') {
+                return redirect()
+                    ->route('admin.users.index')
+                    ->with('error', __('admin.cannot_delete_admin'));
+            }
+
+            return $this->destroyClinicAdmin($user);
+        }
+
+        if ($user->role === 'super_admin') {
             return redirect()
                 ->route('admin.users.index')
-                ->with('error', __('admin.cannot_delete_admin'));
+                ->with('error', __('admin.cannot_delete_super_admin'));
         }
 
         // Never cascade-delete clinical/financial history. A patient with
@@ -257,5 +272,74 @@ class UserController extends Controller
         });
 
         return redirect()->route('admin.users.index')->with('success', __('admin.user_deleted'));
+    }
+
+    /**
+     * Hapus satu akun admin klinik tanpa menyentuh kliniknya.
+     *
+     * Dipakai super admin untuk membatalkan approval join request yang salah.
+     * Klinik, dokter, layanan, booking, dan rekam medis tidak diubah sama sekali;
+     * yang hilang hanya akun login admin tersebut.
+     */
+    private function destroyClinicAdmin(User $user)
+    {
+        // Admin tanpa klinik berarti barisnya tidak valid sebagai staf; jangan
+        // dihapus diam-diam lewat jalur ini karena bukan itu kasus yang dimaksud.
+        if (! $user->clinic_id) {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', __('admin.cannot_delete_clinicless_admin'));
+        }
+
+        // Akun staf bisa saja juga dipakai sebagai pasien. Kalau punya booking,
+        // FK `bookings.user_id` CASCADE akan ikut menghapus riwayat klinis dan
+        // nominal pembayaran — persis yang dilarang aturan repo ini.
+        if ($user->bookings()->exists()) {
+            return redirect()
+                ->route('admin.users.index')
+                ->with('error', __('admin.cannot_delete_user_with_history'));
+        }
+
+        $userId = $user->id;
+        $email = $user->email;
+        $role = $user->role;
+        $name = $user->name;
+        $clinicId = $user->clinic_id;
+        $clinicName = $user->clinic?->name;
+
+        DB::transaction(function () use ($user, $userId, $email, $role, $clinicId, $clinicName) {
+            // Ditulis lebih dulu dan dengan `clinic_id` eksplisit: super admin
+            // tidak punya konteks klinik, jadi `AuditLog::log()` akan menyimpan
+            // null. Identitas akun disimpan di deskripsi karena barisnya segera
+            // hilang (FK `audit_logs.user_id` = SET NULL, bukan cascade).
+            AuditLog::create([
+                'user_id' => auth()->id(),
+                'clinic_id' => $clinicId,
+                'action' => 'user.delete_admin',
+                'model_type' => User::class,
+                'model_id' => $userId,
+                'description' => sprintf(
+                    'Deleted clinic admin #%d (%s, role %s)%s',
+                    $userId,
+                    $email,
+                    $role,
+                    $clinicName ? " — clinic: {$clinicName}" : ''
+                ),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+            ]);
+
+            // Cabut sesi & token supaya akun yang dihapus benar-benar tidak
+            // bisa masuk lagi lewat browser atau aplikasi yang masih login.
+            DB::table('sessions')->where('user_id', $userId)->delete();
+
+            $user->deviceTokens()->delete();
+            $user->tokens()->delete();
+            $user->delete();
+        });
+
+        return redirect()
+            ->route('admin.users.index')
+            ->with('success', __('admin.clinic_admin_deleted', ['name' => $name]));
     }
 }

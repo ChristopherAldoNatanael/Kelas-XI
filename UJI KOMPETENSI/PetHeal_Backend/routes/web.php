@@ -234,6 +234,11 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
         Route::post('/deactivate', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'deactivate'])->name('deactivate');
         Route::post('/production-approval', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'approveProduction'])
             ->middleware('super_admin')->name('production.approve');
+        // Tindak lanjut notifikasi webhook yang tidak bisa diproses otomatis
+        // (signature invalid / order id tidak dikenal). Payload tetap tersimpan;
+        // aksi ini hanya menandai bahwa masalahnya sudah ditinjau admin.
+        Route::post('/notifications/{notification}/review', [\App\Http\Controllers\Admin\PaymentSettingsController::class, 'resolveNotification'])
+            ->whereNumber('notification')->name('notifications.review');
     });
 
     // ── Pet Shop (Penjualan Produk) ─────────────────────────────────────────

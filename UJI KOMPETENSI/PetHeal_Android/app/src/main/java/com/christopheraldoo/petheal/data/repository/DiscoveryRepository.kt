@@ -11,6 +11,7 @@ import com.christopheraldoo.petheal.data.model.ServiceDetailPayload
 import com.christopheraldoo.petheal.data.model.UserLocation
 import com.christopheraldoo.petheal.data.remote.ApiService
 import com.christopheraldoo.petheal.data.remote.userFriendlyExceptionMessage
+import com.christopheraldoo.petheal.util.toQueryFlag
 import kotlinx.coroutines.flow.first
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -96,12 +97,15 @@ class DiscoveryRepository @Inject constructor(
                 lng = location?.longitude,
                 minRating = query.minRating,
                 maxDistanceKm = query.maxDistanceKm,
-                openNow = query.openNow,
+                openNow = query.openNow?.toQueryFlag(),
                 limit = 50
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {
-                val clinics = body.data ?: emptyList()
+                // Dua klinik dengan slug sama tidak mungkin, tetapi duplikat dari
+                // server tetap dibuang: LazyColumn memakai slug sebagai key dan
+                // key ganda membuat Compose melempar IllegalArgumentException.
+                val clinics = (body.data ?: emptyList()).distinctBy { it.key }
                 cachedClinics = clinics
                 cachedAt = now
                 cachedKey = key
@@ -176,7 +180,7 @@ class DiscoveryRepository @Inject constructor(
                 sort = sort.apiValue,
                 minRating = minRating,
                 maxDistanceKm = maxDistanceKm,
-                openNow = openNow
+                openNow = openNow?.toQueryFlag()
             )
             val body = response.body()
             if (response.isSuccessful && body?.success == true) {

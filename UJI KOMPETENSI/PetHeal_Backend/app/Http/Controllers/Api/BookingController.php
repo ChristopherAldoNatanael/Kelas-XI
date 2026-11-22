@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Doctor;
 use App\Models\MedicalRecord;
@@ -14,6 +15,7 @@ use App\Services\QueueService;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Rule;
 
@@ -37,12 +39,17 @@ class BookingController extends Controller
      * strip antrian hilang setiap kali daftar di-refresh — dulu hanya respons
      * check-in yang menghitungnya.
      */
-    private function attachQueueMeta(Booking $booking): Booking
+    private function attachQueueMeta(Booking $booking, ?int $position = null): Booking
     {
         $booking->setAttribute('queue_label', $booking->queue_number
             ? 'A-' . str_pad((string) $booking->queue_number, 2, '0', STR_PAD_LEFT)
             : null);
-        $booking->setAttribute('queue_position', $this->queue->positionOf($booking));
+        // Posisi bisa dihitung sekaligus untuk satu halaman (positionsFor) atau
+        // per baris (positionOf); pemanggil yang menentukan.
+        $booking->setAttribute(
+            'queue_position',
+            $position ?? $this->queue->positionOf($booking)
+        );
 
         return $booking;
     }
@@ -62,9 +69,7 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => collect($bookings->items())
-                ->map(fn (Booking $booking) => $this->attachQueueMeta($booking))
-                ->all(),
+            'data' => $this->withQueuePositions($bookings->items()),
             'pagination' => [
                 'current_page' => $bookings->currentPage(),
                 'last_page' => $bookings->lastPage(),
@@ -72,6 +77,26 @@ class BookingController extends Controller
                 'total' => $bookings->total(),
             ],
         ]);
+    }
+
+    /**
+     * Tempelkan label antrian + posisi untuk sekumpulan booking dengan satu
+     * query hitung per klinik/tanggal.
+     *
+     * @param  array<int, Booking>  $bookings
+     * @return array<int, Booking>
+     */
+    private function withQueuePositions(array $bookings): array
+    {
+        $positions = $this->queue->positionsFor($bookings);
+
+        return array_map(
+            fn (Booking $booking) => $this->attachQueueMeta(
+                $booking,
+                $positions[$booking->id] ?? null
+            ),
+            $bookings
+        );
     }
 
     /**
@@ -90,9 +115,7 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'data' => $bookings
-                ->map(fn (Booking $booking) => $this->attachQueueMeta($booking))
-                ->all(),
+            'data' => $this->withQueuePositions($bookings->all()),
         ]);
     }
 
@@ -478,6 +501,12 @@ class BookingController extends Controller
                 'cancellation_reason' => $reason,
             ]);
 
+            // Sejak pembatalan ini uang yang sudah masuk berstatus kewajiban
+            // refund. Ditulis di transaksi yang sama (lihat
+            // Booking::syncRefundPaymentStatus) agar tidak ada booking batal yang
+            // masih tampil `paid` di aplikasi maupun laporan klinik.
+            $booking->syncRefundPaymentStatus();
+
             // Nomor antrian yang sudah terlanjur diberikan ikut dilepas,
             // supaya pasien yang batal tidak dipanggil petugas.
             $this->queue->releaseOnCancel($booking, $reason);
@@ -496,6 +525,31 @@ class BookingController extends Controller
         // owns this booking (pasien bisa booking di klinik berbeda).
         $booking->load(['pet', 'doctor', 'service', 'clinic']);
 
+        // Pasien membatalkan booking yang sudah dibayar: uangnya tetap di klinik
+        // sampai admin mencatat refund di halaman pembayaran. Tanpa jejak ini
+        // kewajiban tersebut tidak muncul di mana pun — booking batal tidak lagi
+        // tampil sebagai tagihan, dan tidak ada baris refund yang dibuat.
+        $refundDue = $booking->refundableAmount();
+
+        if ($refundDue > 0) {
+            AuditLog::log(
+                'booking.refund_due',
+                sprintf(
+                    'Pasien membatalkan booking #%d setelah membayar Rp%s; refund belum dicatat.',
+                    $booking->id,
+                    number_format($refundDue, 0, ',', '.')
+                ),
+                $booking,
+                $userId
+            );
+
+            Log::warning('Pasien membatalkan booking yang sudah dibayar', [
+                'booking_id' => $booking->id,
+                'clinic_id' => $booking->clinic_id,
+                'paid_amount' => $refundDue,
+            ]);
+        }
+
         // Send notification
         $this->fcmService->sendBookingStatusUpdate(
             $userId,
@@ -510,8 +564,11 @@ class BookingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Booking cancelled successfully',
+            'message' => $refundDue > 0
+                ? 'Booking cancelled successfully. Dana yang sudah dibayarkan akan diproses pengembaliannya oleh klinik.'
+                : 'Booking cancelled successfully',
             'data' => $booking,
+            'refund_due' => $refundDue,
         ]);
     }
 

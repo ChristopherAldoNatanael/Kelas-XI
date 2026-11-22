@@ -12,6 +12,8 @@ use App\Models\PaymentRefund;
 use App\Models\PaymentStatusHistory;
 use App\Models\ProductOrder;
 use App\Models\User;
+use Illuminate\Contracts\Cache\LockTimeoutException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use RuntimeException;
@@ -112,12 +114,48 @@ class PaymentService
         string $kind,
         ?string $requestedOrderId = null
     ): Payment {
+        // Satu intent online per booking pada satu waktu. Tanpa ini dua request
+        // yang berdekatan (tap ganda, retry jaringan, atau dua perangkat) sama-sama
+        // lolos pemeriksaan "sudah ada transaksi pending?" lalu membuat dua baris
+        // `payments` untuk tagihan yang sama. Keduanya bisa dibayar dan
+        // `paid_amount` melampaui total tagihan.
+        //
+        // Request kedua menunggu maksimal 5 detik, lalu memakai transaksi yang
+        // dibuat request pertama (findReusableBookingPayment).
+        $lock = Cache::lock('payment-intent-booking:' . $booking->id, 20);
+
+        try {
+            $acquired = $lock->block(5);
+        } catch (LockTimeoutException $e) {
+            $acquired = false;
+        }
+
+        if (!$acquired) {
+            throw new RuntimeException(__('payments.payment_in_progress'));
+        }
+
+        try {
+            return $this->buildBookingPayment($booking, $kind, $requestedOrderId);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function buildBookingPayment(
+        Booking $booking,
+        string $kind,
+        ?string $requestedOrderId = null
+    ): Payment {
         $booking->loadMissing(['pet', 'user']);
 
-        if (in_array($booking->status, ['cancelled', 'completed'], true)) {
+        if ($booking->status === 'cancelled') {
             throw new RuntimeException(__('payments.booking_not_payable'));
         }
 
+        // Booking berstatus `completed` TETAP boleh dibayar selama masih ada sisa
+        // tagihan. Rekam medis menutup kunjungan lebih dulu, sedangkan pembayaran
+        // di kasir sering menyusul; sebelumnya penolakan ini membuat sisa tagihan
+        // kunjungan yang sudah selesai mustahil ditagih lewat aplikasi.
         if ($booking->payment_status === 'paid') {
             throw new RuntimeException(__('payments.booking_already_paid'));
         }
@@ -238,6 +276,27 @@ class PaymentService
      * Buat (atau pakai ulang) payment online untuk satu pesanan Pet Shop.
      */
     public function createPetShopPayment(ProductOrder $order): Payment
+    {
+        $lock = Cache::lock('payment-intent-order:' . $order->id, 20);
+
+        try {
+            $acquired = $lock->block(5);
+        } catch (LockTimeoutException $e) {
+            $acquired = false;
+        }
+
+        if (!$acquired) {
+            throw new RuntimeException('Pembayaran pesanan ini sedang diproses. Coba lagi sebentar.');
+        }
+
+        try {
+            return $this->buildPetShopPayment($order);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    private function buildPetShopPayment(ProductOrder $order): Payment
     {
         if ($order->isFinal() || $order->isPaid()) {
             throw new RuntimeException('Pesanan ini tidak dapat dibayar lagi.');
@@ -1160,6 +1219,37 @@ class PaymentService
             }
 
             if ($internalStatus === Payment::STATUS_PAID) {
+                // Pesanan yang sudah ditutup (expired/cancelled/rejected) tetapi
+                // dananya tetap masuk berarti uang ada di merchant sementara barang
+                // tidak akan dikirim: kewajiban refund, bukan pendapatan. Dulu
+                // percabangan ini menulis `payment_status = paid` tanpa melihat
+                // status pesanan, sehingga stok sudah dilepas, pesanan `expired`,
+                // dan tidak ada satu baris pun yang menyatakan dana harus kembali.
+                $closedBeforePayment = $order->isFinal() && $order->status !== ProductOrder::STATUS_COMPLETED;
+
+                if ($closedBeforePayment) {
+                    $order->forceFill(['payment_status' => ProductOrder::PAYMENT_REFUND_PENDING])->save();
+
+                    $this->orders->log(
+                        $order,
+                        $order->status,
+                        $order->status,
+                        'webhook',
+                        null,
+                        'Pembayaran diterima setelah pesanan ditutup (' . $order->status . '); dana perlu dikembalikan'
+                    );
+
+                    Log::warning('Pembayaran Pet Shop diterima untuk pesanan yang sudah ditutup', [
+                        'order_id' => $order->id,
+                        'order_number' => $order->order_number,
+                        'order_status' => $order->status,
+                        'payment_id' => $payment->id,
+                        'gross_amount' => $payment->gross_amount,
+                    ]);
+
+                    return;
+                }
+
                 $order->forceFill(['payment_status' => ProductOrder::PAYMENT_PAID])->save();
 
                 if ($order->status === ProductOrder::STATUS_PENDING_PAYMENT) {

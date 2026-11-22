@@ -48,6 +48,7 @@ import com.christopheraldoo.petheal.data.repository.DiscoveryRepository.CompareS
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.InlineErrorBanner
 import com.christopheraldoo.petheal.ui.components.PetHealTopAppBar
 import com.christopheraldoo.petheal.ui.components.SkeletonCard
 import com.christopheraldoo.petheal.ui.theme.Outline
@@ -189,9 +190,11 @@ fun PriceCompareScreen(
                     )
                 }
 
-                state.isLoading -> items(3) { SkeletonCard() }
+                state.isLoading && state.items.isEmpty() -> items(3, contentType = { "skeleton" }) { SkeletonCard() }
 
-                state.error != null -> item {
+                // Sama seperti layar Cari Klinik: filter gagal tidak mengosongkan
+                // hasil yang sudah tampil.
+                state.items.isEmpty() && state.error != null -> item {
                     ErrorState(
                         title = "Perbandingan gagal dimuat",
                         message = state.error ?: "",
@@ -208,18 +211,26 @@ fun PriceCompareScreen(
                     )
                 }
 
-                else -> itemsIndexed(
-                    items = state.items,
-                    key = { _, row -> row.key }
-                ) { _, row ->
-                    Box(Modifier.padding(horizontal = Dimens.ScreenPaddingHorizontal)) {
-                        CompareRow(
-                            item = row,
-                            isActiveClinic = state.isActiveClinic(row.clinic?.slug),
-                            activeClinicName = state.activeClinicName,
-                            onOpenClinic = onOpenClinic,
-                            onBook = onBookService
-                        )
+                else -> {
+                    if (state.error != null) {
+                        item(key = "filter-error", contentType = "banner") {
+                            InlineErrorBanner(message = state.error ?: "", onRetry = viewModel::retry)
+                        }
+                    }
+                    itemsIndexed(
+                        items = state.items,
+                        key = { _, row -> row.key },
+                        contentType = { _, _ -> "compare-row" }
+                    ) { _, row ->
+                        Box(Modifier.padding(horizontal = Dimens.ScreenPaddingHorizontal)) {
+                            CompareRow(
+                                item = row,
+                                isActiveClinic = state.isActiveClinic(row.clinic?.slug),
+                                activeClinicName = state.activeClinicName,
+                                onOpenClinic = onOpenClinic,
+                                onBook = onBookService
+                            )
+                        }
                     }
                 }
             }

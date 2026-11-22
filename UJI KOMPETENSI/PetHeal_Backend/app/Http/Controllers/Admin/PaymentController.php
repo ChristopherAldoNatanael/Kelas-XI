@@ -5,12 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLog;
 use App\Models\Booking;
+use App\Models\MedicalRecord;
 use App\Services\FCMService;
 use Dompdf\Dompdf;
 use Illuminate\Database\Eloquent\Builder;
 use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class PaymentController extends Controller
@@ -23,6 +25,10 @@ class PaymentController extends Controller
         'paid',
         'partial',
         'failed',
+        // Booking batal yang uangnya belum seluruhnya dikembalikan / sudah
+        // dikembalikan. Lihat Booking::syncRefundPaymentStatus().
+        Booking::PAYMENT_REFUND_PENDING,
+        Booking::PAYMENT_REFUNDED,
     ];
 
     private const PAYMENT_TYPES = ['dp', 'full'];
@@ -81,7 +87,43 @@ class PaymentController extends Controller
             $booking
         );
 
+        // Refund sebelumnya senyap dari sisi pasien: uang sudah diterima kembali
+        // (tunai/transfer), tetapi tidak ada pemberitahuan apa pun sehingga pasien
+        // menanyakan status berulang kali. Notifikasi juga menyebut nominal agar
+        // tercocokkan dengan mutasi rekeningnya.
+        $this->notifyRefundRecorded($booking, (float) $refund->amount);
+
         return back()->with('success', __('admin.refund_saved'));
+    }
+
+    /**
+     * Kabari pasien bahwa refund sudah dicatat (tidak menggagalkan aksi admin
+     * bila pengiriman push gagal).
+     */
+    private function notifyRefundRecorded(Booking $booking, float $amount): void
+    {
+        if ($amount <= 0) {
+            return;
+        }
+
+        try {
+            $this->fcmService->sendToUser(
+                (int) $booking->user_id,
+                'Refund telah dicatat',
+                'Pengembalian dana Rp' . number_format($amount, 0, ',', '.')
+                    . ' untuk booking #' . $booking->id . ' sudah dicatat klinik.',
+                [
+                    'type' => 'payment',
+                    'booking_id' => (string) $booking->id,
+                    'clinic_id' => (string) $booking->clinic_id,
+                ]
+            );
+        } catch (\Throwable $e) {
+            Log::warning('Gagal mengirim notifikasi refund ke pasien', [
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**
@@ -156,12 +198,28 @@ class PaymentController extends Controller
             ->whereIn('booking_id', $bookingIds)
             ->sum('amount');
 
+        // Kewajiban refund yang belum dicatat: booking batal yang uangnya belum
+        // kembali seluruhnya. Angkanya dihitung dari paid_amount dikurangi refund
+        // yang sudah tercatat, sehingga kartu ini turun tepat saat admin mencatat
+        // pengembalian dan hilang saat lunas.
+        $refundDueQuery = (clone $query)
+            ->where('status', 'cancelled')
+            ->where('payment_status', Booking::PAYMENT_REFUND_PENDING);
+
+        $refundDueCount = (int) (clone $refundDueQuery)->count();
+        $refundDuePaid = (float) (clone $refundDueQuery)->sum('paid_amount');
+        $refundDueRefunded = (float) \Illuminate\Support\Facades\DB::table('booking_refunds')
+            ->whereIn('booking_id', (clone $refundDueQuery)->select('id'))
+            ->sum('amount');
+
         return [
             'total_transactions' => $totals->total_transactions,
             'total_collected' => (float) $totals->total_collected - $refunded,
             'total_refunded' => $refunded,
             'total_outstanding' => $totals->total_outstanding,
             'paid_count' => $totals->paid_count,
+            'refund_due_count' => $refundDueCount,
+            'refund_due_amount' => (float) max(0, $refundDuePaid - $refundDueRefunded),
         ];
     }
 
@@ -317,6 +375,16 @@ class PaymentController extends Controller
             }
             $booking = $query->lockForUpdate()->firstOrFail();
 
+            // Booking yang sudah dibatalkan tidak boleh ditagih lagi. Uang yang
+            // masuk setelah pembatalan adalah kewajiban refund, bukan pelunasan,
+            // dan menambah `paid_amount` di sini akan menghapus status
+            // `refund_pending` booking tersebut.
+            if ($booking->status === 'cancelled') {
+                throw ValidationException::withMessages([
+                    'amount' => __('admin.payment_confirm_cancelled'),
+                ]);
+            }
+
             // Rupiah integer: nominal dari form dibulatkan sekali, lalu
             // dibandingkan apa adanya. Tidak ada lagi toleransi 0,001 rupiah.
             $remaining = max(0, Money::rupiah($booking->remaining_amount));
@@ -353,6 +421,12 @@ class PaymentController extends Controller
             }
 
             $booking->save();
+
+            // Konfirmasi kas manual juga mengubah `paid_amount`, jadi biaya
+            // tambahan rekam medis harus ikut disesuaikan di dalam transaksi yang
+            // sama — kalau tidak, kasir mencatat pelunasan tetapi aplikasi pasien
+            // masih menampilkan sisa tagihan yang sudah dibayar.
+            MedicalRecord::syncExtraPaymentForBooking($booking);
 
             return [$booking, $amount];
         });

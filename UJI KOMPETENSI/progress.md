@@ -130,3 +130,11 @@ Status: **10/10 fase selesai** (kode, UI, test, dokumentasi). Pembayaran online 
 - **Android**: pemilih klinik “Ambil di Klinik” + izin lokasi eksplisit (tanpa background tracking), layar bukti pembayaran (simpan/bagikan PNG, unduh/bagikan PDF nyata), kartu QR Pickup Pass + kode manual di detail pesanan, route baru.
 - **Verifikasi**: `PetShopPickupTest` 12 passed/81 assertions; regresi gabungan 56 passed + 2 gagal lama (central fallback vs test); `view:cache` sukses; `assembleDebug` BUILD SUCCESSFUL; uji manual API nearby/pass/QR/PDF.
 - **Dokumentasi**: `PetHeal_Backend/docs/PETSHOP_CLICK_AND_COLLECT.md`, `PHASE-STATUS-PETSHOP.md` §12.
+
+## Tambahan — Form "Edit Hewan" Android tampil kosong (22 November 2026)
+
+- **Gejala**: dari detail hewan, tombol pensil membuka *Edit Hewan* dengan semua isian kosong (seperti tambah hewan baru); menyimpan akan menimpa data lama.
+- **Sebab**: `EditPetScreen` hanya membaca `detailState.pet`, memanggil `loadPetDetail()` tanpa `forceRefresh` (bisa dilewati guard id-sama), tidak menunggu data sebelum merender form, dan cabang gagal di `loadPetDetail()` mengganti seluruh state dengan `PetDetailUiState(error)` sehingga data yang sudah ada ikut hilang tanpa pesan.
+- **Perbaikan**: helper murni `resolveEditablePet()`/`shouldWaitForPet()` (`ui/screens/pet/EditPetPrefill.kt`), form digate + `key(pet.id)`, fallback ke daftar hewan di memori, status memuat/gagal + tombol **Coba Lagi**, `loadPetDetail()` memakai cache dan tidak menghapus data saat gagal, invalidation setelah simpan/hapus (`lastLoadedDetailPetId = null`, `loadPets(forceRefresh = true)`), dan `PetDetailScreen` ikut refresh saat dibuka kembali.
+- **Verifikasi**: `assembleDebug` BUILD SUCCESSFUL (APK debug memuat kode baru), `testDebugUnitTest` **87 test / 0 gagal** termasuk 7 test `EditPetPrefillTest`. Uji perangkat belum dijalankan (tidak ada `adb` di mesin ini).
+- **Dokumentasi**: `PetHeal_Android/docs/FIXES_REPORT.md` §15.

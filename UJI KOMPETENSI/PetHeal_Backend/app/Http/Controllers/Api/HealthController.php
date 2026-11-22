@@ -4,10 +4,19 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 
 class HealthController extends Controller
 {
+    /**
+     * Ringkasan kesehatan sistem untuk monitoring.
+     *
+     * Endpoint ini publik (tanpa token), jadi isinya hanya status per komponen.
+     * Detail kegagalan — pesan exception database, path absolut berkas kredensial,
+     * mode pembayaran, ada/tidaknya server key — TIDAK ikut dikirim karena itu
+     * informasi recon yang berguna bagi penyerang. Detailnya masuk log server.
+     */
     public function index()
     {
         $checks = [];
@@ -23,8 +32,14 @@ class HealthController extends Controller
             $overallOk = false;
             $checks['database'] = [
                 'status' => 'failed',
-                'message' => $e->getMessage(),
+                'message' => 'Database connection failed',
             ];
+
+            // Pesan driver (mis. "Access denied for user 'root'@'localhost'") hanya
+            // untuk operator, tidak untuk pemanggil anonim.
+            Log::error('Health check: database tidak dapat dihubungi', [
+                'message' => $e->getMessage(),
+            ]);
         }
 
         $firebaseCredentials = config('services.firebase.credentials', env('FIREBASE_CREDENTIALS', storage_path('app/firebase-service-account.json')));
@@ -39,8 +54,11 @@ class HealthController extends Controller
             $checks['firebase'] = [
                 'status' => 'failed',
                 'message' => 'Firebase credentials file not found',
-                'path' => $firebaseCredentialsPath,
             ];
+
+            Log::warning('Health check: kredensial Firebase tidak ditemukan', [
+                'path' => $firebaseCredentialsPath,
+            ]);
         }
 
         $midtransServerKey = config('services.midtrans.server_key', env('MIDTRANS_SERVER_KEY'));
@@ -53,38 +71,41 @@ class HealthController extends Controller
             $checks['midtrans'] = [
                 'status' => 'ok',
                 'message' => 'Midtrans configuration complete',
-                'mode' => $midtransProduction ? 'production' : 'sandbox',
-                'snap_url' => $midtransSnapUrl,
-                'api_url' => $midtransApiUrl,
             ];
         } else {
             $overallOk = false;
             $checks['midtrans'] = [
                 'status' => 'failed',
                 'message' => 'Midtrans configuration incomplete',
-                'mode' => $midtransProduction ? 'production' : 'sandbox',
+            ];
+
+            Log::warning('Health check: konfigurasi Midtrans pusat belum lengkap', [
                 'server_key' => !empty($midtransServerKey) ? 'configured' : 'missing',
                 'client_key' => !empty($midtransClientKey) ? 'configured' : 'missing',
-                'snap_url' => !empty($midtransSnapUrl) ? $midtransSnapUrl : 'missing',
-                'api_url' => !empty($midtransApiUrl) ? $midtransApiUrl : 'missing',
-            ];
+                'snap_url' => $midtransSnapUrl,
+                'api_url' => $midtransApiUrl,
+                'mode' => $midtransProduction ? 'production' : 'sandbox',
+            ]);
         }
 
         $publicStorage = storage_path('app/public');
         $checks['storage'] = [
             'status' => is_dir($publicStorage) && is_writable($publicStorage) ? 'ok' : 'warning',
             'message' => is_dir($publicStorage)
-                ? (is_writable($publicStorage) ? 'Public storage directory exists and is writable' : 'Public storage directory exists but is not writable')
+                ? (is_writable($publicStorage) ? 'Public storage directory is writable' : 'Public storage directory is not writable')
                 : 'Public storage directory missing',
-            'path' => $publicStorage,
         ];
 
+        // `register-direct` sudah pensiun (410 use_otp_flow). Menjadikannya
+        // syarat health membuat monitoring berteriak saat endpoint itu akhirnya
+        // dihapus, padahal tidak ada klien yang memakainya.
         $requiredRoutes = [
             'health' => 'api/health',
             'payment_preflight' => 'api/payment/preflight',
             'payment_snap_token' => 'api/payment/snap-token',
             'firebase_login' => 'api/auth/firebase-login',
-            'register_direct' => 'api/auth/register-direct',
+            'register_otp' => 'api/auth/register/request-otp',
+            'register_verify_otp' => 'api/auth/register/verify-otp',
             'doctor_reviews' => 'api/doctors/{id}/reviews',
             'notifications' => 'api/notifications',
         ];

@@ -166,7 +166,9 @@ interface ApiService {
         @Query("lng") lng: Double? = null,
         @Query("min_rating") minRating: Double? = null,
         @Query("max_distance_km") maxDistanceKm: Double? = null,
-        @Query("open_now") openNow: Boolean? = null,
+        // Dikirim sebagai 1/0 (bukan true/false): rule `boolean` Laravel hanya
+        // menerima 1/0/true/false asli sehingga string "true" ditolak 422.
+        @Query("open_now") openNow: Int? = null,
         @Query("limit") limit: Int? = null
     ): Response<ClinicListResponse>
 
@@ -201,7 +203,8 @@ interface ApiService {
         @Query("max_price") maxPrice: Double? = null,
         @Query("max_distance_km") maxDistanceKm: Double? = null,
         @Query("min_rating") minRating: Double? = null,
-        @Query("open_now") openNow: Boolean? = null
+        // Lihat catatan di discoverClinics: 1/0, bukan true/false.
+        @Query("open_now") openNow: Int? = null
     ): Response<CompareResponse>
 
     @GET("public/services/{id}")

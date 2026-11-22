@@ -362,6 +362,69 @@
                 </div>
             @endif
         </x-admin.panel>
+    @endif
+
+    {{-- Panel di bawah ini sengaja berada di luar blok klinik: notifikasi webhook
+         yang tidak dikenal tidak selalu bisa diatribusikan ke satu klinik, dan
+         Super Admin tanpa klinik terpilih tetap harus bisa meninjaunya. --}}
+    <x-admin.panel :title="__('payments.webhook_issues')" :subtitle="__('payments.webhook_issues_desc')">
+            @if($notificationIssues->isEmpty())
+                <p class="text-sm text-slate-500 dark:text-slate-400">{{ __('payments.webhook_issues_empty') }}</p>
+            @else
+                <div class="overflow-x-auto">
+                    <table class="admin-table w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-[11px] uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                                <th class="py-2 pr-4">{{ __('payments.routing_time') }}</th>
+                                <th class="py-2 pr-4">{{ __('payments.webhook_order') }}</th>
+                                <th class="py-2 pr-4">{{ __('payments.webhook_status') }}</th>
+                                <th class="py-2 pr-4">{{ __('payments.webhook_note') }}</th>
+                                <th class="py-2 pr-4">{{ __('common.action') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800">
+                            @foreach($notificationIssues as $notification)
+                                <tr>
+                                    <td class="py-2 pr-4 whitespace-nowrap text-xs text-slate-500 dark:text-slate-400">
+                                        {{ $notification->created_at?->diffForHumans() }}
+                                    </td>
+                                    <td class="py-2 pr-4 font-mono text-[11px]">
+                                        {{ $notification->provider_order_id ?: '-' }}
+                                        @if($notification->gross_amount)
+                                            <span class="block text-slate-500 dark:text-slate-400">{{ format_rupiah((float) $notification->gross_amount) }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <x-admin.badge
+                                            :label="$notification->transaction_status ?: '-'"
+                                            :tone="$notification->signature_valid ? 'amber' : 'rose'" />
+                                        @unless($notification->signature_valid)
+                                            <p class="mt-1 text-[10px] text-rose-600 dark:text-rose-400">{{ __('payments.webhook_signature_invalid') }}</p>
+                                        @endunless
+                                    </td>
+                                    <td class="py-2 pr-4 text-xs text-slate-600 dark:text-slate-300">
+                                        {{ $notification->processing_note ?: '-' }}
+                                    </td>
+                                    <td class="py-2 pr-4">
+                                        <form method="POST" action="{{ route('admin.payment-settings.notifications.review', $notification->id) }}"
+                                              class="flex items-center gap-2">
+                                            @csrf
+                                            <input type="text" name="note" maxlength="180"
+                                                   class="admin-input !py-1.5 !text-xs"
+                                                   placeholder="{{ __('payments.webhook_review_note') }}"
+                                                   aria-label="{{ __('payments.webhook_review_note') }}">
+                                            <button type="submit" class="admin-btn-ghost whitespace-nowrap !py-1.5 !text-xs">
+                                                {{ __('payments.webhook_review') }}
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
+        </x-admin.panel>
 
         <x-admin.panel :title="__('payments.audit_trail')" :subtitle="__('payments.audit_trail_desc')">
             @if($auditLogs->isEmpty())
@@ -383,7 +446,6 @@
                 </ul>
             @endif
         </x-admin.panel>
-    @endif
 </div>
 @endsection
 

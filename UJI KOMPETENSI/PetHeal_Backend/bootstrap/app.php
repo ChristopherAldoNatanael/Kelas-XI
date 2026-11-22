@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,9 +17,27 @@ return Application::configure(basePath: dirname(__DIR__))
         // sehingga request dari browser sebenarnya HTTPS tetapi PHP hanya melihat
         // HTTP. Tanpa ini route()/url() menghasilkan http://... dan Chrome
         // menampilkan "informasi yang akan dikirim tidak aman" setiap submit form.
-        // Mempercayai header X-Forwarded-* membuat skema terdeteksi benar: https
-        // saat diakses lewat ngrok, tetap http saat diakses lokal 127.0.0.1:8000.
-        $middleware->trustProxies(at: '*');
+        //
+        // Daftar proxy yang dipercaya TIDAK lagi `*`. Header X-Forwarded-* dipakai
+        // sebagai sumber `$request->ip()`, dan IP itu menjadi kunci rate limiter
+        // (login/OTP/webhook) sekaligus isi audit_logs. Dengan `*`, siapa pun bisa
+        // memalsukan IP lewat satu header dan melewati seluruh batas tersebut.
+        // Default sekarang hanya loopback: agent ngrok/nginx di mesin yang sama
+        // tetap terdeteksi benar, sedangkan request langsung dari internet tidak.
+        // Untuk deployment dengan load balancer, isi TRUSTED_PROXIES di .env
+        // dengan daftar CIDR/IP proxy (dipisah koma).
+        $configuredProxies = array_values(array_filter(array_map(
+            'trim',
+            explode(',', (string) env('TRUSTED_PROXIES', ''))
+        )));
+
+        $middleware->trustProxies(
+            at: $configuredProxies !== [] ? $configuredProxies : ['127.0.0.1', '::1'],
+            headers: Request::HEADER_X_FORWARDED_FOR
+                | Request::HEADER_X_FORWARDED_HOST
+                | Request::HEADER_X_FORWARDED_PORT
+                | Request::HEADER_X_FORWARDED_PROTO
+        );
 
         // Register custom middleware aliases
         $middleware->alias([

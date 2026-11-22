@@ -53,6 +53,20 @@
             :value="number_format($stats['paid_count'])"
             icon="check_circle"
             tone="violet" />
+
+        {{-- Kewajiban refund yang belum dicatat. Kartu ini hanya muncul bila ada
+             booking batal dengan uang yang belum kembali, supaya tidak menjadi
+             angka nol permanen di layar. --}}
+        @if(($stats['refund_due_count'] ?? 0) > 0)
+            <a href="{{ route('admin.payments.index', ['status' => 'refund_pending']) }}"
+               class="block rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                <x-admin.stat-card
+                    :label="__('admin.stat_refund_due') . ' (' . number_format($stats['refund_due_count']) . ')'"
+                    :value="format_rupiah($stats['refund_due_amount'])"
+                    icon="undo"
+                    tone="rose" />
+            </a>
+        @endif
     </div>
 
     {{-- Filter --}}
@@ -75,6 +89,8 @@
                     <option value="paid" {{ request('status') === 'paid' ? 'selected' : '' }}>{{ __('common.paid') }}</option>
                     <option value="partial" {{ request('status') === 'partial' ? 'selected' : '' }}>{{ __('common.partial') }}</option>
                     <option value="failed" {{ request('status') === 'failed' ? 'selected' : '' }}>{{ __('common.failed') }}</option>
+                    <option value="refund_pending" {{ request('status') === 'refund_pending' ? 'selected' : '' }}>{{ __('common.refund_pending') }}</option>
+                    <option value="refunded" {{ request('status') === 'refunded' ? 'selected' : '' }}>{{ __('common.refunded') }}</option>
                 </select>
             </div>
 

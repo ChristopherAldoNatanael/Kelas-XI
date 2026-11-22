@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\MedicalRecord;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class PaymentStatusService
 {
@@ -18,6 +19,15 @@ class PaymentStatusService
         $suffix = $clinicId ?: 'all';
         Cache::forget('payment_stats_c' . $suffix);
         Cache::forget('dashboard_stats_v4_c' . $suffix . '_all');
+    }
+
+    /**
+     * Selaraskan biaya tambahan rekam medis dengan uang yang sudah masuk ke
+     * booking-nya (lihat MedicalRecord::syncExtraPaymentForBooking).
+     */
+    private function syncMedicalRecordPaymentState(Booking $booking): void
+    {
+        MedicalRecord::syncExtraPaymentForBooking($booking);
     }
 
     /**
@@ -209,8 +219,10 @@ class PaymentStatusService
             // PHASE 3 (B1/B3): terminal/advanced states are monotonic. A paid
             // booking stays paid; dp_paid/partial are never reset by a later
             // pending/failed event for another order of the same booking.
-            $terminalStatuses = ['paid'];
-            $advancedStatuses = ['dp_paid', 'partial'];
+            // Status refund ikut "terminal": notifikasi `pending`/`failure` untuk
+            // transaksi lain tidak boleh menghapus kewajiban refund yang sudah ada.
+            $terminalStatuses = ['paid', Booking::PAYMENT_REFUNDED];
+            $advancedStatuses = ['dp_paid', 'partial', Booking::PAYMENT_REFUND_PENDING];
 
             if ($isSuccessful) {
                 $created = DB::table('payment_events')->insertOrIgnore([
@@ -238,8 +250,64 @@ class PaymentStatusService
                 //  1. event tidak hilang dari payment_events (jejak audit), dan
                 //  2. event duplikat tetap menghasilkan respons yang sama
                 //     (idempoten) saat Midtrans mengirim ulang.
-                $currentPaidAmount = (float) $booking->paid_amount + $gross;
-                $remainingAmount = max(0, (float) $booking->total_amount - $currentPaidAmount);
+                $totalAmount = (float) $booking->total_amount;
+                $rawPaidAmount = (float) $booking->paid_amount + $gross;
+
+                // `paid_amount` tidak boleh melewati nilai tagihan. Pernah terjadi
+                // dua transaksi untuk satu booking (DP lalu pelunasan penuh) dan
+                // akumulasi ini menghasilkan paid_amount > total_amount, sehingga
+                // laporan keuangan dan hitungan refund ikut membengkak. Uang
+                // berlebih tetap tercatat di payment_events + log, tetapi kolom
+                // booking dibatasi pada nilai tagihan agar selisihnya kelihatan.
+                if ($totalAmount > 0 && $rawPaidAmount > $totalAmount + 0.005) {
+                    Log::warning('Pembayaran melebihi nilai tagihan booking', [
+                        'booking_id' => $booking->id,
+                        'clinic_id' => $booking->clinic_id,
+                        'total_amount' => $totalAmount,
+                        'accumulated' => $rawPaidAmount,
+                        'gross' => $gross,
+                        'overpaid' => round($rawPaidAmount - $totalAmount, 2),
+                    ]);
+
+                    $currentPaidAmount = $totalAmount;
+                } else {
+                    $currentPaidAmount = $rawPaidAmount;
+                }
+
+                $remainingAmount = max(0, $totalAmount - $currentPaidAmount);
+
+                // Dana masuk untuk booking yang SUDAH dibatalkan. Uangnya nyata,
+                // jadi tetap dicatat di `paid_amount` + `payment_events`, tetapi
+                // tidak boleh berubah menjadi pendapatan klinik dan tidak boleh
+                // menjadi tagihan sisa: seluruhnya menjadi kewajiban refund.
+                // Dulu percabangan ini berjalan seperti pembayaran normal dan
+                // menulis `payment_status = paid`, sehingga booking batal terlihat
+                // lunas tanpa satu baris pun yang menyatakan uang harus kembali.
+                if ($booking->status === 'cancelled') {
+                    Log::warning('Pembayaran diterima untuk booking yang sudah dibatalkan', [
+                        'booking_id' => $booking->id,
+                        'clinic_id' => $booking->clinic_id,
+                        'order_id' => $orderId,
+                        'gross' => $gross,
+                        'paid_now' => $currentPaidAmount,
+                    ]);
+
+                    $booking->update([
+                        'paid_amount' => $currentPaidAmount,
+                        'remaining_amount' => 0,
+                        'payment_date' => now(),
+                    ]);
+
+                    $booking->syncRefundPaymentStatus();
+                    $this->syncMedicalRecordPaymentState($booking);
+                    $this->clearPaymentCaches($booking->clinic_id);
+
+                    return [
+                        'updated' => true,
+                        'duplicate' => false,
+                        'booking' => $booking->fresh(),
+                    ];
+                }
 
                 $updateData = [
                     'paid_amount' => $currentPaidAmount,
@@ -261,6 +329,15 @@ class PaymentStatusService
                 }
 
                 $booking->update($updateData);
+
+                // Nilai "kekurangan biaya" pada rekam medis dihitung dari
+                // `total_medical_cost - booking.paid_amount`. Sebelumnya angka itu
+                // hanya dihitung ulang saat rekam medis dibuat/diedit, jadi
+                // pembayaran booking yang masuk SETELAH rekam medis dibuat tidak
+                // pernah menurunkannya: pasien yang sudah DP lalu melunasi tetap
+                // ditagih kekurangan sebesar DP-nya (total tagihan melebihi biaya).
+                $this->syncMedicalRecordPaymentState($booking);
+
                 $this->clearPaymentCaches($booking->clinic_id);
 
                 return [

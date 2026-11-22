@@ -3,16 +3,19 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\Medicine;
 use App\Models\MedicalRecord;
 use App\Models\MedicalRecordAttachment;
+use App\Models\Payment;
 use App\Services\FCMService;
 use App\Services\MedicalRecordAttachmentService;
 use App\Services\PrescriptionService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 
 class MedicalRecordController extends Controller
@@ -536,11 +539,60 @@ class MedicalRecordController extends Controller
         $record = $query->firstOrFail();
         $cacheClinicId = $record->clinic_id ?: $clinicId;
 
-        // Stok yang terlanjur dipotong resep dikembalikan sebelum record
-        // hilang — kalau tidak, obat "hilang" tanpa penjelasan.
-        $this->prescriptions->restoreOnDelete($record);
+        // Rekam medis adalah dokumen yang menjadi dasar tagihan dan klaim. Kalau
+        // sudah ada uang yang tercatat (pembayaran online atau kas yang dikonfirmasi
+        // admin), menghapusnya membuat nominal yang pernah ditagih kehilangan
+        // dokumen pendukungnya: `payments` menyimpan payable_id ke record yang
+        // tidak ada lagi. Untuk kondisi itu record harus dikoreksi, bukan dihapus.
+        $hasRecordedMoney = Payment::where('payable_type', MedicalRecord::class)
+            ->where('payable_id', $record->id)
+            ->whereIn('status', [
+                Payment::STATUS_PAID,
+                Payment::STATUS_PENDING,
+                Payment::STATUS_UNPAID,
+                Payment::STATUS_REFUND_PENDING,
+                Payment::STATUS_PARTIALLY_REFUNDED,
+            ])
+            ->exists();
 
-        $record->delete();
+        if ($hasRecordedMoney || (float) $record->extra_payment_paid_amount > 0) {
+            return redirect()->route('admin.medical-records.show', $record->id)
+                ->with('error', 'Rekam medis ini sudah memiliki pembayaran tercatat sehingga tidak dapat dihapus. Perbaiki datanya lewat edit rekam medis.');
+        }
+
+        $bookingId = $record->booking_id;
+
+        DB::transaction(function () use ($record) {
+            // Stok yang terlanjur dipotong resep dikembalikan sebelum record
+            // hilang — kalau tidak, obat "hilang" tanpa penjelasan.
+            $this->prescriptions->restoreOnDelete($record);
+
+            // Berkas scan/rontgen tidak ikut terhapus oleh FK cascade: filenya
+            // tetap memakan disk tanpa baris yang merujuk. Hapus dulu barisnya
+            // lewat service supaya file dan row pergi bersama.
+            foreach ($record->attachments as $attachment) {
+                $this->attachments->delete($attachment);
+            }
+
+            $record->delete();
+        });
+
+        AuditLog::create([
+            'user_id' => auth()->id(),
+            'clinic_id' => $cacheClinicId,
+            'action' => 'medical_record.deleted',
+            'model_type' => MedicalRecord::class,
+            'model_id' => $record->id,
+            'description' => sprintf(
+                'Rekam medis #%d untuk booking #%s dihapus (biaya %s).',
+                $record->id,
+                $bookingId ?: '-',
+                number_format((float) $record->total_medical_cost, 0, ',', '.')
+            ),
+            'ip_address' => request()->ip(),
+            'user_agent' => substr((string) request()->userAgent(), 0, 500),
+        ]);
+
         $this->forgetDashboardCaches($cacheClinicId);
 
         return redirect()->route('admin.medical-records.index')->with('success', __('admin.medical_record_deleted'));

@@ -14,6 +14,7 @@ use App\Services\QueueService;
 use Dompdf\Dompdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class BookingController extends Controller
 {
@@ -329,6 +330,12 @@ class BookingController extends Controller
                 'cancellation_reason' => $request->input('reason'),
             ]);
 
+            // Uang yang sudah masuk menjadi kewajiban refund sejak detik ini,
+            // bukan menunggu admin membuka halaman pembayaran. Status ditulis di
+            // dalam transaksi yang sama dengan pembatalan supaya tidak pernah ada
+            // booking batal yang masih terlihat `paid`.
+            $booking->syncRefundPaymentStatus();
+
             $this->queue->releaseOnCancel($booking, $request->input('reason'));
 
             return $booking;
@@ -347,9 +354,66 @@ class BookingController extends Controller
 
         AuditLog::log('booking.cancel', "Cancelled booking #{$id} for {$booking->pet->name}", $booking);
 
+        // Pembatalan hanya mengubah status booking. Uang yang sudah masuk tetap
+        // tercatat di `paid_amount`, tetapi tidak ada satu baris pun yang
+        // menyatakan kewajiban mengembalikannya (refund dicatat manual lewat
+        // halaman pembayaran). Akibatnya booking batal yang sudah dibayar mudah
+        // terlewat: pasien sudah tidak punya antrian, uangnya masih di klinik.
+        // Jejak eksplisit di bawah ini membuat kewajiban refund terlihat di audit
+        // log dan di pesan setelah aksi. `payment_status` booking sudah menjadi
+        // `refund_pending` (lihat Booking::syncRefundPaymentStatus), sehingga
+        // booking ini juga muncul di daftar "refund belum dicatat" pada halaman
+        // pembayaran.
+        $paidAmount = $booking->refundableAmount();
+
+        if ($paidAmount > 0) {
+            AuditLog::log(
+                'booking.refund_due',
+                sprintf(
+                    'Booking #%d dibatalkan setelah menerima Rp%s; refund belum dicatat.',
+                    $booking->id,
+                    number_format($paidAmount, 0, ',', '.')
+                ),
+                $booking
+            );
+
+            Log::warning('Booking dibatalkan padahal sudah ada pembayaran', [
+                'booking_id' => $booking->id,
+                'clinic_id' => $booking->clinic_id,
+                'paid_amount' => $paidAmount,
+            ]);
+
+            try {
+                $this->fcmService->sendToUser(
+                    (int) $booking->user_id,
+                    'Pembatalan diterima',
+                    'Booking ' . $booking->pet->name . ' dibatalkan. Dana yang sudah dibayarkan akan diproses pengembaliannya oleh klinik.',
+                    [
+                        'type' => 'payment',
+                        'booking_id' => (string) $booking->id,
+                        'clinic_id' => (string) $booking->clinic_id,
+                    ]
+                );
+            } catch (\Throwable $e) {
+                Log::warning('Gagal mengirim notifikasi refund pembatalan', [
+                    'booking_id' => $booking->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
+
+        $message = $sent
+            ? 'Booking cancelled and notification sent successfully'
+            : 'Booking cancelled, but push notification could not be delivered.';
+
+        if ($paidAmount > 0) {
+            $message .= ' Dana masuk Rp' . number_format($paidAmount, 0, ',', '.')
+                . ' masih perlu direfund melalui halaman pembayaran.';
+        }
+
         return redirect()->back()->with(
-            $sent ? 'success' : 'warning',
-            $sent ? 'Booking cancelled and notification sent successfully' : 'Booking cancelled, but push notification could not be delivered.'
+            $sent ? ($paidAmount > 0 ? 'warning' : 'success') : 'warning',
+            $message
         );
     }
 

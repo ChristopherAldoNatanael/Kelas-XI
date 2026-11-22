@@ -223,6 +223,19 @@ class ProductOrderService
                 ]);
             }
 
+            // Pesanan yang ternyata sudah dibayar tidak boleh dikedaluwarkan.
+            // `expireStaleOrders()` menyaring kandidat SEBELUM baris dikunci, jadi
+            // webhook yang masuk di sela penyaringan bisa membuat pesanan berstatus
+            // `expired` + `payment_status = paid`: stok sudah dilepas dan tidak ada
+            // yang mengembalikan uangnya. Pemeriksaan ini dijalankan di dalam
+            // transaksi setelah lock, sehingga keputusannya memakai status bayar
+            // terbaru. Pemanggil (scheduler) melewati pesanan yang gagal di sini.
+            if ($toStatus === ProductOrder::STATUS_EXPIRED && $locked->isPaid()) {
+                throw ValidationException::withMessages([
+                    'status' => 'Pembayaran sudah diterima; pesanan tidak dapat dikedaluwarkan. Proses sebagai pesanan dibatalkan dengan refund.',
+                ]);
+            }
+
             $from = $locked->status;
             $attributes = ['status' => $toStatus];
 
@@ -331,6 +344,14 @@ class ProductOrderService
             ->orderBy('id')
             ->chunkById(50, function ($orders) use (&$count) {
                 foreach ($orders as $order) {
+                    // Baca ulang baris: webhook bisa menyelesaikan pembayaran di
+                    // antara query penyaring dan loop ini. Tanpa cek ini pesanan
+                    // yang sudah dibayar tetap dicoba dikedaluwarkan (dan hanya
+                    // tertahan oleh penjaga di transition()).
+                    if ($order->fresh()?->isPaid()) {
+                        continue;
+                    }
+
                     try {
                         $this->transition($order, ProductOrder::STATUS_EXPIRED, 'system', null, 'Reservasi kedaluwarsa');
                         $count++;

@@ -625,7 +625,11 @@ fun PetDetailScreen(
     val textPrimary  = OnBackground
     val textMuted    = Brand.textSecondary
 
-    LaunchedEffect(petId) { viewModel.loadPetDetail(petId) }
+    // Selalu ambil ulang dari server saat layar ini dibuka kembali: setelah
+    // edit/simpan, kembali ke sini harus menampilkan data terbaru — bukan state
+    // lama yang dilewatkan guard `loadPetDetail()`. Data yang masih di memori
+    // tetap tampil selama refresh berjalan (tanpa kedip).
+    LaunchedEffect(petId) { viewModel.loadPetDetail(petId, forceRefresh = true) }
     LaunchedEffect(state.isDeleted) { if (state.isDeleted) onNavigateBack() }
 
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -2046,29 +2050,97 @@ fun EditPetScreen(
 ) {
     val state       by viewModel.addEditState.collectAsStateLifecycleAware()
     val detailState by viewModel.detailState.collectAsStateLifecycleAware()
+    val listState   by viewModel.uiState.collectAsStateLifecycleAware()
 
-    LaunchedEffect(petId) { viewModel.loadPetDetail(petId) }
+    // `forceRefresh = true`: layar ini harus SELALU memuat ulang data hewan yang
+    // akan diedit. Sebelumnya pemanggilan biasa bisa dilewati guard di
+    // `loadPetDetail()` (state sudah memuat hewan yang sama) sehingga form
+    // dirender sebelum datanya ada dan tampak kosong seperti tambah hewan baru.
+    LaunchedEffect(petId) { viewModel.loadPetDetail(petId, forceRefresh = true) }
     LaunchedEffect(state.isSuccess) { if (state.isSuccess) { viewModel.clearAddEditState(); onPetUpdated() } }
 
-    PetFormScreen(
-        title = "Edit Hewan",
-        submitLabel = "Simpan Perubahan",
-        isLoading = state.isLoading,
-        error = state.error,
-        initialName        = detailState.pet?.name ?: "",
-        initialSpecies     = detailState.pet?.species ?: "",
-        initialBreed       = detailState.pet?.breed ?: "",
-        initialGender      = detailState.pet?.gender?.let {
-            it.replaceFirstChar { c -> c.uppercaseChar() }
-        } ?: "Male",
-        initialDateOfBirth = detailState.pet?.dateOfBirth ?: "",
-        initialWeight      = detailState.pet?.weight?.toString() ?: "",
-        existingPhotoUrl   = detailState.pet?.photo,
-        onNavigateBack = onNavigateBack,
-        onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto ->
-            viewModel.editPet(petId, name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto)
+    // Sumber data form, berurutan dari yang paling murah:
+    //  1. detail yang baru dimuat,
+    //  2. daftar hewan yang sudah di-cache ViewModel (`init` layar ini memanggil
+    //     `loadPets()`), supaya form tetap terisi walau detail gagal/lambat.
+    val pet = resolveEditablePet(petId, detailState.pet, listState.pets)
+
+    val isLoadingPet = shouldWaitForPet(pet, detailState.isLoading, listState.isLoading)
+    val loadError    = detailState.error ?: listState.error
+
+    when {
+        // Data siap: `key(pet.id)` memastikan seluruh state form dibuat ulang tepat
+        // sekali dari data hewan ini, bukan dari nilai default kosong.
+        pet != null -> key(pet.id) {
+            PetFormScreen(
+                title = "Edit Hewan",
+                submitLabel = "Simpan Perubahan",
+                isLoading = state.isLoading,
+                error = state.error,
+                initialName        = pet.name ?: "",
+                initialSpecies     = pet.species ?: "",
+                initialBreed       = pet.breed ?: "",
+                initialGender      = pet.gender?.let {
+                    it.replaceFirstChar { c -> c.uppercaseChar() }
+                } ?: "Male",
+                initialDateOfBirth = pet.dateOfBirth ?: "",
+                initialWeight      = pet.weight?.toString() ?: "",
+                existingPhotoUrl   = pet.photo,
+                onNavigateBack = onNavigateBack,
+                onSubmit = { name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto ->
+                    viewModel.editPet(petId, name, species, breed, gender, dateOfBirth, age, weight, photoFile, removePhoto)
+                }
+            )
         }
-    )
+
+        // Belum ada data dan masih memuat: tampilkan progres, JANGAN form kosong.
+        // Form kosong membuat pengguna merasa harus mengisi ulang hewan lama.
+        isLoadingPet -> PetFormPlaceholder {
+            CircularProgressIndicator(color = Brand.primary)
+            Spacer(Modifier.height(16.dp))
+            Text("Memuat data hewan…", fontSize = 14.sp, color = Brand.textSecondary)
+        }
+
+        // Gagal memuat dan tidak ada cache: beri tahu apa yang salah + bisa ulangi.
+        // Sebelumnya kegagalan ini tidak terlihat sama sekali karena form hanya
+        // membaca `detailState` tanpa menampilkan `error`-nya.
+        else -> PetFormPlaceholder {
+            Icon(Icons.Filled.Warning, null, tint = ErrorStrong, modifier = Modifier.size(32.dp))
+            Spacer(Modifier.height(12.dp))
+            Text("Data hewan gagal dimuat", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = OnBackground)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                loadError ?: "Data hewan tidak ditemukan. Coba muat ulang.",
+                fontSize = 13.sp,
+                color = Brand.textSecondary,
+                textAlign = TextAlign.Center
+            )
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = { viewModel.loadPetDetail(petId, forceRefresh = true) },
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Brand.primary,
+                    contentColor = Color.White
+                )
+            ) { Text("Coba Lagi", fontWeight = FontWeight.SemiBold) }
+        }
+    }
+}
+
+/** Wadah layar penuh untuk status memuat/gagal di layar edit hewan. */
+@Composable
+private fun PetFormPlaceholder(content: @Composable ColumnScope.() -> Unit) {
+    Box(modifier = Modifier.fillMaxSize().background(Brand.page)) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(32.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+            content = content
+        )
+    }
 }
 
 // ── Helper: create a temp file URI for the camera ────────────────────────────

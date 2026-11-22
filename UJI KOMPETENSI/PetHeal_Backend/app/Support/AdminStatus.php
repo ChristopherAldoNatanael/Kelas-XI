@@ -44,6 +44,8 @@ final class AdminStatus
             'partial' => __('common.partial'),
             'pending' => __('common.pending'),
             'failed' => __('common.failed'),
+            'refund_pending' => __('common.refund_pending'),
+            'refunded' => __('common.refunded'),
             default => self::humanize($status),
         };
     }
@@ -58,6 +60,8 @@ final class AdminStatus
             'pending' => 'amber',
             'failed' => 'rose',
             'unpaid' => 'slate',
+            'refund_pending' => 'orange',
+            'refunded' => 'blue',
             default => 'slate',
         };
     }

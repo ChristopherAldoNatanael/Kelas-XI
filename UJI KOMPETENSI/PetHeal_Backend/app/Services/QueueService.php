@@ -406,4 +406,62 @@ class QueueService
             ->where('queue_number', '<', $booking->queue_number)
             ->count();
     }
+
+    /**
+     * Versi banyak-baris dari {@see positionOf()}.
+     *
+     * Satu query per kombinasi klinik+tanggal, bukan satu query per booking.
+     * Halaman daftar booking berisi 20 baris; cara lama berarti 20 query hitung
+     * tambahan setiap kali pengguna membuka tab Riwayat.
+     *
+     * @param  iterable<Booking>  $bookings
+     * @return array<int, int|null>  booking_id => jumlah antrian di depannya
+     */
+    public function positionsFor(iterable $bookings): array
+    {
+        $groups = [];
+
+        foreach ($bookings as $booking) {
+            if (!$booking->queue_number || !$booking->queue_date) {
+                continue;
+            }
+
+            if (!in_array($booking->queue_status, self::ACTIVE_STATUSES, true)) {
+                continue;
+            }
+
+            $key = $booking->clinic_id . '|' . substr((string) $booking->queue_date, 0, 10);
+            $groups[$key]['clinic_id'] = $booking->clinic_id;
+            $groups[$key]['date'] = substr((string) $booking->queue_date, 0, 10);
+            $groups[$key]['bookings'][] = $booking;
+        }
+
+        $positions = [];
+
+        foreach ($groups as $group) {
+            $numbers = Booking::where('clinic_id', $group['clinic_id'])
+                ->whereDate('queue_date', $group['date'])
+                ->whereIn('queue_status', [self::STATUS_WAITING, self::STATUS_CALLED])
+                ->where('status', '!=', 'cancelled')
+                ->pluck('queue_number')
+                ->map(fn ($number) => (int) $number)
+                ->sort()
+                ->values()
+                ->all();
+
+            foreach ($group['bookings'] as $booking) {
+                $ahead = 0;
+                foreach ($numbers as $number) {
+                    if ($number >= (int) $booking->queue_number) {
+                        break;
+                    }
+                    $ahead++;
+                }
+
+                $positions[$booking->id] = $ahead;
+            }
+        }
+
+        return $positions;
+    }
 }

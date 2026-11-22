@@ -188,15 +188,24 @@ $roleBadges = [
                                                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
                                             </a>
                                         @endif
-                                        @if($user->role === 'user')
+                                        @php
+                                            // Super admin boleh menghapus akun admin klinik (mis. salah
+                                            // approve join request) tanpa menghapus kliniknya. Admin
+                                            // klinik tidak boleh menghapus sesama admin. Dipertahankan
+                                            // di sini (bukan hanya di controller) supaya tombolnya tidak
+                                            // pernah muncul untuk peran yang akan ditolak.
+                                            $canDeleteClinicAdmin = auth()->user()?->role === 'super_admin'
+                                                && in_array($user->role, ['clinic_admin', 'admin'], true);
+                                        @endphp
+                                        @if($user->role === 'user' || $canDeleteClinicAdmin)
                                             <form method="POST" action="{{ route('admin.users.destroy', $user->id) }}" class="inline"
-                                                  onsubmit="return confirm('{{ __('admin.confirm_delete') }}')">
+                                                  onsubmit="return confirm('{{ $canDeleteClinicAdmin ? __('admin.confirm_delete_admin', ['name' => $user->name]) : __('admin.confirm_delete') }}')">
                                                 @csrf
                                                 @method('DELETE')
                                                 <button type="submit"
                                                         class="admin-icon-btn hover:!text-rose-600"
-                                                        title="{{ __('admin.delete') }}"
-                                                        aria-label="{{ __('admin.delete') }} {{ $user->name }}">
+                                                        title="{{ $canDeleteClinicAdmin ? __('admin.delete_admin_account') : __('admin.delete') }}"
+                                                        aria-label="{{ $canDeleteClinicAdmin ? __('admin.delete_admin_account') : __('admin.delete') }} {{ $user->name }}">
                                                     <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
                                                 </button>
                                             </form>

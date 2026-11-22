@@ -26,6 +26,8 @@ class PublicClinicController extends Controller
      */
     public function index(Request $request)
     {
+        $this->normalizeBooleanQuery($request);
+
         $request->validate([
             'search'          => 'nullable|string|max:100',
             'sort'            => 'nullable|in:name,rating,distance',
@@ -317,12 +319,45 @@ class PublicClinicController extends Controller
     }
 
     /**
+     * Normalisasi parameter boolean pada query string.
+     *
+     * Rule `boolean` bawaan Laravel hanya menerima `1`/`0`/`true`/`false` asli,
+     * sedangkan klien HTTP (Retrofit/Gson di aplikasi Android, `fetch` di web)
+     * mengirim string "true"/"false". Tanpa normalisasi ini permintaan seperti
+     * `GET /api/public/clinics?open_now=true` selalu ditolak 422 sehingga filter
+     * "Buka sekarang" di aplikasi tampak rusak. String lain dibiarkan apa adanya
+     * supaya validasi tetap melaporkan 422 untuk nilai yang memang salah.
+     */
+    private function normalizeBooleanQuery(Request $request): void
+    {
+        foreach (['open_now', 'sync_rating'] as $key) {
+            if (! $request->query->has($key)) {
+                continue;
+            }
+
+            $raw = $request->query($key);
+            if ($raw === null || $raw === '') {
+                $request->query->remove($key);
+
+                continue;
+            }
+
+            $parsed = filter_var($raw, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+            if ($parsed !== null) {
+                $request->query->set($key, $parsed ? '1' : '0');
+            }
+        }
+    }
+
+    /**
      * GET /api/public/services/compare?category_id=X&category_slug=X&lat=Y&lng=Z
      * Compare service prices across clinics for a given standard category.
      * Also supports ?name=search_term to find services by name.
      */
     public function compareServices(Request $request)
     {
+        $this->normalizeBooleanQuery($request);
+
         $request->validate([
             'category_id'     => 'nullable|integer|exists:service_categories,id',
             'category_slug'   => 'nullable|string|max:60',

@@ -127,6 +127,10 @@ dependencies {
 
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
+    // Baseline profile: memasang profil JIT bawaan library Compose/lifecycle saat
+    // aplikasi pertama kali jalan, sehingga start pertama & scroll tidak perlu
+    // "memanaskan" JIT sendiri (penyebab layar terasa patah-patah di build debug).
+    implementation("androidx.profileinstaller:profileinstaller:1.3.1")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.10.0")
     implementation("androidx.activity:activity-compose:1.8.1")

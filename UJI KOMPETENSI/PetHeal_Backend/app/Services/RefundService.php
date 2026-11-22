@@ -19,6 +19,8 @@ use RuntimeException;
  *     berjalan, itu pembatalan, bukan refund diam-diam.
  *  4. Perubahan tercatat satu transaksi bersama, dengan lock baris, supaya
  *     dua admin tidak bisa mencatat refund melebihi batas secara bersamaan.
+ *  5. `bookings.payment_status` selalu diselaraskan dengan uang yang sudah
+ *     kembali (`refund_pending` / `refunded`), tidak pernah dibiarkan `paid`.
  */
 class RefundService
 {
@@ -75,7 +77,7 @@ class RefundService
                 );
             }
 
-            return BookingRefund::create([
+            $refund = BookingRefund::create([
                 'booking_id' => $locked->id,
                 'clinic_id' => $locked->clinic_id,
                 'amount' => $amount,
@@ -84,19 +86,31 @@ class RefundService
                 'reason' => trim($reason),
                 'recorded_by' => $userId ?? auth()->id(),
             ]);
+
+            // Status bayar booking harus mengikuti uang yang sudah kembali:
+            // `refund_pending` selama masih ada sisa, `refunded` setelah lunas.
+            // Ditulis di transaksi yang sama dengan baris refund, sehingga tidak
+            // ada jendela waktu di mana refund tercatat tetapi status masih `paid`.
+            $locked->syncRefundPaymentStatus();
+
+            // Objek milik pemanggil ikut disegarkan: notifikasi dan audit setelah
+            // ini membaca `payment_status` yang baru, bukan nilai basi.
+            $booking->setRawAttributes($locked->getAttributes(), true);
+
+            return $refund;
         });
     }
 
     /** Total yang sudah dikembalikan untuk satu booking. */
     public function refundedTotal(Booking $booking): float
     {
-        return (float) BookingRefund::where('booking_id', $booking->id)->sum('amount');
+        return $booking->refundedTotal();
     }
 
     /** Dana yang masih bisa dikembalikan. */
     public function refundableAmount(Booking $booking): float
     {
-        return max(0, (float) $booking->paid_amount - $this->refundedTotal($booking));
+        return $booking->refundableAmount();
     }
 
     private function money(float $value): string

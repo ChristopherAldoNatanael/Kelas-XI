@@ -6,6 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class Booking extends Model
 {
+    /**
+     * Booking batal yang uangnya belum seluruhnya dikembalikan. Nilai ini
+     * disimpan di kolom `payment_status` (varchar, bukan enum), jadi tidak perlu
+     * migrasi.
+     */
+    public const PAYMENT_REFUND_PENDING = 'refund_pending';
+
+    /** Booking batal dan seluruh uang yang pernah masuk sudah dikembalikan. */
+    public const PAYMENT_REFUNDED = 'refunded';
+
     protected $fillable = [
         'user_id',
         'pet_id',
@@ -153,6 +163,76 @@ class Booking extends Model
     public function refunds()
     {
         return $this->hasMany(BookingRefund::class);
+    }
+
+    /**
+     * Total uang yang SUDAH dikembalikan ke pasien.
+     */
+    public function refundedTotal(): float
+    {
+        return (float) $this->refunds()->sum('amount');
+    }
+
+    /**
+     * Dana yang masih wajib dikembalikan (tidak pernah negatif).
+     */
+    public function refundableAmount(): float
+    {
+        return max(0, (float) $this->paid_amount - $this->refundedTotal());
+    }
+
+    /**
+     * Nilai `payment_status` yang benar untuk sebuah booking batal berdasarkan
+     * uang masuk dan refund yang sudah dicatat.
+     *
+     * Satu-satunya tempat aturan ini ditulis. Dipakai oleh pembatalan (admin &
+     * aplikasi), pencatatan refund, dan webhook yang masuk setelah booking
+     * dibatalkan — supaya tidak ada dua definisi "sudah direfund" yang bisa
+     * berbeda hasilnya.
+     */
+    public static function refundPaymentStatusFor(mixed $paidAmount, mixed $refundedAmount): ?string
+    {
+        $paid = (int) round((float) $paidAmount);
+        $refunded = (int) round((float) $refundedAmount);
+
+        if ($paid <= 0) {
+            return null;
+        }
+
+        if ($refunded >= $paid) {
+            return self::PAYMENT_REFUNDED;
+        }
+
+        return self::PAYMENT_REFUND_PENDING;
+    }
+
+    /**
+     * Selaraskan `payment_status` booking yang dibatalkan dengan uang yang
+     * sudah masuk dan refund yang sudah dicatat.
+     *
+     * Sebelumnya pembatalan hanya menulis `status = cancelled`; `payment_status`
+     * tetap `paid`/`dp_paid` sehingga laporan terlihat seperti uang itu pendapatan
+     * yang sah dan kewajiban refund tidak pernah muncul di layar mana pun.
+     *
+     * @return string|null nilai baru, atau null bila booking tidak butuh status refund
+     */
+    public function syncRefundPaymentStatus(): ?string
+    {
+        if ($this->status !== 'cancelled') {
+            return null;
+        }
+
+        $target = self::refundPaymentStatusFor($this->paid_amount, $this->refundedTotal());
+
+        if ($target === null) {
+            return null;
+        }
+
+        if ($this->payment_status !== $target) {
+            $this->forceFill(['payment_status' => $target])->save();
+        }
+
+        return $target;
     }
 
     /** Booking kontrol: rekam medis asal rekomendasi. */

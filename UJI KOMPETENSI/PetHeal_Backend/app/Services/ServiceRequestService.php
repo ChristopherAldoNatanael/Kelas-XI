@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Booking;
+use App\Models\Clinic;
 use App\Models\Doctor;
 use App\Models\Pet;
 use App\Models\Service;
@@ -21,8 +22,10 @@ use RuntimeException;
  */
 class ServiceRequestService
 {
-    public function __construct(private readonly FCMService $fcm)
-    {
+    public function __construct(
+        private readonly FCMService $fcm,
+        private readonly DoctorScheduleService $schedule
+    ) {
     }
 
     /**
@@ -82,26 +85,41 @@ class ServiceRequestService
             throw new RuntimeException('Status permintaan layanan tidak dikenal.');
         }
 
-        if ($request->status !== $status && !in_array($status, ServiceRequest::TRANSITIONS[$request->status] ?? [], true)) {
-            throw new RuntimeException(
-                'Status tidak bisa diubah dari '
-                . ServiceRequest::statusLabel($request->status)
-                . ' ke ' . ServiceRequest::statusLabel($status) . '.'
-            );
-        }
+        // Baris dikunci selama perubahan. Sebelumnya validasi transisi, penulisan
+        // status, dan isi notifikasi memakai objek yang dibaca di luar transaksi,
+        // sehingga dua aksi yang berdekatan (dua admin, atau admin bersamaan dengan
+        // jawaban pemilik) sama-sama lolos validasi dan yang terakhir menimpa yang
+        // pertama — termasuk mengirim push untuk status yang sudah tidak berlaku.
+        [$updated, $statusChanged] = DB::transaction(function () use ($request, $status, $attributes) {
+            $locked = ServiceRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
 
-        // Status yang sama tidak memicu notifikasi ulang — mencegah push
-        // ganda ketika admin membuka form dan submits ulang tanpa perubahan.
-        $statusChanged = $request->status !== $status;
+            if ($locked->status !== $status && !in_array($status, ServiceRequest::TRANSITIONS[$locked->status] ?? [], true)) {
+                throw new RuntimeException(
+                    'Status tidak bisa diubah dari '
+                    . ServiceRequest::statusLabel($locked->status)
+                    . ' ke ' . ServiceRequest::statusLabel($status) . '.'
+                );
+            }
 
-        $request->fill($attributes)->fill(['status' => $status])->save();
+            $changed = $locked->status !== $status;
 
+            $locked->fill($attributes)->fill(['status' => $status])->save();
+
+            // Pemanggil biasanya masih memegang objek aslinya; samakan isinya
+            // supaya tampilan setelah aksi tidak memakai data basi.
+            $request->setRawAttributes($locked->getAttributes(), true);
+
+            return [$locked, $changed];
+        });
+
+        // Status yang sama tidak memicu notifikasi ulang — mencegah push ganda
+        // ketika admin membuka form dan submits ulang tanpa perubahan.
         if ($notifyEvent && ($statusChanged || $forceNotify)) {
-            $request->load(['pet', 'clinic']);
-            $this->fcm->sendServiceRequestEvent($request->user_id, $notifyEvent, $request);
+            $updated->load(['pet', 'clinic']);
+            $this->fcm->sendServiceRequestEvent($updated->user_id, $notifyEvent, $updated);
         }
 
-        return $request;
+        return $updated;
     }
 
     /**
@@ -141,16 +159,29 @@ class ServiceRequestService
             'owner_response_note' => null,
         ];
 
-        $request->fill($attributes)->save();
+        // Kunci baris: penawaran yang dikirim bersamaan dengan persetujuan pemilik
+        // tidak boleh menimpa status `converted`/`accepted` yang baru saja terbentuk.
+        $updated = DB::transaction(function () use ($request, $attributes) {
+            $locked = ServiceRequest::whereKey($request->id)->lockForUpdate()->firstOrFail();
 
-        $request->load(['pet', 'clinic']);
+            if (in_array($locked->status, [ServiceRequest::STATUS_CONVERTED, ServiceRequest::STATUS_REJECTED, ServiceRequest::STATUS_CANCELLED], true)) {
+                throw new RuntimeException('Permintaan ini sudah ditutup dan tidak bisa diberi penawaran.');
+            }
+
+            $locked->fill($attributes)->save();
+            $request->setRawAttributes($locked->getAttributes(), true);
+
+            return $locked;
+        });
+
+        $updated->load(['pet', 'clinic']);
         $this->fcm->sendServiceRequestEvent(
-            $request->user_id,
+            $updated->user_id,
             $isUpdate ? 'offer_updated' : 'offer_created',
-            $request
+            $updated
         );
 
-        return $request;
+        return $updated;
     }
 
     /**
@@ -202,6 +233,29 @@ class ServiceRequestService
 
             if (!$doctor) {
                 throw new RuntimeException('Dokter pada penawaran tidak lagi tersedia di klinik ini.');
+            }
+
+            // Klinik nonaktif tidak boleh menghasilkan booking baru: booking itu
+            // akan masuk daftar kerja klinik yang sedang tutup dan tidak bisa
+            // ditangani siapa pun.
+            $clinicActive = Clinic::whereKey($locked->clinic_id)->value('is_active');
+            if ($clinicActive !== null && !(bool) $clinicActive) {
+                throw new RuntimeException('Klinik pada penawaran sedang tidak aktif. Hubungi klinik untuk informasi lebih lanjut.');
+            }
+
+            // Penawaran membawa jam yang dipilih admin saat mengirim offer. Jadwal
+            // dokter bisa berubah setelah itu (cuti, jam praktik diubah, slot sudah
+            // lewat), jadi slot divalidasi ulang di sini sebelum booking dibuat.
+            // Tanpa langkah ini jam yang sudah tidak ada di jadwal tetap menjadi
+            // booking sah karena hanya bentrok booking lain yang diperiksa.
+            $offerDate = $locked->offer_schedule_date instanceof \DateTimeInterface
+                ? $locked->offer_schedule_date->format('Y-m-d')
+                : substr((string) $locked->offer_schedule_date, 0, 10);
+            $offerTime = substr((string) $locked->offer_schedule_time, 0, 5);
+
+            $slotIssue = $this->schedule->validateSlot($doctor, $offerDate, $offerTime);
+            if ($slotIssue !== null) {
+                throw new RuntimeException('Jadwal pada penawaran tidak tersedia lagi: ' . $slotIssue);
             }
 
             $service = null;

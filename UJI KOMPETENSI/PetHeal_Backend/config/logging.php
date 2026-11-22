@@ -54,7 +54,11 @@ return [
 
         'stack' => [
             'driver' => 'stack',
-            'channels' => explode(',', (string) env('LOG_STACK', 'single')),
+            // Default `daily`, bukan `single`: laravel.log tanpa rotasi tumbuh
+            // terus dan tidak pernah dipangkas, sehingga disk VPS penuh tanpa
+            // peringatan. 14 hari cukup untuk menelusuri laporan pengguna.
+            // Ubah lewat LOG_STACK bila deployment memakai kanal lain.
+            'channels' => explode(',', (string) env('LOG_STACK', 'daily')),
             'ignore_exceptions' => false,
         ],
 

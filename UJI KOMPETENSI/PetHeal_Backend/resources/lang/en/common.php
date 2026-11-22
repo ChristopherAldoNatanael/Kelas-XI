@@ -75,6 +75,8 @@ return [
     'dp_pending' => 'Awaiting DP',
     'failed' => 'Failed',
     'partial' => 'Partial',
+    'refund_pending' => 'Refund pending',
+    'refunded' => 'Refunded',
     'scheduled' => 'Scheduled',
 
     // Empty states

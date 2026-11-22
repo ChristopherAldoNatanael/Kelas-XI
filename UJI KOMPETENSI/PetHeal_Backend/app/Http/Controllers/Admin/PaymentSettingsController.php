@@ -97,6 +97,24 @@ class PaymentSettingsController extends Controller
             ))
             ->count();
 
+        // Notifikasi yang belum ditinjau: order id tidak dikenal, payload yang
+        // tidak bisa dipetakan ke transaksi, atau signature yang gagal sehingga
+        // tidak pernah diproses. Barisnya sudah tersimpan sejak awal
+        // (PaymentService::logNotification), tetapi tanpa daftar ini tidak ada
+        // yang pernah melihatnya sehingga "webhook hilang" tetap tidak bisa
+        // ditindaklanjuti. Yang sudah ditandai ditinjau keluar dari daftar;
+        // jumlah signature invalid tetap terlihat di kartu 7 hari di atas.
+        $notificationIssues = PaymentNotification::query()
+            ->when($clinic, fn ($query) => $query->whereHas(
+                'payment',
+                fn ($payment) => $payment->where('clinic_id', $clinic->id)
+            ))
+            ->where('processed', false)
+            ->where('created_at', '>=', now()->subDays(30))
+            ->latest('id')
+            ->limit(15)
+            ->get();
+
         $auditLogs = AuditLog::with('user')
             ->where('action', 'like', 'payment_account.%')
             ->when($clinic, fn ($query) => $query->where('clinic_id', $clinic->id))
@@ -125,8 +143,62 @@ class PaymentSettingsController extends Controller
             'routingFailures' => $routingFailures,
             'routingLogs' => $routingLogs,
             'notificationFailures' => $notificationFailures,
+            'notificationIssues' => $notificationIssues,
             'auditLogs' => $auditLogs,
         ]);
+    }
+
+    /**
+     * Tandai satu notifikasi webhook bermasalah sebagai sudah ditinjau.
+     *
+     * Ini bukan "ulangi pembayaran": payload tetap utuh sebagai bukti, dan
+     * perubahan status pembayaran tetap hanya lewat jalur resmi (webhook ulang
+     * dari Midtrans atau rekonsiliasi). Tujuannya agar daftar masalah menyusut
+     * hanya karena benar-benar ditangani, bukan karena tertutup data baru.
+     */
+    public function resolveNotification(Request $request, PaymentNotification $notification)
+    {
+        $user = $request->user();
+        $isSuperAdmin = $user->role === 'super_admin';
+        $clinic = $isSuperAdmin ? null : $user->clinic;
+
+        if (!$isSuperAdmin && (!$clinic || (int) $notification->payment?->clinic_id !== (int) $clinic->id)) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'note' => 'nullable|string|max:180',
+        ]);
+
+        $note = trim((string) ($validated['note'] ?? ''));
+
+        $notification->forceFill([
+            'processed' => true,
+            'processing_note' => mb_substr(
+                $note !== '' ? 'Ditinjau: ' . $note : 'Ditinjau manual oleh admin',
+                0,
+                255
+            ),
+        ])->save();
+
+        AuditLog::create([
+            'user_id' => $user->id,
+            'clinic_id' => $clinic?->id,
+            'action' => 'payment_notification.reviewed',
+            'model_type' => PaymentNotification::class,
+            'model_id' => $notification->id,
+            'description' => sprintf(
+                'Notifikasi webhook #%d (order %s, status %s) ditandai sudah ditinjau%s',
+                $notification->id,
+                $notification->provider_order_id ?: '-',
+                $notification->transaction_status ?: '-',
+                $note !== '' ? ': ' . $note : '.'
+            ),
+            'ip_address' => $request->ip(),
+            'user_agent' => substr((string) $request->userAgent(), 0, 500),
+        ]);
+
+        return back()->with('success', __('payments.webhook_reviewed'));
     }
 
     /**

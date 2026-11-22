@@ -89,13 +89,23 @@ class PetsViewModel @Inject constructor(
     }
 
     fun loadPetDetail(id: Int, forceRefresh: Boolean = false) {
-        if (!forceRefresh && lastLoadedDetailPetId == id && _detailState.value.pet?.id == id) {
+        // Data yang sudah ada di memori (detail terakhir atau daftar hewan) dipakai
+        // lebih dulu. Sebelumnya layar menampilkan keadaan kosong selama jaringan
+        // berjalan, dan satu kegagalan mengosongkan hewan yang sudah tampil.
+        val cached = _detailState.value.pet?.takeIf { it.id == id }
+            ?: _uiState.value.pets.firstOrNull { it.id == id }
+
+        if (!forceRefresh && lastLoadedDetailPetId == id && cached != null) {
             return
         }
+
         viewModelScope.launch {
-            val hasSamePetLoaded = _detailState.value.pet?.id == id
             _detailState.value = _detailState.value.copy(
-                isLoading = !hasSamePetLoaded || forceRefresh,
+                pet = cached,
+                // `forceRefresh` berarti "ambil ulang dari server", bukan
+                // "kosongkan layar": selama masih ada data di memori, layar tetap
+                // menampilkannya sementara refresh berjalan di belakang.
+                isLoading = cached == null,
                 error = null,
                 isDeleted = false
             )
@@ -135,8 +145,13 @@ class PetsViewModel @Inject constructor(
                             isLoading = false
                         )
                 }
-                    is Result.Error -> _detailState.value = PetDetailUiState(error = result.message)
-                else -> Unit
+                    is Result.Error -> _detailState.value = _detailState.value.copy(
+                        // Data lama dipertahankan: kegagalan memuat/refresh tidak
+                        // boleh mengubah layar (termasuk form edit) menjadi kosong.
+                        isLoading = false,
+                        error = result.message
+                    )
+                else -> _detailState.value = _detailState.value.copy(isLoading = false)
                 }
             }
         }
@@ -241,9 +256,14 @@ class PetsViewModel @Inject constructor(
         viewModelScope.launch {
             _detailState.value = _detailState.value.copy(isLoading = true)
             when (val result = petRepository.deletePet(id)) {
-                is Result.Success -> _detailState.value = _detailState.value.copy(
-                    isLoading = false, isDeleted = true
-                )
+                is Result.Success -> {
+                    _detailState.value = _detailState.value.copy(
+                        isLoading = false, isDeleted = true
+                    )
+                    // Daftar hewan di tab My Pets ikut disegarkan supaya hewan yang
+                    // baru dihapus tidak tertinggal di layar berikutnya.
+                    loadPets(forceRefresh = true)
+                }
                 is Result.Error -> _detailState.value = _detailState.value.copy(
                     isLoading = false, error = result.message
                 )
@@ -340,7 +360,17 @@ class PetsViewModel @Inject constructor(
             when (val result = petRepository.updatePet(id, request, photoFile)) {
                 is Result.Success -> {
                     _addEditState.value = AddEditPetUiState(isSuccess = true)
-                    loadPets()
+
+                    // Hasil edit harus terlihat di layar detail & daftar saat pengguna
+                    // kembali. Tanpa ini, `loadPetDetail()` melewati pemuatan ulang
+                    // (guard `lastLoadedDetailPetId`) sehingga detail tetap menampilkan
+                    // data LAMA setelah disimpan.
+                    lastLoadedDetailPetId = null
+                    _detailState.value = _detailState.value.copy(pet = result.data, error = null)
+                    _uiState.value = _uiState.value.copy(
+                        pets = _uiState.value.pets.map { if (it.id == id) result.data else it }
+                    )
+                    loadPets(forceRefresh = true)
                 }
                 is Result.Error -> _addEditState.value = AddEditPetUiState(error = result.message)
                 else -> Unit

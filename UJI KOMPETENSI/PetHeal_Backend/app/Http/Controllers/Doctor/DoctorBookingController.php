@@ -142,11 +142,36 @@ class DoctorBookingController extends DoctorPortalController
         $sent = $this->notify($booking, 'cancelled');
         AuditLog::log('doctor.booking.cancel', "Dokter membatalkan booking #{$booking->id} untuk {$booking->pet->name}.", $booking);
 
+        // Dokter juga bisa membatalkan booking yang sudah dibayar. Tanpa jejak
+        // ini, pembatalan dari portal dokter meninggalkan `payment_status` lama
+        // (`paid`/`dp_paid`) sehingga kewajiban refund tidak muncul di halaman
+        // pembayaran — jalur yang berbeda hasilnya dari pembatalan admin.
+        $refundDue = $booking->refundableAmount();
+
+        if ($refundDue > 0) {
+            AuditLog::log(
+                'booking.refund_due',
+                sprintf(
+                    'Dokter membatalkan booking #%d setelah menerima Rp%s; refund belum dicatat.',
+                    $booking->id,
+                    number_format($refundDue, 0, ',', '.')
+                ),
+                $booking
+            );
+        }
+
+        $message = $sent
+            ? 'Booking dibatalkan dan pemilik hewan sudah diberi tahu.'
+            : 'Booking dibatalkan, tetapi notifikasi push gagal dikirim.';
+
+        if ($refundDue > 0) {
+            $message .= ' Dana masuk Rp' . number_format($refundDue, 0, ',', '.')
+                . ' masih perlu direfund melalui halaman pembayaran.';
+        }
+
         return redirect()->back()->with(
-            $sent ? 'success' : 'warning',
-            $sent
-                ? 'Booking dibatalkan dan pemilik hewan sudah diberi tahu.'
-                : 'Booking dibatalkan, tetapi notifikasi push gagal dikirim.'
+            $sent ? ($refundDue > 0 ? 'warning' : 'success') : 'warning',
+            $message
         );
     }
 
@@ -167,6 +192,13 @@ class DoctorBookingController extends DoctorPortalController
                 ->findOrFail($id);
 
             $booking->update($attributes);
+
+            // Semua jalur pembatalan (admin, pasien, dokter) wajib meninggalkan
+            // status refund yang sama. Aturannya hanya ada di model supaya tidak
+            // ada jalur yang lupa menandai kewajiban refund.
+            if (($attributes['status'] ?? null) === 'cancelled') {
+                $booking->syncRefundPaymentStatus();
+            }
 
             return $booking;
         });

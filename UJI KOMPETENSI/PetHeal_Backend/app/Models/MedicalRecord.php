@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class MedicalRecord extends Model
 {
@@ -73,6 +74,42 @@ class MedicalRecord extends Model
             $this->extra_payment_status = 'paid';
         } elseif ($this->extra_payment_status !== 'pending') {
             $this->extra_payment_status = 'unpaid';
+        }
+    }
+
+    /**
+     * Hitung ulang biaya tambahan untuk satu booking setelah `paid_amount`
+     * berubah karena pembayaran.
+     *
+     * `extra_payment_amount` = total biaya medis - uang yang sudah masuk ke
+     * booking. Nilainya dulu hanya dihitung saat rekam medis dibuat/diedit,
+     * sehingga pembayaran yang datang BELAKANGAN (pelunasan DP, konfirmasi kas)
+     * tidak pernah menurunkannya: pasien yang sudah membayar tetap ditagih sisa
+     * sebesar pembayaran yang sudah masuk. Semua jalur settlement memanggil
+     * method ini agar angka tagihan selalu mengikuti uang yang benar-benar
+     * diterima.
+     */
+    public static function syncExtraPaymentForBooking(Booking $booking): void
+    {
+        $records = static::where('booking_id', $booking->id)->get();
+
+        foreach ($records as $record) {
+            $paidExtraBefore = (float) ($record->extra_payment_paid_amount ?? 0);
+
+            $record->recalculatePaymentState((float) $booking->paid_amount);
+            $record->save();
+
+            // Uang tambahan yang sudah masuk melebihi biaya (mis. tagihan lama
+            // dibayar sebelum data diperbaiki) bukan pendapatan: catat supaya
+            // muncul sebagai pekerjaan refund, bukan hilang diam-diam.
+            if ($paidExtraBefore > (float) $record->extra_payment_amount + 0.005) {
+                Log::warning('Pembayaran tambahan rekam medis melebihi biaya; perlu ditinjau untuk refund', [
+                    'medical_record_id' => $record->id,
+                    'booking_id' => $booking->id,
+                    'extra_paid_before' => $paidExtraBefore,
+                    'extra_amount_now' => (float) $record->extra_payment_amount,
+                ]);
+            }
         }
     }
 

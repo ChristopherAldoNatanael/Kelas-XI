@@ -46,6 +46,21 @@ class PaymentController extends Controller
             ];
         }
 
+        // Aplikasi Android bisa mengirim id dua segmen (`BOOKING-42`) ketika nominal
+        // booking belum terbaca, padahal id transaksi resmi selalu tiga segmen.
+        // Sebelumnya format itu ditolak 422 sebelum sempat diproses, sehingga
+        // pengguna tidak bisa membayar sama sekali. Sekarang dianggap permintaan
+        // "booking tanpa id transaksi": server membuat id kanonik sendiri dan
+        // mengembalikannya ke klien.
+        if (preg_match('/^BOOKING-(\d+)$/', $orderId, $matches)) {
+            return [
+                'prefix' => 'BOOKING',
+                'target_id' => (int) $matches[1],
+                'timestamp' => '0',
+                'is_remaining_payment' => false,
+            ];
+        }
+
         if (preg_match('/^MEDREC-(\d+)-(\d+)$/', $orderId, $matches)) {
             return [
                 'prefix' => 'MEDREC',
@@ -117,15 +132,13 @@ class PaymentController extends Controller
                 ],
             ]);
         } catch (\Throwable $e) {
-            Log::error('Exception in payment preflight', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
+            $reference = $this->logServerError($e, 'payment preflight');
 
             return response()->json([
                 'success' => false,
-                'message' => 'Unable to verify payment setup: ' . $e->getMessage(),
+                'message' => 'Gagal memeriksa kesiapan pembayaran. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
                 'data' => [
                     'ready' => false,
                     'mode' => config('services.midtrans.is_production') ? 'production' : 'sandbox',
@@ -157,7 +170,7 @@ class PaymentController extends Controller
             // Validate request
             $validated = $request->validate([
                 'transaction_details' => 'required|array',
-                'transaction_details.order_id' => 'required|string|regex:/^BOOKING-\d+-\d+$/',
+                'transaction_details.order_id' => 'required|string|regex:/^BOOKING-\d+(-\d+)?$/',
                 'transaction_details.gross_amount' => 'required|numeric|min:1',
                 'customer_details' => 'nullable|array',
                 'item_details' => 'nullable|array',
@@ -263,25 +276,22 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Throwable in createSnapToken', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-            ]);
+            $reference = $this->logServerError($e, 'createSnapToken');
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal membuat transaksi pembayaran. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         } catch (\Exception $e) {
-            Log::error('Exception in createSnapToken', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            $reference = $this->logServerError($e, 'createSnapToken (exception)');
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal membuat transaksi pembayaran. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         }
     }
@@ -352,15 +362,13 @@ class PaymentController extends Controller
                 'errors' => ['upstream_status' => $result['status']],
             ], $result['status']);
         } catch (\Exception $e) {
-            Log::error('Exception in getTransactionStatus', [
-                'order_id' => $orderId,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            $reference = $this->logServerError($e, 'getTransactionStatus order ' . $orderId);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal mengambil status transaksi. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         }
     }
@@ -544,14 +552,13 @@ class PaymentController extends Controller
                 'errors' => $e->errors(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Exception in syncPaymentStatus', [
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            $reference = $this->logServerError($e, 'syncPaymentStatus');
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal menyinkronkan status pembayaran. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         }
     }
@@ -680,15 +687,13 @@ class PaymentController extends Controller
                 'message' => $e->getMessage(),
             ], 422);
         } catch (\Throwable $e) {
-            Log::error('Exception in createRemainingPaymentSnapToken', [
-                'booking_id' => $bookingId,
-                'message' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
+            $reference = $this->logServerError($e, 'createRemainingPaymentSnapToken booking ' . $bookingId);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal membuat transaksi pelunasan. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         }
     }
@@ -786,15 +791,37 @@ class PaymentController extends Controller
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Exception in getBookingPaymentStatus', [
-                'booking_id' => $bookingId,
-                'message' => $e->getMessage(),
-            ]);
+            $reference = $this->logServerError($e, 'getBookingPaymentStatus booking ' . $bookingId);
 
             return response()->json([
                 'success' => false,
-                'message' => 'Internal server error: ' . $e->getMessage(),
+                'message' => 'Gagal mengambil status pembayaran booking. Kode kesalahan: ' . $reference,
+                'code' => 'server_error',
+                'reference' => $reference,
             ], 500);
         }
+    }
+
+    /**
+     * Catat kegagalan server ke log dan kembalikan kode korelasi pendek.
+     *
+     * Pengguna hanya menerima kode tersebut (bukan pesan exception), sehingga
+     * detail internal — nama tabel, SQLSTATE, host database, path berkas — tidak
+     * pernah bocor lewat JSON walaupun APP_DEBUG menyala. Kode yang sama ada di
+     * log, jadi laporan bug tetap bisa ditelusuri.
+     */
+    private function logServerError(\Throwable $e, string $context): string
+    {
+        $reference = 'ERR-' . strtoupper(substr(bin2hex(random_bytes(6)), 0, 8));
+
+        Log::error("Payment API failure [{$reference}] {$context}", [
+            'exception' => $e::class,
+            'message' => $e->getMessage(),
+            'file' => $e->getFile(),
+            'line' => $e->getLine(),
+            'user_id' => Auth::id(),
+        ]);
+
+        return $reference;
     }
 }

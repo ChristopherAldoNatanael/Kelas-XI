@@ -391,3 +391,147 @@ disentuh.
 **Yang perlu diperiksa:** akun dengan > 20 booking — tab Booking dan Rekam Medis
 harus menampilkan seluruh riwayat, dan log perangkat tidak berisi
 `failed on page`.
+
+---
+
+## 15. Form Edit Hewan tampil kosong (prefill hilang)
+
+**Gejala.** Dari detail hewan, tombol pensil ("Ubah hewan") membuka layar *Edit
+Hewan* dengan semua isian kosong — terlihat seperti tambah hewan baru. Menyimpan
+form kosong akan menimpa data lama.
+
+**Sebab.** `EditPetScreen` hanya membaca satu sumber: `detailState.pet`
+(`ui/screens/pet/PetsScreen.kt`). Tiga hal membuat sumber itu kosong saat form
+dirender:
+
+1. `LaunchedEffect` memanggil `loadPetDetail(petId)` **tanpa** `forceRefresh`,
+   sedangkan `loadPetDetail()` punya guard: bila state sudah memuat hewan dengan
+   id yang sama, pemuatan dilewati. Layar edit lalu merender form dari nilai
+   default (`""`) dan tidak pernah mendapat data.
+2. `PetFormScreen` langsung dirender tanpa menunggu data; tidak ada status
+   memuat, jadi tidak ada bedanya antara "belum selesai memuat" dan "kosong".
+3. Cabang gagal di `loadPetDetail()` **mengganti seluruh state** dengan
+   `PetDetailUiState(error = …)`. Satu kegagalan jaringan (atau 5xx sesaat)
+   mengosongkan hewan yang sebenarnya sudah ada di memori, dan layar edit tidak
+   pernah menampilkan `detailState.error` sehingga kegagalan itu tidak terlihat.
+
+**Perbaikan.**
+
+- `ui/screens/pet/EditPetPrefill.kt` (baru) — fungsi murni
+  `resolveEditablePet(petId, detail, listed)` dan `shouldWaitForPet(...)`:
+  sumber data form = detail (bila id cocok) → daftar hewan di memori
+  (`uiState.pets`, sudah dimuat `PetsViewModel.init { loadPets() }`). Detail milik
+  hewan lain **tidak** dipakai, supaya form tidak pernah terisi data hewan yang
+  salah.
+- `ui/screens/pet/PetsScreen.kt` — `EditPetScreen`:
+  - `loadPetDetail(petId, forceRefresh = true)` (layar edit selalu memuat ulang),
+  - form hanya dirender bila data hewan sudah ada, dibungkus `key(pet.id)` agar
+    seluruh state form dibuat sekali dari data itu,
+  - selagi menunggu: indikator "Memuat data hewan…"; bila gagal dan tidak ada
+    cache: pesan + tombol **Coba Lagi** (memanggil `loadPetDetail(..., true)`),
+  - `PetDetailScreen` juga memakai `forceRefresh = true`, supaya kembali dari
+    layar edit menampilkan data terbaru (dulu guard yang sama membuat detail
+    tetap menampilkan data lama).
+- `ui/screens/pet/PetsViewModel.kt` —
+  - `loadPetDetail()` memakai cache (`detailState.pet` atau `uiState.pets`) untuk
+    mengisi `pet` lebih dulu; `isLoading` hanya `true` bila cache kosong, jadi
+    refresh berjalan di belakang tanpa kedip,
+  - cabang `Result.Error` kini `copy(isLoading = false, error = …)` dan **tidak**
+    menghapus data yang sudah ada,
+  - `editPet()` sukses: `lastLoadedDetailPetId = null`, `detailState.pet` dan
+    entri `uiState.pets` diperbarui dari respons server, lalu `loadPets(forceRefresh = true)`,
+  - `deletePet()` sukses: `loadPets(forceRefresh = true)` agar hewan yang dihapus
+    tidak tertinggal di tab My Pets.
+
+**Berkas tersentuh.**
+
+- `app/src/main/java/com/christopheraldoo/petheal/ui/screens/pet/PetsScreen.kt`
+- `app/src/main/java/com/christopheraldoo/petheal/ui/screens/pet/PetsViewModel.kt`
+- `app/src/main/java/com/christopheraldoo/petheal/ui/screens/pet/EditPetPrefill.kt` (baru)
+- `app/src/test/java/com/christopheraldoo/petheal/EditPetPrefillTest.kt` (baru)
+
+**Verifikasi yang dijalankan.**
+
+- `.\gradlew.bat assembleDebug --offline` → BUILD SUCCESSFUL; APK debug berisi
+  kode baru (string "Data hewan gagal dimuat" ditemukan di `classes13.dex`).
+- `.\gradlew.bat testDebugUnitTest --offline` → **87 test, 0 gagal** (7 di
+  antaranya `EditPetPrefillTest`: detail-menang, cache-daftar, detail hewan lain
+  ditolak, hewan tak dikenal, status memuat vs siap).
+- **Belum dijalankan:** uji di perangkat/emulator (tidak ada `adb` di mesin ini).
+  Yang perlu dicek: buka detail hewan → pensil → semua isian (nama, jenis,
+  ras, gender, tanggal lahir, berat, foto lama) terisi; ubah nama → Simpan →
+  kembali ke detail menampilkan nama baru; mode pesawat saat membuka edit →
+  form tetap terisi dari cache, bukan kosong.
+
+## 16. Filter Status "Buka sekarang" gagal + scroll terasa patah-patah
+
+**Gejala 1.** Di layar *Cari Klinik*, mengubah filter **Status** dari "Semua" ke
+"Buka sekarang" membuat layar berakhir di keadaan error (oleh pengguna disebut
+"crash") — daftar klinik hilang dan hanya tersisa pesan gagal.
+
+**Sebab 1 (akar masalah, ada di backend).** `ApiService.discoverClinics()`
+mengirim `open_now` sebagai `Boolean`, sehingga Retrofit menulis
+`...&open_now=true`. Backend memvalidasi dengan
+`'open_now' => 'nullable|boolean'`, dan rule `boolean` Laravel hanya menerima
+`1`/`0`/`true`/`false` **asli** — teks `"true"` ditolak. Hasilnya setiap
+perubahan filter Status dijawab **HTTP 422**, dan layar menampilkan galat.
+Terbukti dengan `curl`: `?open_now=true` → 422, `?open_now=1` → 200.
+
+**Perbaikan 1.**
+
+- Backend `Api/PublicClinicController` (index + compareServices): parameter
+  `open_now`/`sync_rating` dinormalisasi lebih dulu
+  (`normalizeBooleanQuery()`), sehingga `true`/`false`/`1`/`0` diterima dan nilai
+  ngawur tetap 422.
+- Aplikasi kini mengirim `1`/`0` (`util/QueryFlags.kt` → `Boolean?.toQueryFlag()`),
+  jadi filter tetap benar walau backend belum diperbarui.
+- Layar *Cari Klinik* dan *Bandingkan Harga* **tidak lagi mengosongkan daftar**
+  ketika satu permintaan filter gagal: hasil lama tetap tampil dan pesan muncul
+  sebagai banner `ui/components/InlineErrorBanner.kt` dengan tombol "Coba lagi".
+- Daftar klinik di-`distinctBy { key }` sebelum dipakai sebagai key LazyColumn —
+  key ganda adalah salah satu penyebab crash Compose yang paling sering.
+
+**Gejala 2.** Scroll di hampir semua layar terasa tersendat/drop frame.
+
+**Sebab & perbaikan 2.**
+
+- Katalog Pet Shop memakai `itemsIndexed(uiState.products.chunked(2))` di dalam
+  builder `LazyColumn`. `chunked` membuat list + sub-list baru **setiap
+  recomposition**, sehingga semua baris dianggap item baru dan tidak bisa
+  dipakai ulang saat scroll. Sekarang dipecah sekali per perubahan daftar
+  (`remember(uiState.products)`) dan diberi `key` + `contentType`.
+- Lazy list utama (`Cari Klinik`, `Bandingkan Harga`) sekarang memakai
+  `contentType`, sehingga Compose bisa memakai ulang slot item antar tipe
+  (header/banner/kartu) — standar performa list.
+- Ditambahkan `androidx.profileinstaller` (1.3.1) sehingga profil baseline
+  bawaan Compose/lifecycle dipasang saat pertama dijalankan; build rilis kini
+  membawa `assets/dexopt/baseline.prof`.
+- Catatan penting untuk jank yang tersisa: APK **debug** (yang biasa dipasang
+  dari Android Studio) memang jauh lebih lambat — tanpa R8, tanpa profil, dan
+  penuh verifikasi ART. Untuk merasakan performa sebenarnya pakai
+  `app/build/outputs/apk/release/app-release.apk` (R8 aktif, 6,9 MB vs 30,8 MB
+  debug).
+
+**Berkas tersentuh.**
+
+- `data/remote/ApiService.kt` (`open_now` dikirim sebagai `Int`)
+- `data/repository/DiscoveryRepository.kt` (konversi flag, `distinctBy`)
+- `util/QueryFlags.kt` (baru), `ui/components/InlineErrorBanner.kt` (baru)
+- `ui/screens/discovery/ClinicDiscoveryScreen.kt`, `PriceCompareScreen.kt`
+- `ui/screens/petshop/PetShopScreen.kt` (grid produk)
+- `app/build.gradle.kts` (profileinstaller)
+- `app/src/test/java/com/christopheraldoo/petheal/QueryFlagTest.kt` (baru)
+- Backend: `app/Http/Controllers/Api/PublicClinicController.php`,
+  `tests/Feature/MultiClinicDiscoveryTest.php` (test `open_now` baru)
+
+**Verifikasi yang dijalankan.**
+
+- Backend: `?open_now=true|false|1|0` → 200, `?open_now=kemarin` → 422; test
+  `test_open_now_filter_accepts_true_false_text_from_http_clients` lulus.
+- Android: `assembleDebug` + `assembleRelease` BUILD SUCCESSFUL; APK rilis berisi
+  `assets/dexopt/baseline.prof`; `testDebugUnitTest` → **90 test, 0 gagal**
+  (termasuk 3 test `QueryFlagTest`).
+- **Belum dijalankan:** uji di perangkat (tidak ada `adb` di mesin ini) — yang
+  perlu dicek: buka *Cari Klinik* → filter → Status → "Buka sekarang" (daftar
+  menyusut, tidak ada layar error), lalu scroll cepat di Beranda, Cari Klinik,
+  Booking, dan Pet Shop memakai APK rilis.

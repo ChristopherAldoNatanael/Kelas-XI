@@ -100,6 +100,12 @@ fun PetShopScreen(
     val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
     val context = LocalContext.current
 
+    // Grid produk dua kolom: dipecah sekali per perubahan daftar produk, bukan di
+    // dalam item LazyColumn. `chunked` yang dijalankan ulang setiap recomposition
+    // membuat baris selalu dianggap item baru sehingga tidak bisa dipakai ulang
+    // saat scroll (gejala: scroll katalog terasa patah-patah).
+    val productRows = remember(uiState.products) { uiState.products.chunked(2) }
+
     // Filter "Terdekat" memakai mekanisme izin lokasi yang sama dengan layar
     // lain. Menolak izin tidak memblokir katalog: semua klinik tetap tampil.
     val locationPermission = rememberLocationPermission()
@@ -237,7 +243,13 @@ fun PetShopScreen(
                             }
                         }
                     } else {
-                        itemsIndexed(uiState.products.chunked(2)) { _, rowProducts ->
+                        itemsIndexed(
+                            items = productRows,
+                            key = { index, row ->
+                                row.firstOrNull()?.id?.let { "product-$it" } ?: "product-row-$index"
+                            },
+                            contentType = { _, _ -> "product-row" }
+                        ) { _, rowProducts ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()

@@ -738,6 +738,73 @@ fitur baru dan tanpa perubahan skema database.
 
 - **Perbaikan regresi (notifikasi tidak muncul saat antrian dipanggil)**: `showNotification` dan klaim `queue_event_id` dipindah kembali ke jalur sinkron `onMessageReceived`; hanya penulisan riwayat dan TTS yang berjalan di `service/AppCoroutineScope.kt` (scope aplikasi). Sebelumnya keduanya berada di `serviceScope`, yang dibatalkan oleh `FirebaseMessagingService.onDestroy` tepat setelah callback selesai. Saklar suara kini dibaca tanpa suspend lewat `PreferencesManager.isQueueVoiceEnabledNow()` (cermin SharedPreferences `petheal_queue_voice`), sehingga service tidak perlu menunggu DataStore. Bila TTS gagal/locale Indonesia tidak ada, notifikasi diposting ulang di channel bersuara (`petheal_queue`) sebagai fallback. `assembleDebug` + 80 unit test **PASS**.
 
+## 2026-11-22 - Remediasi audit backend: siklus refund booking, notifikasi webhook, rotasi log
+
+- **Latar**: `docs/DEEP_AUDIT_REMEDIATION.md` menandai 4 item masih terbuka (PB-H-01 sebagian, PB-H-04, PB-M-03, PB-M-01). Batch ini menutup PB-H-01 dan PB-M-03 tanpa perubahan skema; PB-H-04 dan PB-M-01 tetap ditunda beserta alasannya (lihat doc).
+- **Keputusan user**: batch ini **tanpa migrasi**, sehingga unique index slot booking tidak dibuat dan duplikasi slot masih dicegah di level aplikasi.
+- **PB-H-01 selesai**: `Booking::syncRefundPaymentStatus()` (satu-satunya implementasi aturan `paid - refund tercatat -> refund_pending | refunded`) dipanggil dari pembatalan admin (`Admin/BookingController::cancel`), pembatalan pasien (`Api/BookingController::cancel`), pembatalan dokter (`Doctor/DoctorBookingController::cancel` + `transition`), pencatatan refund (`RefundService::record`), dan webhook setelah pembatalan (`PaymentStatusService::applyTransactionStatus`). `RefundService::refundedTotal/refundableAmount` kini meneruskan ke model (tidak ada dua hitungan refund).
+- **Uang setelah batal**: `Admin/PaymentController::confirm` menolak booking `cancelled` (pesan `admin.payment_confirm_cancelled`); webhook settlement untuk booking batal tetap mencatat `paid_amount` + `payment_events`, memaksa `remaining_amount = 0`, menulis `refund_pending`, dan mencatat `Log::warning` (sebelumnya menulis `paid`).
+- **Laporan**: `Admin/PaymentController::paymentStats` mengembalikan `refund_due_count` + `refund_due_amount`; halaman `/admin/payments` mendapat kartu "Refund belum dicatat" (hanya muncul bila ada kewajiban, menautkan ke `?status=refund_pending`) dan opsi filter `refund_pending`/`refunded`. Label/tone ditambahkan di `App\Support\AdminStatus` + `resources/lang/{id,en}/common.php`.
+- **PB-M-03 selesai tanpa tabel baru**: payload webhook memang sudah tersimpan di `payment_notifications`. Yang ditambah adalah permukaan tindak lanjut: `$notificationIssues` (processed=false, 30 hari, dibatasi klinik) + panel "Notifikasi webhook bermasalah" di `admin/payment-settings/index.blade.php` dan route `POST admin/payment-settings/notifications/{id}/review` (`PaymentSettingsController::resolveNotification`, hanya menulis `processed` + `AuditLog payment_notification.reviewed`, tidak menyentuh status pembayaran; admin klinik lain 404).
+- **Log**: `config/logging.php` default `LOG_STACK=daily` (14 hari) agar `laravel.log` tidak tumbuh tanpa batas. `.env` tidak diubah.
+- **Test baru**: `tests/Feature/BookingRefundLifecycleTest.php` (11 test) dan `tests/Feature/PaymentNotificationReviewTest.php` (2 test).
+- **Verifikasi**: `php artisan test` **534 passed / 3185 assertions** (0 gagal); `php -l` bersih; `route:list --path=admin/payment-settings` 8 route; smoke login admin demo -> `/admin/payments` 200, `/admin/payment-settings` 200 (panel tampil), `/admin/bookings` 200. Uji browser visual **NOT RUN**.
+- **Sisa**: PB-H-04 (unique slot, butuh migrasi) dan PB-M-01 (unified ledger, harus bersama laporan keuangan). Rencana langkahnya ada di `docs/DEEP_AUDIT_REMEDIATION.md` bagian 4.
+
+## 2026-11-22 - Super admin dapat menghapus akun admin klinik (tanpa menghapus klinik)
+
+- **Latar**: akun `clinic_admin` lahir dari approval join request (`AdminAuthController::approveJoinRequest`), tetapi salah approve tidak bisa dibatalkan. `Admin/UserController::destroy` menolak semua peran non-`user` (`admin.cannot_delete_admin`) dan tombol hapus di `/admin/users` hanya dirender untuk `role === 'user'`. Halaman `/admin/join-requests` hanya punya approve/reject untuk status `pending`.
+- **Keputusan user**: hapus **akun admin saja**; klinik beserta datanya tidak disentuh (hapus klinik total sudah tersedia terpisah di `/admin/clinics`).
+- **Perilaku baru** (`Admin/UserController::destroy`):
+  - `clinic_admin`/`admin` + pelaku `super_admin` -> `destroyClinicAdmin()`. Akun dihapus, klinik utuh, audit `user.delete_admin` ditulis sebelum delete dengan `clinic_id` eksplisit (super admin tidak punya konteks klinik) dan identitas akun di deskripsi.
+  - Sesi (`sessions.user_id`) dan token (`personal_access_tokens`, `device_tokens`) akun itu dicabut, jadi tidak bisa lanjut login.
+  - `clinic_admin` (bukan super admin) -> tetap ditolak `admin.cannot_delete_admin`.
+  - `super_admin` -> ditolak `admin.cannot_delete_super_admin`; akun tanpa `clinic_id` -> `admin.cannot_delete_clinicless_admin`; akun yang juga punya riwayat booking -> `admin.cannot_delete_user_with_history` (cascade `bookings.user_id` akan menghapus riwayat klinis).
+- **UI**: tombol hapus di `resources/views/admin/users/index.blade.php` kini juga muncul untuk baris admin bila pelaku `super_admin`, dengan konfirmasi khusus `admin.confirm_delete_admin` (satu klik, tanpa ketik ulang). Akses: `/admin/users?role=admin`.
+- **Lang**: `admin.clinic_admin_deleted`, `admin.confirm_delete_admin`, `admin.delete_admin_account`, `admin.cannot_delete_super_admin`, `admin.cannot_delete_clinicless_admin` (id+en, paritas diverifikasi); teks `admin.cannot_delete_admin` diperjelas.
+- **Test baru**: `tests/Feature/ClinicAdminDeletionTest.php` (5 test: hapus berhasil + klinik utuh + token/sesi cabut + audit, admin klinik tetap ditolak, super admin tidak bisa dihapus, akun dengan riwayat booking ditolak, tombol hanya untuk super admin).
+- **Verifikasi**: `php artisan test` **539 passed / 3211 assertions** (0 gagal). Smoke nyata: buat `clinic_admin` sementara -> hapus dari `/admin/users?role=admin` (POST+`_method=DELETE`) -> 302 + pesan sukses, user hilang dari DB, klinik tetap ada, `audit_logs` berisi `user.delete_admin` dengan `clinic_id` benar. Uji browser visual **NOT RUN**.
+- **Catatan**: tidak ada perubahan skema; tidak ada perubahan pada alur hapus pasien dan hapus klinik.
+
+## 2026-11-22 - Data contoh layanan & dokter unik per klinik
+
+- **Permintaan user**: setiap klinik di database diberi layanan dan dokter contoh yang acak, berbeda antar klinik (tidak ada nama layanan/dokter yang sama), semuanya dalam konteks klinik hewan.
+- **Perintah baru**: `php artisan petheal:demo-clinic-catalog` (`app/Console/Commands/SeedDemoClinicCatalog.php`).
+  - `--min-services=8` / `--min-doctors=4` (default): hanya menambah sampai batas minimum, **tidak menghapus/mengubah data yang ada**.
+  - `--clinic=id|slug` untuk satu klinik; `--dry-run` untuk melihat rencana tanpa menulis.
+  - Keunikan nama dicek terhadap **seluruh isi database** (bukan per klinik) dan diperbarui selama proses, jadi dua klinik tidak mungkin mendapat nama yang sama.
+  - Konteks hewan dijaga: setiap pola nama punya daftar hewan yang masuk akal (mis. `Vaksin FVRCP` hanya kucing, `Vaksin Parvovirus`/`DHPP` hanya anjing, grooming hanya hewan berbulu), kategori layanan diambil dari `service_categories`, harga/durasi per kategori, dokter selalu `Dr. …` dengan spesialisasi veteriner, jadwal 2–4 hari + jam praktik, spesialisasi dalam satu klinik diusahakan tidak kembar.
+- **Dijalankan pada DB dev**: 25 layanan + 11 dokter ditambahkan (klinik 1 sudah penuh sehingga tidak disentuh). Hasil akhir: PetHeal Pusat 10/5, Happy Paws 8/4, MeowCare 8/4, Klinik Hewan 8/4, KucingGarong 8/4 (layanan/dokter).
+- **Verifikasi**: tidak ada nama layanan duplikat; nama dokter duplikat hanya pasangan LAMA `Christopher Aldo Natanael` (clinic 1 id 1961 & clinic 2577 id 1962, keduanya terhubung akun user nyata) — tidak diubah karena milik akun. API: `GET /api/public/clinics/{slug}/services` dan `GET /api/doctors?clinic_slug=…` mengembalikan 8–10 layanan & 4–5 dokter untuk kelima klinik. `GET /admin/doctors` dan `/admin/services` 200. Test baru `tests/Feature/DemoClinicCatalogCommandTest.php` (3 test: isi+keunikan+konteks, idempoten, dry-run) lulus 117 assertion.
+- **Mengulang/menambah**: `php artisan petheal:demo-clinic-catalog --min-services=12 --min-doctors=6` (aman diulang; yang sudah memenuhi batas dilewati).
+
+## 2026-11-22 - Koordinat contoh untuk klinik yang belum punya lokasi
+
+- **Permintaan user**: klinik yang belum punya koordinat diberi lokasi dummy.
+- **Kondisi awal**: 3 dari 5 klinik `latitude`/`longitude` NULL (Happy Paws, MeowCare, Klinik Hewan) sehingga tidak pernah muncul di peta maupun pencarian "klinik terdekat" (Haversine `ClinicDiscoveryService`).
+- **Perintah baru**: `php artisan petheal:demo-clinic-location` (`app/Console/Commands/SeedDemoClinicLocation.php`).
+  - Kota ditebak dari `clinics.address` (20 pusat kota Indonesia: Jakarta, Bandung, Surabaya, Yogyakarta, Semarang, Malang, Solo, Medan, Makassar, Denpasar, Bekasi, Depok, Tangerang, Bogor, Palembang, Balikpapan, Samarinda, Banjarmasin, Manado, Padang).
+  - Titik digeser acak ±0,012° (±1,3 km) supaya tidak menumpuk di satu titik.
+  - Klinik yang sudah punya koordinat **tidak disentuh** (kecuali `--force`); alamat yang kotanya tidak dikenali **dilewati** dan dilaporkan, bukan ditaruh sembarangan.
+  - Opsi: `--clinic=id|slug`, `--force`, `--dry-run`.
+- **Dijalankan**: Happy Paws → Bandung (-6.923332, 107.627020); MeowCare → Surabaya (-7.266932, 112.758376); Klinik Hewan → Surabaya (-7.248176, 112.756720). Klinik PetHeal Pusat & KucingGarong tidak diubah (sudah punya koordinat). Sekarang **5/5 klinik** punya koordinat.
+- **Verifikasi**: `GET /api/public/clinics` mengembalikan lat/lng kelima klinik. `GET /api/pet-shop/clinics/nearby?latitude=-7.2575&longitude=112.7521` → Klinik Hewan 1,16 km, MeowCare 1,26 km, KucingGarong 21,9 km; dari pusat Bandung → Happy Paws 1,09 km. Test baru `tests/Feature/DemoClinicLocationCommandTest.php` (5 test: isi sesuai kota, yang sudah ada tidak ditimpa, `--force`, kota tak dikenal dilewati, `--dry-run`) lulus 21 assertion.
+- **Catatan**: kolom `city`/`district`/`postal_code` masih kosong (isi kota hanya ada di `address`). Bisa diisi terpisah bila filter kota di aplikasi perlu data terstruktur.
+
+## 2026-11-22 - Perbaikan validasi `open_now` (filter "Buka sekarang" di aplikasi)
+
+- **Bug**: `GET /api/public/clinics?open_now=true` (dan `public/services/compare`)
+  dijawab **422** karena rule `nullable|boolean` Laravel hanya menerima
+  `1`/`0`/`true`/`false` asli, sedangkan klien HTTP mengirim string `"true"`.
+  Akibatnya filter Status "Buka sekarang" di aplikasi Android selalu gagal.
+- **Perbaikan**: `Api\PublicClinicController::normalizeBooleanQuery()` menormalkan
+  `open_now` (dan `sync_rating`) dari query string sebelum validasi. `true/false/1/0`
+  diterima; nilai lain tetap 422 supaya bug klien tetap kelihatan.
+- **Verifikasi**: `curl ?open_now=true` → 200 (2 klinik buka), `?open_now=kemarin` → 422;
+  test baru `test_open_now_filter_accepts_true_false_text_from_http_clients` di
+  `tests/Feature/MultiClinicDiscoveryTest.php` lulus.
+- Aplikasi juga diperbaiki agar mengirim `1`/`0` (lihat `PetHeal_Android/docs/FIXES_REPORT.md` §16).
+
 ## Cara Update File Ini
 - Setiap selesai fase di PLAN.md: tambah seksi `## YYYY-MM-DD â€” Fase N ...`, isi: file diubah, keputusan, hasil tes (curl/http code), masalah tersisa.
 - Contoh: `- Ubah Admin/BookingController.php:12 tambah where clinic_id. Tes: admin A /admin/bookings hanya 5 data A. Sisa: export PDF belum filter.`

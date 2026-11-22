@@ -75,6 +75,8 @@ return [
     'dp_pending' => 'Menunggu DP',
     'failed' => 'Gagal',
     'partial' => 'Sebagian',
+    'refund_pending' => 'Refund belum dicatat',
+    'refunded' => 'Sudah direfund',
     'scheduled' => 'Terjadwal',
 
     // Empty states

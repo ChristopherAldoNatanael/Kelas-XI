@@ -61,17 +61,15 @@ import com.christopheraldoo.petheal.ui.components.ClinicDiscoveryCard
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.EmptyState
 import com.christopheraldoo.petheal.ui.components.ErrorState
+import com.christopheraldoo.petheal.ui.components.InlineErrorBanner
 import com.christopheraldoo.petheal.ui.components.PetHealTopAppBar
 import com.christopheraldoo.petheal.ui.components.SkeletonCard
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
 import com.christopheraldoo.petheal.ui.theme.Primary
-import com.christopheraldoo.petheal.ui.theme.StatusCancelled
 import com.christopheraldoo.petheal.ui.theme.SurfaceVariant
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.theme.TextTertiary
-import com.christopheraldoo.petheal.ui.theme.WarningDeep
-import com.christopheraldoo.petheal.ui.theme.WarningSoft
 
 /**
  * Pencarian & penjelajahan klinik (multi-clinic discovery).
@@ -160,9 +158,11 @@ fun ClinicDiscoveryScreen(
             }
 
             when {
-                state.isLoading -> items(4) { SkeletonCard() }
+                state.isLoading && state.clinics.isEmpty() -> items(4, contentType = { "skeleton" }) { SkeletonCard() }
 
-                state.error != null -> item {
+                // Filter gagal TIDAK boleh mengosongkan layar: daftar lama tetap
+                // tampil dan pesan muncul sebagai banner di atasnya.
+                state.clinics.isEmpty() && state.error != null -> item {
                     ErrorState(
                         title = "Daftar klinik gagal dimuat",
                         message = state.error ?: "",
@@ -180,7 +180,15 @@ fun ClinicDiscoveryScreen(
                 }
 
                 else -> {
-                    item {
+                    if (state.error != null) {
+                        item(key = "filter-error", contentType = "banner") {
+                            InlineErrorBanner(
+                                message = state.error ?: "",
+                                onRetry = viewModel::refresh
+                            )
+                        }
+                    }
+                    item(key = "result-count", contentType = "header") {
                         Text(
                             text = "${state.clinics.size} klinik ditemukan",
                             fontSize = 12.sp,
@@ -190,7 +198,8 @@ fun ClinicDiscoveryScreen(
                     }
                     itemsIndexed(
                         items = state.clinics,
-                        key = { _, clinic -> clinic.key }
+                        key = { _, clinic -> clinic.key },
+                        contentType = { _, _ -> "clinic" }
                     ) { _, clinic ->
                         Box(Modifier.padding(horizontal = Dimens.ScreenPaddingHorizontal)) {
                             ClinicDiscoveryCard(
@@ -464,3 +473,4 @@ private fun CategoryRail(
         }
     }
 }
+

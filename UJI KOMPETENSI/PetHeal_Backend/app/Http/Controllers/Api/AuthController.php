@@ -1030,6 +1030,23 @@ class AuthController extends Controller
     /**
      * Delete account
      */
+    /**
+     * Hapus akun dari sisi pengguna.
+     *
+     * Pemilik akun boleh berhenti memakai PetHeal, tetapi riwayat klinis bukan
+     * miliknya: booking, rekam medis (SOAP/diagnosis/resep), dan jejak pembayaran
+     * adalah dokumen klinik yang juga dirujuk oleh laporan keuangan. Versi
+     * sebelumnya menghapus semuanya lewat cascade dan menyisakan baris `payments`
+     * yatim (relasi polymorphic tanpa FK), sementara jalur admin menolak hapus user
+     * yang punya riwayat.
+     *
+     * Aturan sekarang:
+     *  - Akun tanpa riwayat (belum punya hewan/booking): dihapus seperti biasa.
+     *  - Akun dengan riwayat: seluruh data pribadi dihapus/dianonimkan — nama,
+     *    email, telepon, foto, kredensial login, notifikasi, device token, dan
+     *    hewan yang belum pernah berkunjung. Booking, rekam medis, dan pembayaran
+     *    tetap disimpan agar rekam medis klinik dan laporannya utuh.
+     */
     public function deleteAccount(Request $request)
     {
         $user = $request->user();
@@ -1051,107 +1068,143 @@ class AuthController extends Controller
         $userId = (int) $user->id;
         $clinicId = $user->clinic_id;
         $email = $user->email;
+        $hasClinicalHistory = $user->bookings()->exists();
 
-        // Kumpulkan file milik akun SEBELUM baris DB dihapus. Foto profil dan
-        // foto hewan disimpan di disk public; tanpa ini file tetap tertinggal
-        // walaupun baris database sudah hilang.
-        $photoPaths = $user->pets()
-            ->whereNotNull('photo')
-            ->pluck('photo')
-            ->filter(fn ($path) => is_string($path) && $path !== '' && !str_starts_with($path, 'http'))
-            ->values()
-            ->all();
-        if ($user->photo && !filter_var($user->photo, FILTER_VALIDATE_URL)) {
-            $photoPaths[] = $user->photo;
-        }
+        // Semua perubahan dalam SATU transaksi. Kalau satu langkah gagal, tidak
+        // ada akun yang setengah terhapus (mis. token sudah dicabut tetapi data
+        // pribadi masih utuh).
+        $result = DB::transaction(function () use ($user, $userId, $hasClinicalHistory) {
+            $removedPetIds = [];
+            $retainedPetIds = [];
+            $photoPaths = [];
 
-        // Semua penghapusan dalam SATU transaksi. Sebelumnya tidak ada
-        // transaksi: kalau satu langkah gagal (mis. FK), sebagian data sudah
-        // terhapus dan request berikutnya bisa mengira akun masih ada.
-        $deleted = DB::transaction(function () use ($user, $userId) {
-            $petIds = $user->pets()->pluck('id')->all();
-            $bookingIds = $user->bookings()->pluck('id')->all();
-            $recordIds = [];
-            if ($bookingIds !== [] || $petIds !== []) {
-                $recordQuery = MedicalRecord::query();
-                if ($bookingIds !== []) {
-                    $recordQuery->whereIn('booking_id', $bookingIds);
+            foreach ($user->pets()->get() as $pet) {
+                // Hewan yang sudah pernah berkunjung tetap tersimpan: rekam medis
+                // dan booking merujuknya dengan ON DELETE CASCADE.
+                $hasHistory = $pet->bookings()->exists()
+                    || MedicalRecord::where('pet_id', $pet->id)->exists();
+
+                if ($hasHistory) {
+                    $retainedPetIds[] = $pet->id;
+                    continue;
                 }
-                if ($petIds !== []) {
-                    if ($bookingIds === []) {
-                        $recordQuery->whereIn('pet_id', $petIds);
-                    } else {
-                        $recordQuery->orWhereIn('pet_id', $petIds);
-                    }
+
+                if ($pet->photo && !str_starts_with((string) $pet->photo, 'http')) {
+                    $photoPaths[] = $pet->photo;
                 }
-                $recordIds = $recordQuery->pluck('id')->all();
+
+                $removedPetIds[] = $pet->id;
             }
 
-            // 1. Event pembayaran (booking + medical record)
-            if ($bookingIds !== []) {
-                DB::table('payment_events')->whereIn('booking_id', $bookingIds)->delete();
-            }
-            if ($recordIds !== []) {
-                DB::table('payment_events')->whereIn('medical_record_id', $recordIds)->delete();
+            if ($user->photo && !filter_var($user->photo, FILTER_VALIDATE_URL)) {
+                $photoPaths[] = $user->photo;
             }
 
-            // 2. Review dokter (milik user atau booking-nya)
-            DoctorReview::where('user_id', $userId)->delete();
-            if ($bookingIds !== []) {
-                DoctorReview::whereIn('booking_id', $bookingIds)->delete();
-            }
-
-            // 3. Rekam medis, booking, lalu data anak hewan
-            $medicalRecords = MedicalRecord::whereIn('id', $recordIds)->delete();
-            $bookings = Booking::where('user_id', $userId)->delete();
-
-            $vaccinations = $petIds === []
+            $vaccinations = $removedPetIds === []
                 ? 0
-                : Vaccination::whereIn('pet_id', $petIds)->delete();
-            $weightRecords = $petIds === []
+                : Vaccination::whereIn('pet_id', $removedPetIds)->delete();
+            $weightRecords = $removedPetIds === []
                 ? 0
-                : WeightRecord::whereIn('pet_id', $petIds)->delete();
-            $pets = Pet::where('user_id', $userId)->delete();
+                : WeightRecord::whereIn('pet_id', $removedPetIds)->delete();
+            $petsDeleted = $removedPetIds === []
+                ? 0
+                : Pet::whereIn('id', $removedPetIds)->delete();
 
-            // 4. Notifikasi, device token, token login
+            // Ulasan dokter adalah konten yang ditulis atas nama pengguna, bukan
+            // dokumen klinik — ikut dihapus agar nama lama tidak tertinggal publik.
+            $reviews = DoctorReview::where('user_id', $userId)->delete();
+
             $notifications = Notification::where('user_id', $userId)->delete();
             $deviceTokens = $user->deviceTokens()->delete();
             $tokens = $user->tokens()->delete();
 
-            // 5. Baris user terakhir
-            $user->delete();
+            if (!$hasClinicalHistory && $retainedPetIds === []) {
+                // Tidak ada riwayat yang perlu dijaga: hapus barisnya sepenuhnya.
+                $user->delete();
 
-            // Jangan pernah balas "sukses" kalau baris user masih ada.
-            if (User::whereKey($userId)->exists()) {
-                throw new \RuntimeException('Akun gagal dihapus: baris user masih ada.');
+                if (User::whereKey($userId)->exists()) {
+                    throw new \RuntimeException('Akun gagal dihapus: baris user masih ada.');
+                }
+
+                return [
+                    'mode' => 'deleted',
+                    'deleted' => [
+                        'pets' => $petsDeleted,
+                        'bookings' => 0,
+                        'medical_records' => 0,
+                        'vaccinations' => $vaccinations,
+                        'weight_records' => $weightRecords,
+                        'notifications' => $notifications,
+                        'device_tokens' => $deviceTokens,
+                        'tokens' => $tokens,
+                        'reviews' => $reviews,
+                    ],
+                    'retained' => [
+                        'pets' => 0,
+                        'bookings' => 0,
+                        'medical_records' => 0,
+                    ],
+                    'photos' => $photoPaths,
+                ];
             }
 
+            // Anonimisasi: email diganti placeholder unik (kolom unique), kredensial
+            // login diacak, dan semua penanda pribadi dikosongkan. Baris user tetap
+            // ada karena booking/medical_records memakai FK ke tabel ini.
+            $user->forceFill([
+                'name' => 'Akun Dihapus',
+                'email' => 'deleted-' . $userId . '@petheal.invalid',
+                'phone' => null,
+                'photo' => null,
+                'firebase_uid' => null,
+                'password' => \Illuminate\Support\Str::random(40),
+                'email_verified_at' => null,
+                'remember_token' => null,
+            ])->save();
+
+            $retainedBookings = Booking::where('user_id', $userId)->count();
+
             return [
-                'pets' => $pets,
-                'bookings' => $bookings,
-                'medical_records' => $medicalRecords,
-                'vaccinations' => $vaccinations,
-                'weight_records' => $weightRecords,
-                'notifications' => $notifications,
-                'device_tokens' => $deviceTokens,
-                'tokens' => $tokens,
+                'mode' => 'anonymized',
+                'deleted' => [
+                    'pets' => $petsDeleted,
+                    'bookings' => 0,
+                    'medical_records' => 0,
+                    'vaccinations' => $vaccinations,
+                    'weight_records' => $weightRecords,
+                    'notifications' => $notifications,
+                    'device_tokens' => $deviceTokens,
+                    'tokens' => $tokens,
+                    'reviews' => $reviews,
+                ],
+                'retained' => [
+                    'pets' => count($retainedPetIds),
+                    'bookings' => $retainedBookings,
+                    'medical_records' => MedicalRecord::whereIn(
+                        'booking_id',
+                        Booking::where('user_id', $userId)->select('id')
+                    )->count(),
+                ],
+                'photos' => $photoPaths,
             ];
         });
 
-        // Verifikasi hanya dianggap terpakai setelah penghapusan benar-benar
-        // commit. Kalau transaksi gagal, user masih bisa mencoba DELETE lagi
-        // dalam jendela 15 menit tanpa meminta kode baru.
+        // Verifikasi hanya dianggap terpakai setelah perubahan benar-benar commit.
         Cache::forget($verifiedKey);
 
+        $photoPaths = $result['photos'];
+        $photoCount = count($photoPaths);
+        unset($result['photos']);
+        $result['photos_deleted'] = $photoCount;
+
         // File dihapus SETELAH transaksi commit, supaya kegagalan I/O tidak
-        // membatalkan penghapusan akun yang sudah sah.
+        // membatalkan penghapusan yang sudah sah.
         if ($photoPaths !== []) {
             try {
                 Storage::disk('public')->delete($photoPaths);
             } catch (\Throwable $e) {
                 Log::warning('Gagal menghapus file foto akun yang dihapus', [
                     'user_id' => $userId,
-                    'paths' => $photoPaths,
                     'error' => $e->getMessage(),
                 ]);
             }
@@ -1161,16 +1214,23 @@ class AuthController extends Controller
         // kebetulan mendapat id sama (mis. setelah restore database).
         Cache::forget('dashboard_user_' . $userId);
 
-        // Jejak audit: user_id sengaja NULL karena baris user sudah dihapus.
         try {
             AuditLog::create([
-                'user_id' => null,
+                'user_id' => $result['mode'] === 'deleted' ? null : $userId,
                 'clinic_id' => $clinicId,
-                'action' => 'account.self_delete',
+                'action' => $result['mode'] === 'deleted' ? 'account.self_delete' : 'account.self_anonymize',
                 'model_type' => User::class,
                 'model_id' => $userId,
-                'description' => "Akun {$email} (id {$userId}) menghapus akunnya sendiri; "
-                    . "seluruh hewan, booking, rekam medis, notifikasi, dan token ikut dihapus.",
+                'description' => $result['mode'] === 'deleted'
+                    ? "Akun {$email} (id {$userId}) dihapus; tidak ada riwayat klinis yang tersimpan."
+                    : sprintf(
+                        'Akun %s (id %d) meminta penghapusan data. Data pribadi dianonimkan; %d booking dan %d rekam medis tetap disimpan sebagai dokumen klinik, %d hewan tanpa riwayat dihapus.',
+                        $email,
+                        $userId,
+                        $result['retained']['bookings'],
+                        $result['retained']['medical_records'],
+                        $result['deleted']['pets']
+                    ),
                 'ip_address' => request()->ip(),
                 'user_agent' => request()->userAgent(),
             ]);
@@ -1183,11 +1243,10 @@ class AuthController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'Akun dan seluruh datanya berhasil dihapus permanen.',
-            'data' => [
-                'deleted' => $deleted,
-                'photos_deleted' => count($photoPaths),
-            ],
+            'message' => $result['mode'] === 'deleted'
+                ? 'Akun dan seluruh datanya berhasil dihapus permanen.'
+                : 'Akun berhasil dihapus. Riwayat kunjungan dan rekam medis tetap disimpan oleh klinik sesuai kewajiban penyimpanan dokumen medis.',
+            'data' => $result,
         ]);
     }
 }

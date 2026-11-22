@@ -258,6 +258,28 @@ class MultiClinicDiscoveryTest extends TestCase
         $this->assertSame([$this->clinicA->slug], collect($res->json('data'))->pluck('slug')->all());
     }
 
+    public function test_open_now_filter_accepts_true_false_text_from_http_clients()
+    {
+        // Regresi: klien HTTP (Retrofit/Gson di aplikasi Android) mengirim
+        // `open_now=true`/`false` sebagai teks. Rule `boolean` Laravel menolak
+        // teks itu sehingga filter "Buka sekarang" dulu selalu dijawab 422.
+        foreach (['true', 'false', '1', '0'] as $value) {
+            $this->getJson('/api/public/clinics?open_now=' . $value)->assertOk();
+            $this->getJson('/api/public/services/compare?category_slug=' . $this->grooming->slug . '&open_now=' . $value)
+                ->assertOk();
+        }
+
+        // Nilai yang benar-benar salah tetap ditolak supaya bug klien kelihatan.
+        $this->getJson('/api/public/clinics?open_now=kemarin')
+            ->assertStatus(422)
+            ->assertJsonPath('success', false);
+
+        // `open_now=true` hanya menyisakan klinik yang memang buka sekarang.
+        $open = collect($this->getJson('/api/public/clinics?open_now=true')->assertOk()->json('data'))
+            ->pluck('is_open_now');
+        $this->assertTrue($open->every(fn ($flag) => $flag === true));
+    }
+
     public function test_service_categories_are_public()
     {
         $res = $this->getJson('/api/public/service-categories')->assertOk();

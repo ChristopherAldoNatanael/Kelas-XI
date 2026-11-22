@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\MedicalRecord;
 use App\Models\Pet;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -253,6 +254,29 @@ class PetController extends Controller
                 'success' => false,
                 'message' => 'Pet not found',
             ], 404);
+        }
+
+        // Riwayat klinis adalah milik klinik, bukan milik pemilik hewan. Booking
+        // dan rekam medis memakai foreign key ON DELETE CASCADE, jadi menghapus
+        // baris `pets` ikut menghapus booking, rekam medis (SOAP, diagnosis,
+        // resep), dan payment_events booking tersebut tanpa konfirmasi apa pun —
+        // termasuk dari akun pemilik hewan yang sedang login.
+        //
+        // Selama hewan masih punya riwayat, permintaan ditolak dan pemilik
+        // diarahkan ke klinik (jalur yang sama dengan penolakan hapus user di
+        // panel admin). Hewan tanpa riwayat tetap bisa dihapus.
+        $historyCounts = [
+            'bookings' => $pet->bookings()->count(),
+            'medical_records' => MedicalRecord::whereIn('booking_id', $pet->bookings()->select('id'))->count(),
+        ];
+
+        if ($historyCounts['bookings'] > 0 || $historyCounts['medical_records'] > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Hewan ini memiliki riwayat kunjungan atau rekam medis sehingga data tidak dapat dihapus dari aplikasi. Hubungi klinik untuk penanganan data.',
+                'code' => 'pet_has_history',
+                'data' => $historyCounts,
+            ], 409);
         }
 
         // Delete photo file if it's a relative path (not an external URL)
