@@ -535,3 +535,44 @@ Terbukti dengan `curl`: `?open_now=true` → 422, `?open_now=1` → 200.
   perlu dicek: buka *Cari Klinik* → filter → Status → "Buka sekarang" (daftar
   menyusut, tidak ada layar error), lalu scroll cepat di Beranda, Cari Klinik,
   Booking, dan Pet Shop memakai APK rilis.
+
+---
+
+## 17. Nomor WhatsApp: diminta saat daftar, ditawarkan setelah masuk dengan Google
+
+**Masalah.** Akun Google masuk tanpa nomor telepon (Google memang tidak
+mengirimnya), sehingga di dashboard klinik pasien tersebut tidak punya kontak
+sama sekali — persis saat nomor itu dibutuhkan: membatalkan jadwal atau
+mengembalikan dana. Form daftar email juga tidak pernah menanyakan nomor.
+
+**Perubahan.**
+
+| Berkas | Isi |
+|---|---|
+| `util/PhoneNumber.kt` (baru) | `canonicalPhoneInput()` menormalkan `0812…`, `+62812…`, `62812…`, `812…`, `0062…`, spasi/titik/strip → `08…`; menolak nomor terlalu pendek/panjang, telepon rumah (`021…`), `080x…`, dan input berhuruf. `formatPhoneForDisplay()` untuk tampilan `0812-3456-7890`. |
+| `ui/screens/auth/RegisterScreen.kt` | Field **Nomor WhatsApp** setelah Email, keterangan dua baris yang menyebut WhatsApp secara eksplisit, tanda centang bila valid, pesan kesalahan bila tidak, dan tombol daftar baru aktif setelah nomor valid. Nomor dikirim sebagai bentuk `08…`. |
+| `ui/screens/auth/PhoneSetupScreen.kt` (baru) | Layar "Nomor WhatsApp Anda" pasca-login Google: nama (bisa dikoreksi) + nomor, alasan singkat kenapa diminta, email yang sedang masuk, tombol **Simpan nomor** dan **Nanti saja**. |
+| `ui/screens/auth/PhoneSetupViewModel.kt` (baru) | Ambil profil dari server (nama/email/nomor), validasi lokal, simpan lewat `PUT /api/auth/profile`, perbarui cache DataStore. |
+| `LoginViewModel`, `RegisterViewModel` | State baru `needsPhone` (true bila `user.phone` kosong pada respons login/daftar Google). |
+| `LoginScreen`, `RegisterScreen` | `needsPhone` → arahkan ke layar nomor, bukan langsung Beranda. |
+| `ui/navigation/Screen.kt`, `PetHealNavHost.kt` | Route `phone-setup`; selesai atau "Nanti saja" → Beranda dengan back stack dibersihkan. |
+| `ui/screens/profile/ProfileScreen.kt` | Baris Telepon memakai format `0812-…`; bila kosong muncul aksi **Lengkapi nomor WhatsApp** → Edit Profil. Field di Edit Profil berganti label menjadi "Nomor WhatsApp" + keterangan singkat. |
+| `ProfileViewModel` | Nomor dinormalkan sebelum dikirim; nomor tidak valid ditolak dengan pesan, bukan disimpan apa adanya. |
+
+**Nada teks.** Tidak memakai istilah teknis atau kalimat pemasaran. Contoh isi
+layar: *"Klinik memakai nomor ini untuk mengabari perubahan jadwal, hasil
+pemeriksaan, dan pengembalian dana. Kami tidak memakainya untuk promosi."* dan
+*"Akun Google tidak membawa nomor telepon. Tanpa nomor, klinik hanya bisa
+menghubungi Anda lewat email yang sering terlewat."*
+
+**Verifikasi.**
+
+- `testDebugUnitTest` → **99 test, 0 gagal** (9 test baru `PhoneNumberTest`).
+- `assembleDebug` + `assembleRelease` BUILD SUCCESSFUL (APK rilis 6,96 MB).
+- Backend `tests/Feature/RegisterPhoneCaptureTest.php` (3 test): nomor dari form
+  tersimpan pada akun yang dibuat setelah OTP, pendaftaran tanpa nomor tetap
+  jalan, dan nomor bisa ditambahkan kemudian lewat `PUT /api/auth/profile`.
+- **Belum dijalankan:** uji di perangkat. Yang perlu dicek: daftar manual dengan
+  nomor `0812…` (tombol aktif setelah nomor valid), masuk dengan akun Google yang
+  belum punya nomor (layar nomor muncul), "Nanti saja" masuk Beranda, lalu
+  Profil → Lengkapi nomor WhatsApp.

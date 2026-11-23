@@ -6,6 +6,7 @@ import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.User
 import com.christopheraldoo.petheal.data.repository.AuthRepository
 import com.christopheraldoo.petheal.data.repository.Result
+import com.christopheraldoo.petheal.util.canonicalPhoneInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -136,10 +137,19 @@ class ProfileViewModel @Inject constructor(
 
     fun updateProfile() {
         val currentName = _editState.value.name
-        val phone = _editState.value.phone.trim()
+        val phoneInput = _editState.value.phone.trim()
+        // Nomor disimpan dalam satu bentuk (08…) supaya tautan WhatsApp di sisi
+        // admin tidak perlu menebak format. Input kosong tetap boleh.
+        val phone = canonicalPhoneInput(phoneInput)
+        if (phoneInput.isNotEmpty() && phone == null) {
+            _editState.value = _editState.value.copy(
+                error = "Nomor belum valid. Contoh: 0812 3456 7890."
+            )
+            return
+        }
         viewModelScope.launch {
             _editState.value = _editState.value.copy(isLoading = true, error = null, isSuccess = false)
-            when (val result = authRepository.updateProfile(currentName, phone.ifBlank { null })) {
+            when (val result = authRepository.updateProfile(currentName, phone)) {
                 is Result.Success -> {
                     val user = result.data
                     preferencesManager.saveUserInfo(
@@ -153,7 +163,7 @@ class ProfileViewModel @Inject constructor(
                         isLoading = false,
                         isSuccess = true,
                         name = user.name ?: currentName,
-                        phone = user.phone ?: phone
+                        phone = user.phone ?: phone.orEmpty()
                     )
                 }
                 is Result.Error -> {

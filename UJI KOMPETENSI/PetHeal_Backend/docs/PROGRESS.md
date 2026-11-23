@@ -805,6 +805,45 @@ fitur baru dan tanpa perubahan skema database.
   `tests/Feature/MultiClinicDiscoveryTest.php` lulus.
 - Aplikasi juga diperbaiki agar mengirim `1`/`0` (lihat `PetHeal_Android/docs/FIXES_REPORT.md` §16).
 
+## 2026-11-22 - Alur refund booking dibuat utuh (Midtrans + WhatsApp + bukti)
+
+**Masalah.** Panel refund hanya berkata "kembalikan dana lewat bank, tunai, atau e-wallet, lalu catat di sini". Untuk pasien yang membatalkan sebelum pernah datang, klinik tidak punya nomor rekening pasien dan tidak ada langkah menghubungi/membuktikan apa pun — alurnya berhenti di tengah.
+
+**Perbaikan.**
+
+- **Jalur otomatis untuk pembayaran online.** Opsi baru `midtrans` pada `booking_refunds.method`. `PaymentService::requestRefund()` sekarang menerima pembayaran `TYPE_CONSULTATION` (sebelumnya hanya Pet Shop), sehingga admin bisa meminta Midtrans mengembalikan dana ke **metode pembayaran asal** (VA/QRIS/e-wallet) tanpa nomor rekening. Nomor refund provider disimpan di `booking_refunds.provider_refund_id`, dan `booking_refunds.reference` diisi kode refund.
+- **Jalur manual terbimbing.** Halaman booking menampilkan kartu kontak pasien: tombol **Chat WhatsApp** (`wa.me/62…`) dengan pesan siap kirim berisi nama pasien, nomor booking, tanggal, nama klinik, dan nominal; tombol **Salin pesan** untuk SMS/telepon; bila nomor HP kosong, tampil petunjuk + email pasien. Helper: `app/Support/WhatsApp.php` (normalisasi `08…`/`+62…`/`8…` → `62…`).
+- **Bukti transparan.** Refund manual bisa menyertakan `proof` (JPG/PNG/WEBP/PDF, maks 2 MB) yang disimpan di disk `public` (`refund-proofs/`) dan ditautkan di riwayat refund.
+- **Batas uang tetap dijaga.** Nominal dicek dengan `RefundService::refundableAmount()` **sebelum** provider dipanggil, jadi Midtrans tidak pernah diminta mengembalikan uang yang belum masuk. Refund tetap hanya untuk booking `cancelled`, dan `Booking::syncRefundPaymentStatus()` tetap satu-satunya penentu `payment_status`.
+- **Pemilihan transaksi yang benar.** `Booking::refundableOnlinePayment()` menjadi satu-satunya tempat memilih pembayaran Midtrans yang masih punya sisa dana; dipakai halaman booking (menampilkan opsi) dan controller (mengeksekusi).
+- **Notifikasi pasien** kini menyebut jalur pengembalian ("lewat Midtrans ke metode pembayaran awal Anda" / "lewat Transfer bank").
+
+**Migrasi.** `2026_11_22_000001_add_refund_proof_and_provider_to_booking_refunds.php` (dua kolom nullable). Sudah dijalankan di DB dev **dan** DB test (`DB_DATABASE=pet_heal_test php artisan migrate`).
+
+**i18n.** 15 kunci baru di `admin.php` id/en; paritas diverifikasi (966 kunci di kedua bahasa).
+
+**Verifikasi.**
+- `tests/Feature/BookingRefundFlowTest.php` (10 test, 46 assertion): normalisasi WA, bukti transfer tersimpan, tipe bukti salah ditolak, nominal melebihi dana ditolak **sebelum** provider dipanggil (`shouldReceive('requestRefund')->never()`), refund Midtrans sukses (provider_refund_id + ledger + payment_status `refunded`), tanpa pembayaran online → petunjuk manual, provider menolak → tidak ada catatan refund, halaman menampilkan/menyembunyikan tombol WA & opsi Midtrans.
+- Suite penuh: **558 passed / 3407 assertions / 0 failed** (~12,5 menit).
+- Smoke nyata (server dev, booking #682): halaman 200, tautan `wa.me/6285731279959` dengan pesan "Halo Christopher Aldo Natanael, booking #682 (18 Nov 2026) di Klinik PetHeal Pusat dibatalkan. Kami akan mengembalikan dana Rp60.000…". Booking #687 (pasien tanpa nomor HP) menampilkan petunjuk nomor belum ada, tanpa tautan rusak.
+
+**Belum dijalankan.** Refund Midtrans sungguhan ke sandbox (butuh kredensial merchant + fitur Refund aktif) dan verifikasi visual browser.
+
+## 2026-11-22 - Nomor WhatsApp pasien dijaga dari pendaftaran sampai profil
+
+Backend tidak butuh kolom baru (`users.phone` sudah ada), tetapi alurnya belum
+pernah diuji: nomor yang diisi di form daftar harus benar-benar tersimpan pada
+akun yang baru dibuat setelah kode OTP diverifikasi.
+
+- `POST /api/auth/register/request-otp` menerima `phone` dan menyimpannya sebagai
+  bagian payload OTP; `verify-otp` memakainya saat `User::create()`.
+- Akun Google boleh tetap tanpa nomor (Google tidak mengirimkannya); nomor bisa
+  menyusul lewat `PUT /api/auth/profile`, yang sudah dipakai layar pengisian
+  nomor di aplikasi Android.
+- `tests/Feature/RegisterPhoneCaptureTest.php` (3 test, 12 assertion) mengunci
+  ketiga jalur itu: daftar dengan nomor, daftar tanpa nomor, dan penambahan nomor
+  setelah akun jadi.
+
 ## Cara Update File Ini
 - Setiap selesai fase di PLAN.md: tambah seksi `## YYYY-MM-DD â€” Fase N ...`, isi: file diubah, keputusan, hasil tes (curl/http code), masalah tersisa.
 - Contoh: `- Ubah Admin/BookingController.php:12 tambah where clinic_id. Tes: admin A /admin/bookings hanya 5 data A. Sisa: export PDF belum filter.`

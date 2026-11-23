@@ -195,7 +195,35 @@ class BookingController extends Controller
         // (checkbox di halaman). Status lunas = pembayaran penuh tercatat.
         $settled = $booking->payment_status === 'paid' || (float) $booking->remaining_amount <= 0.0;
 
-        return view('admin.bookings.show', compact('booking', 'refunds', 'refundedTotal', 'refundable', 'settled'));
+        // ── Alur pengembalian dana ────────────────────────────────────────
+        // Pasien bisa membatalkan sebelum pernah datang ke klinik, sehingga
+        // klinik tidak punya nomor rekening pasien. Panel refund menyediakan
+        // pesan WhatsApp siap kirim (berisi nomor booking, tanggal, nominal) dan
+        // pilihan "Kembalikan via Midtrans" bila pembayarannya online.
+        $patientPhone = $booking->user?->phone;
+        $refundWaMessage = __('admin.refund_wa_template', [
+            'name' => $booking->user?->name ?? __('admin.owner_placeholder'),
+            'booking' => $booking->id,
+            'date' => $booking->booking_date
+                ? \Illuminate\Support\Carbon::parse($booking->booking_date)->translatedFormat('d M Y')
+                : '-',
+            'clinic' => $booking->clinic?->name ?? config('app.name'),
+            'amount' => number_format($refundable, 0, ',', '.'),
+        ]);
+        $refundWaLink = \App\Support\WhatsApp::link($patientPhone, $refundWaMessage);
+        $canRefundViaMidtrans = $refundable > 0 && $booking->refundableOnlinePayment() !== null;
+
+        return view('admin.bookings.show', compact(
+            'booking',
+            'refunds',
+            'refundedTotal',
+            'refundable',
+            'settled',
+            'patientPhone',
+            'refundWaMessage',
+            'refundWaLink',
+            'canRefundViaMidtrans'
+        ));
     }
 
     /**

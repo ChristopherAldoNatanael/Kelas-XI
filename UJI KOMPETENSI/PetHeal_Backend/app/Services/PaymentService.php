@@ -802,14 +802,24 @@ class PaymentService
     }
 
     /**
+     * Minta pengembalian dana ke provider (Midtrans).
+     *
+     * Dipakai dua domain:
+     *  - Pet Shop: dana kembali ke pembeli;
+     *  - Booking konsultasi: dipakai saat admin memilih "Kembalikan via
+     *    Midtrans" untuk pasien yang membayar online. Dana kembali ke metode
+     *    pembayaran asal (VA/QRIS/e-wallet), sehingga klinik tidak perlu tahu
+     *    nomor rekening pasien. Ledger booking tetap ditulis terpisah oleh
+     *    RefundService setelah provider menerima permintaan.
+     *
      * @return array{success:bool, message:?string, refund:?PaymentRefund}
      */
     public function requestRefund(Payment $payment, int $amount, string $reason, ?User $actor = null): array
     {
-        if ($payment->payment_type !== Payment::TYPE_PET_SHOP) {
+        if (!in_array($payment->payment_type, [Payment::TYPE_PET_SHOP, Payment::TYPE_CONSULTATION], true)) {
             return [
                 'success' => false,
-                'message' => 'Refund konsultasi diproses melalui alur pembatalan booking yang sudah ada.',
+                'message' => 'Refund untuk pembayaran ini tidak didukung otomatis; catat secara manual.',
                 'refund' => null,
             ];
         }

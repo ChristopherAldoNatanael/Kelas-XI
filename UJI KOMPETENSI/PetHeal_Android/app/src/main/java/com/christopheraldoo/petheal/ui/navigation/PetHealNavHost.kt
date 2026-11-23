@@ -32,6 +32,7 @@ import com.christopheraldoo.petheal.ui.screens.discovery.PriceCompareScreen
 import com.christopheraldoo.petheal.ui.screens.auth.LoginScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OnboardingScreen
 import com.christopheraldoo.petheal.ui.screens.auth.OtpVerificationScreen
+import com.christopheraldoo.petheal.ui.screens.auth.PhoneSetupScreen
 import com.christopheraldoo.petheal.ui.screens.auth.RegisterScreen
 import com.christopheraldoo.petheal.ui.screens.auth.SplashScreen
 import com.christopheraldoo.petheal.ui.screens.booking.BookingDetailScreen
@@ -183,6 +184,11 @@ fun PetHealNavHost(
                         popUpTo(Screen.Login.route) { inclusive = true }
                     }
                 },
+                onNavigateToPhoneSetup = {
+                    goTo(Screen.PhoneSetup.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
                 onNavigateToRegister = {
                     goTo(Screen.Register.route)
                 }
@@ -203,6 +209,11 @@ fun PetHealNavHost(
                 },
                 onNavigateToOtpVerification = { email ->
                     goTo(Screen.VerifyOtp.createRoute(email))
+                },
+                onNavigateToPhoneSetup = {
+                    goTo(Screen.PhoneSetup.route) {
+                        popUpTo(Screen.Register.route) { inclusive = true }
+                    }
                 },
                 onNavigateBack = {
                     goBack()
@@ -243,6 +254,24 @@ fun PetHealNavHost(
                 },
                 onLoggedOut = {
                     goTo(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
+        }
+
+        // Akun tanpa nomor WhatsApp (khas Google) melengkapi nomornya di sini,
+        // lalu masuk Beranda. "Nanti saja" tetap boleh — nomornya bisa diisi
+        // belakangan dari Profil → Edit Profil.
+        composable(Screen.PhoneSetup.route) {
+            PhoneSetupScreen(
+                onSaved = {
+                    goTo(Screen.Home.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onSkip = {
+                    goTo(Screen.Home.route) {
                         popUpTo(0) { inclusive = true }
                     }
                 }

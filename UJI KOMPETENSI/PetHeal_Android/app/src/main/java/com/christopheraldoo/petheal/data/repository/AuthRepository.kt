@@ -303,6 +303,7 @@ class AuthRepository @Inject constructor(
         name: String,
         email: String,
         password: String,
+        phone: String? = null,
         clinicSlug: String? = null
     ): Result<OtpSentResponse> {
         return try {
@@ -311,6 +312,7 @@ class AuthRepository @Inject constructor(
                     name = name,
                     email = email,
                     password = password,
+                    phone = phone,
                     clinicSlug = clinicSlug
                 )
             )

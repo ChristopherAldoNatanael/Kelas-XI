@@ -48,6 +48,7 @@ import com.christopheraldoo.petheal.ui.theme.PrimaryWash
 import com.christopheraldoo.petheal.ui.theme.Secondary
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
+import com.christopheraldoo.petheal.util.canonicalPhoneInput
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -62,6 +63,11 @@ fun RegisterScreen(
     onNavigateToCompleteSetup: () -> Unit = {},
     /** Daftar email = minta kode OTP dulu; akun dibuat di layar verifikasi. */
     onNavigateToOtpVerification: (String) -> Unit = {},
+    /**
+     * Akun Google yang belum punya nomor WhatsApp diarahkan ke sini sebelum
+     * masuk Beranda (lihat [PhoneSetupScreen]).
+     */
+    onNavigateToPhoneSetup: () -> Unit = {},
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateLifecycleAware()
@@ -71,6 +77,7 @@ fun RegisterScreen(
 
     var name by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
+    var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
@@ -124,9 +131,16 @@ fun RegisterScreen(
     }
 
     val passwordsMatch = password == confirmPassword || confirmPassword.isEmpty()
+    // Nomor dinormalkan ke bentuk 08… sebelum dikirim, jadi data pasien di sisi
+    // admin selalu satu format dan tautan WhatsApp-nya tidak perlu ditebak.
+    val normalizedPhone = canonicalPhoneInput(phone)
+    val phoneIsValid = normalizedPhone != null
 
     LaunchedEffect(uiState.isSuccess) {
-        if (uiState.isSuccess) onRegisterSuccess()
+        if (uiState.isSuccess) {
+            // Akun Google masuk tanpa nomor: tawarkan pengisian sekali dulu.
+            if (uiState.needsPhone) onNavigateToPhoneSetup() else onRegisterSuccess()
+        }
     }
 
     // Daftar email: kode OTP terkirim → lanjut ke layar verifikasi. Event
@@ -285,6 +299,44 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
+            // ── Nomor WhatsApp ─────────────────────────────────────────
+            // Diminta di sini, bukan setelah akun jadi: nomor ini satu-satunya
+            // jalan klinik menghubungi pasien saat jadwal berubah atau dana
+            // harus dikembalikan.
+            AuthFieldLabel("Nomor WhatsApp")
+            Spacer(modifier = Modifier.height(8.dp))
+            AuthTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                placeholder = "0812 3456 7890",
+                leadingIcon = {
+                    Icon(Icons.Filled.Phone, null,
+                        tint = AuthTextSecondary, modifier = Modifier.size(20.dp))
+                },
+                trailingIcon = if (phoneIsValid) {
+                    { Icon(Icons.Filled.CheckCircle, null,
+                        tint = AuthPrimary, modifier = Modifier.size(20.dp)) }
+                } else null,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone, imeAction = ImeAction.Next),
+                keyboardActions = KeyboardActions(
+                    onNext = { focusManager.moveFocus(FocusDirection.Down) }),
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = if (phone.isNotBlank() && !phoneIsValid)
+                    "Nomor belum valid. Tulis nomor WhatsApp aktif, contoh 0812 3456 7890."
+                else
+                    "Nomor ini dipakai klinik untuk konfirmasi jadwal dan pengembalian dana, " +
+                        "jadi pastikan nomornya terdaftar di WhatsApp.",
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = if (phone.isNotBlank() && !phoneIsValid) MaterialTheme.colorScheme.error
+                        else AuthTextSecondary,
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
             // ── Password ──────────────────────────────────────────────
             AuthFieldLabel("Kata Sandi")
             Spacer(modifier = Modifier.height(8.dp))
@@ -390,14 +442,19 @@ fun RegisterScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.requestOtp(name.trim(), email.trim(), password, null)
+                    viewModel.requestOtp(
+                        name = name.trim(),
+                        email = email.trim(),
+                        password = password,
+                        phone = normalizedPhone
+                    )
                 },
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = AuthPrimary, contentColor = Color.White),
                 enabled = !uiState.isLoading && name.isNotBlank()
-                        && email.isNotBlank() && password.length >= 8
+                        && email.isNotBlank() && phoneIsValid && password.length >= 8
                         && passwordsMatch && confirmPassword.isNotBlank(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {

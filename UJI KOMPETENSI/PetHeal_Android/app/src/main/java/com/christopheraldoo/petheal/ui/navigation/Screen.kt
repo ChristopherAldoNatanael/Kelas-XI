@@ -21,6 +21,9 @@ sealed class Screen(val route: String) {
     }
     // PHASE 7: finish-setup for accounts born without a clinic binding.
     object CompleteSetup  : Screen("complete-setup")
+    // Akun tanpa nomor WhatsApp (khas Google) mengisi nomornya di sini sekali,
+    // sebelum masuk Beranda.
+    object PhoneSetup     : Screen("phone-setup")
     object Home           : Screen("home")
 
     // ── Pets ────────────────────────────────────────────────────────────────

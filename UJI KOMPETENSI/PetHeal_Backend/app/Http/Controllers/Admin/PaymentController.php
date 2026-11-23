@@ -35,19 +35,35 @@ class PaymentController extends Controller
 
     protected FCMService $fcmService;
     protected \App\Services\RefundService $refunds;
+    // Hanya dipakai jalur "Kembalikan via Midtrans" (dana kembali ke metode
+    // pembayaran asal). Jalur manual tetap murni pencatatan.
+    protected \App\Services\PaymentService $payments;
 
-    public function __construct(FCMService $fcmService, \App\Services\RefundService $refunds)
-    {
+    public function __construct(
+        FCMService $fcmService,
+        \App\Services\RefundService $refunds,
+        \App\Services\PaymentService $payments
+    ) {
         $this->fcmService = $fcmService;
         $this->refunds = $refunds;
+        $this->payments = $payments;
     }
 
     /**
      * Catat pengembalian uang untuk booking yang sudah dibatalkan.
      *
-     * Uang dikembalikan manual oleh admin (transfer/tunai/e-wallet); aksi ini
-     * MENCATAT pengembalian itu. Tanpa pencatatan, laporan akan terus
-     * menghitung uang yang sebenarnya sudah keluar dari kas klinik.
+     * Ada dua jalur, dan keduanya sama-sama MENULIS BUKTI ke `booking_refunds`:
+     *
+     *  1. `midtrans` — bila pasien membayar online, sistem meminta Midtrans
+     *     mengembalikan dana ke metode pembayaran ASAL (VA/QRIS/e-wallet). Pasien
+     *     tidak perlu mengirim nomor rekening, dan tidak perlu bertemu fisik.
+     *  2. `transfer`/`cash`/`ewallet`/`other` — klinik mengirim dana sendiri
+     *     (pasien membayar tunai/transfer ke klinik). Alur ini dibantu tombol
+     *     WhatsApp di halaman booking untuk meminta data rekening pasien, dan
+     *     bukti transfer bisa diunggah.
+     *
+     * Nominal selalu dicek lebih dulu (`refundableAmount`), jadi provider tidak
+     * pernah diminta mengembalikan dana yang memang belum pernah masuk.
      */
     public function refund(Request $request, int $id)
     {
@@ -63,27 +79,83 @@ class PaymentController extends Controller
             'method' => 'required|in:' . implode(',', array_keys(\App\Models\BookingRefund::METHODS)),
             'reference' => 'nullable|string|max:100',
             'reason' => 'required|string|max:500',
+            // Bukti transfer: foto/screenshot atau PDF, maksimal 2 MB.
+            'proof' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf|max:2048',
         ], [
             'amount.required' => __('admin.refund_amount_required'),
             'reason.required' => __('admin.refund_reason_required'),
+            'proof.mimes' => __('admin.refund_proof_invalid'),
+            'proof.max' => __('admin.refund_proof_invalid'),
         ]);
+
+        $amount = (float) $validated['amount'];
+        $method = $validated['method'];
+        $reason = $validated['reason'];
+
+        // Batas refund dicek SEBELUM menyentuh provider.
+        $refundable = $this->refunds->refundableAmount($booking);
+        if ($amount <= 0 || $amount > $refundable) {
+            return back()->with('error', __('admin.refund_exceeds_refundable', [
+                'amount' => 'Rp ' . number_format($refundable, 0, ',', '.'),
+            ]));
+        }
+
+        $providerRefundId = null;
+        $reference = $validated['reference'] ?? null;
+
+        if ($method === 'midtrans') {
+            $payment = $this->findRefundableOnlinePayment($booking);
+
+            if ($payment === null) {
+                return back()->with('error', __('admin.refund_midtrans_unavailable'));
+            }
+
+            $result = $this->payments->requestRefund(
+                $payment,
+                (int) round($amount),
+                $reason,
+                $request->user()
+            );
+
+            if (! ($result['success'] ?? false)) {
+                return back()->with('error', __('admin.refund_midtrans_failed', [
+                    'message' => $result['message'] ?: __('admin.refund_midtrans_unavailable'),
+                ]));
+            }
+
+            $paymentRefund = $result['refund'];
+            $providerRefundId = $paymentRefund?->provider_refund_id;
+            $reference = $reference ?: ($paymentRefund?->refund_code ?? $payment->provider_order_id);
+        }
+
+        $proofPath = null;
+        if ($method !== 'midtrans' && $request->hasFile('proof')) {
+            $proofPath = $request->file('proof')->store('refund-proofs', 'public');
+        }
 
         try {
             $refund = $this->refunds->record(
                 $booking,
-                (float) $validated['amount'],
-                $validated['method'],
-                $validated['reference'] ?? null,
-                $validated['reason']
+                $amount,
+                $method,
+                $reference,
+                $reason,
+                null,
+                $providerRefundId,
+                $proofPath
             );
         } catch (\RuntimeException $e) {
+            // Refund lewat provider sudah diterima tetapi pencatatan gagal
+            // (mis. booking berubah status bersamaan). Bukti tetap disimpan agar
+            // admin bisa mencatat ulang tanpa kehilangan lampirannya.
             return back()->with('error', $e->getMessage());
         }
 
         AuditLog::log(
             'payment.refund',
             'Refunded Rp ' . number_format((float) $refund->amount, 0, ',', '.')
-                . " for booking #{$booking->id} via {$refund->method}. Reason: {$refund->reason}",
+                . " for booking #{$booking->id} via {$refund->method}. Reason: {$refund->reason}"
+                . ($providerRefundId ? " (provider refund {$providerRefundId})" : ''),
             $booking
         );
 
@@ -91,27 +163,40 @@ class PaymentController extends Controller
         // (tunai/transfer), tetapi tidak ada pemberitahuan apa pun sehingga pasien
         // menanyakan status berulang kali. Notifikasi juga menyebut nominal agar
         // tercocokkan dengan mutasi rekeningnya.
-        $this->notifyRefundRecorded($booking, (float) $refund->amount);
+        $this->notifyRefundRecorded($booking, (float) $refund->amount, $refund->method);
 
         return back()->with('success', __('admin.refund_saved'));
+    }
+
+    /**
+     * Pembayaran online (Midtrans) milik booking ini yang masih punya sisa dana
+     * untuk dikembalikan lewat API provider.
+     */
+    private function findRefundableOnlinePayment(Booking $booking): ?\App\Models\Payment
+    {
+        return $booking->refundableOnlinePayment();
     }
 
     /**
      * Kabari pasien bahwa refund sudah dicatat (tidak menggagalkan aksi admin
      * bila pengiriman push gagal).
      */
-    private function notifyRefundRecorded(Booking $booking, float $amount): void
+    private function notifyRefundRecorded(Booking $booking, float $amount, string $method = 'transfer'): void
     {
         if ($amount <= 0) {
             return;
         }
 
+        $channel = $method === 'midtrans'
+            ? 'lewat Midtrans ke metode pembayaran awal Anda'
+            : 'lewat ' . (\App\Models\BookingRefund::METHODS[$method] ?? $method);
+
         try {
             $this->fcmService->sendToUser(
                 (int) $booking->user_id,
-                'Refund telah dicatat',
+                'Dana Anda sudah dikembalikan',
                 'Pengembalian dana Rp' . number_format($amount, 0, ',', '.')
-                    . ' untuk booking #' . $booking->id . ' sudah dicatat klinik.',
+                    . ' untuk booking #' . $booking->id . ' sudah diproses klinik ' . $channel . '.',
                 [
                     'type' => 'payment',
                     'booking_id' => (string) $booking->id,

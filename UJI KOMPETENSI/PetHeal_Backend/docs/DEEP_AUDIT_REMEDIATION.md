@@ -310,6 +310,8 @@ Test yang mengunci perilaku baru:
 |---|---|---|
 | PB-H-04 unique slot booking | Perlu `ALTER TABLE` + pembersihan data lama; batch ini diputuskan **tanpa perubahan skema**, sehingga duplikasi slot tetap hanya dicegah di level aplikasi | (1) cari duplikat `(clinic_id, doctor_id, booking_date, booking_time, status in pending/confirmed)`, (2) bersihkan, (3) tambah generated column `active_slot_key` + unique index, (4) arahkan `Api\BookingController::store`, `Api\BookingController::reschedule`, dan `ServiceRequestService::accept` ke satu service pembuat booking, (5) petakan pelanggaran unique (SQLSTATE 23000) menjadi 409 `slot_conflict` |
 | Satu ledger pembayaran (PB-M-01) | Menyatukan `bookings.paid_amount` (kas) dan `payments` (online) menyentuh dashboard, laporan, refund, dan struk sekaligus | Kerjakan bersama laporan keuangan, bukan terpisah |
+
+**Catatan 2026-11-22.** Selama dua ledger itu masih ada, refund booking yang diminta lewat Midtrans dicatat di **keduanya** dengan saling merujuk: `booking_refunds.provider_refund_id` menyimpan nomor refund provider, dan `payment_refunds.payment_id` menunjuk transaksi aslinya. Jadi belum ada duplikasi angka di laporan (booking hanya membaca `booking_refunds`, halaman pembayaran hanya membaca `payments`), dan penggabungan nanti bisa memakai kolom rujukan itu sebagai pemetaan.
 | Kunci `pet_stats`/`payment_stats` | Kode sudah benar (lihat §5) | — |
 | `APP_DEBUG=false` / `APP_ENV=production` saat deploy | `.env` sengaja tidak diubah agar konfigurasi lokal tidak berubah diam-diam | Set saat deploy; `LOG_STACK` sekarang default `daily` (14 hari) |
 

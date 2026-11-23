@@ -51,6 +51,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.util.MediumImage
 import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.compressImageFile
+import com.christopheraldoo.petheal.util.formatPhoneForDisplay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -653,8 +654,21 @@ fun ProfileScreen(
                     ProfileInfoRow(
                         icon = Icons.Outlined.Phone,
                         label = "Telepon",
-                        value = state.user?.phone?.takeIf { it.isNotBlank() } ?: "Belum diisi"
+                        value = state.user?.phone?.takeIf { it.isNotBlank() }
+                            ?.let(::formatPhoneForDisplay)
+                            ?: "Belum diisi"
                     )
+                    // Tanpa nomor, klinik tidak bisa menghubungi pasien saat
+                    // jadwal berubah atau dana harus dikembalikan. Baris ini
+                    // memberi jalan isi tanpa harus mencari menu Edit Profil.
+                    if (state.user?.phone.isNullOrBlank() && state.user?.id != null) {
+                        Divider(color = BorderDark, thickness = 0.5.dp)
+                        ProfileActionRow(
+                            icon = Icons.Outlined.Chat,
+                            label = "Lengkapi nomor WhatsApp",
+                            onClick = onNavigateToEdit
+                        )
+                    }
                     Divider(color = BorderDark, thickness = 0.5.dp)
                     ProfileInfoRow(
                         icon = Icons.Outlined.Shield,
@@ -941,14 +955,23 @@ fun EditProfileScreen(
                     }
                 }
 
-                // Phone field
+                // Phone field — nomor WhatsApp, dipakai klinik untuk konfirmasi
+                // jadwal dan pengembalian dana.
                 EditField(
-                    label = "Nomor Telepon",
+                    label = "Nomor WhatsApp",
                     value = state.phone,
                     onValueChange = viewModel::onPhoneChange,
-                    placeholder = "Masukkan nomor telepon",
+                    placeholder = "Contoh: 0812 3456 7890",
                     leadingIcon = Icons.Outlined.Phone,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                )
+                Text(
+                    text = "Pastikan nomor ini aktif di WhatsApp. Klinik memakainya untuk " +
+                        "mengabari jadwal dan pengembalian dana.",
+                    fontSize = 12.sp,
+                    lineHeight = 17.sp,
+                    color = TextSecDark,
+                    modifier = Modifier.padding(start = 2.dp, bottom = 4.dp)
                 )
 
                 // Error message

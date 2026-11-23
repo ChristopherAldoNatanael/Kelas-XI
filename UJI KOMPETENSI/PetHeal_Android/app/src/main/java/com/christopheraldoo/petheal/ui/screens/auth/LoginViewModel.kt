@@ -20,6 +20,12 @@ data class LoginUiState(
     val isSuccess: Boolean = false,
     // PHASE 7: Google accounts born without a clinic must finish setup first.
     val needsClinicSetup: Boolean = false,
+    /**
+     * Akun (biasanya Google) yang belum punya nomor WhatsApp. Layar masuk
+     * menawarkan pengisian sekali sebelum user masuk ke Beranda, supaya klinik
+     * punya nomor untuk konfirmasi jadwal dan pengembalian dana.
+     */
+    val needsPhone: Boolean = false,
     val error: String? = null
 )
 
@@ -46,8 +52,13 @@ class LoginViewModel @Inject constructor(
                 // SAH (bukan error) — langsung masuk Home, klinik dipilih saat
                 // booking. `needsClinicSetup` hanya untuk akun lama yang masih
                 // belum punya klinik sama sekali DAN tidak akan dipaksa.
-                is Result.Success ->
-                    _uiState.value = LoginUiState(isSuccess = true)
+                is Result.Success -> {
+                    val phoneMissing = result.data.user.phone.isNullOrBlank()
+                    _uiState.value = LoginUiState(
+                        isSuccess = !phoneMissing,
+                        needsPhone = phoneMissing
+                    )
+                }
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }
@@ -61,7 +72,13 @@ class LoginViewModel @Inject constructor(
                 FirebaseMessaging.getInstance().token.await()
             } catch (e: Exception) { null }
             when (val result = authRepository.loginWithGoogle(idToken, fcmToken, clinicSlug)) {
-                is Result.Success -> _uiState.value = LoginUiState(isSuccess = true)
+                is Result.Success -> {
+                    val phoneMissing = result.data.user.phone.isNullOrBlank()
+                    _uiState.value = LoginUiState(
+                        isSuccess = !phoneMissing,
+                        needsPhone = phoneMissing
+                    )
+                }
                 is Result.Error  -> _uiState.value = LoginUiState(error = result.message)
                 else             -> Unit
             }

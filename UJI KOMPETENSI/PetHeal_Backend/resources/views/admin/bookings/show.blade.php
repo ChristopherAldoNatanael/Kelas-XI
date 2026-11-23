@@ -281,7 +281,17 @@
                                                     @if($refund->reference)
                                                         · ref {{ $refund->reference }}
                                                     @endif
+                                                    @if($refund->provider_refund_id)
+                                                        · provider {{ $refund->provider_refund_id }}
+                                                    @endif
                                                 </p>
+                                                @if($refund->proof_url)
+                                                    <a href="{{ $refund->proof_url }}" target="_blank" rel="noopener"
+                                                       class="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline">
+                                                        <span class="material-symbols-outlined text-[14px]" aria-hidden="true">attach_file</span>
+                                                        {{ __('admin.refund_proof_view') }}
+                                                    </a>
+                                                @endif
                                             </div>
                                             <span class="whitespace-nowrap text-[11px] text-slate-400">
                                                 {{ $refund->created_at?->format('d M Y H:i') }}
@@ -292,6 +302,36 @@
                             @endif
 
                             @if($refundable > 0)
+                                {{-- Kontak pasien: pembatalan sering terjadi sebelum pasien
+                                     pernah datang, jadi klinik belum punya nomor rekening. --}}
+                                <div class="mt-3 rounded-lg border border-sky-200 bg-sky-50/60 px-4 py-3 dark:border-sky-900/60 dark:bg-sky-900/20">
+                                    <p class="text-xs font-bold text-sky-900 dark:text-sky-200">{{ __('admin.refund_contact_title') }}</p>
+                                    <p class="mt-1 text-[11px] leading-5 text-sky-900/80 dark:text-sky-200/80">{{ __('admin.refund_contact_help') }}</p>
+                                    <p class="mt-2 rounded-md bg-white/70 px-3 py-2 text-[11px] leading-5 text-slate-600 dark:bg-slate-900/40 dark:text-slate-300">{{ $refundWaMessage }}</p>
+
+                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                        @if($refundWaLink)
+                                            <a href="{{ $refundWaLink }}" target="_blank" rel="noopener"
+                                               class="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-emerald-700">
+                                                <span class="material-symbols-outlined text-[15px]" aria-hidden="true">chat</span>
+                                                {{ __('admin.refund_wa_button') }}
+                                            </a>
+                                        @else
+                                            <p class="text-[11px] text-slate-600 dark:text-slate-300">
+                                                {{ __('admin.refund_no_phone') }}
+                                                @if($booking->user?->email)
+                                                    <a href="mailto:{{ $booking->user->email }}" class="font-semibold text-primary hover:underline">{{ $booking->user->email }}</a>
+                                                @endif
+                                            </p>
+                                        @endif
+                                        <button type="button" class="admin-btn-secondary"
+                                                data-copy-refund-message="{{ $refundWaMessage }}">
+                                            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">content_copy</span>
+                                            {{ __('admin.refund_wa_copy') }}
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <details class="mt-3 rounded-lg border border-amber-200 bg-amber-50/60 px-4 py-3 dark:border-amber-900/60 dark:bg-amber-900/20">
                                     <summary class="cursor-pointer text-xs font-bold text-amber-800 dark:text-amber-300">
                                         {{ __('admin.refund_record') }} ({{ $currency($refundable) }} {{ __('admin.refund_available') }})
@@ -299,7 +339,9 @@
                                     <p class="mt-2 text-[11px] leading-5 text-amber-800/80 dark:text-amber-200/80">
                                         {{ __('admin.refund_help') }}
                                     </p>
-                                    <form method="POST" action="{{ route('admin.payments.refund', $booking->id) }}" class="mt-3 space-y-3">
+                                    <form method="POST" action="{{ route('admin.payments.refund', $booking->id) }}"
+                                          enctype="multipart/form-data" class="mt-3 space-y-3"
+                                          data-refund-form>
                                         @csrf
                                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                                             <div>
@@ -310,11 +352,23 @@
                                             </div>
                                             <div>
                                                 <label for="refund-method" class="admin-label">{{ __('admin.refund_method') }}</label>
-                                                <select id="refund-method" name="method" class="admin-input">
+                                                <select id="refund-method" name="method" class="admin-input" data-refund-method>
+                                                    @if($canRefundViaMidtrans)
+                                                        <option value="midtrans">{{ __('admin.refund_midtrans_option') }}</option>
+                                                    @endif
                                                     @foreach(\App\Models\BookingRefund::METHODS as $value => $label)
+                                                        @continue($value === 'midtrans')
                                                         <option value="{{ $value }}">{{ $label }}</option>
                                                     @endforeach
                                                 </select>
+                                                @if($canRefundViaMidtrans)
+                                                    <p class="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400" data-refund-hint="midtrans">
+                                                        {{ __('admin.refund_midtrans_hint') }}
+                                                    </p>
+                                                @endif
+                                                <p class="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400" data-refund-hint="manual">
+                                                    {{ __('admin.refund_method_hint_manual') }}
+                                                </p>
                                             </div>
                                             <div>
                                                 <label for="refund-reference" class="admin-label">{{ __('admin.refund_reference') }}</label>
@@ -326,9 +380,15 @@
                                                 <input id="refund-reason" type="text" name="reason" maxlength="500" required
                                                        class="admin-input" placeholder="{{ __('admin.refund_reason_placeholder') }}">
                                             </div>
+                                            <div class="sm:col-span-2" data-refund-proof>
+                                                <label for="refund-proof" class="admin-label">{{ __('admin.refund_proof') }}</label>
+                                                <input id="refund-proof" type="file" name="proof"
+                                                       accept="image/jpeg,image/png,image/webp,application/pdf"
+                                                       class="admin-input">
+                                                <p class="mt-1 text-[11px] leading-4 text-slate-500 dark:text-slate-400">{{ __('admin.refund_proof_hint') }}</p>
+                                            </div>
                                         </div>
-                                        <button type="submit" class="admin-btn-secondary"
-                                                onclick="return confirm('{{ __('admin.refund_confirm') }}')">
+                                        <button type="submit" class="admin-btn-secondary" data-refund-submit>
                                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">undo</span>
                                             {{ __('admin.refund_save') }}
                                         </button>
@@ -566,5 +626,61 @@
     document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape') document.getElementById('reminder-modal').style.display = 'none';
     });
+
+    // ── Panel refund ──────────────────────────────────────────────────────
+    // Salin pesan WhatsApp (untuk dikirim lewat SMS/telepon bila pasien tidak
+    // memakai WhatsApp).
+    document.querySelectorAll('[data-copy-refund-message]').forEach(function (button) {
+        button.addEventListener('click', function () {
+            const message = button.getAttribute('data-copy-refund-message') || '';
+            const done = function () {
+                const original = button.innerHTML;
+                button.textContent = @json(__('admin.refund_wa_copied'));
+                setTimeout(function () { button.innerHTML = original; }, 1800);
+            };
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(message).then(done).catch(done);
+            } else {
+                const area = document.createElement('textarea');
+                area.value = message;
+                document.body.appendChild(area);
+                area.select();
+                try { document.execCommand('copy'); } catch (e) {}
+                document.body.removeChild(area);
+                done();
+            }
+        });
+    });
+
+    // Bukti transfer hanya relevan untuk pengembalian manual; Midtrans
+    // mengembalikan dana otomatis sehingga tidak ada berkas dari klinik.
+    (function () {
+        const form = document.querySelector('[data-refund-form]');
+        const select = form ? form.querySelector('[data-refund-method]') : null;
+        if (!form || !select) return;
+
+        const proof = form.querySelector('[data-refund-proof]');
+        const midtransHint = form.querySelector('[data-refund-hint="midtrans"]');
+        const manualHint = form.querySelector('[data-refund-hint="manual"]');
+        const confirmText = @json(__('admin.refund_confirm'));
+        const midtransConfirm = @json(__('admin.refund_confirm_midtrans'));
+
+        const sync = function () {
+            const isMidtrans = select.value === 'midtrans';
+            if (proof) proof.style.display = isMidtrans ? 'none' : '';
+            if (midtransHint) midtransHint.style.display = isMidtrans ? '' : 'none';
+            if (manualHint) manualHint.style.display = isMidtrans ? 'none' : '';
+            form.dataset.confirm = isMidtrans ? midtransConfirm : confirmText;
+        };
+
+        select.addEventListener('change', sync);
+        sync();
+
+        form.addEventListener('submit', function (event) {
+            if (!window.confirm(form.dataset.confirm || confirmText)) {
+                event.preventDefault();
+            }
+        });
+    })();
 </script>
 @endsection

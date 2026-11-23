@@ -182,6 +182,29 @@ class Booking extends Model
     }
 
     /**
+     * Pembayaran online (Midtrans) milik booking ini yang masih punya sisa dana.
+     *
+     * Dipakai untuk dua hal yang harus selalu sepakat: menampilkan pilihan
+     * "Kembalikan via Midtrans" di halaman booking, dan memilih transaksi mana
+     * yang diminta refund-nya saat admin menekan tombol itu.
+     */
+    public function refundableOnlinePayment(): ?\App\Models\Payment
+    {
+        return \App\Models\Payment::query()
+            ->where('payable_type', self::class)
+            ->where('payable_id', $this->id)
+            ->where('provider', 'midtrans')
+            ->whereIn('status', [
+                \App\Models\Payment::STATUS_PAID,
+                \App\Models\Payment::STATUS_PARTIALLY_REFUNDED,
+            ])
+            ->orderByDesc('paid_at')
+            ->get()
+            ->first(fn (\App\Models\Payment $payment) =>
+                (int) $payment->gross_amount > (int) $payment->refunded_amount);
+    }
+
+    /**
      * Nilai `payment_status` yang benar untuk sebuah booking batal berdasarkan
      * uang masuk dan refund yang sudah dicatat.
      *

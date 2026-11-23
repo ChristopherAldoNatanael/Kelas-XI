@@ -72,6 +72,8 @@ fun LoginScreen(
     onLoginSuccess: () -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToCompleteSetup: () -> Unit = {},
+    /** Akun tanpa nomor WhatsApp melengkapi nomornya dulu (lihat [PhoneSetupScreen]). */
+    onNavigateToPhoneSetup: () -> Unit = {},
     viewModel: LoginViewModel = hiltViewModel(),
     pickerViewModel: ClinicPickerViewModel = hiltViewModel()
 ) {
@@ -151,6 +153,13 @@ fun LoginScreen(
     // binding before entering Home — otherwise every call is a 403.
     LaunchedEffect(uiState.needsClinicSetup) {
         if (uiState.needsClinicSetup) onNavigateToCompleteSetup()
+    }
+
+    // Google tidak mengirim nomor telepon, jadi akun baru sering masuk tanpa
+    // nomor. Pengisian nomor didahulukan sebelum klinik (lebih jarang, dan
+    // tanpa nomor klinik tetap tidak bisa menghubungi pasien).
+    LaunchedEffect(uiState.needsPhone) {
+        if (uiState.needsPhone) onNavigateToPhoneSetup()
     }
 
     Box(

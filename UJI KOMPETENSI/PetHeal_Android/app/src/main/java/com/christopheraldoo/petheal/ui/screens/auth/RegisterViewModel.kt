@@ -24,6 +24,13 @@ data class RegisterUiState(
     // PHASE 7: same safety net as login (defensive; email register requires
     // a slug upfront so this should rarely trigger).
     val needsClinicSetup: Boolean = false,
+    /**
+     * Akun Google yang nomornya belum tercatat. Server menerima akun seperti ini
+     * apa adanya, tetapi klinik tidak punya jalan menghubungi pasien — jadi
+     * aplikasi meminta nomornya sekali di awal, bukan membiarkannya kosong
+     * sampai admin klinik menyadarinya saat memproses refund.
+     */
+    val needsPhone: Boolean = false,
     val error: String? = null
 )
 
@@ -38,11 +45,20 @@ class RegisterViewModel @Inject constructor(
     /**
      * Langkah 1 pendaftaran email: minta kode OTP. Akun baru dibuat backend
      * setelah kode diverifikasi (lihat `OtpVerificationViewModel`).
+     *
+     * [phone] adalah nomor WhatsApp yang diisi di form; ikut dikirim sekarang
+     * karena akun baru dibuat dari payload yang tersimpan di server.
      */
-    fun requestOtp(name: String, email: String, password: String, clinicSlug: String? = null) {
+    fun requestOtp(
+        name: String,
+        email: String,
+        password: String,
+        phone: String? = null,
+        clinicSlug: String? = null
+    ) {
         viewModelScope.launch {
             _uiState.value = RegisterUiState(isLoading = true)
-            when (val result = authRepository.requestRegisterOtp(name, email, password, clinicSlug)) {
+            when (val result = authRepository.requestRegisterOtp(name, email, password, phone, clinicSlug)) {
                 is Result.Success -> {
                     val body = result.data
                     // `mail_sent = false` berarti kode terbit di server tetapi email
@@ -72,7 +88,12 @@ class RegisterViewModel @Inject constructor(
             val fcmToken = try { FirebaseMessaging.getInstance().token.await() } catch (e: Exception) { null }
             when (val result = authRepository.registerWithGoogle(idToken, name, null, fcmToken, clinicSlug)) {
                 // MULTI-CLINIC DISCOVERY: akun Google tanpa klinik langsung valid.
-                is Result.Success -> _uiState.value = RegisterUiState(isSuccess = true)
+                // Nomor WhatsApp tetap diminta sekali bila Google tidak membawa
+                // nomor — lihat [RegisterScreen] → `onNavigateToPhoneSetup`.
+                is Result.Success -> _uiState.value = RegisterUiState(
+                    isSuccess = true,
+                    needsPhone = result.data.user.phone.isNullOrBlank()
+                )
                 is Result.Error  -> _uiState.value = RegisterUiState(error = result.message)
                 else             -> Unit
             }

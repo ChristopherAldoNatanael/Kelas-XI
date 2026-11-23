@@ -33,7 +33,9 @@ class RefundService
         string $method,
         ?string $reference,
         string $reason,
-        ?int $userId = null
+        ?int $userId = null,
+        ?string $providerRefundId = null,
+        ?string $proofPath = null
     ): BookingRefund {
         if ($amount <= 0) {
             throw new RuntimeException('Nominal refund harus lebih dari nol.');
@@ -47,7 +49,7 @@ class RefundService
             throw new RuntimeException('Alasan refund wajib diisi.');
         }
 
-        return DB::transaction(function () use ($booking, $amount, $method, $reference, $reason, $userId) {
+        return DB::transaction(function () use ($booking, $amount, $method, $reference, $reason, $userId, $providerRefundId, $proofPath) {
             $locked = Booking::whereKey($booking->id)->lockForUpdate()->firstOrFail();
 
             if ($locked->status !== 'cancelled') {
@@ -83,6 +85,8 @@ class RefundService
                 'amount' => $amount,
                 'method' => $method,
                 'reference' => $reference,
+                'provider_refund_id' => $providerRefundId,
+                'proof_path' => $proofPath,
                 'reason' => trim($reason),
                 'recorded_by' => $userId ?? auth()->id(),
             ]);
