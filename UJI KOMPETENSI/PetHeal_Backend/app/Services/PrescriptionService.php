@@ -89,16 +89,24 @@ class PrescriptionService
                     );
                 }
 
-                $unitPrice = (float) ($row['unit_price'] ?? $medicine->price);
+                $unitPrice = (float) $medicine->price;
 
                 PrescriptionItem::create([
                     'medical_record_id' => $record->id,
                     'medicine_id' => $medicine->id,
                     'medicine_name' => $medicine->name,
                     'dose' => $row['dose'] ?? null,
+                    'route' => $row['route'] ?? null,
+                    'frequency' => $row['frequency'] ?? null,
+                    'duration_days' => isset($row['duration_days']) && $row['duration_days'] !== ''
+                        ? (int) $row['duration_days']
+                        : null,
+                    'instruction' => $row['instruction'] ?? null,
                     'quantity' => $quantity,
                     'unit' => $medicine->unit,
                     'unit_price' => $unitPrice,
+                    'drug_class' => $medicine->drug_class,
+                    'is_antibiotic' => (bool) $medicine->is_antibiotic,
                 ]);
 
                 $total += $quantity * $unitPrice;

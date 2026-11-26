@@ -23,7 +23,10 @@ class MedicalRecordController extends Controller
         // `booking.clinic` ikut dimuat: satu pasien bisa berobat di beberapa
         // klinik, jadi identitas klinik harus datang dari rekam medis/booking
         // yang bersangkutan — bukan dari klinik yang terakhir dipakai.
-        $record->loadMissing(['booking.clinic', 'pet', 'doctor', 'attachments']);
+        $record->loadMissing([
+            'booking.clinic', 'pet.allergies', 'doctor', 'attachments',
+            'prescriptionItems', 'vitals',
+        ]);
         $canViewFullRecord = $record->can_view_full_record;
         $clinic = $record->booking?->clinic;
 
@@ -33,6 +36,9 @@ class MedicalRecordController extends Controller
             'pet_id' => $record->pet_id,
             'doctor_id' => $record->doctor_id,
             'record_id' => $record->id,
+            'status' => $record->status,
+            'void_reason' => $record->void_reason,
+            'voided_at' => $record->voided_at?->toDateTimeString(),
             // Klinik tempat rekam medis ini dibuat. Null bila booking lama
             // tidak punya relasi klinik — UI wajib punya tampilan cadangan.
             'clinic' => $clinic ? [
@@ -43,6 +49,7 @@ class MedicalRecordController extends Controller
                 'phone' => $clinic->phone,
                 'logo_url' => $clinic->logo_url ?? null,
                 'primary_color' => $clinic->primary_color ?? null,
+                'license_number' => $clinic->license_number,
             ] : null,
             'diagnosis' => $includeFullRecord && $canViewFullRecord ? $record->diagnosis : null,
             // SOAP — di-gate dengan aturan yang sama seperti diagnosis:
@@ -67,10 +74,52 @@ class MedicalRecordController extends Controller
                     ->values()
                     ->all()
                 : [],
+            // Resep terstruktur: sebelumnya hanya teks `medicine` yang dikirim,
+            // sehingga pemilik tidak pernah melihat obat, dosis, dan jumlah yang
+            // benar-benar diresepkan.
+            'prescription' => ($includeFullRecord && $canViewFullRecord)
+                ? $record->prescriptionItems->map(fn ($item) => [
+                    'id' => $item->id,
+                    'medicine_name' => $item->medicine_name,
+                    'dose' => $item->dose,
+                    'route' => $item->route,
+                    'frequency' => $item->frequency,
+                    'duration_days' => $item->duration_days,
+                    'instruction' => $item->instruction,
+                    'quantity' => (float) $item->quantity,
+                    'unit' => $item->unit,
+                    'unit_price' => (float) $item->unit_price,
+                    'subtotal' => (float) $item->subtotal,
+                    'batch_number' => $item->batch_number,
+                    'expiry_date' => $item->expiry_date?->toDateString(),
+                    'is_antibiotic' => (bool) $item->is_antibiotic,
+                ])->values()->all()
+                : [],
+            'vitals' => $record->vitals ? [
+                'temperature_c' => $record->vitals->temperature_c,
+                'heart_rate' => $record->vitals->heart_rate,
+                'respiratory_rate' => $record->vitals->respiratory_rate,
+                'crt_seconds' => $record->vitals->crt_seconds,
+                'mucosa' => $record->vitals->mucosa,
+                'hydration' => $record->vitals->hydration,
+                'bcs' => $record->vitals->bcs,
+                'pain_score' => $record->vitals->pain_score,
+                'weight_kg' => $record->vitals->weight_kg,
+            ] : null,
+            'allergies' => $record->pet?->allergies
+                ?->where('is_active', true)
+                ->map(fn ($allergy) => [
+                    'id' => $allergy->id,
+                    'allergen' => $allergy->allergen,
+                    'reaction' => $allergy->reaction,
+                    'severity' => $allergy->severity,
+                ])->values()->all() ?? [],
             'treatment' => $includeFullRecord && $canViewFullRecord ? $record->treatment : null,
             'medicine' => $includeFullRecord && $canViewFullRecord ? $record->medicine : null,
             'notes' => $includeFullRecord && $canViewFullRecord ? $record->notes : null,
-            'next_visit_date' => $includeFullRecord && $canViewFullRecord ? $record->next_visit_date : null,
+            // Tanggal kontrol adalah instruksi medis, bukan data tagihan —
+            // selalu dikirim agar pemilik tidak melewatkan jadwal.
+            'next_visit_date' => $record->next_visit_date,
             'cost' => (float) $record->cost,
             'treatment_cost' => (float) $record->treatment_cost,
             'medicine_cost' => (float) $record->medicine_cost,
@@ -81,9 +130,28 @@ class MedicalRecordController extends Controller
             'extra_payment_order_id' => $record->extra_payment_order_id,
             'extra_payment_date' => $record->extra_payment_date?->toDateTimeString(),
             'can_view_full_record' => $canViewFullRecord,
-            'booking' => $record->booking,
+            // Payload dibatasi ke field yang dipakai aplikasi. Model mentah
+            // membawa kolom internal (mis. token undangan dokter, catatan
+            // internal booking) yang tidak perlu diketahui pemilik.
+            'booking' => $record->booking ? [
+                'id' => $record->booking->id,
+                'booking_date' => optional($record->booking->booking_date)->toDateString(),
+                'booking_time' => $record->booking->booking_time,
+                'status' => $record->booking->status,
+                'payment_status' => $record->booking->payment_status,
+                'total_amount' => (float) $record->booking->total_amount,
+                'paid_amount' => (float) $record->booking->paid_amount,
+                'remaining_amount' => (float) $record->booking->remaining_amount,
+            ] : null,
             'pet' => $record->pet,
-            'doctor' => $record->doctor,
+            'doctor' => $record->doctor ? [
+                'id' => $record->doctor->id,
+                'name' => $record->doctor->name,
+                'specialization' => $record->doctor->specialization,
+                'str_number' => $record->doctor->str_number,
+                'sip_number' => $record->doctor->sip_number,
+                'photo_url' => $record->doctor->photo_url,
+            ] : null,
             'created_at' => $record->created_at?->toDateTimeString(),
         ];
     }
@@ -97,7 +165,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Booking already has $with = ['pet', 'doctor'], so just load booking
             $records = MedicalRecord::whereIn('pet_id', $petIds)
-                ->with(['booking', 'pet', 'doctor'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
@@ -136,7 +204,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Booking already has $with = ['pet', 'doctor']
             $records = MedicalRecord::where('pet_id', $petId)
-                ->with(['booking', 'pet', 'doctor'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
@@ -169,7 +237,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Don't load nested relationships manually since Booking already has $with
             $record = MedicalRecord::whereIn('pet_id', $petIds)
-                ->with(['booking', 'pet', 'doctor'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
                 ->find($id);
 
             if (!$record) {
@@ -204,7 +272,7 @@ class MedicalRecordController extends Controller
             }
 
             $record = MedicalRecord::where('booking_id', $booking->id)
-                ->with(['booking', 'pet', 'doctor'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
                 ->first();
 
             if (!$record) {

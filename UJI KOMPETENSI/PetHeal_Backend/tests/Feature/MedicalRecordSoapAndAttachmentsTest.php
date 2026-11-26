@@ -23,9 +23,9 @@ use Tests\TestCase;
 /**
  * SOAP + lampiran rekam medis.
  *
- * Yang dikunci di sini: skema benar-benar ada, lampiran disimpan/dihapus
- * beserta filenya, dan SOP tidak bocor saat rekaman masih terkunci
- * pembayaran tambahan.
+ * Yang dikunci di sini: skema benar-benar ada, lampiran disimpan di disk
+ * privat lalu dihapus lunak beserta filenya, dan isi klinis tidak pernah
+ * disembunyikan hanya karena biaya tambahan belum lunas.
  */
 class MedicalRecordSoapAndAttachmentsTest extends TestCase
 {
@@ -37,6 +37,7 @@ class MedicalRecordSoapAndAttachmentsTest extends TestCase
     {
         parent::setUp();
         Storage::fake('public');
+        Storage::fake('local');
 
         $suffix = Str::lower(Str::random(6));
 
@@ -109,8 +110,7 @@ class MedicalRecordSoapAndAttachmentsTest extends TestCase
         $this->assertSame('Gastroenteritis', $fresh->diagnosis);
     }
 
-    public function test_pdf_attachment_is_stored_and_deleted_with_its_file(): void
-    {
+    public function test_pdf_attachment_is_stored_and_deleted_with_its_file(): void    {
         $service = app(MedicalRecordAttachmentService::class);
 
         $saved = $service->storeOne(
@@ -121,21 +121,24 @@ class MedicalRecordSoapAndAttachmentsTest extends TestCase
         );
 
         $this->assertSame('application/pdf', $saved->mime_type);
-        Storage::disk('public')->assertExists($saved->path);
+        Storage::disk('local')->assertExists($saved->path);
 
         $service->delete($saved);
 
-        Storage::disk('public')->assertMissing($saved->path);
-        $this->assertNull(MedicalRecordAttachment::find($saved->id));
+        // Hapus lunak: baris tidak tampil lagi tetapi berkas tetap ada sebagai bukti.
+        Storage::disk('local')->assertExists($saved->path);
+        $this->assertSoftDeleted('medical_record_attachments', ['id' => $saved->id]);
+
+        // Purge hanya dipakai untuk pemeliharaan berkas yatim.
+        $service->purge(MedicalRecordAttachment::withTrashed()->find($saved->id));
+
+        Storage::disk('local')->assertMissing($saved->path);
+        $this->assertNull(MedicalRecordAttachment::withTrashed()->find($saved->id));
     }
 
     public function test_image_attachment_is_reencoded_to_jpeg(): void
     {
-        // ImageService menulis langsung ke storage/app/public (bukan lewat
-        // disk abstraction), jadi jalur nyata itu yang dipalsukan di sini.
-        Storage::fake('public');
-        \Illuminate\Support\Facades\File::deleteDirectory(storage_path('app/public/medical-records'));
-
+        // Service menulis ke disk privat lewat abstraksi Storage.
         $service = app(MedicalRecordAttachmentService::class);
 
         $saved = $service->storeOne(
@@ -150,13 +153,13 @@ class MedicalRecordSoapAndAttachmentsTest extends TestCase
         $this->assertSame('image/jpeg', $saved->mime_type);
         $this->assertStringEndsWith('.jpg', $saved->path);
         $this->assertTrue($saved->isImage());
-        $this->assertFileExists(storage_path('app/public/' . $saved->path));
+        Storage::disk('local')->assertExists($saved->path);
 
         // Bersihkan supaya tidak meninggalkan file di storage nyata.
         @unlink(storage_path('app/public/' . $saved->path));
     }
 
-    public function test_soap_is_masked_when_record_is_still_locked(): void
+    public function test_payment_status_never_hides_clinical_content(): void
     {
         $this->record->update([
             'extra_payment_amount' => 50000,
@@ -165,14 +168,10 @@ class MedicalRecordSoapAndAttachmentsTest extends TestCase
         ]);
 
         $locked = $this->record->fresh();
-        $this->assertFalse($locked->can_view_full_record);
 
-        $locked->maskClinicalFields();
-
-        $this->assertNull($locked->subjective);
-        $this->assertNull($locked->objective);
-        $this->assertNull($locked->assessment);
-        $this->assertNull($locked->plan);
-        $this->assertCount(0, $locked->attachments);
+        // Diagnosis dan terapi adalah hak pemilik hewan, bukan insentif tagihan.
+        $this->assertTrue($locked->can_view_full_record);
+        $this->assertSame('Kucing muntah 2 hari', $locked->subjective);
+        $this->assertSame('Suspek gastroenteritis', $locked->assessment);
     }
 }

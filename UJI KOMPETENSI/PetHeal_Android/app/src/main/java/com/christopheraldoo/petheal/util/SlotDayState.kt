@@ -17,6 +17,7 @@ import java.time.format.DateTimeParseException
  */
 enum class SlotDayStatus {
     AVAILABLE,
+    CLINIC_CLOSED,
     CLOSED_LEAVE,
     NOT_PRACTICING,
     NO_SLOTS,
@@ -31,6 +32,8 @@ fun resolveSlotDayStatus(
     date: LocalDate?,
     now: LocalDateTime = LocalDateTime.now()
 ): SlotDayStatus {
+    // Klinik tutup mengalahkan jadwal dokter: tidak ada layanan pada hari itu.
+    if (meta?.clinicClosed == true || meta?.clinicIsOpen == false) return SlotDayStatus.CLINIC_CLOSED
     if (meta?.isClosed == true) return SlotDayStatus.CLOSED_LEAVE
     // Server adalah otoritas: jam khusus bisa membuka hari yang biasanya
     // tutup, jadi `meta.isWorkingDay` menang atas available_days lokal.
@@ -89,4 +92,12 @@ fun SlotMeta?.customHoursLabel(): String? {
     val start = startTime?.takeIf { it.isNotBlank() } ?: return null
     val end = endTime?.takeIf { it.isNotBlank() } ?: return null
     return "$start - $end"
+}
+
+/** Jam operasional klinik pada tanggal itu, mis. "08:00 - 17:00". */
+fun SlotMeta?.clinicHoursLabel(): String? {
+    val meta = this ?: return null
+    val open = meta.clinicOpeningTime?.takeIf { it.isNotBlank() } ?: return null
+    val close = meta.clinicClosingTime?.takeIf { it.isNotBlank() } ?: return null
+    return "$open - $close"
 }

@@ -105,6 +105,7 @@ return [
     'booking_info' => 'Booking information',
     'species_breed' => 'Species / breed',
     'exam_result' => 'Examination result',
+    'diagnosis' => 'Diagnosis',
     'diagnosis_placeholder' => 'Example: allergic dermatitis on the dorsal skin.',
     'treatment' => 'Procedure / therapy',
     'treatment_placeholder' => 'Example: area cleaned, ointment applied, owner educated.',

@@ -288,8 +288,13 @@ class AdminFilterConsistencyTest extends TestCase
         $booking = $this->makeBooking($this->makePet('CsvPet'));
 
         for ($i = 1; $i <= 205; $i++) {
+            // Satu booking hanya boleh punya satu rekam medis.
+            $row = $this->makeBooking($booking->pet, [
+                'booking_date' => Carbon::today()->addDays(intdiv($i, 100))->format('Y-m-d'),
+            ]);
+
             MedicalRecord::create([
-                'booking_id' => $booking->id,
+                'booking_id' => $row->id,
                 'pet_id' => $booking->pet_id,
                 'doctor_id' => $this->doctor->id,
                 'clinic_id' => $this->clinic->id,

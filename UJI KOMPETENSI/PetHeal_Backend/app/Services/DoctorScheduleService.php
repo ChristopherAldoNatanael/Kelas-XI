@@ -44,16 +44,21 @@ class DoctorScheduleService
     }
 
     /**
-     * Jadwal efektif satu tanggal.
+     * Jadwal efektif satu tanggal: irisan jadwal dokter dan jam operasional
+     * klinik.
      *
-     * @return array{is_working_day:bool,is_closed:bool,has_exception:bool,start_time:?string,end_time:?string,reason:?string,source:string}
+     * Klinik yang belum mengisi jam operasional tidak membatasi apa pun
+     * (perilaku lama tetap jalan). Bila klinik tutup pada hari itu, tidak ada
+     * slot meskipun dokter punya jadwal mingguan.
+     *
+     * @return array{is_working_day:bool,is_closed:bool,has_exception:bool,start_time:?string,end_time:?string,reason:?string,source:string,clinic_is_open:?bool,clinic_start_time:?string,clinic_end_time:?string,clinic_closed:bool,outside_clinic_hours:bool}
      */
     public function effectiveSchedule(Doctor $doctor, string $date): array
     {
         $exception = $this->exceptionFor($doctor, $date);
 
         if ($exception && $exception->is_closed) {
-            return [
+            return $this->applyClinicHours($doctor, $date, [
                 'is_working_day' => false,
                 'is_closed' => true,
                 'has_exception' => true,
@@ -61,14 +66,14 @@ class DoctorScheduleService
                 'end_time' => null,
                 'reason' => $exception->reason,
                 'source' => 'exception_closed',
-            ];
+            ]);
         }
 
         if ($exception) {
             $start = $exception->start_time ?: $doctor->start_time;
             $end = $exception->end_time ?: $doctor->end_time;
 
-            return [
+            return $this->applyClinicHours($doctor, $date, [
                 'is_working_day' => $this->isValidWindow($start, $end),
                 'is_closed' => false,
                 'has_exception' => true,
@@ -76,12 +81,12 @@ class DoctorScheduleService
                 'end_time' => self::normalizeTime($end),
                 'reason' => $exception->reason,
                 'source' => 'exception_custom',
-            ];
+            ]);
         }
 
         $worksWeekly = $this->worksOnWeekday($doctor, $date);
 
-        return [
+        return $this->applyClinicHours($doctor, $date, [
             'is_working_day' => $worksWeekly,
             'is_closed' => false,
             'has_exception' => false,
@@ -89,7 +94,137 @@ class DoctorScheduleService
             'end_time' => $worksWeekly ? self::normalizeTime($doctor->end_time) : null,
             'reason' => null,
             'source' => 'weekly',
+        ]);
+    }
+
+    /**
+     * Jam operasional klinik pada satu tanggal.
+     *
+     * `null` berarti klinik belum mengisi jam operasional, sehingga jadwal
+     * dokter dipakai apa adanya.
+     *
+     * @return array{is_open:bool,start_time:?string,end_time:?string,reason:?string}|null
+     */
+    public function clinicWindow(Doctor $doctor, string $date): ?array
+    {
+        $clinic = $doctor->clinic;
+
+        if (!$clinic || !$clinic->opening_time || !$clinic->closing_time) {
+            return null;
+        }
+
+        $dayName = strtolower(Carbon::parse($date)->format('l'));
+        $rawDays = $clinic->operating_days;
+
+        if (is_string($rawDays)) {
+            $rawDays = array_filter(array_map('trim', explode(',', $rawDays)));
+        }
+
+        $days = is_array($rawDays)
+            ? array_map(fn ($day) => strtolower((string) $day), $rawDays)
+            : [];
+
+        if ($days !== [] && !in_array('all', $days, true) && !in_array($dayName, $days, true)) {
+            return [
+                'is_open' => false,
+                'start_time' => null,
+                'end_time' => null,
+                'reason' => 'Klinik tutup pada hari ' . $this->dayLabel($dayName) . '.',
+            ];
+        }
+
+        $start = self::normalizeTime($clinic->opening_time);
+        $end = self::normalizeTime($clinic->closing_time);
+
+        if (!$this->isValidWindow($start, $end)) {
+            return null;
+        }
+
+        return [
+            'is_open' => true,
+            'start_time' => $start,
+            'end_time' => $end,
+            'reason' => null,
         ];
+    }
+
+    /**
+     * Terapkan jam klinik ke jadwal dokter: tutup = tidak ada slot, buka =
+     * ambil irisan jam praktik dokter dengan jam operasional klinik.
+     *
+     * @param  array<string, mixed>  $schedule
+     * @return array<string, mixed>
+     */
+    private function applyClinicHours(Doctor $doctor, string $date, array $schedule): array
+    {
+        $window = $this->clinicWindow($doctor, $date);
+
+        $schedule['clinic_is_open'] = $window['is_open'] ?? null;
+        $schedule['clinic_start_time'] = $window['start_time'] ?? null;
+        $schedule['clinic_end_time'] = $window['end_time'] ?? null;
+        $schedule['clinic_closed'] = $window !== null && !$window['is_open'];
+        $schedule['outside_clinic_hours'] = false;
+
+        if ($window === null || !$schedule['is_working_day']) {
+            return $schedule;
+        }
+
+        if (!$window['is_open']) {
+            return array_merge($schedule, [
+                'is_working_day' => false,
+                'is_closed' => false,
+                'start_time' => null,
+                'end_time' => null,
+                'reason' => $window['reason'],
+            ]);
+        }
+
+        $doctorStart = $this->minutes($schedule['start_time']);
+        $doctorEnd = $this->minutes($schedule['end_time']);
+        $clinicStart = $this->minutes($window['start_time']);
+        $clinicEnd = $this->minutes($window['end_time']);
+
+        if ($doctorStart === null || $doctorEnd === null || $clinicStart === null || $clinicEnd === null) {
+            return $schedule;
+        }
+
+        $start = max($doctorStart, $clinicStart);
+        $end = min($doctorEnd, $clinicEnd);
+
+        if ($end <= $start) {
+            return array_merge($schedule, [
+                'is_working_day' => false,
+                'start_time' => null,
+                'end_time' => null,
+                'outside_clinic_hours' => true,
+                'reason' => sprintf(
+                    'Jam praktik dokter (%s-%s) tidak beririsan dengan jam operasional klinik (%s-%s).',
+                    $schedule['start_time'],
+                    $schedule['end_time'],
+                    $window['start_time'],
+                    $window['end_time']
+                ),
+            ]);
+        }
+
+        return array_merge($schedule, [
+            'start_time' => sprintf('%02d:%02d', intdiv($start, 60), $start % 60),
+            'end_time' => sprintf('%02d:%02d', intdiv($end, 60), $end % 60),
+        ]);
+    }
+
+    /** Nama hari untuk pesan yang dibaca admin/pemilik hewan. */
+    private function dayLabel(string $day): string
+    {
+        return [
+            'monday' => 'Senin',
+            'tuesday' => 'Selasa',
+            'wednesday' => 'Rabu',
+            'thursday' => 'Kamis',
+            'friday' => 'Jumat',
+            'saturday' => 'Sabtu',
+            'sunday' => 'Minggu',
+        ][$day] ?? ucfirst($day);
     }
 
     /**
@@ -161,6 +296,12 @@ class DoctorScheduleService
         }
 
         if (!$schedule['is_working_day']) {
+            $reason = trim((string) ($schedule['reason'] ?? ''));
+
+            if ($reason !== '' && (!empty($schedule['clinic_closed']) || !empty($schedule['outside_clinic_hours']))) {
+                return $reason . ' Silakan pilih tanggal atau jam lain.';
+            }
+
             return 'Dokter tidak praktik pada tanggal tersebut. Silakan pilih tanggal lain.';
         }
 
@@ -174,7 +315,7 @@ class DoctorScheduleService
 
         if ($slot < $start || $slot >= $end) {
             return sprintf(
-                'Jam %s di luar jadwal praktik dokter (%s - %s).',
+                'Jam %s di luar jam layanan dokter/klinik (%s - %s).',
                 substr($time, 0, 5),
                 $schedule['start_time'],
                 $schedule['end_time']

@@ -42,6 +42,24 @@ Route::get('/', function () {
     return view('welcome');
 });
 
+/*
+|--------------------------------------------------------------------------
+| Dokumen medis (akses lewat tanda tangan)
+|--------------------------------------------------------------------------
+|
+| Lampiran dan verifikasi dokumen dibuka memakai URL bertanda tangan berumur
+| pendek, bukan folder `storage` publik. Tautan dibuat oleh model
+| MedicalRecordAttachment dan controller resume medis.
+|
+*/
+Route::get('/medical-records/{record}/attachments/{attachment}', [MedicalRecordController::class, 'downloadAttachment'])
+    ->middleware('signed')
+    ->name('medical-records.attachments.download');
+
+Route::get('/medical-records/{id}/verify', [MedicalRecordController::class, 'verify'])
+    ->middleware('signed')
+    ->name('medical-records.verify');
+
 // Admin Authentication Routes (Public)
 Route::get('/admin/login', [AdminAuthController::class, 'showLoginForm'])->name('admin.login');
 Route::post('/admin/login', [AdminAuthController::class, 'login'])->middleware('throttle:admin-login')->name('admin.login.post');
@@ -129,6 +147,7 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     // Permintaan layanan: pengajuan pemilik → evaluasi dokter → penawaran admin.
     // Didaftarkan sebelum pola lain agar `/service-requests/{id}` tidak bentrok.
     Route::get('/service-requests', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'index'])->name('service-requests.index');
+    Route::get('/service-requests/doctor/{doctor}/slots', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'doctorSlots'])->name('service-requests.doctor-slots');
     Route::get('/service-requests/{id}', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'show'])->name('service-requests.show');
     Route::post('/service-requests/{id}', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'update'])->name('service-requests.update');
 
@@ -162,6 +181,10 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/medical-records/{id}', [MedicalRecordController::class, 'show'])->name('medical-records.show');
     Route::get('/medical-records/{id}/edit', [MedicalRecordController::class, 'edit'])->name('medical-records.edit');
     Route::put('/medical-records/{id}', [MedicalRecordController::class, 'update'])->name('medical-records.update');
+    // Resume medis resmi (kop klinik, identitas dokter, cap isi dokumen).
+    Route::get('/medical-records/{id}/resume', [MedicalRecordController::class, 'resumePdf'])->name('medical-records.resume');
+    Route::post('/medical-records/{id}/allergies', [MedicalRecordController::class, 'storeAllergy'])->name('medical-records.allergies.store');
+    Route::delete('/medical-records/{id}/allergies/{allergy}', [MedicalRecordController::class, 'destroyAllergy'])->name('medical-records.allergies.destroy');
     Route::delete('/medical-records/{id}', [MedicalRecordController::class, 'destroy'])->name('medical-records.destroy');
 
     // Services
@@ -346,6 +369,7 @@ Route::prefix('doctor')->name('doctor.')->group(function () {
         Route::get('/medical-records/{id}', [DoctorMedicalRecordController::class, 'show'])->name('medical-records.show');
         Route::get('/medical-records/{id}/edit', [DoctorMedicalRecordController::class, 'edit'])->name('medical-records.edit');
         Route::put('/medical-records/{id}', [DoctorMedicalRecordController::class, 'update'])->name('medical-records.update');
+        Route::get('/medical-records/{id}/resume', [DoctorMedicalRecordController::class, 'resumePdf'])->name('medical-records.resume');
 
         Route::get('/schedule', [DoctorScheduleController::class, 'index'])->name('schedule.index');
         Route::post('/schedule', [DoctorScheduleController::class, 'store'])->name('schedule.store');
@@ -361,3 +385,5 @@ Route::prefix('doctor')->name('doctor.')->group(function () {
             ->middleware('throttle:doctor-password-verify')->name('profile.password');
     });
 });
+
+

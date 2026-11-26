@@ -78,6 +78,7 @@
                 @include('admin.medical-records.partials.prescription-fields', [
                     'record' => $record,
                     'medicines' => $medicines ?? collect(),
+                    'allergies' => $allergies ?? collect(),
                 ])
             </div>
 
@@ -129,6 +130,15 @@
                            value="{{ old('next_visit_time', $record->next_visit_time ? \Carbon\Carbon::parse($record->next_visit_time)->format('H:i') : '') }}">
                     @error('next_visit_time') <p class="admin-error">{{ $message }}</p> @enderror
                 </div>
+            </div>
+
+            <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
+                <label for="change_reason" class="admin-label">Alasan koreksi (opsional)</label>
+                <input type="text" name="change_reason" id="change_reason" maxlength="255"
+                       value="{{ old('change_reason') }}" class="admin-input"
+                       placeholder="Contoh: koreksi diagnosis setelah hasil laboratorium keluar">
+                <p class="admin-hint">Tersimpan di riwayat perubahan rekam medis.</p>
+                @error('change_reason') <p class="admin-error">{{ $message }}</p> @enderror
             </div>
 
             <div class="flex flex-wrap items-center justify-end gap-3 border-t border-slate-100 pt-6 dark:border-slate-800">

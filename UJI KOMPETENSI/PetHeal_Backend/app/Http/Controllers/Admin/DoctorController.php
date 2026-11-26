@@ -91,6 +91,10 @@ class DoctorController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'specialization' => 'required|string|max:255',
+            'str_number' => 'nullable|string|max:50',
+            'str_expiry' => 'nullable|date',
+            'sip_number' => 'nullable|string|max:50',
+            'sip_expiry' => 'nullable|date',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
@@ -116,6 +120,7 @@ class DoctorController extends Controller
 
         $data = $request->only([
             'name', 'specialization', 'phone', 'email',
+            'str_number', 'str_expiry', 'sip_number', 'sip_expiry',
             'available_days', 'start_time', 'end_time', 'is_active',
         ]);
 
@@ -348,6 +353,10 @@ class DoctorController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'specialization' => 'required|string|max:255',
+            'str_number' => 'nullable|string|max:50',
+            'str_expiry' => 'nullable|date',
+            'sip_number' => 'nullable|string|max:50',
+            'sip_expiry' => 'nullable|date',
             'phone' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
             'photo' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
@@ -366,6 +375,7 @@ class DoctorController extends Controller
         // tenant. `clinic_id` is intentionally NOT updatable here.
         $data = $request->only([
             'name', 'specialization', 'phone', 'email',
+            'str_number', 'str_expiry', 'sip_number', 'sip_expiry',
             'available_days', 'start_time', 'end_time', 'is_active',
         ]);
 

@@ -323,10 +323,15 @@ class ClinicController extends Controller
             'logo' => 'nullable|image|mimes:jpeg,png,jpg,webp|max:2048',
             'primary_color' => 'required|regex:/^#[0-9A-Fa-f]{6}$/',
             'description' => 'nullable|string',
+            'license_number' => 'nullable|string|max:100',
+            'license_expiry' => 'nullable|date',
         ] + $this->locationRules());
         $this->guardCoordinates($request);
 
-        $data = collect($validated)->only(['name', 'address', 'phone', 'email', 'primary_color', 'description'])->toArray();
+        $data = collect($validated)->only([
+            'name', 'address', 'phone', 'email', 'primary_color', 'description',
+            'license_number', 'license_expiry',
+        ])->toArray();
         // Profil klinik (clinic_admin) juga wajib bisa memperbaiki lokasi,
         // jam operasional, dan izin pickup — tanpa slug/status.
         $data = array_merge($data, $this->operatingData($request), $this->pickupData($request));

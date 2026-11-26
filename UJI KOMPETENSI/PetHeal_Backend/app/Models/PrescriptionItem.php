@@ -17,14 +17,27 @@ class PrescriptionItem extends Model
         'medicine_id',
         'medicine_name',
         'dose',
+        'route',
+        'frequency',
+        'duration_days',
+        'instruction',
         'quantity',
         'unit',
+        'batch_number',
+        'expiry_date',
+        'drug_class',
+        'is_antibiotic',
+        'dispensed_at',
         'unit_price',
     ];
 
     protected $casts = [
         'quantity' => 'decimal:2',
         'unit_price' => 'decimal:2',
+        'duration_days' => 'integer',
+        'is_antibiotic' => 'boolean',
+        'expiry_date' => 'date:Y-m-d',
+        'dispensed_at' => 'datetime',
     ];
 
     public function record()

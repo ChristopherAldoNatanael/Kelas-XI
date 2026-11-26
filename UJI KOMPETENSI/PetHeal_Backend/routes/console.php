@@ -35,3 +35,10 @@ Schedule::command('payments:reconcile --limit=50')
     ->everyFifteenMinutes()
     ->withoutOverlapping()
     ->name('reconcile-payments');
+
+// Rekam medis: pindahkan ke status arsip setelah masa retensi habis.
+// Tidak menghapus data; hanya menyembunyikan dari daftar harian.
+Schedule::command('medical-records:archive')
+    ->monthlyOn(1, '02:30')
+    ->withoutOverlapping()
+    ->name('archive-medical-records');

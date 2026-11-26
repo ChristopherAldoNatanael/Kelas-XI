@@ -12,12 +12,18 @@ class Pet extends Model
     protected $fillable = [
         'user_id',
         'name',
+        'microchip_number',
         'species',
+        'species_code',
         'breed',
+        'color',
+        'markings',
         'age',
         'weight',
         'gender',
         'date_of_birth',
+        'neutered_at',
+        'blood_type',
         'photo',
         'notes',
     ];
@@ -26,6 +32,7 @@ class Pet extends Model
         'age'           => 'integer',
         'weight'        => 'float',
         'date_of_birth' => 'date:Y-m-d',
+        'neutered_at'   => 'date:Y-m-d',
     ];
 
     protected $appends = ['photo_url'];
@@ -52,6 +59,14 @@ class Pet extends Model
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class);
+    }
+
+    /**
+     * Alergi aktif hewan. Dipakai sebagai peringatan di form resep.
+     */
+    public function allergies()
+    {
+        return $this->hasMany(PetAllergy::class);
     }
 
     /**

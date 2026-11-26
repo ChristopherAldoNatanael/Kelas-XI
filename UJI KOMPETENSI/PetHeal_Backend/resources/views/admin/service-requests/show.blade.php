@@ -134,6 +134,8 @@
 
         <div class="space-y-6">
             @if(!$closed)
+                @include('admin.service-requests.partials.offer-form')
+
                 <x-admin.panel title="Tindakan" subtitle="Setiap tindakan tercatat di audit log">
                     <div class="space-y-5">
                         <form method="POST" action="{{ route('admin.service-requests.update', $request->id) }}" class="space-y-2">
@@ -166,87 +168,6 @@
                     </div>
                 </x-admin.panel>
 
-                <x-admin.panel title="Susun Penawaran" subtitle="Harga ditentukan admin, bukan dokter">
-                    <form method="POST" action="{{ route('admin.service-requests.update', $request->id) }}" class="space-y-3">
-                        @csrf
-                        <input type="hidden" name="action" value="offer">
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Layanan katalog (opsional)</label>
-                            <select name="offer_service_id" class="admin-input">
-                                <option value="">— Layanan khusus / belum ada di katalog —</option>
-                                @foreach($services as $serviceOption)
-                                    <option value="{{ $serviceOption->id }}" @selected($request->offer_service_id === $serviceOption->id)>
-                                        {{ $serviceOption->name }} — {{ format_rupiah((float) $serviceOption->price) }}
-                                    </option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Nama layanan penawaran</label>
-                            <input type="text" name="offer_service_name" value="{{ $request->offer_service_name }}" class="admin-input" placeholder="mis. Pemeriksaan USG abdomen">
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Deskripsi</label>
-                            <textarea name="offer_description" rows="2" class="admin-input">{{ $request->offer_description }}</textarea>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Harga (Rp)</label>
-                                <input type="number" step="1000" min="0" name="offer_price" value="{{ $request->offer_price }}" class="admin-input">
-                            </div>
-                            <div>
-                                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Jenis harga</label>
-                                <select name="offer_price_type" class="admin-input">
-                                    <option value="final" @selected($request->offer_price_type !== 'estimate')>Final</option>
-                                    <option value="estimate" @selected($request->offer_price_type === 'estimate')>Estimasi</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Durasi (menit, opsional)</label>
-                            <input type="number" min="0" name="offer_duration_minutes" value="{{ $request->offer_duration_minutes }}" class="admin-input">
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Dokter</label>
-                            <select name="offer_doctor_id" class="admin-input" required>
-                                <option value="">Pilih dokter</option>
-                                @foreach($doctors as $doctorOption)
-                                    <option value="{{ $doctorOption->id }}" @selected($request->offer_doctor_id === $doctorOption->id)>{{ $doctorOption->name }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <div class="grid grid-cols-2 gap-3">
-                            <div>
-                                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Tanggal</label>
-                                <input type="date" name="offer_schedule_date" min="{{ now()->toDateString() }}" value="{{ $request->offer_schedule_date }}" class="admin-input" required>
-                            </div>
-                            <div>
-                                <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Jam</label>
-                                <input type="time" name="offer_schedule_time" value="{{ $request->offer_schedule_time }}" class="admin-input" required>
-                            </div>
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Berlaku sampai (opsional)</label>
-                            <input type="datetime-local" name="offer_valid_until" value="{{ $request->offer_valid_until?->format('Y-m-d\TH:i') }}" class="admin-input">
-                        </div>
-
-                        <div>
-                            <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Catatan klinik</label>
-                            <textarea name="offer_notes" rows="2" class="admin-input">{{ $request->offer_notes }}</textarea>
-                        </div>
-
-                        <button class="admin-btn-primary w-full">{{ $request->offered_at ? 'Kirim ulang penawaran' : 'Kirim penawaran' }}</button>
-                    </form>
-                </x-admin.panel>
-
                 <x-admin.panel title="Tutup Permintaan">
                     <div class="space-y-4">
                         <form method="POST" action="{{ route('admin.service-requests.update', $request->id) }}" class="space-y-2">
@@ -274,3 +195,7 @@
     </div>
 </div>
 @endsection
+
+@push('scripts')
+@include('admin.service-requests.partials.offer-schedule-script')
+@endpush

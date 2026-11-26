@@ -8,6 +8,7 @@ use App\Models\Doctor;
 use App\Models\Service;
 use App\Models\ServiceRequest;
 use App\Services\ServiceRequestService;
+use App\Services\DoctorScheduleService;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use RuntimeException;
@@ -21,8 +22,10 @@ use RuntimeException;
  */
 class ServiceRequestController extends Controller
 {
-    public function __construct(private readonly ServiceRequestService $service)
-    {
+    public function __construct(
+        private readonly ServiceRequestService $service,
+        private readonly DoctorScheduleService $schedule
+    ) {
     }
 
     public function index(Request $request)
@@ -82,7 +85,91 @@ class ServiceRequestController extends Controller
             ->orderBy('name')
             ->get();
 
-        return view('admin.service-requests.show', compact('request', 'doctors', 'services'));
+        // Ringkasan jadwal dipakai form penawaran untuk menuntun admin memilih
+        // tanggal yang benar sejak awal (sebelum memanggil endpoint slot).
+        $doctorSchedules = $doctors->mapWithKeys(function (Doctor $doctor) {
+            $days = $this->schedule->availableDays($doctor);
+
+            return [$doctor->id => [
+                'days' => $this->weekdayNumbers($days),
+                'days_label' => $this->weekdayLabels($days),
+                'start' => DoctorScheduleService::normalizeTime($doctor->start_time),
+                'end' => DoctorScheduleService::normalizeTime($doctor->end_time),
+            ]];
+        });
+
+        $clinic = $request->clinic;
+        $clinicDays = $clinic?->operating_days;
+        if (is_string($clinicDays)) {
+            $clinicDays = array_map('trim', explode(',', $clinicDays));
+        }
+        $clinicDays = is_array($clinicDays) ? array_values(array_filter($clinicDays)) : [];
+        $clinicDayNumbers = $this->weekdayNumbers(array_map('strtolower', $clinicDays));
+
+        $scheduleMeta = [
+            'doctors' => $doctorSchedules,
+            'clinic' => [
+                'name' => $clinic?->name,
+                'opening' => DoctorScheduleService::normalizeTime($clinic?->opening_time),
+                'closing' => DoctorScheduleService::normalizeTime($clinic?->closing_time),
+                'days' => $clinicDayNumbers,
+            ],
+        ];
+
+        return view('admin.service-requests.show', compact('request', 'doctors', 'services', 'scheduleMeta'));
+    }
+
+    /**
+     * Slot dokter + jam klinik untuk form penawaran.
+     *
+     * Dipakai UI admin agar jam yang bisa dipilih hanyalah irisan jam praktik
+     * dokter dengan jam operasional klinik pada tanggal tersebut.
+     */
+    public function doctorSlots(Request $request, $doctor)
+    {
+        $clinicId = currentClinicId();
+
+        if (!$clinicId) {
+            abort(403, 'Pilih klinik terlebih dahulu.');
+        }
+
+        $validated = $request->validate([
+            'date' => 'required|date|after_or_equal:today',
+        ]);
+
+        $model = Doctor::where('clinic_id', $clinicId)
+            ->where('is_active', true)
+            ->findOrFail($doctor);
+
+        $date = $validated['date'];
+        $schedule = $this->schedule->effectiveSchedule($model, $date);
+        $slots = $this->schedule->slotsFor($model, $date, $schedule);
+        $clinic = $model->clinic;
+
+        return response()->json([
+            'success' => true,
+            'data' => $slots,
+            'meta' => [
+                'doctor_id' => $model->id,
+                'date' => $date,
+                'is_working_day' => $schedule['is_working_day'],
+                'is_closed' => $schedule['is_closed'],
+                'has_exception' => $schedule['has_exception'],
+                'start_time' => $schedule['start_time'],
+                'end_time' => $schedule['end_time'],
+                'reason' => $schedule['reason'],
+                'doctor_available_days' => $this->schedule->availableDays($model),
+                'doctor_start_time' => DoctorScheduleService::normalizeTime($model->start_time),
+                'doctor_end_time' => DoctorScheduleService::normalizeTime($model->end_time),
+                'clinic_name' => $clinic?->name,
+                'clinic_opening_time' => $schedule['clinic_start_time'],
+                'clinic_closing_time' => $schedule['clinic_end_time'],
+                'clinic_operating_days' => $clinic?->operating_days,
+                'clinic_is_open' => $schedule['clinic_is_open'],
+                'clinic_closed' => $schedule['clinic_closed'],
+                'outside_clinic_hours' => $schedule['outside_clinic_hours'],
+            ],
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -157,11 +244,50 @@ class ServiceRequestController extends Controller
                         throw new RuntimeException('Dokter, tanggal, dan jam pada penawaran wajib diisi agar pemilik dapat menyetujuinya.');
                     }
 
+                    // Harga adalah keputusan admin klinik. Katalog hanya
+                    // mengisi nilai awal, jadi harga tetap wajib dikirim eksplisit.
+                    if (!isset($validated['offer_price']) || $validated['offer_price'] === null) {
+                        throw new RuntimeException('Harga penawaran wajib diisi oleh admin.');
+                    }
+
+                    // Jam penawaran harus ada di irisan jadwal dokter dan jam
+                    // operasional klinik. Tanpa pemeriksaan ini admin bisa
+                    // mengirim jam yang tidak pernah bisa diterima pemilik.
+                    $offerDoctor = Doctor::where('id', $validated['offer_doctor_id'])
+                        ->where('clinic_id', $serviceRequest->clinic_id)
+                        ->where('is_active', true)
+                        ->first();
+
+                    if (!$offerDoctor) {
+                        throw new RuntimeException('Dokter yang dipilih tidak aktif di klinik ini.');
+                    }
+
+                    $slotIssue = $this->schedule->validateSlot(
+                        $offerDoctor,
+                        (string) $validated['offer_schedule_date'],
+                        (string) $validated['offer_schedule_time']
+                    );
+
+                    if ($slotIssue !== null) {
+                        throw new RuntimeException($slotIssue);
+                    }
+
+                    $slotTaken = \App\Models\Booking::where('doctor_id', $offerDoctor->id)
+                        ->where('clinic_id', $serviceRequest->clinic_id)
+                        ->whereDate('booking_date', $validated['offer_schedule_date'])
+                        ->where('booking_time', $validated['offer_schedule_time'])
+                        ->whereIn('status', ['pending', 'confirmed'])
+                        ->exists();
+
+                    if ($slotTaken) {
+                        throw new RuntimeException('Jam tersebut sudah dipesan pasien lain. Pilih jam lain.');
+                    }
+
                     $this->service->offer($serviceRequest, [
                         'offer_service_id' => $offerService?->id,
                         'offer_service_name' => $name,
                         'offer_description' => $validated['offer_description'] ?? $offerService?->description,
-                        'offer_price' => $validated['offer_price'] ?? null,
+                        'offer_price' => $validated['offer_price'],
                         'offer_price_type' => $validated['offer_price_type'] ?? 'final',
                         'offer_duration_minutes' => $validated['offer_duration_minutes'] ?? null,
                         'offer_doctor_id' => $validated['offer_doctor_id'],
@@ -202,6 +328,72 @@ class ServiceRequestController extends Controller
         );
 
         return redirect()->route('admin.service-requests.show', $serviceRequest->id)->with('success', $message);
+    }
+
+    /**
+     * Nomor hari ISO (1 = Senin ... 7 = Minggu) dari nama hari Inggris.
+     *
+     * @param  array<int,string>  $days
+     * @return array<int,int>
+     */
+    private function weekdayNumbers(array $days): array
+    {
+        $map = [
+            'monday' => 1,
+            'tuesday' => 2,
+            'wednesday' => 3,
+            'thursday' => 4,
+            'friday' => 5,
+            'saturday' => 6,
+            'sunday' => 7,
+        ];
+
+        $numbers = [];
+        foreach ($days as $day) {
+            $key = strtolower(trim((string) $day));
+            if ($key === 'all') {
+                return [1, 2, 3, 4, 5, 6, 7];
+            }
+            if (isset($map[$key])) {
+                $numbers[] = $map[$key];
+            }
+        }
+
+        $numbers = array_values(array_unique($numbers));
+        sort($numbers);
+
+        return $numbers;
+    }
+
+    /**
+     * Nama hari Indonesia untuk ditampilkan di form.
+     *
+     * @param  array<int,string>  $days
+     */
+    private function weekdayLabels(array $days): string
+    {
+        $labels = [
+            'monday' => 'Senin',
+            'tuesday' => 'Selasa',
+            'wednesday' => 'Rabu',
+            'thursday' => 'Kamis',
+            'friday' => 'Jumat',
+            'saturday' => 'Sabtu',
+            'sunday' => 'Minggu',
+        ];
+
+        $names = [];
+        foreach ($days as $day) {
+            $key = strtolower(trim((string) $day));
+            if ($key === 'all') {
+                return 'Setiap hari';
+            }
+            if (isset($labels[$key])) {
+                $names[] = $labels[$key];
+            }
+        }
+
+        return $names === [] ? 'Belum diatur' : implode(', ', $names);
     }
 
     /**

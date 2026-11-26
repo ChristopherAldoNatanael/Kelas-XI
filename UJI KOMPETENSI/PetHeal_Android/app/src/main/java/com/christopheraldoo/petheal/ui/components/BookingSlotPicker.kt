@@ -65,6 +65,7 @@ import com.christopheraldoo.petheal.ui.theme.WarningDeep
 import com.christopheraldoo.petheal.ui.theme.WarningSoft
 import com.christopheraldoo.petheal.ui.theme.WarningText
 import com.christopheraldoo.petheal.util.SlotDayStatus
+import com.christopheraldoo.petheal.util.clinicHoursLabel
 import com.christopheraldoo.petheal.util.customHoursLabel
 import com.christopheraldoo.petheal.util.isDoctorWorkingDay
 import com.christopheraldoo.petheal.util.isSlotExpired
@@ -253,10 +254,15 @@ fun BookingTimeSlots(
         when {
             isLoading -> SlotSkeleton()
             error != null -> SlotLoadError(message = error, onRetry = onRetry)
+            status == SlotDayStatus.CLINIC_CLOSED -> SlotClinicClosedNotice(
+                reason = slotMeta?.reason,
+                hours = slotMeta.clinicHoursLabel()
+            )
             status == SlotDayStatus.CLOSED_LEAVE -> SlotLeaveNotice(reason = slotMeta?.reason)
             status == SlotDayStatus.NOT_PRACTICING -> SlotEmpty(
                 title = "Dokter tidak praktik",
-                message = "Pilih tanggal lain yang sesuai hari praktik dokter."
+                message = slotMeta?.reason?.takeIf { it.isNotBlank() }
+                    ?: "Pilih tanggal lain yang sesuai hari praktik dokter."
             )
             status == SlotDayStatus.NO_SLOTS -> SlotEmpty(
                 title = "Belum ada slot tersedia",
@@ -271,6 +277,7 @@ fun BookingTimeSlots(
                 message = "Pilih tanggal lain untuk melihat jam yang masih tersedia."
             )
             else -> {
+                SlotClinicHoursNotice(meta = slotMeta)
                 SlotCustomHoursNotice(meta = slotMeta)
                 val groups = groupSlotsBySession(slots)
                 groups.forEach { (label, groupSlots) ->
@@ -292,6 +299,74 @@ fun BookingTimeSlots(
                 }
             }
         }
+    }
+}
+
+/** Klinik tutup pada hari itu: jangan tampilkan seolah dokter tidak praktik. */
+@Composable
+private fun SlotClinicClosedNotice(reason: String?, hours: String?) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(14.dp),
+        color = SurfaceMuted
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.EventBusy,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.size(20.dp)
+                )
+                Text(
+                    text = "Klinik tutup",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = OnBackground
+                )
+            }
+            Text(
+                text = reason?.takeIf { it.isNotBlank() }
+                    ?: "Klinik tidak melayani pasien pada tanggal ini. Pilih tanggal lain.",
+                fontSize = 12.sp,
+                color = TextSecondary
+            )
+            hours?.let {
+                Text(
+                    text = "Jam operasional klinik: $it",
+                    fontSize = 11.sp,
+                    color = TextTertiary
+                )
+            }
+        }
+    }
+}
+
+/** Jam operasional klinik pada hari yang sedang dilihat. */
+@Composable
+private fun SlotClinicHoursNotice(meta: SlotMeta?) {
+    val hours = meta.clinicHoursLabel() ?: return
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Schedule,
+            contentDescription = null,
+            tint = TextTertiary,
+            modifier = Modifier.size(14.dp)
+        )
+        Text(
+            text = "Jam klinik $hours",
+            fontSize = 11.sp,
+            color = TextTertiary
+        )
     }
 }
 

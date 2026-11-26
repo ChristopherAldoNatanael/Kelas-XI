@@ -90,6 +90,7 @@
                 @include('admin.medical-records.partials.prescription-fields', [
                     'record' => null,
                     'medicines' => $medicines ?? collect(),
+                    'allergies' => $allergies ?? collect(),
                 ])
             </div>
 

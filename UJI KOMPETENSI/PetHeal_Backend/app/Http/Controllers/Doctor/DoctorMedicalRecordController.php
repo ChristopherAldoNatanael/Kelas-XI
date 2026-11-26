@@ -8,19 +8,24 @@ use App\Models\MedicalRecord;
 use App\Models\Medicine;
 use App\Services\FCMService;
 use App\Services\MedicalRecordAttachmentService;
+use App\Services\MedicalRecordRevisionService;
 use App\Services\PrescriptionService;
 use App\Services\QueueService;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\Rule;
+use Dompdf\Dompdf;
 
 /**
  * Rekam medis yang dibuat dokter untuk booking miliknya sendiri.
  *
  * Aturan klinis tetap sama dengan panel admin: satu booking satu rekam medis,
  * booking batal tidak boleh dihidupkan kembali, dan penyimpanan rekam medis
- * menuntaskan booking dalam satu transaksi.
+ * menuntaskan booking dalam satu transaksi. Setiap perubahan isi meninggalkan
+ * baris revisi, sehingga riwayat klinis tidak bisa hilang diam-diam.
  */
 class DoctorMedicalRecordController extends DoctorPortalController
 {
@@ -102,6 +107,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 ->dispensable()
                 ->fefo()
                 ->get(),
+            'allergies' => $booking->pet?->allergies()->where('is_active', true)->get() ?? collect(),
         ]);
     }
 
@@ -116,8 +122,8 @@ class DoctorMedicalRecordController extends DoctorPortalController
                     ->where('doctor_id', $doctor->id)
                     ->where('clinic_id', $doctor->clinic_id),
             ],
-            'diagnosis' => 'required|string',
-            'treatment' => 'required|string',
+            'diagnosis' => 'required|string|max:20000',
+            'treatment' => 'required|string|max:20000',
             // SOAP — aturan identik dengan panel admin supaya dokter dan admin
             // tidak bisa menyimpan bentuk data yang berbeda.
             'soap' => 'nullable|array',
@@ -125,12 +131,24 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'soap.objective' => 'nullable|string|max:5000',
             'soap.assessment' => 'nullable|string|max:5000',
             'soap.plan' => 'nullable|string|max:5000',
-            'medicine' => 'nullable|string',
-            'notes' => 'nullable|string',
+            'medicine' => 'nullable|string|max:5000',
+            'notes' => 'nullable|string|max:5000',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|mimes:' . implode(',', MedicalRecordAttachmentService::ALLOWED_MIMES)
                 . '|max:' . MedicalRecordAttachmentService::MAX_KB,
-            // Resep terstruktur — hanya obat milik klinik dokter ini.
+            'vitals' => 'nullable|array',
+            'vitals.temperature_c' => 'nullable|numeric|between:20,50',
+            'vitals.heart_rate' => 'nullable|integer|between:1,400',
+            'vitals.respiratory_rate' => 'nullable|integer|between:1,200',
+            'vitals.crt_seconds' => 'nullable|numeric|between:0,10',
+            'vitals.mucosa' => 'nullable|string|max:50',
+            'vitals.hydration' => 'nullable|string|max:30',
+            'vitals.bcs' => 'nullable|integer|between:1,9',
+            'vitals.pain_score' => 'nullable|integer|between:0,4',
+            'vitals.weight_kg' => 'nullable|numeric|between:0.1,500',
+            'vitals.notes' => 'nullable|string|max:500',
+            // Resep terstruktur — hanya obat milik klinik dokter ini. Harga
+            // selalu dari master obat di server, bukan dari payload.
             'prescription' => 'nullable|array|max:20',
             'prescription.*.medicine_id' => [
                 'nullable',
@@ -139,7 +157,14 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ],
             'prescription.*.quantity' => 'nullable|numeric|min:0',
             'prescription.*.dose' => 'nullable|string|max:100',
-            'prescription.*.unit_price' => 'nullable|numeric|min:0',
+            'prescription.*.route' => 'nullable|string|max:50',
+            'prescription.*.frequency' => 'nullable|string|max:50',
+            'prescription.*.duration_days' => 'nullable|integer|min:0|max:365',
+            'prescription.*.instruction' => 'nullable|string|max:255',
+            'outcome' => 'nullable|in:sembuh,membaik,dirujuk,mati,euthanasia,berlanjut',
+            'cause_of_death' => 'nullable|string|max:255',
+            'euthanasia_reason' => 'nullable|string|max:255',
+            'disposal_method' => 'nullable|in:pemakaman,kremasi,lainnya',
             'next_visit_date' => 'nullable|date|after:today',
             'next_visit_time' => 'nullable|date_format:H:i',
             'cost' => 'nullable|numeric|min:0',
@@ -163,11 +188,6 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 ->with('warning', 'Booking ini sudah memiliki rekam medis.');
         }
 
-        $cost = $this->normalizeMoneyInput($request, 'cost');
-        if ($cost == 0.0) {
-            $cost = (float) ($booking->total_amount ?? 0);
-        }
-
         $record = new MedicalRecord([
             'booking_id' => $booking->id,
             'pet_id' => $booking->pet_id,
@@ -183,9 +203,18 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'notes' => $request->input('notes'),
             'next_visit_date' => $request->input('next_visit_date'),
             'next_visit_time' => $request->input('next_visit_time'),
-            'cost' => $cost,
+            'cost' => $this->resolveConsultationCost($request, $booking),
             'treatment_cost' => $this->normalizeMoneyInput($request, 'treatment_cost'),
             'medicine_cost' => $this->normalizeMoneyInput($request, 'medicine_cost'),
+            'status' => MedicalRecord::STATUS_FINAL,
+            'created_by' => auth()->id(),
+            'updated_by' => auth()->id(),
+            'finalized_at' => now(),
+            'finalized_by' => auth()->id(),
+            'outcome' => $request->input('outcome'),
+            'cause_of_death' => $request->input('cause_of_death'),
+            'euthanasia_reason' => $request->input('euthanasia_reason'),
+            'disposal_method' => $request->input('disposal_method'),
         ]);
 
         try {
@@ -194,6 +223,8 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 // foreign key NOT NULL ke medical_records. Tanpa ini, dokter
                 // yang mengisi resep saat membuat rekam medis baru kena 500.
                 $record->save();
+
+                $this->persistVitals($record, $request);
 
                 // Resep diproses berikutnya: stok kurang membatalkan seluruh
                 // transaksi, jadi tidak ada rekam medis setengah jadi.
@@ -222,9 +253,20 @@ class DoctorMedicalRecordController extends DoctorPortalController
                     'completed_at' => now(),
                 ]);
             });
+        } catch (QueryException $e) {
+            if ((int) ($e->errorInfo[1] ?? 0) === 1062) {
+                return redirect()->back()->withInput()
+                    ->with('warning', 'Booking ini sudah memiliki rekam medis.');
+            }
+
+            throw $e;
         } catch (\RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
+
+        $revisions = app(MedicalRecordRevisionService::class);
+        $revisions->record($record, 'create', [], $revisions->snapshot($record), 'Rekam medis dibuat oleh dokter');
+        $record->finalize(auth()->id());
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
@@ -244,16 +286,9 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ]);
         }
 
-        if ($request->filled('next_visit_date')) {
-            $this->fcmService->sendVaccinationReminder(
-                $booking->user_id,
-                $booking->pet->name,
-                (string) $request->input('next_visit_date'),
-                $booking->pet_id,
-                $record->id
-            );
-        }
-
+        // Pengingat kontrol dikirim terjadwal oleh `reminders:send` (H-3/H-0),
+        // bukan langsung saat menyimpan — pesan yang datang terlalu dini
+        // membuat pemilik mengira jadwalnya hari ini.
         AuditLog::log('doctor.medical_record.create', "Dokter membuat rekam medis #{$record->id} untuk {$booking->pet->name}.", $record);
 
         return redirect()->route('doctor.medical-records.show', $record->id)
@@ -264,7 +299,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
     {
         $doctor = $this->doctor();
 
-        $record = MedicalRecord::with(['pet', 'booking.user', 'doctor'])
+        $record = MedicalRecord::with([
+            'pet', 'pet.allergies', 'booking.user', 'doctor', 'vitals',
+            'prescriptionItems', 'attachments', 'clinic', 'revisions.changedBy',
+        ])
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $doctor->clinic_id)
             ->findOrFail($id);
@@ -276,7 +314,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
     {
         $doctor = $this->doctor();
 
-        $record = MedicalRecord::with(['pet', 'booking.user', 'doctor', 'prescriptionItems', 'attachments'])
+        $record = MedicalRecord::with([
+            'pet', 'pet.allergies', 'booking.user', 'doctor',
+            'prescriptionItems', 'attachments', 'vitals',
+        ])
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $doctor->clinic_id)
             ->findOrFail($id);
@@ -289,6 +330,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 ->dispensable()
                 ->fefo()
                 ->get(),
+            'allergies' => $record->pet?->allergies()->where('is_active', true)->get() ?? collect(),
         ]);
     }
 
@@ -301,11 +343,16 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ->where('clinic_id', $doctor->clinic_id)
             ->findOrFail($id);
 
+        if ($record->isVoided()) {
+            return redirect()->route('doctor.medical-records.show', $record->id)
+                ->with('error', 'Rekam medis yang sudah dibatalkan tidak dapat diubah.');
+        }
+
         $request->validate([
-            'diagnosis' => 'required|string',
-            'treatment' => 'required|string',
-            'medicine' => 'nullable|string',
-            'notes' => 'nullable|string',
+            'diagnosis' => 'required|string|max:20000',
+            'treatment' => 'required|string|max:20000',
+            'medicine' => 'nullable|string|max:5000',
+            'notes' => 'nullable|string|max:5000',
             // Sama seperti panel admin: "tanggal ke depan" hanya divalidasi
             // bila tanggalnya diubah, agar rekam medis lama tetap bisa diedit.
             'next_visit_date' => [
@@ -326,6 +373,22 @@ class DoctorMedicalRecordController extends DoctorPortalController
             'soap.objective' => 'nullable|string|max:5000',
             'soap.assessment' => 'nullable|string|max:5000',
             'soap.plan' => 'nullable|string|max:5000',
+            'outcome' => 'nullable|in:sembuh,membaik,dirujuk,mati,euthanasia,berlanjut',
+            'cause_of_death' => 'nullable|string|max:255',
+            'euthanasia_reason' => 'nullable|string|max:255',
+            'disposal_method' => 'nullable|in:pemakaman,kremasi,lainnya',
+            'change_reason' => 'nullable|string|max:255',
+            'vitals' => 'nullable|array',
+            'vitals.temperature_c' => 'nullable|numeric|between:20,50',
+            'vitals.heart_rate' => 'nullable|integer|between:1,400',
+            'vitals.respiratory_rate' => 'nullable|integer|between:1,200',
+            'vitals.crt_seconds' => 'nullable|numeric|between:0,10',
+            'vitals.mucosa' => 'nullable|string|max:50',
+            'vitals.hydration' => 'nullable|string|max:30',
+            'vitals.bcs' => 'nullable|integer|between:1,9',
+            'vitals.pain_score' => 'nullable|integer|between:0,4',
+            'vitals.weight_kg' => 'nullable|numeric|between:0.1,500',
+            'vitals.notes' => 'nullable|string|max:500',
             'attachments' => 'nullable|array|max:10',
             'attachments.*' => 'file|mimes:' . implode(',', MedicalRecordAttachmentService::ALLOWED_MIMES)
                 . '|max:' . MedicalRecordAttachmentService::MAX_KB,
@@ -339,54 +402,79 @@ class DoctorMedicalRecordController extends DoctorPortalController
             ],
             'prescription.*.quantity' => 'nullable|numeric|min:0',
             'prescription.*.dose' => 'nullable|string|max:100',
-            'prescription.*.unit_price' => 'nullable|numeric|min:0',
+            'prescription.*.route' => 'nullable|string|max:50',
+            'prescription.*.frequency' => 'nullable|string|max:50',
+            'prescription.*.duration_days' => 'nullable|integer|min:0|max:365',
+            'prescription.*.instruction' => 'nullable|string|max:255',
         ]);
 
-        $record->fill($request->only([
-            'diagnosis',
-            'treatment',
-            'medicine',
-            'notes',
-            'next_visit_date',
-            'next_visit_time',
-        ]));
+        $revisions = app(MedicalRecordRevisionService::class);
+        $before = $revisions->snapshot($record);
 
-        // SOAP tidak lewat fill() karena input bernama `soap.*`.
-        $record->subjective = $request->input('soap.subjective');
-        $record->objective = $request->input('soap.objective');
-        $record->assessment = $request->input('soap.assessment');
-        $record->plan = $request->input('soap.plan');
-
-        $record->cost = $this->normalizeMoneyInput($request, 'cost', (float) ($record->booking?->total_amount ?? 0));
-        $record->treatment_cost = $this->normalizeMoneyInput($request, 'treatment_cost');
-
-        // Koreksi resep: stok lama dikembalikan lalu dipotong ulang.
-        $manualMedicineCost = $this->normalizeMoneyInput($request, 'medicine_cost');
         try {
-            $prescriptionTotal = app(PrescriptionService::class)->syncForRecord(
-                $record,
-                (array) $request->input('prescription', [])
-            );
+            DB::transaction(function () use ($record, $request) {
+                $record->fill($request->only([
+                    'diagnosis',
+                    'treatment',
+                    'medicine',
+                    'notes',
+                    'next_visit_date',
+                    'next_visit_time',
+                    'outcome',
+                    'cause_of_death',
+                    'euthanasia_reason',
+                    'disposal_method',
+                ]));
+
+                // SOAP tidak lewat fill() karena input bernama `soap.*`.
+                $record->subjective = $request->input('soap.subjective');
+                $record->objective = $request->input('soap.objective');
+                $record->assessment = $request->input('soap.assessment');
+                $record->plan = $request->input('soap.plan');
+
+                $record->cost = $this->resolveConsultationCost($request, $record->booking);
+                $record->treatment_cost = $this->normalizeMoneyInput($request, 'treatment_cost');
+                $record->updated_by = auth()->id();
+
+                // Koreksi resep: stok lama dikembalikan lalu dipotong ulang.
+                $manualMedicineCost = $this->normalizeMoneyInput($request, 'medicine_cost');
+                $prescriptionTotal = app(PrescriptionService::class)->syncForRecord(
+                    $record,
+                    (array) $request->input('prescription', [])
+                );
+
+                $record->medicine_cost = $prescriptionTotal > 0 ? $prescriptionTotal : $manualMedicineCost;
+                $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
+                $record->save();
+
+                $this->persistVitals($record, $request);
+
+                // Hapus lampiran yang dicentang dokter. Lewat service agar
+                // riwayat penghapusan tetap tercatat (soft delete).
+                $attachmentService = app(MedicalRecordAttachmentService::class);
+                $removeIds = array_filter((array) $request->input('remove_attachments', []));
+                if ($removeIds) {
+                    $toRemove = $record->attachments()->whereIn('id', $removeIds)->get();
+                    foreach ($toRemove as $attachment) {
+                        $attachmentService->delete($attachment);
+                    }
+                }
+
+                $attachmentService->storeMany($record, $request->file('attachments', []), auth()->id());
+            });
         } catch (\RuntimeException $e) {
             return redirect()->back()->withInput()->with('error', $e->getMessage());
         }
 
-        $record->medicine_cost = $prescriptionTotal > 0 ? $prescriptionTotal : $manualMedicineCost;
-        $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
-        $record->save();
+        $revisions->record(
+            $record,
+            'update',
+            $before,
+            $revisions->snapshot($record->fresh()),
+            $request->input('change_reason')
+        );
 
-        // Hapus lampiran yang dicentang dokter. Lewat service agar berkas di
-        // disk ikut terhapus (bukan hanya baris database).
-        $attachmentService = app(MedicalRecordAttachmentService::class);
-        $removeIds = array_filter((array) $request->input('remove_attachments', []));
-        if ($removeIds) {
-            $toRemove = $record->attachments()->whereIn('id', $removeIds)->get();
-            foreach ($toRemove as $attachment) {
-                $attachmentService->delete($attachment);
-            }
-        }
-
-        $attachmentService->storeMany($record, $request->file('attachments', []), auth()->id());
+        $record->finalize(auth()->id());
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
@@ -394,6 +482,60 @@ class DoctorMedicalRecordController extends DoctorPortalController
 
         return redirect()->route('doctor.medical-records.show', $record->id)
             ->with('success', __('doctor.record_updated'));
+    }
+
+    /**
+     * Resume medis resmi yang bisa diserahkan ke pemilik.
+     */
+    public function resumePdf($id)
+    {
+        $doctor = $this->doctor();
+
+        $record = MedicalRecord::with([
+            'pet', 'pet.allergies', 'doctor', 'clinic', 'booking.user',
+            'prescriptionItems', 'vitals', 'attachments',
+        ])
+            ->where('doctor_id', $doctor->id)
+            ->where('clinic_id', $doctor->clinic_id)
+            ->findOrFail($id);
+
+        $verifyUrl = URL::temporarySignedRoute(
+            'medical-records.verify',
+            now()->addDays(365),
+            ['record' => $record->id]
+        );
+
+        $html = view('medical-records.resume', [
+            'record' => $record,
+            'verifyUrl' => $verifyUrl,
+            'contentHash' => $record->content_hash ?: $record->computeContentHash(),
+        ])->render();
+
+        $dompdf = new Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4');
+        $dompdf->render();
+
+        AuditLog::log('medical_record.resume_printed', "Dokter mencetak resume medis #{$record->id}.", $record);
+
+        return response($dompdf->output(), 200)
+            ->header('Content-Type', 'application/pdf')
+            ->header('Content-Disposition', 'attachment; filename="resume-medis-' . $record->id . '.pdf"');
+    }
+
+    /**
+     * Biaya konsultasi: angka 0 adalah nilai sah; fallback hanya saat field
+     * tidak dikirim.
+     */
+    private function resolveConsultationCost(Request $request, Booking $booking): float
+    {
+        $value = $request->input('cost');
+
+        if ($value === null || $value === '') {
+            return (float) ($booking->total_amount ?? 0);
+        }
+
+        return max(0, (float) $value);
     }
 
     private function normalizeMoneyInput(Request $request, string $key, float $fallback = 0): float
@@ -405,5 +547,32 @@ class DoctorMedicalRecordController extends DoctorPortalController
         }
 
         return max(0, (float) $value);
+    }
+
+    private function persistVitals(MedicalRecord $record, Request $request): void
+    {
+        $input = (array) $request->input('vitals', []);
+        $hasValue = collect($input)->contains(fn ($value) => $value !== null && $value !== '');
+
+        if (!$hasValue) {
+            return;
+        }
+
+        $record->vitals()->updateOrCreate(
+            ['medical_record_id' => $record->id],
+            [
+                'temperature_c' => $input['temperature_c'] ?? null,
+                'heart_rate' => $input['heart_rate'] ?? null,
+                'respiratory_rate' => $input['respiratory_rate'] ?? null,
+                'crt_seconds' => $input['crt_seconds'] ?? null,
+                'mucosa' => $input['mucosa'] ?? null,
+                'hydration' => $input['hydration'] ?? null,
+                'bcs' => $input['bcs'] ?? null,
+                'pain_score' => $input['pain_score'] ?? null,
+                'weight_kg' => $input['weight_kg'] ?? null,
+                'notes' => $input['notes'] ?? null,
+                'measured_at' => now(),
+            ]
+        );
     }
 }

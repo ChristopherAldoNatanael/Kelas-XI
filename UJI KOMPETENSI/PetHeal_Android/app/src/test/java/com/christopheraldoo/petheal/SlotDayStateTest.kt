@@ -4,6 +4,7 @@ import com.christopheraldoo.petheal.data.model.DoctorScheduleException
 import com.christopheraldoo.petheal.data.model.SlotMeta
 import com.christopheraldoo.petheal.data.model.TimeSlot
 import com.christopheraldoo.petheal.util.SlotDayStatus
+import com.christopheraldoo.petheal.util.clinicHoursLabel
 import com.christopheraldoo.petheal.util.customHoursLabel
 import com.christopheraldoo.petheal.util.firstDoctorWorkingDate
 import com.christopheraldoo.petheal.util.resolveSlotDayStatus
@@ -193,5 +194,32 @@ class SlotDayStateTest {
             horizonDays = 7
         )
         assertEquals(LocalDate.of(2026, 10, 26), result)
+    }
+
+    @Test
+    fun `closed clinic wins over doctor working day`() {
+        val closed = SlotMeta(
+            date = date.toString(),
+            isWorkingDay = false,
+            clinicIsOpen = false,
+            clinicClosed = true,
+            reason = "Klinik tutup pada hari Rabu."
+        )
+
+        assertEquals(
+            SlotDayStatus.CLINIC_CLOSED,
+            resolveSlotDayStatus(openSlots, closed, isWorkingDay = true, date = date, now = now)
+        )
+    }
+
+    @Test
+    fun `clinic hours label comes from server metadata`() {
+        val meta = SlotMeta(
+            clinicOpeningTime = "08:00",
+            clinicClosingTime = "17:00"
+        )
+
+        assertEquals("08:00 - 17:00", meta.clinicHoursLabel())
+        assertNull((null as SlotMeta?).clinicHoursLabel())
     }
 }

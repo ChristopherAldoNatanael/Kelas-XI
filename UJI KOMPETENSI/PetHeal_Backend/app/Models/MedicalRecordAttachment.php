@@ -3,17 +3,28 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Lampiran rekam medis: foto rontgen, hasil laboratorium, atau foto kondisi.
  *
- * `path` adalah path relatif di disk `public`. URL publik dibangun lewat
+ * Berkas disimpan di disk privat (bukan `public`), sehingga tidak bisa dibuka
+ * hanya dengan menebak URL. `url` yang dikirim ke klien adalah URL bertanda
+ * tangan berumur pendek yang dibuat saat diminta, bukan tautan permanen.
+ *
+ * `path` adalah path relatif di disk privat. URL publik dibangun lewat
  * accessor `url` supaya klien (Android) tidak perlu tahu struktur storage —
- * sama seperti foto hewan.
+ * sama seperti foto hewan, tetapi dengan kontrol akses.
  */
 class MedicalRecordAttachment extends Model
 {
+    use SoftDeletes;
+
+    /** Disk privat tempat berkas medis disimpan. */
+    public const DISK = 'local';
+
     protected $fillable = [
         'medical_record_id',
         'path',
@@ -21,6 +32,7 @@ class MedicalRecordAttachment extends Model
         'caption',
         'mime_type',
         'size_bytes',
+        'sha256',
         'uploaded_by',
     ];
 
@@ -32,16 +44,24 @@ class MedicalRecordAttachment extends Model
     }
 
     /**
-     * URL publik file. Null bila file sudah tidak ada di disk, supaya UI bisa
-     * menampilkan status "berkas hilang" alih-alih gambar rusak.
+     * URL bertanda tangan untuk mengunduh berkas. Null bila file sudah tidak
+     * ada di disk, supaya UI bisa menampilkan status "berkas hilang" alih-alih
+     * gambar rusak.
      */
     public function getUrlAttribute(): ?string
     {
-        if (!$this->path || !Storage::disk('public')->exists($this->path)) {
+        if (!$this->path || !Storage::disk(self::DISK)->exists($this->path)) {
             return null;
         }
 
-        return Storage::disk('public')->url($this->path);
+        return URL::temporarySignedRoute(
+            'medical-records.attachments.download',
+            now()->addMinutes((int) config('medical_records.attachment_url_ttl_minutes', 30)),
+            [
+                'record' => $this->medical_record_id,
+                'attachment' => $this->id,
+            ]
+        );
     }
 
     public function isImage(): bool

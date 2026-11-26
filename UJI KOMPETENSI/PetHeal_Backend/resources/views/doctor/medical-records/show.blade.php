@@ -18,9 +18,15 @@
         icon="clinical_notes"
         :description="'Hasil pemeriksaan ' . ($record->pet->name ?? 'pasien') . ' pada ' . \Carbon\Carbon::parse($record->booking?->booking_date)->locale(app()->getLocale())->translatedFormat('d F Y') . '.'">
         <x-slot:actions>
-            <a href="{{ route('doctor.medical-records.edit', $record->id) }}" class="admin-btn-primary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                Perbarui
+            @unless($record->isVoided())
+                <a href="{{ route('doctor.medical-records.edit', $record->id) }}" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                    Perbarui
+                </a>
+            @endunless
+            <a href="{{ route('doctor.medical-records.resume', $record->id) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">picture_as_pdf</span>
+                Resume medis
             </a>
             <a href="{{ route('doctor.bookings.show', $record->booking_id) }}" class="admin-btn-secondary">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">event_note</span>
@@ -32,6 +38,14 @@
             </a>
         </x-slot:actions>
     </x-admin.page-header>
+
+    @if($record->isVoided())
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+            <strong>Rekam medis dibatalkan</strong>
+            {{ optional($record->voided_at)->format('d/m/Y H:i') }}.
+            Alasan: {{ $record->void_reason ?: '—' }}.
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_0.95fr]">
         <div class="space-y-6">
@@ -58,6 +72,36 @@
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.additional_notes') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->notes }}</p>
+                        </div>
+                    @endif
+
+                    @if($record->vitals)
+                        <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanda vital</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
+                                Suhu {{ $record->vitals->temperature_c ?: '—' }} °C ·
+                                Jantung {{ $record->vitals->heart_rate ?: '—' }}/mnt ·
+                                Napas {{ $record->vitals->respiratory_rate ?: '—' }}/mnt ·
+                                BCS {{ $record->vitals->bcs ?: '—' }} ·
+                                Berat {{ $record->vitals->weight_kg ?: '—' }} kg
+                            </p>
+                        </div>
+                    @endif
+
+                    @if($record->prescriptionItems->isNotEmpty())
+                        <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resep terstruktur</p>
+                            <ul class="mt-2 space-y-2">
+                                @foreach($record->prescriptionItems as $item)
+                                    <li class="text-sm text-slate-700 dark:text-slate-300">
+                                        <span class="font-semibold">{{ $item->medicine_name }}</span>
+                                        — {{ format_qty((float) $item->quantity) }} {{ $item->unit }}
+                                        @if($item->dose) · {{ $item->dose }} @endif
+                                        @if($item->frequency) · {{ $item->frequency }} @endif
+                                        @if($item->batch_number) · batch {{ $item->batch_number }} @endif
+                                    </li>
+                                @endforeach
+                            </ul>
                         </div>
                     @endif
                 </div>

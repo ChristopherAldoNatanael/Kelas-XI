@@ -17,16 +17,31 @@
         icon="clinical_notes"
         :description="__('admin.records_desc')">
         <x-slot:actions>
-            <a href="{{ route('admin.medical-records.edit', $record->id) }}" class="admin-btn-primary">
-                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
-                {{ __('admin.edit_record_short') }}
+            <a href="{{ route('admin.medical-records.resume', $record->id) }}" class="admin-btn-secondary">
+                <span class="material-symbols-outlined text-[18px]" aria-hidden="true">picture_as_pdf</span>
+                Resume medis
             </a>
+            @unless($record->isVoided())
+                <a href="{{ route('admin.medical-records.edit', $record->id) }}" class="admin-btn-primary">
+                    <span class="material-symbols-outlined text-[18px]" aria-hidden="true">edit</span>
+                    {{ __('admin.edit_record_short') }}
+                </a>
+            @endunless
             <a href="{{ route('admin.medical-records.index') }}" class="admin-btn-secondary">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
                 {{ __('admin.back_to_records') }}
             </a>
         </x-slot:actions>
     </x-admin.page-header>
+
+    @if($record->isVoided())
+        <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800 dark:border-rose-900/60 dark:bg-rose-900/20 dark:text-rose-300">
+            <strong>Rekam medis dibatalkan</strong>
+            {{ optional($record->voided_at)->format('d/m/Y H:i') }}.
+            Alasan: {{ $record->void_reason ?: '—' }}.
+            Isi tetap disimpan untuk retensi dan audit; rekam medis tidak dapat diubah lagi.
+        </div>
+    @endif
 
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_0.95fr]">
         <div class="space-y-6">
@@ -101,6 +116,15 @@
                                             · {{ format_rupiah($item->subtotal) }}
                                         </span>
                                     </li>
+                                    <li class="text-[11px] text-slate-500 dark:text-slate-400" style="margin-left:0;">
+                                        @if($item->route) {{ $item->route }} @endif
+                                        @if($item->frequency) · {{ $item->frequency }} @endif
+                                        @if($item->duration_days) · {{ $item->duration_days }} hari @endif
+                                        @if($item->batch_number) · batch {{ $item->batch_number }} @endif
+                                        @if($item->expiry_date) · ED {{ $item->expiry_date->format('m/Y') }} @endif
+                                        @if($item->is_antibiotic) · antibiotik @endif
+                                        @if($item->instruction) · {{ $item->instruction }} @endif
+                                    </li>
                                 @endforeach
                             </ul>
                         </div>
@@ -122,8 +146,30 @@
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel :title="__('admin.billing_breakdown')" :subtitle="__('admin.cost_composition')">
-                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            @if($record->vitals)
+                <x-admin.panel title="Tanda vital" subtitle="Hasil pemeriksaan fisik yang tercatat">
+                    <div class="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+                        @foreach([
+                            'Suhu' => $record->vitals->temperature_c ? $record->vitals->temperature_c . ' °C' : '—',
+                            'Jantung' => $record->vitals->heart_rate ? $record->vitals->heart_rate . '/mnt' : '—',
+                            'Napas' => $record->vitals->respiratory_rate ? $record->vitals->respiratory_rate . '/mnt' : '—',
+                            'CRT' => $record->vitals->crt_seconds ? $record->vitals->crt_seconds . ' dtk' : '—',
+                            'Mukosa' => $record->vitals->mucosa ?: '—',
+                            'Hidrasi' => $record->vitals->hydration ?: '—',
+                            'BCS' => $record->vitals->bcs ?: '—',
+                            'Skor nyeri' => $record->vitals->pain_score !== null ? $record->vitals->pain_score : '—',
+                            'Berat' => $record->vitals->weight_kg ? $record->vitals->weight_kg . ' kg' : '—',
+                        ] as $label => $value)
+                            <div class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $label }}</p>
+                                <p class="mt-1 font-semibold text-slate-900 dark:text-white">{{ $value }}</p>
+                            </div>
+                        @endforeach
+                    </div>
+                </x-admin.panel>
+            @endif
+
+            <x-admin.panel :title="__('admin.billing_breakdown')" :subtitle="__('admin.cost_composition')">                <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
                     <x-admin.stat-card :label="__('admin.consultation')" :value="$currency($record->cost ?? 0)" icon="stethoscope" tone="blue" />
                     <x-admin.stat-card :label="__('admin.treatment')" :value="$currency($record->treatment_cost ?? 0)" icon="medical_services" tone="violet" />
                     <x-admin.stat-card :label="__('admin.medicine')" :value="$currency($record->medicine_cost ?? 0)" icon="medication" tone="amber" />
@@ -203,6 +249,12 @@
                             <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $record->doctor->name ?? '—' }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $record->doctor->specialization ?? __('admin.veterinarian') }}</p>
+                            @if($record->doctor->str_number || $record->doctor->sip_number)
+                                <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                    @if($record->doctor->str_number) STR {{ $record->doctor->str_number }} @endif
+                                    @if($record->doctor->sip_number) · SIP {{ $record->doctor->sip_number }} @endif
+                                </p>
+                            @endif
                         </div>
                     </div>
                 </div>
@@ -257,6 +309,79 @@
                         dot />
                 </div>
             </x-admin.panel>
+
+            <x-admin.panel title="Alergi hewan" subtitle="Peringatan yang muncul saat dokter meresepkan obat">
+                @php($allergies = $record->pet?->allergies?->where('is_active', true) ?? collect())
+
+                @if($allergies->isEmpty())
+                    <p class="text-sm text-slate-500 dark:text-slate-400">Belum ada alergi tercatat.</p>
+                @else
+                    <ul class="space-y-2">
+                        @foreach($allergies as $allergy)
+                            <li class="flex items-start justify-between gap-3 rounded-xl border border-amber-200/70 bg-amber-50/60 p-3 dark:border-amber-900/60 dark:bg-amber-900/20">
+                                <div>
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $allergy->allergen }}</p>
+                                    <p class="text-xs text-slate-600 dark:text-slate-300">
+                                        {{ $allergy->reaction ?: 'Reaksi tidak dicatat' }} · {{ ucfirst($allergy->severity) }}
+                                    </p>
+                                </div>
+                                <form method="POST" action="{{ route('admin.medical-records.allergies.destroy', [$record->id, $allergy->id]) }}"
+                                      onsubmit="return confirm('Nonaktifkan alergi ini?')">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="admin-icon-btn hover:!text-rose-600" title="Nonaktifkan alergi">
+                                        <span class="material-symbols-outlined text-[18px]" aria-hidden="true">delete</span>
+                                    </button>
+                                </form>
+                            </li>
+                        @endforeach
+                    </ul>
+                @endif
+
+                <form method="POST" action="{{ route('admin.medical-records.allergies.store', $record->id) }}" class="mt-4 space-y-2">
+                    @csrf
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <input type="text" name="allergen" required maxlength="100" class="admin-input" placeholder="Alergen, mis. amoksisilin">
+                        <input type="text" name="reaction" maxlength="255" class="admin-input" placeholder="Reaksi, mis. gatal dan bengkak">
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <select name="severity" class="admin-input">
+                            <option value="ringan">Ringan</option>
+                            <option value="sedang">Sedang</option>
+                            <option value="berat">Berat</option>
+                        </select>
+                        <button type="submit" class="admin-btn-secondary whitespace-nowrap">Catat alergi</button>
+                    </div>
+                </form>
+            </x-admin.panel>
+
+            @if($record->revisions->isNotEmpty())
+                <x-admin.panel title="Riwayat perubahan" subtitle="Siapa mengubah apa dan kapan">
+                    <ol class="space-y-3">
+                        @foreach($record->revisions as $revision)
+                            <li class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                                        {{ ucfirst($revision->action) }}
+                                    </p>
+                                    <p class="text-[11px] text-slate-500 dark:text-slate-400">
+                                        {{ optional($revision->created_at)->format('d/m/Y H:i') }}
+                                        · {{ $revision->changedBy?->name ?? 'sistem' }}
+                                    </p>
+                                </div>
+                                @if($revision->reason)
+                                    <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">Alasan: {{ $revision->reason }}</p>
+                                @endif
+                                @if($revision->after)
+                                    <p class="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+                                        Field berubah: {{ implode(', ', array_keys($revision->after)) }}
+                                    </p>
+                                @endif
+                            </li>
+                        @endforeach
+                    </ol>
+                </x-admin.panel>
+            @endif
         </div>
     </div>
 </div>

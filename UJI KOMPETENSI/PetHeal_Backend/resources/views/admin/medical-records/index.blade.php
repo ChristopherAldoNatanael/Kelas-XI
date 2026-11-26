@@ -164,6 +164,9 @@ $currency = static fn ($amount) => format_rupiah($amount);
                                 <p class="mt-1.5 max-w-md text-[11px] leading-5 text-slate-500 dark:text-slate-400">
                                     {{ \Illuminate\Support\Str::limit($record->treatment, 110) }}
                                 </p>
+                                @if($record->isVoided())
+                                    <x-admin.badge class="mt-2" label="Dibatalkan" tone="rose" dot />
+                                @endif
                                 @if($record->next_visit_date)
                                     <x-admin.badge
                                         class="mt-2"
@@ -204,23 +207,26 @@ $currency = static fn ($amount) => format_rupiah($amount);
                                        aria-label="{{ __('admin.view_detail') }} #{{ $record->id }}">
                                         <span class="material-symbols-outlined text-[20px]" aria-hidden="true">visibility</span>
                                     </a>
-                                    <a href="{{ route('admin.medical-records.edit', $record->id) }}"
-                                       class="admin-icon-btn hover:!text-sky-600"
-                                       title="{{ __('admin.edit_record') }}"
-                                       aria-label="{{ __('admin.edit_record') }} #{{ $record->id }}">
-                                        <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
-                                    </a>
-                                    <form method="POST" action="{{ route('admin.medical-records.destroy', $record->id) }}" class="inline"
-                                          onsubmit="return confirm('{{ __('admin.delete_record_confirm') }}')">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit"
-                                                class="admin-icon-btn hover:!text-rose-600"
-                                                title="{{ __('admin.delete') }}"
-                                                aria-label="{{ __('admin.delete') }} #{{ $record->id }}">
-                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">delete</span>
-                                        </button>
-                                    </form>
+                                    @unless($record->isVoided())
+                                        <a href="{{ route('admin.medical-records.edit', $record->id) }}"
+                                           class="admin-icon-btn hover:!text-sky-600"
+                                           title="{{ __('admin.edit_record') }}"
+                                           aria-label="{{ __('admin.edit_record') }} #{{ $record->id }}">
+                                            <span class="material-symbols-outlined text-[20px]" aria-hidden="true">edit</span>
+                                        </a>
+                                        <form method="POST" action="{{ route('admin.medical-records.destroy', $record->id) }}" class="inline"
+                                              onsubmit="return confirmVoid(this)">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="void_reason" value="">
+                                            <button type="submit"
+                                                    class="admin-icon-btn hover:!text-rose-600"
+                                                    title="Batalkan rekam medis"
+                                                    aria-label="Batalkan rekam medis #{{ $record->id }}">
+                                                <span class="material-symbols-outlined text-[20px]" aria-hidden="true">block</span>
+                                            </button>
+                                        </form>
+                                    @endunless
                                 </div>
                             </td>
                         </tr>
@@ -245,3 +251,20 @@ $currency = static fn ($amount) => format_rupiah($amount);
     </x-admin.panel>
 </div>
 @endsection
+
+@push('scripts')
+<script>
+    function confirmVoid(form) {
+        const reason = window.prompt('Alasan pembatalan rekam medis (wajib diisi, terlihat di audit):', '');
+        if (reason === null) {
+            return false;
+        }
+        if (!reason.trim()) {
+            window.alert('Alasan pembatalan tidak boleh kosong.');
+            return false;
+        }
+        form.querySelector('input[name="void_reason"]').value = reason.trim();
+        return true;
+    }
+</script>
+@endpush

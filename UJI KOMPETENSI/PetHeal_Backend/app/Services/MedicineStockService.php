@@ -458,6 +458,10 @@ class MedicineStockService
     public function consumePrescription(MedicalRecord $record): array
     {
         $movements = [];
+        // Batch yang benar-benar dipotong per item resep. Disimpan ke item agar
+        // label/cetakan resep memuat nomor batch & ED yang diserahkan, bukan
+        // batch mana pun yang kebetulan masih ada.
+        $dispensedBatches = [];
 
         foreach ($record->prescriptionItems()->with('medicine')->get() as $item) {
             /** @var PrescriptionItem $item */
@@ -484,13 +488,16 @@ class MedicineStockService
                     throw $this->expiredMessage($medicine);
                 }
 
-                $movements[] = $this->record(
+                $movement = $this->record(
                     $medicine,
                     -$quantity,
                     MedicineStockMovement::TYPE_OUT,
                     $reason,
                     $record->id
                 );
+                $movements[] = $movement;
+                $dispensedBatches[$item->id] = null;
+                $this->markDispensed($item, null);
                 continue;
             }
 
@@ -526,7 +533,7 @@ class MedicineStockService
                     continue;
                 }
 
-                $movements[] = $this->record(
+                $movement = $this->record(
                     $medicine,
                     -$take,
                     MedicineStockMovement::TYPE_OUT,
@@ -535,13 +542,35 @@ class MedicineStockService
                     null,
                     $batch->id
                 );
+                $movements[] = $movement;
+                // FEFO memakai batch terlama lebih dulu; batch itulah yang
+                // dicatat pada resep sebagai batch penyerahan.
+                $dispensedBatches[$item->id] ??= $batch;
                 $remaining -= $take;
             }
 
+            $this->markDispensed($item, $dispensedBatches[$item->id] ?? null);
             $this->syncExpiryMirror($medicine->fresh());
         }
 
         return $movements;
+    }
+
+    /**
+     * Tandai item resep sudah diserahkan beserta batch/ED asalnya.
+     * `null` berarti obat tidak berasal dari batch (stok lama tanpa batch).
+     */
+    private function markDispensed(PrescriptionItem $item, ?MedicineBatch $batch): void
+    {
+        if (!$item->exists) {
+            return;
+        }
+
+        $item->forceFill([
+            'batch_number' => $batch?->batch_number,
+            'expiry_date' => $batch?->expiry_date?->toDateString(),
+            'dispensed_at' => now(),
+        ])->save();
     }
 
     /**

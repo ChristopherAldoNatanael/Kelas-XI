@@ -106,6 +106,7 @@ return [
     'booking_info' => 'Informasi Booking',
     'species_breed' => 'Spesies / Ras',
     'exam_result' => 'Hasil Pemeriksaan',
+    'diagnosis' => 'Diagnosis',
     'diagnosis_placeholder' => 'Contoh: Dermatitis alergi pada kulit dorsal.',
     'treatment' => 'Tindakan / Terapi',
     'treatment_placeholder' => 'Contoh: Pembersihan area, pemberian salep, edukasi pemilik.',

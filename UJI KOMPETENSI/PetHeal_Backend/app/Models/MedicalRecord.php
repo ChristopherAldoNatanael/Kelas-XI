@@ -7,6 +7,15 @@ use Illuminate\Support\Facades\Log;
 
 class MedicalRecord extends Model
 {
+    /** Rekaman yang sudah disahkan dan menjadi dokumen sah. */
+    public const STATUS_FINAL = 'final';
+
+    /** Rekaman yang dibatalkan; tetap tersimpan untuk retensi & audit. */
+    public const STATUS_VOID = 'void';
+
+    /** Rekaman yang sudah dipindahkan ke arsip (bukan dihapus). */
+    public const STATUS_ARCHIVED = 'archived';
+
     protected $fillable = [
         'booking_id',
         'pet_id',
@@ -16,6 +25,22 @@ class MedicalRecord extends Model
         // silently dropped `clinic_id` on create and clinic-scoped queries
         // could never match those rows.
         'clinic_id',
+        // Siklus hidup dokumen. `status` disimpan agar rekaman yang sudah
+        // dibatalkan tidak hilang dan tetap bisa diaudit.
+        'status',
+        'created_by',
+        'updated_by',
+        'finalized_at',
+        'finalized_by',
+        'voided_at',
+        'voided_by',
+        'void_reason',
+        'content_hash',
+        'archived_at',
+        'outcome',
+        'cause_of_death',
+        'euthanasia_reason',
+        'disposal_method',
         // SOAP — catatan terstruktur. `diagnosis`/`treatment` tetap dipertahankan
         // sebagai ringkasan wajib agar rekam medis lama dan ekspor tidak berubah.
         'subjective',
@@ -44,6 +69,9 @@ class MedicalRecord extends Model
         'next_visit_date' => 'date:Y-m-d',
         'next_visit_time' => 'string',
         'reminder_sent'   => 'boolean',
+        'finalized_at'    => 'datetime',
+        'voided_at'       => 'datetime',
+        'archived_at'     => 'datetime',
         'cost' => 'decimal:2',
         'treatment_cost' => 'decimal:2',
         'medicine_cost' => 'decimal:2',
@@ -72,6 +100,10 @@ class MedicalRecord extends Model
             $this->extra_payment_date = null;
         } elseif ($paidExtra >= $extraAmount) {
             $this->extra_payment_status = 'paid';
+        } elseif ($paidExtra > 0) {
+            // Sebagian sudah dibayar. Tanpa status ini, filter `partial` di
+            // daftar rekam medis tidak pernah cocok dengan baris mana pun.
+            $this->extra_payment_status = 'partial';
         } elseif ($this->extra_payment_status !== 'pending') {
             $this->extra_payment_status = 'unpaid';
         }
@@ -113,8 +145,20 @@ class MedicalRecord extends Model
         }
     }
 
+    /**
+     * Apakah isi klinis boleh ditampilkan ke pemilik.
+     *
+     * Isi rekam medis adalah hak pemilik. Penahanan isi klinis karena tagihan
+     * hanya boleh terjadi bila klinik secara eksplisit menyalakannya lewat
+     * `config('medical_records.gate_clinical_content')`; default-nya terbuka.
+     * Yang tetap ditagih adalah pembayaran tambahan, bukan informasi medis.
+     */
     public function getCanViewFullRecordAttribute(): bool
     {
+        if (!config('medical_records.gate_clinical_content', false)) {
+            return true;
+        }
+
         return in_array($this->extra_payment_status, ['not_required', 'paid'], true);
     }
 
@@ -137,10 +181,8 @@ class MedicalRecord extends Model
         $this->setAttribute('treatment', null);
         $this->setAttribute('medicine', null);
         $this->setAttribute('notes', null);
-        $this->setAttribute('next_visit_date', null);
-
-        // SOAP juga data klinis: jangan bocor saat record masih terkunci
-        // pembayaran tambahan.
+        // Tanggal kontrol adalah instruksi medis, bukan data tagihan: jangan
+        // pernah disembunyikan meski klinik memilih menahan detail klinis.
         $this->setAttribute('subjective', null);
         $this->setAttribute('objective', null);
         $this->setAttribute('assessment', null);
@@ -151,6 +193,97 @@ class MedicalRecord extends Model
         $this->setRelation('attachments', collect());
 
         return $this;
+    }
+
+    public function isVoided(): bool
+    {
+        return $this->status === self::STATUS_VOID;
+    }
+
+    public function isArchived(): bool
+    {
+        return $this->status === self::STATUS_ARCHIVED;
+    }
+
+    /**
+     * @deprecated Gunakan scopeActive(); dipertahankan untuk pemanggil lama.
+     */
+    public function scopeNotVoided($query)
+    {
+        return $query->where('status', '!=', self::STATUS_VOID);
+    }
+
+    public function scopeActive($query)
+    {
+        return $query->whereNotIn('status', [self::STATUS_VOID, self::STATUS_ARCHIVED]);
+    }
+
+    /**
+     * Cap isi dokumen. Dipakai untuk membuktikan rekaman yang dicetak tidak
+     * berubah sejak disahkan.
+     */
+    public function computeContentHash(): string
+    {
+        $this->loadMissing(['prescriptionItems', 'vitals', 'attachments']);
+
+        $payload = [
+            'id' => $this->id,
+            'booking_id' => $this->booking_id,
+            'pet_id' => $this->pet_id,
+            'doctor_id' => $this->doctor_id,
+            'clinic_id' => $this->clinic_id,
+            'diagnosis' => $this->diagnosis,
+            'treatment' => $this->treatment,
+            'subjective' => $this->subjective,
+            'objective' => $this->objective,
+            'assessment' => $this->assessment,
+            'plan' => $this->plan,
+            'medicine' => $this->medicine,
+            'notes' => $this->notes,
+            'next_visit_date' => optional($this->next_visit_date)->toDateString(),
+            'next_visit_time' => $this->next_visit_time,
+            'prescription' => $this->prescriptionItems->map(fn ($i) => [
+                'medicine_name' => $i->medicine_name,
+                'dose' => $i->dose,
+                'quantity' => (string) $i->quantity,
+                'unit' => $i->unit,
+            ])->values()->all(),
+            'vitals' => $this->vitals ? $this->vitals->only([
+                'temperature_c', 'heart_rate', 'respiratory_rate', 'crt_seconds',
+                'mucosa', 'hydration', 'bcs', 'pain_score', 'weight_kg',
+            ]) : null,
+            'attachments' => $this->attachments
+                ->map(fn ($a) => [$a->original_name, $a->sha256])
+                ->values()->all(),
+        ];
+
+        return hash('sha256', json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Sahkan rekaman dan simpan cap integritasnya.
+     */
+    public function finalize(?int $userId = null): void
+    {
+        $this->status = self::STATUS_FINAL;
+        $this->finalized_at = $this->finalized_at ?: now();
+        $this->finalized_by = $this->finalized_by ?: $userId;
+        $this->content_hash = $this->computeContentHash();
+        $this->save();
+    }
+
+    /**
+     * Batalkan rekaman tanpa menghapusnya. Isi tetap utuh untuk retensi,
+     * ekspor, dan pemeriksaan.
+     */
+    public function void(string $reason, ?int $userId = null): void
+    {
+        $this->status = self::STATUS_VOID;
+        $this->voided_at = now();
+        $this->voided_by = $userId;
+        $this->void_reason = $reason;
+        $this->reminder_sent = true;
+        $this->save();
     }
 
     /**
@@ -168,6 +301,31 @@ class MedicalRecord extends Model
     public function prescriptionItems()
     {
         return $this->hasMany(PrescriptionItem::class, 'medical_record_id');
+    }
+
+    public function vitals()
+    {
+        return $this->hasOne(MedicalRecordVitals::class, 'medical_record_id');
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(MedicalRecordRevision::class, 'medical_record_id')->latest('id');
+    }
+
+    public function treatmentConsents()
+    {
+        return $this->hasMany(TreatmentConsent::class, 'medical_record_id');
+    }
+
+    public function referrals()
+    {
+        return $this->hasMany(Referral::class, 'medical_record_id');
+    }
+
+    public function labResults()
+    {
+        return $this->hasMany(LabResult::class, 'medical_record_id');
     }
 
     /** Total harga seluruh item resep. */
@@ -205,6 +363,21 @@ class MedicalRecord extends Model
     public function doctor()
     {
         return $this->belongsTo(Doctor::class);
+    }
+
+    public function createdBy()
+    {
+        return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function updatedBy()
+    {
+        return $this->belongsTo(User::class, 'updated_by');
+    }
+
+    public function voidedBy()
+    {
+        return $this->belongsTo(User::class, 'voided_by');
     }
 
     /**

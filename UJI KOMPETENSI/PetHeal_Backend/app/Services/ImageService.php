@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Image compression and resizing service
@@ -15,12 +16,15 @@ class ImageService
      * Compress and resize uploaded image
      *
      * @param \Illuminate\Http\UploadedFile $file The uploaded file
-     * @param string $relativePath Destination path relative to storage/app/public
+     * @param string $relativePath Destination path relative to the disk root
      * @param int $maxWidth Maximum width in pixels (maintains aspect ratio)
      * @param int $quality JPEG quality (1-100)
+     * @param string $disk Nama disk tujuan; default `public` untuk foto yang
+     *                     memang boleh diakses publik (foto hewan). Berkas
+     *                     medis memakai disk privat.
      * @return string The relative path to saved image
      */
-    public static function process($file, string $relativePath, int $maxWidth = 800, int $quality = 80): string
+    public static function process($file, string $relativePath, int $maxWidth = 800, int $quality = 80, string $disk = 'public'): string
     {
         $manager = new ImageManager(new Driver());
         
@@ -30,8 +34,7 @@ class ImageService
         // Resize while maintaining aspect ratio
         $image->scale(width: $maxWidth);
 
-        // Build full storage path
-        $fullPath = storage_path('app/public/' . $relativePath);
+        $fullPath = Storage::disk($disk)->path($relativePath);
         
         // Ensure directory exists
         $directory = dirname($fullPath);

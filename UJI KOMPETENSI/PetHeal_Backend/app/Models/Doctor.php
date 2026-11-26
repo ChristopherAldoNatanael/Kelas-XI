@@ -29,9 +29,14 @@ class Doctor extends Model
         'invite_token_expires_at',
         'name',
         'specialization',
+        'str_number',
+        'str_expiry',
+        'sip_number',
+        'sip_expiry',
         'phone',
         'email',
         'photo',
+        'signature_path',
         'available_days',
         'start_time',
         'end_time',
@@ -39,10 +44,22 @@ class Doctor extends Model
         'clinic_id',
     ];
 
+    /**
+     * Token undangan portal tidak pernah dikirim ke klien. Nilainya sudah
+     * di-hash di database, tetapi tetap tidak ada gunanya diekspos lewat API
+     * publik (mis. daftar dokter yang tampil di aplikasi pemilik).
+     */
+    protected $hidden = [
+        'invite_token',
+        'invite_token_expires_at',
+    ];
+
     protected $casts = [
         'available_days' => 'array',
         'is_active' => 'boolean',
         'invite_token_expires_at' => 'datetime',
+        'str_expiry' => 'date:Y-m-d',
+        'sip_expiry' => 'date:Y-m-d',
     ];
 
     protected $appends = ['available_time', 'photo_url', 'average_rating'];

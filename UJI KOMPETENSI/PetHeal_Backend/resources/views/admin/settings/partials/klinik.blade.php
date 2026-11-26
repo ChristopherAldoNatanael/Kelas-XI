@@ -71,6 +71,25 @@
                                class="admin-input">
                     </div>
                 </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                        <label for="clinic_license_number" class="admin-label">Nomor izin klinik hewan</label>
+                        <input id="clinic_license_number" type="text" name="license_number" maxlength="100"
+                               value="{{ old('license_number', $clinic->license_number) }}" class="admin-input"
+                               placeholder="Sertifikat izin usaha klinik hewan">
+                        @error('license_number') <p class="admin-error">{{ $message }}</p> @enderror
+                    </div>
+                    <div>
+                        <label for="clinic_license_expiry" class="admin-label">Izin berlaku sampai</label>
+                        <input id="clinic_license_expiry" type="date" name="license_expiry"
+                               value="{{ old('license_expiry', optional($clinic->license_expiry)->format('Y-m-d')) }}" class="admin-input">
+                        @error('license_expiry') <p class="admin-error">{{ $message }}</p> @enderror
+                    </div>
+                </div>
+                <p class="text-[11px] leading-5 text-slate-400">
+                    Nomor izin dan masa berlaku dicetak pada resume medis. Isi sebelum klinik melayani pasien nyata.
+                </p>
             </fieldset>
 
             {{-- Lokasi & jam operasional (multi-clinic discovery) --}}

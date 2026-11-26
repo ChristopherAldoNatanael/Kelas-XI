@@ -495,4 +495,35 @@ class ServiceRequestFlowTest extends TestCase
         $this->assertSame(ServiceRequest::STATUS_UNDER_REVIEW, $updated->status);
         $this->assertSame('Mohon kirim foto kondisi hewan.', $updated->admin_notes);
     }
+
+    public function test_admin_offer_requires_explicit_price(): void
+    {
+        $request = $this->submittedRequest();
+        $date = today()->addDay()->toDateString();
+
+        $response = $this->actingAs($this->clinicAdmin())
+            ->post('/admin/service-requests/' . $request->id, [
+                'action' => 'offer',
+                'offer_service_name' => 'USG Abdomen',
+                'offer_doctor_id' => $this->doctor->id,
+                'offer_schedule_date' => $date,
+                'offer_schedule_time' => '10:00',
+            ]);
+
+        $response->assertSessionHas('error', 'Harga penawaran wajib diisi oleh admin.');
+        $this->assertSame(ServiceRequest::STATUS_SUBMITTED, $request->fresh()->status);
+        $this->assertNull($request->fresh()->offer_price);
+    }
+
+    public function test_admin_detail_exposes_doctor_schedule_metadata_for_offer_form(): void
+    {
+        $request = $this->submittedRequest();
+
+        $this->actingAs($this->clinicAdmin())
+            ->get('/admin/service-requests/' . $request->id)
+            ->assertOk()
+            ->assertSee('offerScheduleData', false)
+            ->assertSee('Hari praktik', false)
+            ->assertSee($this->doctor->name);
+    }
 }

@@ -247,9 +247,11 @@ class DoctorController extends Controller
         $date = $request->input('date');
 
         // PHASE 4: jadwal efektif = pengecualian tanggal (cuti/jam khusus)
-        // lebih dulu, baru jadwal mingguan. Satu sumber dengan validasi booking.
+        // lebih dulu, baru jadwal mingguan, lalu diiris dengan jam operasional
+        // klinik. Satu sumber dengan validasi booking dan penawaran admin.
         $schedule = $this->schedule->effectiveSchedule($doctor, $date);
         $slots = $this->schedule->slotsFor($doctor, $date, $schedule);
+        $clinic = $doctor->clinic;
 
         return response()->json([
             'success' => true,
@@ -264,6 +266,16 @@ class DoctorController extends Controller
                 'start_time' => $schedule['start_time'],
                 'end_time' => $schedule['end_time'],
                 'reason' => $schedule['reason'],
+                // Jam klinik dikirim terpisah supaya aplikasi bisa menjelaskan
+                // mengapa suatu jam tidak muncul, bukan sekadar slot kosong.
+                'clinic_id' => $clinic?->id,
+                'clinic_name' => $clinic?->name,
+                'clinic_opening_time' => $schedule['clinic_start_time'],
+                'clinic_closing_time' => $schedule['clinic_end_time'],
+                'clinic_operating_days' => $clinic?->operating_days,
+                'clinic_is_open' => $schedule['clinic_is_open'],
+                'clinic_closed' => $schedule['clinic_closed'],
+                'outside_clinic_hours' => $schedule['outside_clinic_hours'],
             ],
         ]);
     }

@@ -410,7 +410,17 @@ data class SlotMeta(
     @SerializedName("has_exception") val hasException: Boolean = false,
     @SerializedName("start_time") val startTime: String? = null,
     @SerializedName("end_time") val endTime: String? = null,
-    val reason: String? = null
+    val reason: String? = null,
+    // Jam operasional klinik pada tanggal tersebut. Null = klinik belum
+    // mengisi jam, sehingga jadwal mengikuti dokter saja.
+    @SerializedName("clinic_id") val clinicId: Int? = null,
+    @SerializedName("clinic_name") val clinicName: String? = null,
+    @SerializedName("clinic_opening_time") val clinicOpeningTime: String? = null,
+    @SerializedName("clinic_closing_time") val clinicClosingTime: String? = null,
+    @SerializedName("clinic_operating_days") val clinicOperatingDays: List<String>? = null,
+    @SerializedName("clinic_is_open") val clinicIsOpen: Boolean? = null,
+    @SerializedName("clinic_closed") val clinicClosed: Boolean = false,
+    @SerializedName("outside_clinic_hours") val outsideClinicHours: Boolean = false
 )
 
 /** Slot + jadwal efektif tanggal tersebut; dikembalikan bersama oleh repository. */

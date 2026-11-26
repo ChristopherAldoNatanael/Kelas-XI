@@ -11,6 +11,16 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        // Animasi reveal hanya diaktifkan bila browser benar-benar bisa
+        // menjalankannya. Tanpa ini, pemblokir skrip atau JS yang gagal membuat
+        // seluruh isi halaman tetap opacity:0 dan pengguna melihat halaman putih.
+        try {
+            if ('IntersectionObserver' in window) {
+                document.documentElement.classList.add('js-reveal');
+            }
+        } catch (e) { /* biarkan konten tetap terlihat */ }
+    </script>
+    <script>
         tailwind.config = {
             theme: {
                 extend: {
@@ -44,8 +54,8 @@
         .eyebrow { letter-spacing: .18em; }
         .card { border: 1px solid #E7DFCF; }
         .tick { font-variant-numeric: tabular-nums; }
-        .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
-        .reveal.visible { opacity: 1; transform: none; }
+        .js-reveal .reveal { opacity: 0; transform: translateY(26px); transition: opacity .7s ease, transform .7s ease; }
+        .js-reveal .reveal.visible { opacity: 1; transform: none; }
         .navlink { position: relative; }
         .navlink::after {
             content: ''; position: absolute; left: 0; bottom: -4px; height: 2px; width: 0;
@@ -56,6 +66,9 @@
         details > summary { list-style: none; }
         details > summary::-webkit-details-marker { display: none; }
     </style>
+    <noscript>
+        <style>.reveal { opacity: 1 !important; transform: none !important; }</style>
+    </noscript>
 </head>
 <body class="font-sans">
 
@@ -70,7 +83,7 @@
     $records = $safeCount(\App\Models\MedicalRecord::class);
     $clinics = class_exists(\App\Models\Clinic::class) ? $safeCount(\App\Models\Clinic::class) : '—';
     $services = class_exists(\App\Models\Service::class) ? $safeCount(\App\Models\Service::class) : '—';
-    $baseUrl = rtrim(config('app.url'), '/') . '/api';
+    $baseUrl = rtrim(request()->getSchemeAndHttpHost() ?: config('app.url'), '/') . '/api';
 @endphp
 
 <!-- Pita status atas: jujur, bukan hype -->
@@ -493,12 +506,35 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        var io = new IntersectionObserver(function (entries) {
-            entries.forEach(function (e) {
-                if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); }
-            });
-        }, { threshold: 0.12 });
-        document.querySelectorAll('.reveal').forEach(function (el) { io.observe(el); });
+        var items = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
+
+        function showAll() {
+            items.forEach(function (el) { el.classList.add('visible'); });
+        }
+
+        // Jaring pengaman: apa pun yang gagal (skrip diblokir, observer error,
+        // browser lama), isi halaman tetap muncul setelah beberapa detik.
+        setTimeout(showAll, 2500);
+
+        if (!('IntersectionObserver' in window)) {
+            showAll();
+            return;
+        }
+
+        try {
+            var io = new IntersectionObserver(function (entries) {
+                entries.forEach(function (e) {
+                    if (e.isIntersecting) {
+                        e.target.classList.add('visible');
+                        io.unobserve(e.target);
+                    }
+                });
+            }, { threshold: 0.12 });
+
+            items.forEach(function (el) { io.observe(el); });
+        } catch (e) {
+            showAll();
+        }
     });
 </script>
 

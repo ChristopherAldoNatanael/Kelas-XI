@@ -153,7 +153,7 @@ class PayloadGateAndPermissionFixesTest extends TestCase
         $this->assertSame((float) $this->service->price, (float) $detail->json('data.service.price'));
     }
 
-    public function test_dashboard_masks_clinical_fields_of_locked_records(): void
+    public function test_dashboard_exposes_clinical_fields_even_when_extra_payment_is_unpaid(): void
     {
         $record = $this->lockedRecord();
 
@@ -162,11 +162,12 @@ class PayloadGateAndPermissionFixesTest extends TestCase
 
         $visit = $response->json('data.medical.recent_visits.0');
         $this->assertSame($record->id, $visit['id']);
-        $this->assertNull($visit['diagnosis']);
-        $this->assertNull($visit['treatment']);
-        $this->assertNull($visit['medicine']);
-        $this->assertNull($visit['notes']);
-        // Payment state stays visible so the UI can offer the unlock action.
+
+        // Isi klinis adalah hak pemilik hewan; status tagihan tidak menyembunyikannya.
+        $this->assertSame('Diagnosis terkunci', $visit['diagnosis']);
+        $this->assertSame('Terapi terkunci', $visit['treatment']);
+        $this->assertSame('Obat terkunci', $visit['medicine']);
+        $this->assertSame('Catatan terkunci', $visit['notes']);
         $this->assertSame('unpaid', $visit['extra_payment_status']);
     }
 
@@ -188,17 +189,17 @@ class PayloadGateAndPermissionFixesTest extends TestCase
         $this->assertSame('Diagnosis terbuka', $response->json('data.medical.recent_visits.0.diagnosis'));
     }
 
-    public function test_booking_and_pet_detail_mask_locked_records(): void
+    public function test_booking_and_pet_detail_expose_records_with_unpaid_extra_payment(): void
     {
         $this->lockedRecord();
 
         $booking = $this->apiAs($this->owner)->getJson('/api/bookings/' . $this->booking->id);
         $booking->assertOk();
-        $this->assertNull($booking->json('data.medicalRecord.diagnosis'));
+        $this->assertSame('Diagnosis terkunci', $booking->json('data.medical_record.diagnosis'));
 
         $pet = $this->apiAs($this->owner)->getJson('/api/pets/' . $this->pet->id);
         $pet->assertOk();
-        $this->assertNull($pet->json('data.medical_records.0.diagnosis'));
+        $this->assertSame('Diagnosis terkunci', $pet->json('data.medical_records.0.diagnosis'));
     }
 
     public function test_clinic_admin_cannot_edit_another_staff_account(): void

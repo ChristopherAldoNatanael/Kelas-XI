@@ -55,6 +55,38 @@
                                placeholder="{{ __('admin.specialization_placeholder') }}" class="admin-input">
                         @error('specialization') <p class="admin-error">{{ $message }}</p> @enderror
                     </div>
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label for="str_number" class="admin-label">Nomor STR</label>
+                            <input type="text" name="str_number" id="str_number" maxlength="50"
+                                   value="{{ old('str_number', $doctor->str_number ?? '') }}" class="admin-input"
+                                   placeholder="Contoh: 1234/STR/2026">
+                            @error('str_number') <p class="admin-error">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="str_expiry" class="admin-label">STR berlaku sampai</label>
+                            <input type="date" name="str_expiry" id="str_expiry"
+                                   value="{{ old('str_expiry', optional($doctor->str_expiry)->format('Y-m-d')) }}" class="admin-input">
+                            @error('str_expiry') <p class="admin-error">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="sip_number" class="admin-label">Nomor SIP</label>
+                            <input type="text" name="sip_number" id="sip_number" maxlength="50"
+                                   value="{{ old('sip_number', $doctor->sip_number ?? '') }}" class="admin-input"
+                                   placeholder="Surat izin praktik di klinik ini">
+                            @error('sip_number') <p class="admin-error">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label for="sip_expiry" class="admin-label">SIP berlaku sampai</label>
+                            <input type="date" name="sip_expiry" id="sip_expiry"
+                                   value="{{ old('sip_expiry', optional($doctor->sip_expiry)->format('Y-m-d')) }}" class="admin-input">
+                            @error('sip_expiry') <p class="admin-error">{{ $message }}</p> @enderror
+                        </div>
+                    </div>
+                    <p class="admin-hint">
+                        STR dan SIP tercetak pada resume medis. Kosongkan bila belum diurus; isi sebelum klinik dipakai untuk praktik nyata.
+                    </p>
+
                 </div>
 
                 <div class="space-y-5">

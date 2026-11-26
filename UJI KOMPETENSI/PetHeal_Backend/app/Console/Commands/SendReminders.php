@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Booking;
+use App\Models\MedicalRecord;
 use App\Models\Vaccination;
 use App\Services\FCMService;
 use Carbon\Carbon;
@@ -37,10 +38,62 @@ class SendReminders extends Command
         
         $bookingRemindersSent = $this->sendBookingReminders();
         $vaccinationRemindersSent = $this->sendVaccinationReminders();
+        $medicalRemindersSent = $this->sendMedicalRecordReminders();
         
-        $this->info("Reminders sent: {$bookingRemindersSent} bookings, {$vaccinationRemindersSent} vaccinations");
+        $this->info("Reminders sent: {$bookingRemindersSent} bookings, {$vaccinationRemindersSent} vaccinations, {$medicalRemindersSent} follow-ups");
         
         return Command::SUCCESS;
+    }
+
+    /**
+     * Pengingat jadwal kontrol dari rekam medis (H-3 dan H-0).
+     *
+     * Sebelumnya kolom `next_visit_date` hanya dikirim sekali saat rekam medis
+     * disimpan, sehingga pengingat datang terlalu dini dan tidak pernah diulang.
+     * `reminder_sent` baru diisi setelah pengiriman berhasil, sama seperti
+     * pengingat vaksinasi.
+     */
+    protected function sendMedicalRecordReminders(): int
+    {
+        $today = Carbon::today();
+        $threeDays = Carbon::today()->addDays(3);
+
+        $records = MedicalRecord::with(['pet.user'])
+            ->where('status', MedicalRecord::STATUS_FINAL)
+            ->where('reminder_sent', false)
+            ->whereNotNull('next_visit_date')
+            ->where(function ($query) use ($today, $threeDays) {
+                $query->whereDate('next_visit_date', $today)
+                    ->orWhereDate('next_visit_date', $threeDays);
+            })
+            ->get();
+
+        $sent = 0;
+
+        foreach ($records as $record) {
+            try {
+                if (!$record->pet?->user_id) {
+                    continue;
+                }
+
+                $delivered = $this->fcmService->sendVaccinationReminder(
+                    $record->pet->user_id,
+                    $record->pet->name,
+                    $record->next_visit_date->format('Y-m-d'),
+                    $record->pet_id,
+                    $record->id
+                );
+
+                if ($delivered) {
+                    $record->update(['reminder_sent' => true]);
+                    $sent++;
+                }
+            } catch (\Throwable $e) {
+                $this->error("Follow-up reminder failed for record #{$record->id}: {$e->getMessage()}");
+            }
+        }
+
+        return $sent;
     }
 
     /**

@@ -10,6 +10,9 @@ class Clinic extends Model
     protected $fillable = [
         'name',
         'slug',
+        'license_number',
+        'license_expiry',
+        'responsible_doctor_id',
         'address',
         'phone',
         'email',
@@ -40,6 +43,7 @@ class Clinic extends Model
         'rating'          => 'decimal:2',
         'reviews_count'   => 'integer',
         'operating_days'  => 'array',
+        'license_expiry'  => 'date:Y-m-d',
     ];
 
     protected $appends = ['logo_url', 'featured_image_url'];
@@ -82,6 +86,14 @@ class Clinic extends Model
         $path = preg_replace('#^public/#', '', $path);
 
         return asset('storage/' . $path);
+    }
+
+    /**
+     * Dokter penanggung jawab fasilitas (tercantum pada dokumen resmi).
+     */
+    public function responsibleDoctor()
+    {
+        return $this->belongsTo(Doctor::class, 'responsible_doctor_id');
     }
 
     /**

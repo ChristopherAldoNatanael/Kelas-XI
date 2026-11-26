@@ -32,6 +32,8 @@ class Medicine extends Model
         'name',
         'unit',
         'form',
+        'drug_class',
+        'is_antibiotic',
         'min_stock',
         'price',
         'expiry_date',
@@ -51,6 +53,7 @@ class Medicine extends Model
         'price' => 'decimal:2',
         'expiry_date' => 'date:Y-m-d',
         'is_active' => 'boolean',
+        'is_antibiotic' => 'boolean',
         'disposed_at' => 'datetime',
         'disposed_quantity' => 'decimal:2',
     ];
