@@ -33,6 +33,8 @@ class Doctor extends Model
         'str_expiry',
         'sip_number',
         'sip_expiry',
+        'credential_status',
+        'credential_verified_at',
         'phone',
         'email',
         'photo',
@@ -60,6 +62,7 @@ class Doctor extends Model
         'invite_token_expires_at' => 'datetime',
         'str_expiry' => 'date:Y-m-d',
         'sip_expiry' => 'date:Y-m-d',
+        'credential_verified_at' => 'datetime',
     ];
 
     protected $appends = ['available_time', 'photo_url', 'average_rating'];
@@ -120,6 +123,16 @@ class Doctor extends Model
     public function medicalRecords()
     {
         return $this->hasMany(MedicalRecord::class);
+    }
+
+    public function credentials()
+    {
+        return $this->hasMany(ProfessionalCredential::class);
+    }
+
+    public function paramedics()
+    {
+        return $this->hasMany(Paramedic::class, 'supervising_doctor_id');
     }
 
     /**

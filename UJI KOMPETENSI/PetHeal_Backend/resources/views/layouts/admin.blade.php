@@ -329,6 +329,14 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">clinical_notes</span>
                     <span class="sidebar-text">{{ __('menu.medical_records') }}</span>
                 </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.privacy-requests.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.privacy-requests.index') }}" @if(request()->routeIs('admin.privacy-requests.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.privacy-requests.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">shield_person</span>
+                    <span class="sidebar-text">Permintaan PDP</span>
+                </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.payments.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.payments.index') }}" @if(request()->routeIs('admin.payments.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.payments.*'))

@@ -316,6 +316,11 @@ interface ApiService {
     ): Response<ServiceRequestResponse>
 
     // ============= MEDICAL RECORDS =============
+    @GET("medical-records/summary")
+    suspend fun getMedicalRecordSummaries(
+        @Query("page") page: Int = 1
+    ): Response<MedicalRecordsResponse>
+
     @GET("medical-records")
     suspend fun getMedicalRecords(
         @Query("page") page: Int = 1
@@ -335,6 +340,28 @@ interface ApiService {
 
     @GET("pets/{petId}/medical-records")
     suspend fun getMedicalRecordsByPet(@Path("petId") petId: Int): Response<MedicalRecordsResponse>
+
+    // ============= OWNER PORTAL =============
+    @GET("medical-records/{id}/amendments")
+    suspend fun getMedicalRecordAmendments(@Path("id") id: Int): Response<MedicalRecordAmendmentsResponse>
+
+    @GET("medical-records/{id}/export")
+    suspend fun createMedicalRecordExport(
+        @Path("id") id: Int,
+        @Query("format") format: String = "pdf"
+    ): Response<MedicalRecordExportResponse>
+
+    @GET("medical-record-exports/{token}")
+    suspend fun downloadMedicalRecordExport(@Path("token") token: String): Response<ResponseBody>
+
+    @GET("privacy-requests")
+    suspend fun getPrivacyRequests(): Response<PrivacyRequestsResponse>
+
+    @POST("privacy-requests")
+    suspend fun createPrivacyRequest(@Body request: PrivacyRequestCreateRequest): Response<PrivacyRequestResponse>
+
+    @GET("privacy-requests/{id}/response")
+    suspend fun downloadPrivacyResponse(@Path("id") id: Int): Response<ResponseBody>
 
     // ============= DEVICE TOKEN =============
     @POST("device-token")

@@ -4,8 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.model.MedicalRecordAmendmentSummary
+import com.christopheraldoo.petheal.data.model.MedicalRecordExportTicket
+import com.christopheraldoo.petheal.data.model.PrivacyRequest
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.MedicalRecordRepository
+import com.christopheraldoo.petheal.data.repository.MedicalRecordPage
 import com.christopheraldoo.petheal.data.repository.MedicalRefreshManager
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.model.Pet
@@ -21,10 +25,15 @@ import javax.inject.Inject
 
 data class MedicalRecordsUiState(
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
     val records: List<MedicalRecord> = emptyList(),
     val filteredRecords: List<MedicalRecord> = emptyList(),
     val selectedFilter: String = "all",
-    val error: String? = null
+    val error: String? = null,
+    val currentPage: Int = 0,
+    val lastPage: Int = 0,
+    val totalRecords: Int = 0,
+    val hasMore: Boolean = false
 )
 
 data class MedicalRecordDetailUiState(
@@ -34,6 +43,26 @@ data class MedicalRecordDetailUiState(
     // MULTI-CLINIC (2026-11-11): kop bukti pembayaran TIDAK lagi diambil dari
     // preferensi klinik sesi. Rekam medis membawa `clinic` miliknya sendiri;
     // memakai klinik sesi membuat bukti klinik A tercetak atas nama klinik B.
+)
+
+data class MedicalRecordPortalUiState(
+    val isAmendmentsLoading: Boolean = false,
+    val amendments: List<MedicalRecordAmendmentSummary> = emptyList(),
+    val amendmentsError: String? = null,
+    val isExportLoading: Boolean = false,
+    val exportTicket: MedicalRecordExportTicket? = null,
+    val exportBytes: ByteArray? = null,
+    val exportMessage: String? = null,
+    val exportError: String? = null,
+    val isPrivacyLoading: Boolean = false,
+    val privacyRequests: List<PrivacyRequest> = emptyList(),
+    val privacyError: String? = null,
+    val isPrivacySubmitting: Boolean = false,
+    val privacyMessage: String? = null,
+    val isPrivacyResponseLoading: Boolean = false,
+    val privacyResponseDownloadingId: Int? = null,
+    val privacyResponseBytes: ByteArray? = null,
+    val privacyResponseRequestId: Int? = null
 )
 
 /**
@@ -80,6 +109,10 @@ class MedicalRecordsViewModel @Inject constructor(
     private var lastCheckedRatingKey: String? = null
     private val reminderDismissedInSession = mutableSetOf<String>()
 
+    // ── Owner portal: amendment, salinan PDF, permintaan PDP ─────────────────
+    private val _portalState = MutableStateFlow(MedicalRecordPortalUiState())
+    val portalState: StateFlow<MedicalRecordPortalUiState> = _portalState.asStateFlow()
+
     // ── Available filter categories ───────────────────────────────────────────
     // Stable filter keys (never shown). Labels are Indonesian via [filterLabel].
     val filterCategories = listOf("all", "vaccination", "checkup", "surgery", "lab")
@@ -119,19 +152,28 @@ class MedicalRecordsViewModel @Inject constructor(
         viewModelScope.launch {
             val hasCachedRecords = _listState.value.records.isNotEmpty()
             if (!hasCachedRecords || forceRefresh) {
-                _listState.value = _listState.value.copy(isLoading = true, error = null)
+                _listState.value = _listState.value.copy(
+                    isLoading = true,
+                    isLoadingMore = false,
+                    error = null
+                )
             } else {
                 _listState.value = _listState.value.copy(error = null)
             }
-            when (val result = medicalRecordRepository.getMedicalRecords(forceRefresh = forceRefresh)) {
+            when (val result = medicalRecordRepository.getMedicalRecordSummaries(page = 1)) {
                 is com.christopheraldoo.petheal.data.repository.Result.Success -> {
-                    val records = result.data
+                    val page = result.data
                     hasLoadedAllRecords = true
                     lastLoadedPetId = null
                     _listState.value = _listState.value.copy(
                         isLoading = false,
-                        records = records,
-                        filteredRecords = applyFilter(records, _listState.value.selectedFilter)
+                        isLoadingMore = false,
+                        records = page.records,
+                        filteredRecords = applyFilter(page.records, _listState.value.selectedFilter),
+                        currentPage = page.currentPage,
+                        lastPage = page.lastPage,
+                        totalRecords = page.total,
+                        hasMore = page.currentPage < page.lastPage
                     )
                 }
                 is com.christopheraldoo.petheal.data.repository.Result.Error -> {
@@ -143,6 +185,43 @@ class MedicalRecordsViewModel @Inject constructor(
                 is com.christopheraldoo.petheal.data.repository.Result.Loading -> {
                     // Already handled by isLoading = true above
                 }
+            }
+        }
+    }
+
+    /**
+     * Lazy pagination: halaman berikutnya hanya diambil saat pengguna mendekati
+     * akhir daftar. Ini menghindari 10 request berurutan di awal layar.
+     */
+    fun loadMoreRecords() {
+        val snapshot = _listState.value
+        if (snapshot.isLoading || snapshot.isLoadingMore || !snapshot.hasMore) return
+
+        val nextPage = snapshot.currentPage + 1
+        viewModelScope.launch {
+            _listState.value = _listState.value.copy(isLoadingMore = true)
+
+            when (val result = medicalRecordRepository.getMedicalRecordSummaries(page = nextPage)) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    val page = result.data
+                    val merged = (snapshot.records + page.records)
+                        .distinctBy { it.id ?: it.hashCode() }
+                    _listState.value = _listState.value.copy(
+                        isLoadingMore = false,
+                        records = merged,
+                        filteredRecords = applyFilter(merged, _listState.value.selectedFilter),
+                        currentPage = page.currentPage,
+                        lastPage = page.lastPage,
+                        totalRecords = page.total,
+                        hasMore = page.currentPage < page.lastPage
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    // Jangan hilangkan daftar yang sudah tampil hanya karena
+                    // halaman berikutnya gagal. Pengguna dapat scroll ulang.
+                    _listState.value = _listState.value.copy(isLoadingMore = false)
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
             }
         }
     }
@@ -171,8 +250,13 @@ class MedicalRecordsViewModel @Inject constructor(
                     lastLoadedPetId = petId
                     _listState.value = _listState.value.copy(
                         isLoading = false,
+                        isLoadingMore = false,
                         records = records,
-                        filteredRecords = applyFilter(records, _listState.value.selectedFilter)
+                        filteredRecords = applyFilter(records, _listState.value.selectedFilter),
+                        currentPage = 1,
+                        lastPage = 1,
+                        totalRecords = records.size,
+                        hasMore = false
                     )
                 }
                 is com.christopheraldoo.petheal.data.repository.Result.Error -> {
@@ -261,6 +345,179 @@ class MedicalRecordsViewModel @Inject constructor(
                 else          -> true
             }
         }
+    }
+
+    fun loadAmendments(recordId: Int) {
+        viewModelScope.launch {
+            _portalState.value = _portalState.value.copy(isAmendmentsLoading = true, amendmentsError = null)
+            when (val result = medicalRecordRepository.getAmendments(recordId)) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    _portalState.value = _portalState.value.copy(
+                        isAmendmentsLoading = false,
+                        amendments = result.data,
+                        amendmentsError = null
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _portalState.value = _portalState.value.copy(
+                        isAmendmentsLoading = false,
+                        amendmentsError = result.message
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun requestExport(recordId: Int) {
+        if (_portalState.value.isExportLoading) return
+        viewModelScope.launch {
+            _portalState.value = _portalState.value.copy(
+                isExportLoading = true,
+                exportTicket = null,
+                exportBytes = null,
+                exportMessage = null,
+                exportError = null
+            )
+            when (val ticketResult = medicalRecordRepository.createExport(recordId)) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    val ticket = ticketResult.data
+                    val exportToken = ticket.token
+                    if (exportToken == null) {
+                        _portalState.value = _portalState.value.copy(
+                            isExportLoading = false,
+                            exportError = "Token salinan tidak tersedia."
+                        )
+                        return@launch
+                    }
+                    when (val file = medicalRecordRepository.downloadExport(exportToken)) {
+                        is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                            _portalState.value = _portalState.value.copy(
+                                isExportLoading = false,
+                                exportTicket = ticket,
+                                exportBytes = file.data,
+                                exportMessage = "Salinan PDF berhasil diunduh."
+                            )
+                        }
+                        is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                            _portalState.value = _portalState.value.copy(
+                                isExportLoading = false,
+                                exportTicket = ticket,
+                                exportError = file.message
+                            )
+                        }
+                        is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+                    }
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _portalState.value = _portalState.value.copy(
+                        isExportLoading = false,
+                        exportError = ticketResult.message
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun consumeExportBytes() {
+        _portalState.value = _portalState.value.copy(exportBytes = null)
+    }
+
+    fun loadPrivacyRequests() {
+        viewModelScope.launch {
+            _portalState.value = _portalState.value.copy(isPrivacyLoading = true, privacyError = null)
+            when (val result = medicalRecordRepository.getPrivacyRequests()) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacyLoading = false,
+                        privacyRequests = result.data,
+                        privacyError = null
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacyLoading = false,
+                        privacyError = result.message
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun downloadPrivacyResponse(id: Int) {
+        if (_portalState.value.isPrivacyResponseLoading) return
+        viewModelScope.launch {
+            _portalState.value = _portalState.value.copy(
+                isPrivacyResponseLoading = true,
+                privacyResponseDownloadingId = id,
+                privacyResponseBytes = null,
+                privacyResponseRequestId = null,
+                privacyError = null
+            )
+            when (val result = medicalRecordRepository.downloadPrivacyResponse(id)) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacyResponseLoading = false,
+                        privacyResponseDownloadingId = null,
+                        privacyResponseBytes = result.data,
+                        privacyResponseRequestId = id
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacyResponseLoading = false,
+                        privacyResponseDownloadingId = null,
+                        privacyError = result.message
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun consumePrivacyResponseBytes() {
+        _portalState.value = _portalState.value.copy(
+            privacyResponseBytes = null,
+            privacyResponseRequestId = null
+        )
+    }
+
+    fun submitPrivacyRequest(requestType: String, description: String, clinicId: Int?) {
+        if (_portalState.value.isPrivacySubmitting) return
+        viewModelScope.launch {
+            _portalState.value = _portalState.value.copy(
+                isPrivacySubmitting = true,
+                privacyMessage = null,
+                privacyError = null
+            )
+            when (val result = medicalRecordRepository.createPrivacyRequest(requestType, description, clinicId)) {
+                is com.christopheraldoo.petheal.data.repository.Result.Success -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacySubmitting = false,
+                        privacyMessage = "Permintaan data berhasil dikirim.",
+                        privacyRequests = listOf(result.data) + _portalState.value.privacyRequests
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Error -> {
+                    _portalState.value = _portalState.value.copy(
+                        isPrivacySubmitting = false,
+                        privacyError = result.message
+                    )
+                }
+                is com.christopheraldoo.petheal.data.repository.Result.Loading -> Unit
+            }
+        }
+    }
+
+    fun clearPortalMessages() {
+        _portalState.value = _portalState.value.copy(
+            exportMessage = null,
+            exportError = null,
+            privacyMessage = null,
+            privacyError = null
+        )
     }
 
     // ── Rating reminder ───────────────────────────────────────────────────────

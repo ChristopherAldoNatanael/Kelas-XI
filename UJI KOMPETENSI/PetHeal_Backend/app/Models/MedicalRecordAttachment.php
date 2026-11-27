@@ -33,7 +33,12 @@ class MedicalRecordAttachment extends Model
         'mime_type',
         'size_bytes',
         'sha256',
+        'encryption_version',
         'uploaded_by',
+    ];
+
+    protected $casts = [
+        'encryption_version' => 'integer',
     ];
 
     protected $appends = ['url'];
@@ -67,5 +72,10 @@ class MedicalRecordAttachment extends Model
     public function isImage(): bool
     {
         return str_starts_with((string) $this->mime_type, 'image/');
+    }
+
+    public function isEncrypted(): bool
+    {
+        return $this->encryption_version !== null && $this->encryption_version > 0;
     }
 }

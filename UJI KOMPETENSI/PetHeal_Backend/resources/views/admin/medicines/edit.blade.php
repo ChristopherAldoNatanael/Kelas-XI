@@ -68,6 +68,10 @@
                         <input type="text" name="manufacturer" id="manufacturer"
                                value="{{ old('manufacturer', $medicine->manufacturer) }}" class="admin-input">
                     </div>
+
+                    <div class="md:col-span-2">
+                        @include('admin.medicines.partials.registration-fields', ['medicine' => $medicine])
+                    </div>
                     <div class="md:col-span-2">
                         <label for="notes" class="admin-label">{{ __('admin.notes') }}</label>
                         <textarea name="notes" id="notes" rows="3" class="admin-input">{{ old('notes', $medicine->notes) }}</textarea>

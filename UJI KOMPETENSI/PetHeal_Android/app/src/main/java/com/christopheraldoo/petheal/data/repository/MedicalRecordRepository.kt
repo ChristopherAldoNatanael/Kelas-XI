@@ -7,6 +7,13 @@ import com.christopheraldoo.petheal.data.remote.ApiService
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class MedicalRecordPage(
+    val records: List<MedicalRecord>,
+    val currentPage: Int,
+    val lastPage: Int,
+    val total: Int
+)
+
 @Singleton
 class MedicalRecordRepository @Inject constructor(
     private val apiService: ApiService
@@ -57,6 +64,34 @@ class MedicalRecordRepository @Inject constructor(
         recordByBookingCache.remove(bookingId)
         recordsCache = null
         recordsByPetCache.clear()
+    }
+
+    suspend fun getMedicalRecordSummaries(page: Int = 1): Result<MedicalRecordPage> {
+        return try {
+            val response = apiService.getMedicalRecordSummaries(page = page)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                val records = body.data ?: emptyList()
+                records.forEach { record ->
+                    record.id?.let { recordDetailCache.putIfAbsent(it, record) }
+                }
+                Result.Success(
+                    MedicalRecordPage(
+                        records = records,
+                        currentPage = body.pagination?.currentPage ?: page,
+                        lastPage = body.pagination?.lastPage ?: page,
+                        total = body.pagination?.total ?: records.size
+                    )
+                )
+            } else {
+                Log.e(TAG, "getMedicalRecordSummaries($page) failed: ${body?.message} (HTTP ${response.code()})")
+                Result.Error(body?.message ?: "Gagal memuat rekam medis")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getMedicalRecordSummaries($page) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
     }
 
     suspend fun getMedicalRecords(forceRefresh: Boolean = false): Result<List<MedicalRecord>> {
@@ -165,6 +200,119 @@ class MedicalRecordRepository @Inject constructor(
             }
         } catch (e: Exception) {
             Log.e(TAG, "getPaymentStatus($recordId) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun getAmendments(recordId: Int): Result<List<MedicalRecordAmendmentSummary>> {
+        return try {
+            val response = apiService.getMedicalRecordAmendments(recordId)
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body.data ?: emptyList())
+            } else {
+                Result.Error(body?.message ?: "Gagal memuat riwayat koreksi")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getAmendments($recordId) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun createExport(recordId: Int): Result<MedicalRecordExportTicket> {
+        return try {
+            val response = apiService.createMedicalRecordExport(recordId)
+            val body = response.body()
+            val ticket = body?.data
+            if (response.isSuccessful && body?.success == true && ticket?.token != null) {
+                Result.Success(ticket)
+            } else {
+                Log.e(TAG, "createExport($recordId) failed: ${body?.message} (HTTP ${response.code()})")
+                Result.Error(body?.message ?: "Gagal membuat salinan rekam medis")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "createExport($recordId) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun downloadExport(token: String): Result<ByteArray> {
+        return try {
+            val response = apiService.downloadMedicalRecordExport(token)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.Success(body.bytes())
+            } else {
+                val message = when (response.code()) {
+                    410 -> "Salinan sudah kedaluwarsa atau sudah pernah diunduh."
+                    404 -> "Salinan rekam medis tidak ditemukan."
+                    else -> "Gagal mengunduh salinan rekam medis"
+                }
+                Log.e(TAG, "downloadExport failed (HTTP ${response.code()})")
+                Result.Error(message)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "downloadExport exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun getPrivacyRequests(): Result<List<PrivacyRequest>> {
+        return try {
+            val response = apiService.getPrivacyRequests()
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true) {
+                Result.Success(body.data ?: emptyList())
+            } else {
+                Result.Error(body?.message ?: "Gagal memuat permintaan data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getPrivacyRequests exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun downloadPrivacyResponse(id: Int): Result<ByteArray> {
+        return try {
+            val response = apiService.downloadPrivacyResponse(id)
+            val body = response.body()
+            if (response.isSuccessful && body != null) {
+                Result.Success(body.bytes())
+            } else {
+                val message = when (response.code()) {
+                    404 -> "Berkas salinan data belum tersedia."
+                    else -> "Gagal mengunduh salinan data"
+                }
+                Log.e(TAG, "downloadPrivacyResponse failed (HTTP ${response.code()})")
+                Result.Error(message)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "downloadPrivacyResponse exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun createPrivacyRequest(
+        requestType: String,
+        description: String,
+        clinicId: Int? = null
+    ): Result<PrivacyRequest> {
+        return try {
+            val response = apiService.createPrivacyRequest(
+                PrivacyRequestCreateRequest(
+                    requestType = requestType,
+                    description = description,
+                    clinicId = clinicId
+                )
+            )
+            val body = response.body()
+            if (response.isSuccessful && body?.success == true && body.data != null) {
+                Result.Success(body.data)
+            } else {
+                Result.Error(body?.message ?: "Gagal mengirim permintaan data")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "createPrivacyRequest exception", e)
             Result.Error(userFriendlyExceptionMessage(e))
         }
     }

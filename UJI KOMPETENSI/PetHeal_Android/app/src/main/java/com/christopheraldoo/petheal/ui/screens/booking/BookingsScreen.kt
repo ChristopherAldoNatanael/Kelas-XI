@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -240,8 +241,32 @@ fun BookingsScreen(
                 // Show skeleton loading on initial load
                 SkeletonBookingList(count = 3)
             } else if (selectedTab == BookingTab.SCHEDULE) {
+                val listState = rememberLazyListState()
+
+                androidx.compose.runtime.LaunchedEffect(
+                    listState,
+                    state.hasMore,
+                    state.isLoadingMore,
+                    state.currentPage
+                ) {
+                    androidx.compose.runtime.snapshotFlow {
+                        listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                    }.collect { lastVisible ->
+                        val totalItems = listState.layoutInfo.totalItemsCount
+                        if (
+                            state.hasMore &&
+                            !state.isLoadingMore &&
+                            totalItems > 0 &&
+                            lastVisible >= totalItems - 3
+                        ) {
+                            viewModel.loadMoreBookings()
+                        }
+                    }
+                }
+
                 LazyColumn(
-                    Modifier.fillMaxSize(),
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 20.dp, top = 10.dp, end = 20.dp, bottom = 132.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
@@ -363,6 +388,28 @@ fun BookingsScreen(
                                 },
                                 isCheckingIn = state.checkInLoadingId == booking.id
                             )
+                        }
+
+                        if (state.isLoadingMore) {
+                            item(key = "booking-load-more") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Brand.primary
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Memuat booking berikutnya...",
+                                        fontSize = 12.sp,
+                                        color = textSecondary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

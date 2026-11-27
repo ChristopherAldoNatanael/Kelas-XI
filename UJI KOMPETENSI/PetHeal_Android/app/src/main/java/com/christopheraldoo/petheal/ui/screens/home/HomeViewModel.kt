@@ -354,7 +354,7 @@ class HomeViewModel @Inject constructor(
     fun loadPendingReviews() {
         viewModelScope.launch {
             try {
-                val bookingsResult = bookingRepository.getBookings()
+                val bookingsResult = bookingRepository.getBookings(maxPages = 2)
                 if (bookingsResult !is Result.Success) return@launch
                 val completed = bookingsResult.data.filter {
                     it.status == "completed" && it.id != null && it.doctorId != null

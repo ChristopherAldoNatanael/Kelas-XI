@@ -7,6 +7,12 @@ use Illuminate\Support\Facades\Log;
 
 class MedicalRecord extends Model
 {
+    /** Draf belum sah; tidak boleh tampil ke pemilik. */
+    public const STATUS_DRAFT = 'draft';
+
+    /** Sedang ditinjau reviewer klinis. */
+    public const STATUS_IN_REVIEW = 'in_review';
+
     /** Rekaman yang sudah disahkan dan menjadi dokumen sah. */
     public const STATUS_FINAL = 'final';
 
@@ -18,6 +24,7 @@ class MedicalRecord extends Model
 
     protected $fillable = [
         'booking_id',
+        'encounter_id',
         'pet_id',
         'doctor_id',
         // PHASE 1 (C4): column exists (2026_10_02_000006, backfilled in
@@ -36,6 +43,23 @@ class MedicalRecord extends Model
         'voided_by',
         'void_reason',
         'content_hash',
+        'current_version_id',
+        'version',
+        'in_review_at',
+        'in_review_by',
+        'last_amended_at',
+        'retention_until',
+        'legal_hold',
+        'legal_hold_reason',
+        'legal_hold_set_at',
+        'legal_hold_set_by',
+        'legal_hold_release_requested_at',
+        'legal_hold_release_requested_by',
+        'legal_hold_release_reason',
+        'legal_hold_release_approved_at',
+        'legal_hold_release_approved_by',
+        'template_key',
+        'template_version',
         'archived_at',
         'outcome',
         'cause_of_death',
@@ -72,6 +96,15 @@ class MedicalRecord extends Model
         'finalized_at'    => 'datetime',
         'voided_at'       => 'datetime',
         'archived_at'     => 'datetime',
+        'in_review_at'    => 'datetime',
+        'last_amended_at' => 'datetime',
+        'retention_until' => 'date',
+        'legal_hold'      => 'boolean',
+        'legal_hold_set_at' => 'datetime',
+        'legal_hold_release_requested_at' => 'datetime',
+        'legal_hold_release_approved_at' => 'datetime',
+        'version'         => 'integer',
+        'template_version'=> 'integer',
         'cost' => 'decimal:2',
         'treatment_cost' => 'decimal:2',
         'medicine_cost' => 'decimal:2',
@@ -224,7 +257,7 @@ class MedicalRecord extends Model
      */
     public function computeContentHash(): string
     {
-        $this->loadMissing(['prescriptionItems', 'vitals', 'attachments']);
+        $this->loadMissing(['prescriptionItems', 'vitals', 'vitalMeasurements', 'labResults', 'treatmentConsents', 'welfareAssessments', 'referrals', 'inpatientStay.locationLogs', 'inpatientStay.medicationAdministrations', 'notifiableDiseaseReports', 'attachments']);
 
         $payload = [
             'id' => $this->id,
@@ -232,6 +265,8 @@ class MedicalRecord extends Model
             'pet_id' => $this->pet_id,
             'doctor_id' => $this->doctor_id,
             'clinic_id' => $this->clinic_id,
+            'template_key' => $this->template_key,
+            'template_version' => $this->template_version,
             'diagnosis' => $this->diagnosis,
             'treatment' => $this->treatment,
             'subjective' => $this->subjective,
@@ -252,6 +287,83 @@ class MedicalRecord extends Model
                 'temperature_c', 'heart_rate', 'respiratory_rate', 'crt_seconds',
                 'mucosa', 'hydration', 'bcs', 'pain_score', 'weight_kg',
             ]) : null,
+            'vital_series' => $this->vitalMeasurements
+                ->where('status', VitalMeasurement::STATUS_RECORDED)
+                ->map(fn ($measurement) => $measurement->toSeriesArray())
+                ->values()
+                ->all(),
+            'lab_results' => $this->labResults
+                ->map(fn ($result) => [
+                    'id' => $result->id,
+                    'lab_order_id' => $result->lab_order_id,
+                    'test_name' => $result->test_name,
+                    'parameter' => $result->parameter,
+                    'value' => $result->value,
+                    'unit' => $result->unit,
+                    'reference_range' => $result->reference_range,
+                    'reference_status' => $result->reference_status,
+                    'flag' => $result->flag,
+                    'status' => $result->status,
+                    'verified_by' => $result->verified_by,
+                    'verified_at' => $result->verified_at?->toDateTimeString(),
+                    'correction_of_id' => $result->correction_of_id,
+                ])
+                ->values()
+                ->all(),
+            'treatment_consents' => $this->treatmentConsents
+                ->map(fn ($consent) => [
+                    'id' => $consent->id,
+                    'consent_type' => $consent->consent_type,
+                    'template_key' => $consent->template_key,
+                    'template_version' => $consent->template_version,
+                    'consent_text_hash' => $consent->consent_text_hash,
+                    'signer_name' => $consent->signer_name,
+                    'signed_at' => $consent->signed_at?->toDateTimeString(),
+                    'emergency_basis' => $consent->emergency_basis,
+                    'revoked_at' => $consent->revoked_at?->toDateTimeString(),
+                ])->values()->all(),
+            'welfare_assessments' => $this->welfareAssessments
+                ->map(fn ($assessment) => [
+                    'id' => $assessment->id,
+                    'overall_score' => $assessment->overall_score,
+                    'assessed_at' => $assessment->assessed_at?->toDateTimeString(),
+                ])->values()->all(),
+            'referrals' => $this->referrals
+                ->map(fn ($referral) => [
+                    'id' => $referral->id,
+                    'direction' => $referral->direction,
+                    'referral_number' => $referral->referral_number,
+                    'referred_to' => $referral->referred_to,
+                    'status' => $referral->status,
+                    'document_hash' => $referral->document_hash,
+                    'voided_at' => $referral->voided_at?->toDateTimeString(),
+                ])->values()->all(),
+            'notifiable_disease_reports' => $this->notifiableDiseaseReports
+                ->map(fn ($report) => [
+                    'id' => $report->id,
+                    'disease_code' => $report->disease_code,
+                    'classification' => $report->classification,
+                    'status' => $report->status,
+                    'report_deadline_at' => $report->report_deadline_at?->toDateTimeString(),
+                    'reported_at' => $report->reported_at?->toDateTimeString(),
+                    'isikhnas_reference' => $report->isikhnas_reference,
+                ])->values()->all(),
+            'inpatient_stay' => $this->inpatientStay ? [
+                'id' => $this->inpatientStay->id,
+                'status' => $this->inpatientStay->status,
+                'ward' => $this->inpatientStay->ward,
+                'kennel_code' => $this->inpatientStay->kennel_code,
+                'admitted_at' => $this->inpatientStay->admitted_at?->toDateTimeString(),
+                'discharged_at' => $this->inpatientStay->discharged_at?->toDateTimeString(),
+                'medication_administrations' => $this->inpatientStay->medicationAdministrations
+                    ->map(fn ($med) => [
+                        'id' => $med->id,
+                        'medicine_id' => $med->medicine_id,
+                        'dose_value' => (string) $med->dose_value,
+                        'administered_at' => $med->administered_at?->toDateTimeString(),
+                        'status' => $med->status,
+                    ])->values()->all(),
+            ] : null,
             'attachments' => $this->attachments
                 ->map(fn ($a) => [$a->original_name, $a->sha256])
                 ->values()->all(),
@@ -265,6 +377,16 @@ class MedicalRecord extends Model
      */
     public function finalize(?int $userId = null): void
     {
+        if (config('medical_records.lifecycle_enforcement_enabled', false)
+            && auth()->check()
+            && auth()->user()->role !== 'doctor') {
+            throw new \App\Exceptions\MedicalRecordLifecycleException(
+                'ADMIN_CANNOT_FINALIZE',
+                'Hanya dokter hewan berwenang yang dapat memfinalkan rekam medis.',
+                403
+            );
+        }
+
         $this->status = self::STATUS_FINAL;
         $this->finalized_at = $this->finalized_at ?: now();
         $this->finalized_by = $this->finalized_by ?: $userId;
@@ -303,9 +425,20 @@ class MedicalRecord extends Model
         return $this->hasMany(PrescriptionItem::class, 'medical_record_id');
     }
 
+    public function prescriptions()
+    {
+        return $this->hasMany(Prescription::class, 'medical_record_id');
+    }
+
     public function vitals()
     {
         return $this->hasOne(MedicalRecordVitals::class, 'medical_record_id');
+    }
+
+    public function vitalMeasurements()
+    {
+        return $this->hasMany(VitalMeasurement::class, 'medical_record_id')
+            ->orderBy('measured_at');
     }
 
     public function revisions()
@@ -318,6 +451,27 @@ class MedicalRecord extends Model
         return $this->hasMany(TreatmentConsent::class, 'medical_record_id');
     }
 
+    public function welfareAssessments()
+    {
+        return $this->hasMany(AnimalWelfareAssessment::class, 'medical_record_id')
+            ->orderBy('assessed_at');
+    }
+
+    public function notifiableDiseaseReports()
+    {
+        return $this->hasMany(NotifiableDiseaseReport::class, 'medical_record_id');
+    }
+
+    public function exports()
+    {
+        return $this->hasMany(MedicalRecordExport::class, 'medical_record_id');
+    }
+
+    public function inpatientStay()
+    {
+        return $this->hasOne(InpatientStay::class, 'medical_record_id');
+    }
+
     public function referrals()
     {
         return $this->hasMany(Referral::class, 'medical_record_id');
@@ -326,6 +480,21 @@ class MedicalRecord extends Model
     public function labResults()
     {
         return $this->hasMany(LabResult::class, 'medical_record_id');
+    }
+
+    public function labOrders()
+    {
+        return $this->hasMany(LabOrder::class, 'medical_record_id');
+    }
+
+    public function credentialSnapshots()
+    {
+        return $this->hasMany(MedicalRecordCredentialSnapshot::class, 'medical_record_id');
+    }
+
+    public function credentialExceptions()
+    {
+        return $this->hasMany(CredentialException::class, 'medical_record_id');
     }
 
     /** Total harga seluruh item resep. */
@@ -347,6 +516,32 @@ class MedicalRecord extends Model
     public function booking()
     {
         return $this->belongsTo(Booking::class);
+    }
+
+    public function encounter()
+    {
+        return $this->belongsTo(ClinicalEncounter::class, 'encounter_id');
+    }
+
+    public function currentVersion()
+    {
+        return $this->belongsTo(MedicalRecordVersion::class, 'current_version_id');
+    }
+
+    public function versions()
+    {
+        return $this->hasMany(MedicalRecordVersion::class)->orderBy('version_no');
+    }
+
+    public function amendments()
+    {
+        return $this->hasMany(MedicalRecordAmendment::class)->latest('id');
+    }
+
+    public function pendingAmendment()
+    {
+        return $this->hasOne(MedicalRecordAmendment::class)
+            ->whereIn('status', [MedicalRecordAmendment::STATUS_REQUESTED, MedicalRecordAmendment::STATUS_APPROVED]);
     }
 
     /**

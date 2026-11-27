@@ -7,6 +7,8 @@ use App\Http\Controllers\Api\DoctorController;
 use App\Http\Controllers\Api\HealthController;
 use App\Http\Controllers\Api\MedicalRecordController;
 use App\Http\Controllers\Api\NotificationController;
+use App\Http\Controllers\Api\OwnerMedicalRecordPortalController;
+use App\Http\Controllers\Api\PrivacyRequestController;
 use App\Http\Controllers\Api\PetController;
 use App\Http\Controllers\Api\VaccinationController;
 use App\Http\Controllers\Api\WeightRecordController;
@@ -164,7 +166,19 @@ Route::middleware(['throttle:api', \App\Http\Middleware\ApiAuthenticate::class])
     // Medical record routes
     Route::post('/medical-records/{id}/pay', [MedicalRecordController::class, 'createExtraPayment'])->middleware('throttle:payment');
     Route::get('/medical-records/{id}/payment-status', [MedicalRecordController::class, 'paymentStatus']);
+    // Portal pemilik: ringkasan amendment dan salinan PDF sekali pakai.
+    // Endpoint additive; payload /api/medical-records tidak berubah.
+    Route::get('/medical-records/{id}/amendments', [OwnerMedicalRecordPortalController::class, 'amendments']);
+    Route::get('/medical-records/{id}/export', [OwnerMedicalRecordPortalController::class, 'createExport']);
+    Route::get('/medical-record-exports/{token}', [OwnerMedicalRecordPortalController::class, 'downloadExport']);
+    // Daftar ringan untuk Android; endpoint lama tetap dipertahankan.
+    Route::get('/medical-records/summary', [MedicalRecordController::class, 'summary']);
     Route::apiResource('medical-records', MedicalRecordController::class)->only(['index', 'show']);
+
+    // Permintaan PDP milik sendiri. Penanganan tetap lewat admin.
+    Route::get('/privacy-requests', [PrivacyRequestController::class, 'index']);
+    Route::post('/privacy-requests', [PrivacyRequestController::class, 'store']);
+Route::get('/privacy-requests/{id}/response', [PrivacyRequestController::class, 'downloadResponse']);
 
     // Payment routes (Midtrans integration)
     Route::get('/payment/preflight', [App\Http\Controllers\Api\PaymentController::class, 'preflight']);

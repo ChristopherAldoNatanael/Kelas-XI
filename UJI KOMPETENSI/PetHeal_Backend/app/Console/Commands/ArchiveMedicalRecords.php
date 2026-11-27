@@ -3,17 +3,15 @@
 namespace App\Console\Commands;
 
 use App\Models\MedicalRecord;
+use App\Services\RetentionService;
 use Illuminate\Console\Command;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 /**
  * Arsipkan rekam medis yang sudah melewati masa retensi.
  *
- * Rekam medis tidak pernah dihapus. Setelah 5 tahun (default) rekaman
- * dipindahkan ke status `archived` agar tidak muncul di daftar harian, tetapi
- * tetap utuh untuk pemeriksaan, ekspor, dan pembelaan hukum. Rekaman dengan
- * tunggakan pembayaran ditahan sampai 10 tahun sesuai retensi keuangan.
+ * Tidak menghapus data. Legal hold selalu menahan arsip. Retention dihitung
+ * dari finalized_at/created_at dan memakai masa retensi keuangan yang lebih
+ * panjang bila pembayaran belum selesai.
  */
 class ArchiveMedicalRecords extends Command
 {
@@ -22,63 +20,68 @@ class ArchiveMedicalRecords extends Command
 
     protected $description = 'Arsipkan rekam medis yang melewati masa retensi (tidak menghapus data)';
 
-    public function handle(): int
+    public function handle(RetentionService $retention): int
     {
-        $clinicalYears = max(1, (int) config('medical_records.retention_years', 5));
-        $financialYears = max($clinicalYears, (int) config('medical_records.financial_retention_years', 10));
-
-        $clinicalCutoff = now()->subYears($clinicalYears);
-        $financialCutoff = now()->subYears($financialYears);
-
         $query = MedicalRecord::query()
             ->where('status', MedicalRecord::STATUS_FINAL)
-            ->where(function ($q) use ($clinicalCutoff, $financialCutoff) {
-                $q->where(function ($inner) use ($clinicalCutoff) {
-                    $inner->whereIn('extra_payment_status', ['not_required', 'paid'])
-                        ->where('created_at', '<=', $clinicalCutoff);
-                })->orWhere(function ($inner) use ($financialCutoff) {
-                    $inner->whereNotIn('extra_payment_status', ['not_required', 'paid'])
-                        ->where('created_at', '<=', $financialCutoff);
-                });
-            });
+            ->where('legal_hold', false);
 
-        $total = (clone $query)->count();
-
-        if ($total === 0) {
-            $this->info('Tidak ada rekam medis yang perlu diarsipkan.');
-
-            return self::SUCCESS;
-        }
+        $candidates = (clone $query)->count();
+        $this->info("Rekam medis final tanpa legal hold: {$candidates}");
 
         if ($this->option('dry-run')) {
-            $this->info("{$total} rekam medis akan diarsipkan (dry run, tidak ada perubahan).");
+            $archivable = 0;
+            $sample = [];
+
+            (clone $query)->orderBy('id')->chunkById(200, function ($records) use ($retention, &$archivable, &$sample) {
+                foreach ($records as $record) {
+                    $until = $record->retention_until ?: $retention->retentionUntil($record);
+
+                    if ($until->lte(now()->startOfDay())) {
+                        $archivable++;
+
+                        if (count($sample) < 20) {
+                            $sample[] = [$record->id, $until->toDateString()];
+                        }
+                    }
+                }
+            });
+
+            $this->info("{$archivable} rekam medis akan diarsipkan (dry run, tidak ada perubahan).");
+
+            if ($sample !== []) {
+                $this->table(['id', 'retention_until'], $sample);
+            }
 
             return self::SUCCESS;
         }
 
         $archived = 0;
+        $skipped = 0;
 
-        $query->chunkById(200, function ($records) use (&$archived) {
+        $query->orderBy('id')->chunkById(200, function ($records) use ($retention, &$archived, &$skipped) {
             foreach ($records as $record) {
-                try {
-                    DB::transaction(function () use ($record) {
-                        $record->forceFill([
-                            'status' => MedicalRecord::STATUS_ARCHIVED,
-                            'archived_at' => now(),
-                        ])->save();
-                    });
+                if ($record->retention_until === null) {
+                    $retention->applyRetention($record);
+                    $record->refresh();
+                }
 
+                if (! $retention->canArchive($record)) {
+                    $skipped++;
+                    continue;
+                }
+
+                try {
+                    $retention->archive($record);
                     $archived++;
                 } catch (\Throwable $e) {
-                    Log::error('Gagal mengarsipkan rekam medis', [
-                        'medical_record_id' => $record->id,
-                        'message' => $e->getMessage(),
-                    ]);
+                    $skipped++;
+                    $this->warn("Rekam medis #{$record->id} dilewati: {$e->getMessage()}");
                 }
             }
         });
 
-        $this->info("{$archived} dari {$total} rekam medis berhasil diarsipkan.");
+        $this->info("Diarsipkan: {$archived}. Dilewati: {$skipped}.");
 
         return self::SUCCESS;
     }

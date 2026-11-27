@@ -9,6 +9,13 @@ import retrofit2.Response
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class BookingPage(
+    val bookings: List<Booking>,
+    val currentPage: Int,
+    val lastPage: Int,
+    val total: Int
+)
+
 @Singleton
 class BookingRepository @Inject constructor(
     private val apiService: ApiService
@@ -90,13 +97,39 @@ class BookingRepository @Inject constructor(
      * responsif bila data pengguna sangat banyak; bila batas tercapai, hal itu
      * dicatat di log supaya ketahuan, bukan disembunyikan.
      */
-    suspend fun getBookings(): Result<List<Booking>> {
+    suspend fun getBookingsPage(page: Int): Result<BookingPage> {
+        return try {
+            val response = apiService.getBookings(page = page)
+            val body = response.body()
+
+            if (response.isSuccessful && body?.success == true) {
+                val items = body.data ?: emptyList()
+                Result.Success(
+                    BookingPage(
+                        bookings = items,
+                        currentPage = body.pagination?.currentPage ?: page,
+                        lastPage = body.pagination?.lastPage ?: page,
+                        total = body.pagination?.total ?: items.size
+                    )
+                )
+            } else {
+                Result.Error(getErrorMessage(response.code(), body?.message))
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "getBookingsPage($page) exception", e)
+            Result.Error(userFriendlyExceptionMessage(e))
+        }
+    }
+
+    suspend fun getBookings(maxPages: Int = MAX_PAGES): Result<List<Booking>> {
         return try {
             val collected = LinkedHashMap<Int, Booking>()
             var page = 1
             var lastPage = 1
 
-            while (page <= lastPage && page <= MAX_PAGES) {
+            val pageLimit = maxPages.coerceIn(1, MAX_PAGES)
+
+            while (page <= lastPage && page <= pageLimit) {
                 val response = apiService.getBookings(page = page)
 
                 if (!response.isSuccessful || response.body()?.success != true) {
@@ -122,8 +155,8 @@ class BookingRepository @Inject constructor(
                 page++
             }
 
-            if (page > MAX_PAGES && lastPage > MAX_PAGES) {
-                Log.w(TAG, "getBookings: berhenti di batas $MAX_PAGES halaman (last_page=$lastPage)")
+            if (page > pageLimit && lastPage > pageLimit) {
+                Log.w(TAG, "getBookings: berhenti di batas $pageLimit halaman (last_page=$lastPage)")
             }
 
             Result.Success(collected.values.toList())

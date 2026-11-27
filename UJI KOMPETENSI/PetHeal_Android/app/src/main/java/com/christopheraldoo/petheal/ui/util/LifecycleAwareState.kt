@@ -1,5 +1,6 @@
 package com.christopheraldoo.petheal.ui.util
 
+import android.annotation.SuppressLint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
@@ -30,6 +31,10 @@ import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
  * Compose 1.6+, sedangkan proyek ini memakai Compose BOM 2023.10.01 (1.5.x).
  */
 @Composable
+// Nilai awal dibaca sekali agar layar tidak berkedip; koleksi tetap lewat
+// repeatOnLifecycle di bawah. Lint tidak membedakan initial value dari
+// pembacaan state di dalam alur recomposition.
+@SuppressLint("StateFlowValueCalledInComposition")
 fun <T> StateFlow<T>.collectAsStateLifecycleAware(): State<T> =
     collectAsStateLifecycleAware(initial = value)
 

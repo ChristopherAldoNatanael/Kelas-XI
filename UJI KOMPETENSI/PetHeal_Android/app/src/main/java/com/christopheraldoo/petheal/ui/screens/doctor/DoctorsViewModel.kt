@@ -387,7 +387,7 @@ class DoctorsViewModel @Inject constructor(
 
     private fun loadReviewableBookings(doctorId: Int, knownReviewedIds: Set<Int>? = null) {
         viewModelScope.launch {
-            when (val result = bookingRepository.getBookings()) {
+            when (val result = bookingRepository.getBookings(maxPages = 2)) {
                 is Result.Success -> {
                     // Pakai ID review yang baru dimuat bila tersedia — membaca
                     // state.reviews di sini bisa kena race dengan loadReviews

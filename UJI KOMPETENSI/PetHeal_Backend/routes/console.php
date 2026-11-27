@@ -36,9 +36,34 @@ Schedule::command('payments:reconcile --limit=50')
     ->withoutOverlapping()
     ->name('reconcile-payments');
 
+// Rekam medis: hitung ulang retention_until sebelum proses arsip.
+Schedule::command('medical-records:refresh-retention')
+    ->monthlyOn(1, '02:00')
+    ->withoutOverlapping()
+    ->name('refresh-medical-record-retention');
+
 // Rekam medis: pindahkan ke status arsip setelah masa retensi habis.
-// Tidak menghapus data; hanya menyembunyikan dari daftar harian.
+// Tidak menghapus data; legal hold selalu menahan arsip.
 Schedule::command('medical-records:archive')
     ->monthlyOn(1, '02:30')
     ->withoutOverlapping()
     ->name('archive-medical-records');
+
+// P4: pemeriksaan operasional read-only. Keluaran JSON dapat dipakai alert.
+Schedule::command('medical-records:health-check')
+    ->dailyAt('03:00')
+    ->withoutOverlapping()
+    ->name('medical-records-health-check');
+
+// P4: enkripsi lampiran lama yang belum memiliki encryption_version.
+Schedule::command('medical-records:encrypt-attachments')
+    ->weeklyOn(1, '03:15')
+    ->withoutOverlapping()
+    ->name('encrypt-medical-record-attachments');
+
+// P3.1: tandai laporan penyakit menular yang melewati tenggat 24 jam.
+// Ini hanya penanda eskalasi; pelaporan resmi tetap melalui kanal berwenang.
+Schedule::command('reports:escalate-overdue')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping()
+    ->name('escalate-overdue-disease-reports');

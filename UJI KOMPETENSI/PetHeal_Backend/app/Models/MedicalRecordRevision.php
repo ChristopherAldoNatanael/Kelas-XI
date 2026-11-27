@@ -23,6 +23,8 @@ class MedicalRecordRevision extends Model
         'reason',
         'ip_address',
         'user_agent',
+        'prev_hash',
+        'entry_hash',
         'created_at',
     ];
 

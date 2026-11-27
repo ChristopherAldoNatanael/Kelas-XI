@@ -16,8 +16,13 @@ class Consent extends Model
         'user_id',
         'purpose',
         'policy_version',
+        'policy_hash',
         'granted_at',
         'revoked_at',
+        'withdrawn_at',
+        'withdrawal_reason',
+        'evidence_path',
+        'privacy_request_id',
         'ip_address',
         'user_agent',
     ];
@@ -25,6 +30,7 @@ class Consent extends Model
     protected $casts = [
         'granted_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'withdrawn_at' => 'datetime',
     ];
 
     public function user()
@@ -35,5 +41,10 @@ class Consent extends Model
     public function scopeActive($query)
     {
         return $query->whereNotNull('granted_at')->whereNull('revoked_at');
+    }
+
+    public function isWithdrawn(): bool
+    {
+        return $this->withdrawn_at !== null || $this->revoked_at !== null;
     }
 }

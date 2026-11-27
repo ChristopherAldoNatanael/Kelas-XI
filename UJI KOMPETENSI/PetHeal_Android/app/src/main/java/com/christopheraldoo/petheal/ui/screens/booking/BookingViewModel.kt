@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.christopheraldoo.petheal.data.local.PreferencesManager
 import com.christopheraldoo.petheal.data.model.*
 import com.christopheraldoo.petheal.data.repository.BookingRepository
+import com.christopheraldoo.petheal.data.repository.BookingPage
 import com.christopheraldoo.petheal.data.repository.PetRepository
 import com.christopheraldoo.petheal.data.repository.DoctorRepository
 import com.christopheraldoo.petheal.data.repository.BookingRefreshManager
@@ -126,7 +127,12 @@ data class BookingsUiState(
     val bookings: List<Booking> = emptyList(),
     val allBookings: List<Booking> = emptyList(), // Store all bookings for filtering
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
     val error: String? = null,
+    val currentPage: Int = 0,
+    val lastPage: Int = 0,
+    val totalBookings: Int = 0,
+    val hasMore: Boolean = false,
     // Filter and sort state
     val sortOrder: BookingSortOrder = BookingSortOrder.NEWEST_FIRST,
     val dateFilter: BookingDateFilter = BookingDateFilter.ALL,
@@ -288,20 +294,29 @@ class BookingViewModel @Inject constructor(
         viewModelScope.launch {
             val hasCachedBookings = _listState.value.allBookings.isNotEmpty()
             if (!hasCachedBookings || forceRefresh) {
-                _listState.value = _listState.value.copy(isLoading = true, error = null)
+                _listState.value = _listState.value.copy(
+                    isLoading = true,
+                    isLoadingMore = false,
+                    error = null
+                )
             } else {
                 _listState.value = _listState.value.copy(error = null)
             }
-            when (val r = bookingRepository.getBookings()) {
+            when (val r = bookingRepository.getBookingsPage(page = 1)) {
                 is Result.Success -> {
-                    val allBookings = r.data
+                    val page = r.data
                     hasLoadedBookings = true
                     // Apply current filters and sort
-                    val filteredAndSorted = applyFiltersAndSort(allBookings)
+                    val filteredAndSorted = applyFiltersAndSort(page.bookings)
                     _listState.value = _listState.value.copy(
                         isLoading = false,
-                        allBookings = allBookings,
-                        bookings = filteredAndSorted
+                        isLoadingMore = false,
+                        allBookings = page.bookings,
+                        bookings = filteredAndSorted,
+                        currentPage = page.currentPage,
+                        lastPage = page.lastPage,
+                        totalBookings = page.total,
+                        hasMore = page.currentPage < page.lastPage
                     )
                 }
                 is Result.Error   -> {
@@ -310,6 +325,41 @@ class BookingViewModel @Inject constructor(
                         isLoading = false,
                         error = r.message
                     )
+                }
+                else -> Unit
+            }
+        }
+    }
+
+    /**
+     * Lazy pagination untuk daftar booking. Halaman berikutnya hanya diminta
+     * saat pengguna mendekati akhir daftar.
+     */
+    fun loadMoreBookings() {
+        val snapshot = _listState.value
+        if (snapshot.isLoading || snapshot.isLoadingMore || !snapshot.hasMore) return
+
+        val nextPage = snapshot.currentPage + 1
+        viewModelScope.launch {
+            _listState.value = _listState.value.copy(isLoadingMore = true)
+
+            when (val r = bookingRepository.getBookingsPage(page = nextPage)) {
+                is Result.Success -> {
+                    val page = r.data
+                    val merged = (snapshot.allBookings + page.bookings)
+                        .distinctBy { it.id ?: it.hashCode() }
+                    _listState.value = _listState.value.copy(
+                        isLoadingMore = false,
+                        allBookings = merged,
+                        bookings = applyFiltersAndSort(merged),
+                        currentPage = page.currentPage,
+                        lastPage = page.lastPage,
+                        totalBookings = page.total,
+                        hasMore = page.currentPage < page.lastPage
+                    )
+                }
+                is Result.Error -> {
+                    _listState.value = _listState.value.copy(isLoadingMore = false)
                 }
                 else -> Unit
             }

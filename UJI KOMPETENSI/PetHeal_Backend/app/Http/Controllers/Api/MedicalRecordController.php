@@ -25,10 +25,16 @@ class MedicalRecordController extends Controller
         // yang bersangkutan — bukan dari klinik yang terakhir dipakai.
         $record->loadMissing([
             'booking.clinic', 'pet.allergies', 'doctor', 'attachments',
-            'prescriptionItems', 'vitals',
+            'prescriptionItems', 'vitals', 'vitalMeasurements',
         ]);
         $canViewFullRecord = $record->can_view_full_record;
         $clinic = $record->booking?->clinic;
+        $vitalSeries = $record->vitalMeasurements
+            ->where('status', \App\Models\VitalMeasurement::STATUS_RECORDED)
+            ->map(fn ($measurement) => $measurement->toSeriesArray())
+            ->values();
+        $latestVital = $record->vitals;
+        $latestSeries = $vitalSeries->last();
 
         return [
             'id' => $record->id,
@@ -95,16 +101,19 @@ class MedicalRecordController extends Controller
                     'is_antibiotic' => (bool) $item->is_antibiotic,
                 ])->values()->all()
                 : [],
-            'vitals' => $record->vitals ? [
-                'temperature_c' => $record->vitals->temperature_c,
-                'heart_rate' => $record->vitals->heart_rate,
-                'respiratory_rate' => $record->vitals->respiratory_rate,
-                'crt_seconds' => $record->vitals->crt_seconds,
-                'mucosa' => $record->vitals->mucosa,
-                'hydration' => $record->vitals->hydration,
-                'bcs' => $record->vitals->bcs,
-                'pain_score' => $record->vitals->pain_score,
-                'weight_kg' => $record->vitals->weight_kg,
+            'vitals' => ($latestVital || $latestSeries) ? [
+                'temperature_c' => $latestVital?->temperature_c ?? ($latestSeries['temperature_c'] ?? null),
+                'heart_rate' => $latestVital?->heart_rate ?? ($latestSeries['heart_rate'] ?? null),
+                'respiratory_rate' => $latestVital?->respiratory_rate ?? ($latestSeries['respiratory_rate'] ?? null),
+                'crt_seconds' => $latestVital?->crt_seconds ?? ($latestSeries['crt_seconds'] ?? null),
+                'mucosa' => $latestVital?->mucosa ?? ($latestSeries['mucosa'] ?? null),
+                'hydration' => $latestVital?->hydration ?? ($latestSeries['hydration'] ?? null),
+                'bcs' => $latestVital?->bcs ?? ($latestSeries['bcs'] ?? null),
+                'pain_score' => $latestVital?->pain_score ?? ($latestSeries['pain_score'] ?? null),
+                'weight_kg' => $latestVital?->weight_kg ?? ($latestSeries['weight_kg'] ?? null),
+                // Additive: aplikasi lama tetap membaca field di atas. Klien baru
+                // dapat menampilkan grafik seluruh pengukuran per encounter.
+                'vital_series' => $vitalSeries->all(),
             ] : null,
             'allergies' => $record->pet?->allergies
                 ?->where('is_active', true)
@@ -156,6 +165,94 @@ class MedicalRecordController extends Controller
         ];
     }
     /**
+     * Daftar ringan untuk layar utama Android.
+     *
+     * Hanya memuat field yang dipakai kartu daftar. Detail lengkap tetap
+     * diambil dari endpoint /medical-records/{id}. Ini memotong payload tanpa
+     * mengubah kontrak endpoint lama.
+     */
+    public function summary(Request $request)
+    {
+        try {
+            $petIds = $request->user()->pets()->pluck('id');
+
+            $records = MedicalRecord::query()
+                ->select([
+                    'id', 'booking_id', 'pet_id', 'doctor_id', 'clinic_id', 'status',
+                    'diagnosis', 'treatment', 'next_visit_date',
+                    'cost', 'treatment_cost', 'medicine_cost', 'total_medical_cost',
+                    'extra_payment_amount', 'extra_payment_paid_amount',
+                    'extra_payment_status', 'created_at',
+                ])
+                ->whereIn('pet_id', $petIds)
+                ->with([
+                    'pet:id,name,photo,species',
+                    'doctor:id,name',
+                    'clinic:id,name,slug,primary_color',
+                ])
+                ->orderByDesc('created_at')
+                ->paginate(20);
+
+            return response()->json([
+                'success' => true,
+                'data' => collect($records->items())->map(function (MedicalRecord $record) {
+                    $canView = $record->can_view_full_record;
+
+                    return [
+                        'id' => $record->id,
+                        'booking_id' => $record->booking_id,
+                        'pet_id' => $record->pet_id,
+                        'doctor_id' => $record->doctor_id,
+                        'record_id' => $record->id,
+                        'status' => $record->status,
+                        'diagnosis' => $canView ? $record->diagnosis : null,
+                        'treatment' => $canView ? $record->treatment : null,
+                        'next_visit_date' => $record->next_visit_date,
+                        'cost' => (float) $record->cost,
+                        'treatment_cost' => (float) $record->treatment_cost,
+                        'medicine_cost' => (float) $record->medicine_cost,
+                        'total_medical_cost' => (float) $record->total_medical_cost,
+                        'extra_payment_amount' => (float) $record->extra_payment_amount,
+                        'extra_payment_paid_amount' => (float) $record->extra_payment_paid_amount,
+                        'extra_payment_status' => $record->extra_payment_status,
+                        'can_view_full_record' => $canView,
+                        'clinic' => $record->clinic ? [
+                            'id' => $record->clinic->id,
+                            'name' => $record->clinic->name,
+                            'slug' => $record->clinic->slug,
+                            'primary_color' => $record->clinic->primary_color ?? null,
+                        ] : null,
+                        'pet' => $record->pet ? [
+                            'id' => $record->pet->id,
+                            'name' => $record->pet->name,
+                            'photo' => $record->pet->photo,
+                            'species' => $record->pet->species,
+                        ] : null,
+                        'doctor' => $record->doctor ? [
+                            'id' => $record->doctor->id,
+                            'name' => $record->doctor->name,
+                        ] : null,
+                        'created_at' => $record->created_at?->toDateTimeString(),
+                    ];
+                })->values(),
+                'pagination' => [
+                    'current_page' => $records->currentPage(),
+                    'last_page' => $records->lastPage(),
+                    'per_page' => $records->perPage(),
+                    'total' => $records->total(),
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('MedicalRecord summary error: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to load medical records.',
+            ], 500);
+        }
+    }
+
+    /**
      * Get all medical records for authenticated user's pets
      */
     public function index(Request $request)
@@ -165,7 +262,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Booking already has $with = ['pet', 'doctor'], so just load booking
             $records = MedicalRecord::whereIn('pet_id', $petIds)
-                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'vitalMeasurements', 'attachments'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
@@ -204,7 +301,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Booking already has $with = ['pet', 'doctor']
             $records = MedicalRecord::where('pet_id', $petId)
-                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'vitalMeasurements', 'attachments'])
                 ->orderBy('created_at', 'desc')
                 ->paginate(20);
 
@@ -237,7 +334,7 @@ class MedicalRecordController extends Controller
 
             // ✅ FIXED: Don't load nested relationships manually since Booking already has $with
             $record = MedicalRecord::whereIn('pet_id', $petIds)
-                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'vitalMeasurements', 'attachments'])
                 ->find($id);
 
             if (!$record) {
@@ -272,7 +369,7 @@ class MedicalRecordController extends Controller
             }
 
             $record = MedicalRecord::where('booking_id', $booking->id)
-                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'attachments'])
+                ->with(['booking.clinic', 'pet.allergies', 'doctor', 'prescriptionItems', 'vitals', 'vitalMeasurements', 'attachments'])
                 ->first();
 
             if (!$record) {

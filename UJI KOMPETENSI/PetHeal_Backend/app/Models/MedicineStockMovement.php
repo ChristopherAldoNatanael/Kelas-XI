@@ -42,6 +42,13 @@ class MedicineStockMovement extends Model
         'stock_after',
         'reason',
         'medical_record_id',
+        'dispensation_item_id',
+        'reference_type',
+        'reference_id',
+        'idempotency_key',
+        'reversal_of_movement_id',
+        'movement_kind',
+        'notes',
         'created_by',
     ];
 
@@ -49,6 +56,11 @@ class MedicineStockMovement extends Model
         'quantity' => 'decimal:2',
         'stock_after' => 'decimal:2',
     ];
+
+    public function dispensationItem()
+    {
+        return $this->belongsTo(DispensationItem::class, 'dispensation_item_id');
+    }
 
     public function medicine()
     {

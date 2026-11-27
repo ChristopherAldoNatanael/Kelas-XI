@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\MedicalRecordController;
 use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
+use App\Http\Controllers\Admin\PrivacyRequestController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Doctor\DoctorAuthController;
 use App\Http\Controllers\Doctor\DoctorBookingController;
@@ -186,6 +187,17 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/medical-records/{id}/allergies', [MedicalRecordController::class, 'storeAllergy'])->name('medical-records.allergies.store');
     Route::delete('/medical-records/{id}/allergies/{allergy}', [MedicalRecordController::class, 'destroyAllergy'])->name('medical-records.allergies.destroy');
     Route::delete('/medical-records/{id}', [MedicalRecordController::class, 'destroy'])->name('medical-records.destroy');
+
+    // Permintaan PDP (UU 27/2022): verifikasi, proses, selesai, atau tolak.
+    Route::get('/privacy-requests', [PrivacyRequestController::class, 'index'])->name('privacy-requests.index');
+    Route::get('/privacy-requests/{id}', [PrivacyRequestController::class, 'show'])->name('privacy-requests.show');
+    Route::post('/privacy-requests/{id}/verify', [PrivacyRequestController::class, 'verify'])->name('privacy-requests.verify');
+    Route::post('/privacy-requests/{id}/start', [PrivacyRequestController::class, 'start'])->name('privacy-requests.start');
+    Route::post('/privacy-requests/{id}/complete', [PrivacyRequestController::class, 'complete'])->name('privacy-requests.complete');
+    Route::post('/privacy-requests/{id}/reject', [PrivacyRequestController::class, 'reject'])->name('privacy-requests.reject');
+    Route::post('/privacy-requests/{id}/response', [PrivacyRequestController::class, 'attachResponse'])->name('privacy-requests.response.attach');
+    Route::post('/privacy-requests/{id}/response/generate', [PrivacyRequestController::class, 'generateResponse'])->name('privacy-requests.response.generate');
+    Route::get('/privacy-requests/{id}/response/download', [PrivacyRequestController::class, 'downloadResponse'])->name('privacy-requests.response.download');
 
     // Services
     Route::get('/services/template/csv', [App\Http\Controllers\Admin\ServiceController::class, 'downloadTemplateCsv'])->name('services.template.csv');

@@ -38,6 +38,11 @@ class Medicine extends Model
         'price',
         'expiry_date',
         'manufacturer',
+        'registration_number',
+        'registration_status',
+        'registration_expires_at',
+        'approved_species',
+        'withdrawal_period',
         'notes',
         'is_active',
         'disposed_at',
@@ -52,11 +57,17 @@ class Medicine extends Model
         'min_stock' => 'decimal:2',
         'price' => 'decimal:2',
         'expiry_date' => 'date:Y-m-d',
+        'registration_expires_at' => 'date:Y-m-d',
         'is_active' => 'boolean',
         'is_antibiotic' => 'boolean',
         'disposed_at' => 'datetime',
         'disposed_quantity' => 'decimal:2',
     ];
+
+    public const REGISTRATION_REGISTERED = 'registered';
+    public const REGISTRATION_NOT_REGISTERED = 'not_registered';
+    public const REGISTRATION_EXPIRED = 'expired';
+    public const REGISTRATION_UNKNOWN = 'unknown';
 
     public function clinic()
     {

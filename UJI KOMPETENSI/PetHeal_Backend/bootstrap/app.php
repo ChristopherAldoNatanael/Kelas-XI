@@ -51,6 +51,11 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\SetLocale::class,
         ]);
 
+        // Kompresi JSON untuk Android; OkHttp otomatis men-decompress.
+        $middleware->api(append: [
+            \App\Http\Middleware\CompressJsonResponse::class,
+        ]);
+
         // Selaraskan origin aset dengan host request saat ASSET_URL masih
         // menunjuk loopback (mis. dibuka lewat ngrok).
         $middleware->append(\App\Http\Middleware\UseRequestAssetOrigin::class);

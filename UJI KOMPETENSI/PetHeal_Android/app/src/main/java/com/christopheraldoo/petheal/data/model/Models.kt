@@ -650,6 +650,110 @@ data class MedicalRecordPaymentStatus(
     @SerializedName("can_view_full_record") val canViewFullRecord: Boolean? = null
 )
 
+// ============= OWNER PORTAL: AMENDMENT, EXPORT, PDP =============
+/**
+ * Ringkasan amendment versi pemilik. Server hanya mengirim field whitelist,
+ * tetapi model tetap sempit agar data internal tidak pernah bisa dipetakan.
+ */
+data class MedicalRecordAmendmentSummary(
+    val id: Int? = null,
+    val type: String? = null,
+    val status: String? = null,
+    @SerializedName("requested_at") val requestedAt: String? = null,
+    @SerializedName("reviewed_at") val reviewedAt: String? = null,
+    @SerializedName("applied_at") val appliedAt: String? = null,
+    @SerializedName("applied_version_no") val appliedVersionNo: Int? = null
+) {
+    val statusLabel: String
+        get() = when (status) {
+            "requested" -> "Menunggu tinjauan"
+            "approved" -> "Disetujui"
+            "applied" -> "Sudah diterapkan"
+            "rejected" -> "Ditolak"
+            "cancelled" -> "Dibatalkan"
+            else -> status ?: "-"
+        }
+}
+
+data class MedicalRecordAmendmentsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: List<MedicalRecordAmendmentSummary>? = null
+)
+
+data class MedicalRecordExportTicket(
+    @SerializedName("export_id") val exportId: Int? = null,
+    val format: String? = null,
+    val purpose: String? = null,
+    @SerializedName("expires_at") val expiresAt: String? = null,
+    @SerializedName("download_url") val downloadUrl: String? = null,
+    val token: String? = null
+)
+
+data class MedicalRecordExportResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: MedicalRecordExportTicket? = null
+)
+
+data class PrivacyRequest(
+    val id: Int? = null,
+    @SerializedName("request_type") val requestType: String? = null,
+    val status: String? = null,
+    val description: String? = null,
+    @SerializedName("requested_at") val requestedAt: String? = null,
+    @SerializedName("due_at") val dueAt: String? = null,
+    @SerializedName("verified_at") val verifiedAt: String? = null,
+    @SerializedName("completed_at") val completedAt: String? = null,
+    @SerializedName("rejection_reason") val rejectionReason: String? = null,
+    @SerializedName("response_available") val responseAvailable: Boolean = false,
+    @SerializedName("response_file_name") val responseFileName: String? = null,
+    @SerializedName("response_file_size") val responseFileSize: Int? = null,
+    @SerializedName("response_download_count") val responseDownloadCount: Int = 0,
+    @SerializedName("is_overdue") val isOverdue: Boolean = false,
+    @SerializedName("created_at") val createdAt: String? = null
+) {
+    val typeLabel: String
+        get() = when (requestType) {
+            "access" -> "Salinan data"
+            "correction" -> "Koreksi data"
+            "erasure" -> "Penghapusan data"
+            "restriction" -> "Pembatasan pemrosesan"
+            "portability" -> "Portabilitas data"
+            "objection" -> "Keberatan"
+            else -> requestType ?: "-"
+        }
+
+    val statusLabel: String
+        get() = when (status) {
+            "received" -> "Diterima"
+            "verified" -> "Diverifikasi"
+            "in_progress" -> "Diproses"
+            "completed" -> "Selesai"
+            "rejected" -> "Ditolak"
+            else -> status ?: "-"
+        }
+}
+
+data class PrivacyRequestsResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: List<PrivacyRequest>? = null,
+    val pagination: Pagination? = null
+)
+
+data class PrivacyRequestResponse(
+    val success: Boolean,
+    val message: String? = null,
+    val data: PrivacyRequest? = null
+)
+
+data class PrivacyRequestCreateRequest(
+    @SerializedName("request_type") val requestType: String,
+    val description: String,
+    @SerializedName("clinic_id") val clinicId: Int? = null
+)
+
 // ============= DEVICE TOKEN MODELS =============
 data class DeviceTokenRequest(
     val token: String,

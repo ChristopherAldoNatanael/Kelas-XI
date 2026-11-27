@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -50,18 +51,26 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Vaccines
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +81,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -81,7 +91,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.christopheraldoo.petheal.data.model.MedicalRecord
+import com.christopheraldoo.petheal.data.model.MedicalRecordAmendmentSummary
 import com.christopheraldoo.petheal.data.model.MedicalRecordAttachment
+import com.christopheraldoo.petheal.data.model.PrivacyRequest
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
 import com.christopheraldoo.petheal.ui.theme.Background
@@ -107,11 +119,15 @@ import com.christopheraldoo.petheal.util.buildPhotoUrl
 import com.christopheraldoo.petheal.util.formatDateSafe
 import com.christopheraldoo.petheal.util.formatRupiah
 import com.christopheraldoo.petheal.util.formatRupiahCompact
+import com.christopheraldoo.petheal.util.MedicalRecordPdfResult
+import com.christopheraldoo.petheal.util.saveOrOpenMedicalRecordPdf
+import com.christopheraldoo.petheal.util.saveOrOpenPdf
 import com.christopheraldoo.petheal.util.speciesLabelOf
 import com.christopheraldoo.petheal.util.toExtraPaymentReceipt
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import android.widget.Toast
 import com.christopheraldoo.petheal.ui.theme.Brand
 
 
@@ -163,7 +179,26 @@ fun MedicalRecordsScreen(
                     val pendingExtra = state.filteredRecords.count { it.extraPaymentStatus in listOf("unpaid", "pending", "partial") }
                     val totalCost = state.filteredRecords.sumOf { recordTotalCost(it) }
 
+                    val listState = rememberLazyListState()
+
+                    LaunchedEffect(listState, state.hasMore, state.isLoadingMore, state.currentPage) {
+                        snapshotFlow {
+                            listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+                        }.collect { lastVisible ->
+                            val totalItems = listState.layoutInfo.totalItemsCount
+                            if (
+                                state.hasMore &&
+                                !state.isLoadingMore &&
+                                totalItems > 0 &&
+                                lastVisible >= totalItems - 3
+                            ) {
+                                viewModel.loadMoreRecords()
+                            }
+                        }
+                    }
+
                     LazyColumn(
+                        state = listState,
                         modifier = Modifier.fillMaxSize(),
                         contentPadding = PaddingValues(bottom = 132.dp)
                     ) {
@@ -236,6 +271,28 @@ fun MedicalRecordsScreen(
                                 )
                             }
                         }
+
+                        if (state.isLoadingMore) {
+                            item {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = Brand.primary
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(
+                                        "Memuat riwayat berikutnya...",
+                                        fontSize = 12.sp,
+                                        color = Brand.textSecondary
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -261,9 +318,82 @@ fun MedicalRecordDetailScreen(
 ) {
     val state by viewModel.detailState.collectAsStateLifecycleAware()
     val ratingReminder by viewModel.ratingReminder.collectAsStateLifecycleAware()
+    val portal by viewModel.portalState.collectAsStateLifecycleAware()
+    val context = LocalContext.current
+    var showAmendments by rememberSaveable { mutableStateOf(false) }
+    var showPrivacyStatus by rememberSaveable { mutableStateOf(false) }
+    var showPrivacyForm by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(recordId) {
         viewModel.loadRecord(recordId)
+    }
+
+    LaunchedEffect(portal.exportBytes) {
+        val bytes = portal.exportBytes ?: return@LaunchedEffect
+        when (val saved = saveOrOpenMedicalRecordPdf(context, bytes, recordId)) {
+            is MedicalRecordPdfResult.Saved -> Toast.makeText(
+                context,
+                "Salinan disimpan: ${saved.displayName}",
+                Toast.LENGTH_LONG
+            ).show()
+            MedicalRecordPdfResult.Opened -> Toast.makeText(
+                context,
+                "Salinan PDF dibuka.",
+                Toast.LENGTH_SHORT
+            ).show()
+            MedicalRecordPdfResult.Failed -> Toast.makeText(
+                context,
+                "Salinan gagal disimpan. Coba lagi.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        viewModel.consumeExportBytes()
+    }
+
+    LaunchedEffect(portal.privacyResponseBytes) {
+        val bytes = portal.privacyResponseBytes ?: return@LaunchedEffect
+        val requestId = portal.privacyResponseRequestId ?: 0
+        when (val saved = saveOrOpenPdf(context, bytes, "salinan-data-pdp-$requestId.pdf")) {
+            is MedicalRecordPdfResult.Saved -> Toast.makeText(
+                context,
+                "Salinan data disimpan: ${saved.displayName}",
+                Toast.LENGTH_LONG
+            ).show()
+            MedicalRecordPdfResult.Opened -> Toast.makeText(
+                context,
+                "Salinan data PDF dibuka.",
+                Toast.LENGTH_SHORT
+            ).show()
+            MedicalRecordPdfResult.Failed -> Toast.makeText(
+                context,
+                "Salinan data gagal disimpan. Coba lagi.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        viewModel.consumePrivacyResponseBytes()
+    }
+
+    LaunchedEffect(portal.exportError) {
+        portal.exportError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearPortalMessages()
+        }
+    }
+
+    LaunchedEffect(portal.privacyMessage) {
+        portal.privacyMessage?.let {
+            showPrivacyForm = false
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.loadPrivacyRequests()
+            viewModel.clearPortalMessages()
+        }
+    }
+
+    LaunchedEffect(portal.privacyError) {
+        portal.privacyError?.let {
+            Toast.makeText(context, it, Toast.LENGTH_LONG).show()
+            viewModel.clearPortalMessages()
+        }
     }
 
     // Reminder rating hanya dicek setelah record tersedia (unlocked).
@@ -339,6 +469,22 @@ fun MedicalRecordDetailScreen(
                         )
                     }
 
+                    item {
+                        MedicalRecordOwnerPortalSection(
+                            isExportLoading = portal.isExportLoading,
+                            onShowAmendments = {
+                                viewModel.loadAmendments(recordId)
+                                showAmendments = true
+                            },
+                            onDownloadPdf = { viewModel.requestExport(recordId) },
+                            onShowPrivacyStatus = {
+                                viewModel.loadPrivacyRequests()
+                                showPrivacyStatus = true
+                            },
+                            onRequestPrivacy = { showPrivacyForm = true }
+                        )
+                    }
+
                     // Reminder rating: inline card (tidak mengganggu), hanya saat
                     // record unlocked. CTA masuk ke dialog rating dokter.
                     val currentReminder = ratingReminder
@@ -373,6 +519,39 @@ fun MedicalRecordDetailScreen(
                     item {
                         RecordMetaFooter(record = record)
                     }
+                }
+
+                if (showAmendments) {
+                    OwnerAmendmentsSheet(
+                        amendments = portal.amendments,
+                        isLoading = portal.isAmendmentsLoading,
+                        error = portal.amendmentsError,
+                        onDismiss = { showAmendments = false }
+                    )
+                }
+
+                if (showPrivacyStatus) {
+                    OwnerPrivacyStatusSheet(
+                        requests = portal.privacyRequests,
+                        isLoading = portal.isPrivacyLoading,
+                        error = portal.privacyError,
+                        isResponseLoading = portal.isPrivacyResponseLoading,
+                        downloadingRequestId = portal.privacyResponseDownloadingId,
+                        onDownloadResponse = { request ->
+                            request.id?.let { viewModel.downloadPrivacyResponse(it) }
+                        },
+                        onDismiss = { showPrivacyStatus = false }
+                    )
+                }
+
+                if (showPrivacyForm) {
+                    OwnerPrivacyRequestDialog(
+                        isSubmitting = portal.isPrivacySubmitting,
+                        onDismiss = { showPrivacyForm = false },
+                        onSubmit = { type, description ->
+                            viewModel.submitPrivacyRequest(type, description, record.clinic?.id)
+                        }
+                    )
                 }
                 }
             }
@@ -1868,4 +2047,370 @@ private fun parseLocalDate(value: String?): LocalDate? {
     } catch (_: Exception) {
         null
     }
+}
+
+@Composable
+private fun MedicalRecordOwnerPortalSection(
+    isExportLoading: Boolean,
+    onShowAmendments: () -> Unit,
+    onDownloadPdf: () -> Unit,
+    onShowPrivacyStatus: () -> Unit,
+    onRequestPrivacy: () -> Unit
+) {
+    DetailSectionCard(
+        title = "Dokumen & Privasi",
+        subtitle = "Salinan pemilik, riwayat koreksi, dan permintaan data"
+    ) {
+        OutlinedButton(
+            onClick = onShowAmendments,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(14.dp),
+            border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.35f)),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.primary)
+        ) {
+            Icon(Icons.Filled.Article, contentDescription = null, modifier = Modifier.size(19.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Riwayat koreksi rekam medis", fontWeight = FontWeight.SemiBold)
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Button(
+            onClick = onDownloadPdf,
+            enabled = !isExportLoading,
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            shape = RoundedCornerShape(14.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Brand.primary,
+                contentColor = OnPrimaryStrong
+            )
+        ) {
+            if (isExportLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = OnPrimaryStrong
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Menyiapkan salinan...", fontWeight = FontWeight.SemiBold)
+            } else {
+                Icon(Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(19.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Unduh salinan PDF", fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                onClick = onShowPrivacyStatus,
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                border = BorderStroke(1.dp, Brand.border),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.textPrimary)
+            ) {
+                Text(
+                    "Status permintaan",
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
+                )
+            }
+            OutlinedButton(
+                onClick = onRequestPrivacy,
+                modifier = Modifier.weight(1f).heightIn(min = 52.dp),
+                shape = RoundedCornerShape(12.dp),
+                contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                border = BorderStroke(1.dp, Brand.border),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.textPrimary)
+            ) {
+                Text(
+                    "Ajukan permintaan",
+                    fontSize = 12.sp,
+                    lineHeight = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                    maxLines = 2
+                )
+            }
+        }
+
+        Spacer(Modifier.height(8.dp))
+        Text(
+            "Salinan PDF bersifat pribadi dan hanya dapat diunduh sekali. " +
+                "Riwayat koreksi tidak menampilkan isi internal dokter.",
+            color = Brand.textSecondary,
+            fontSize = 11.sp,
+            lineHeight = 16.sp
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OwnerAmendmentsSheet(
+    amendments: List<MedicalRecordAmendmentSummary>,
+    isLoading: Boolean,
+    error: String?,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Riwayat Koreksi", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
+            Text(
+                "Hanya ringkasan status dan versi yang diterapkan.",
+                fontSize = 12.sp,
+                color = Brand.textSecondary
+            )
+
+            when {
+                isLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Memuat riwayat...", color = Brand.textSecondary, fontSize = 13.sp)
+                }
+                error != null -> Text(error, color = ErrorStrong, fontSize = 13.sp)
+                amendments.isEmpty() -> Text(
+                    "Belum ada koreksi pada rekam medis ini.",
+                    color = Brand.textSecondary,
+                    fontSize = 13.sp
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(amendments, key = { it.id ?: it.hashCode() }) { item ->
+                        Surface(shape = RoundedCornerShape(14.dp), color = Brand.cardAlt) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        if (item.type == "administrative") "Administratif" else "Klinis",
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = Brand.textPrimary
+                                    )
+                                    Text(item.statusLabel, fontSize = 12.sp, color = Brand.primary)
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    buildString {
+                                        val date = item.appliedAt ?: item.requestedAt ?: item.reviewedAt
+                                        if (!date.isNullOrBlank()) append(formatDateSafe(date, "d MMM yyyy • HH:mm"))
+                                        item.appliedVersionNo?.let {
+                                            if (isNotEmpty()) append(" • ")
+                                            append("versi $it")
+                                        }
+                                    }.ifBlank { "-" },
+                                    fontSize = 12.sp,
+                                    color = Brand.textSecondary
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun OwnerPrivacyStatusSheet(
+    requests: List<PrivacyRequest>,
+    isLoading: Boolean,
+    error: String?,
+    isResponseLoading: Boolean,
+    downloadingRequestId: Int?,
+    onDownloadResponse: (PrivacyRequest) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Status Permintaan Data", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Brand.textPrimary)
+            Text(
+                "Permintaan ditinjau admin klinik. Rekam medis yang masih wajib disimpan tidak dihapus.",
+                fontSize = 12.sp,
+                color = Brand.textSecondary
+            )
+
+            when {
+                isLoading -> Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(10.dp))
+                    Text("Memuat permintaan...", color = Brand.textSecondary, fontSize = 13.sp)
+                }
+                error != null -> Text(error, color = ErrorStrong, fontSize = 13.sp)
+                requests.isEmpty() -> Text(
+                    "Belum ada permintaan data.",
+                    color = Brand.textSecondary,
+                    fontSize = 13.sp
+                )
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 480.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(requests, key = { it.id ?: it.hashCode() }) { item ->
+                        Surface(shape = RoundedCornerShape(14.dp), color = Brand.cardAlt) {
+                            Column(Modifier.fillMaxWidth().padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        item.typeLabel,
+                                        fontWeight = FontWeight.SemiBold,
+                                        fontSize = 13.sp,
+                                        color = Brand.textPrimary
+                                    )
+                                    Text(
+                                        item.statusLabel + if (item.isOverdue) " • lewat SLA" else "",
+                                        fontSize = 12.sp,
+                                        color = if (item.isOverdue) ErrorStrong else Brand.primary
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    formatDateSafe(item.requestedAt, "d MMM yyyy • HH:mm"),
+                                    fontSize = 12.sp,
+                                    color = Brand.textSecondary
+                                )
+                                item.rejectionReason?.takeIf { it.isNotBlank() }?.let {
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(it, fontSize = 12.sp, color = Brand.textSecondary)
+                                }
+                                if (item.responseAvailable) {
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(
+                                        buildString {
+                                            append("Salinan: ")
+                                            append(item.responseFileName ?: "salinan-data.pdf")
+                                            item.responseFileSize?.let { size ->
+                                                append(" � ")
+                                                append(if (size >= 1024) "${size / 1024} KB" else "$size B")
+                                            }
+                                        },
+                                        fontSize = 11.sp,
+                                        color = Brand.textSecondary
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedButton(
+                                        onClick = { onDownloadResponse(item) },
+                                        enabled = !isResponseLoading,
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp),
+                                        shape = RoundedCornerShape(10.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+                                        border = BorderStroke(1.dp, Brand.primary.copy(alpha = 0.35f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Brand.primary)
+                                    ) {
+                                        if (isResponseLoading && downloadingRequestId == item.id) {
+                                            CircularProgressIndicator(
+                                                modifier = Modifier.size(16.dp),
+                                                strokeWidth = 2.dp,
+                                                color = Brand.primary
+                                            )
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Menyiapkan...", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        } else {
+                                            Icon(Icons.Filled.Description, contentDescription = null, modifier = Modifier.size(17.dp))
+                                            Spacer(Modifier.width(8.dp))
+                                            Text(
+                                                "Unduh salinan data",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun OwnerPrivacyRequestDialog(
+    isSubmitting: Boolean,
+    onDismiss: () -> Unit,
+    onSubmit: (type: String, description: String) -> Unit
+) {
+    var selectedType by rememberSaveable { mutableStateOf("access") }
+    var description by rememberSaveable { mutableStateOf("") }
+    val options = listOf(
+        "access" to "Salinan data",
+        "correction" to "Koreksi data",
+        "erasure" to "Penghapusan data"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Ajukan Permintaan Data", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Pilih jenis permintaan dan jelaskan kebutuhan Anda.",
+                    fontSize = 12.sp,
+                    color = Brand.textSecondary
+                )
+                options.forEach { (value, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { selectedType = value }
+                            .padding(vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedType == value,
+                            onClick = { selectedType = value }
+                        )
+                        Text(label, fontSize = 13.sp, color = Brand.textPrimary)
+                    }
+                }
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { if (it.length <= 2000) description = it },
+                    label = { Text("Uraian permintaan") },
+                    minLines = 3,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(selectedType, description.trim()) },
+                enabled = !isSubmitting && description.trim().length >= 5
+            ) {
+                if (isSubmitting) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text("Kirim")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isSubmitting) {
+                Text("Batal")
+            }
+        }
+    )
 }

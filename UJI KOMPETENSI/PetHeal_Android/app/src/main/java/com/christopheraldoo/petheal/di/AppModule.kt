@@ -92,10 +92,10 @@ object AppModule {
         networkInterceptor: NetworkInterceptor,
         networkMonitor: NetworkMonitor
     ): OkHttpClient {
-        // ✅ OPTIMIZED: Add HTTP response cache (10MB)
-        // Enables offline viewing of previously loaded pages
+        // Cache HTTP per akun. Vary: Authorization ditambahkan di network
+        // interceptor agar data akun lama tidak pernah dipakai akun baru.
         val cacheDir = File(context.cacheDir, "http_responses")
-        val httpCache = Cache(cacheDir, 10L * 1024 * 1024) // 10 MB
+        val httpCache = Cache(cacheDir, 50L * 1024 * 1024) // 50 MB
 
         val builder = OkHttpClient.Builder()
             .cache(httpCache)
@@ -103,15 +103,19 @@ object AppModule {
             // ✅ OPTIMIZED: Add cache control interceptor for API responses
             .addInterceptor { chain ->
                 var request = chain.request()
-                // Hanya aset gambar (/storage/...) yang boleh disajikan dari
-                // cache saat offline. Respons API terautentikasi TIDAK boleh
-                // memakai only-if-cached: cache OkHttp di-key per URL, bukan
-                // per akun, sehingga data hewan/booking akun lama bisa muncul
-                // di akun baru setelah logout/hapus akun.
-                val isStorageAsset = request.url.encodedPath.contains("/storage/")
-                if (!networkMonitor.isOnlineNow() && isStorageAsset) {
+                // Saat offline, gambar dan GET API boleh memakai cache.
+                // Cache API diberi Vary: Authorization di network interceptor,
+                // sehingga data akun lama tidak muncul pada akun baru.
+                val path = request.url.encodedPath
+                val isStorageAsset = path.contains("/storage/")
+                val isApiGet = request.method == "GET" && path.startsWith("/api/")
+                if (!networkMonitor.isOnlineNow() && (isStorageAsset || isApiGet)) {
                     request = request.newBuilder()
-                        .header("Cache-Control", "public, only-if-cached, max-stale=604800")
+                        .header(
+                            "Cache-Control",
+                            if (isStorageAsset) "public, only-if-cached, max-stale=604800"
+                            else "private, only-if-cached, max-stale=604800"
+                        )
                         .build()
                 }
                 chain.proceed(request)
@@ -121,10 +125,39 @@ object AppModule {
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .writeTimeout(45, TimeUnit.SECONDS)
-            // ── Image caching: force 24h cache even if server says no-cache ──
+            // ── Cache HTTP global: gambar 24 jam, API 30–120 detik ──
+            // Vary: Authorization membuat cache OkHttp terpisah per token.
+            // Setiap POST/PUT/PATCH/DELETE yang sukses mengosongkan cache agar
+            // data setelah aksi tulis tidak tertinggal basi.
             .addNetworkInterceptor { chain ->
-                val response = chain.proceed(chain.request())
-                if (chain.request().url.toString().contains("/storage/")) {
+                val request = chain.request()
+                val response = chain.proceed(request)
+                val path = request.url.encodedPath
+
+                if (request.method == "GET" && path.startsWith("/api/")) {
+                    val contentType = response.header("Content-Type") ?: ""
+                    if (response.isSuccessful && contentType.contains("application/json")) {
+                        val ttl = when {
+                            path.contains("/bookings") -> 10
+                            path.contains("/medical-records") ||
+                                path.contains("/privacy-requests") -> 30
+                            else -> 120
+                        }
+
+                        return@addNetworkInterceptor response.newBuilder()
+                            .header("Cache-Control", "private, max-age=$ttl")
+                            .header("Vary", "Authorization")
+                            .removeHeader("Pragma")
+                            .removeHeader("Expires")
+                            .build()
+                    }
+                }
+
+                if (request.method != "GET" && response.isSuccessful) {
+                    httpCache.evictAll()
+                }
+
+                if (request.url.toString().contains("/storage/")) {
                     response.newBuilder()
                         .header("Cache-Control", "public, max-age=86400")
                         .removeHeader("Pragma")

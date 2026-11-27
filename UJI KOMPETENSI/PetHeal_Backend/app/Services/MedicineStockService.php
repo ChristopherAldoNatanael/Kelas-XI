@@ -56,7 +56,14 @@ class MedicineStockService
         ?int $userId = null,
         ?int $batchId = null,
         string $stockState = MedicineStockMovement::STOCK_STATE_AVAILABLE,
-        ?int $transactionId = null
+        ?int $transactionId = null,
+        ?int $dispensationItemId = null,
+        ?string $referenceType = null,
+        ?int $referenceId = null,
+        ?string $idempotencyKey = null,
+        ?int $reversalOfMovementId = null,
+        ?string $movementKind = null,
+        ?string $notes = null
     ): MedicineStockMovement {
         if (!in_array($type, self::TYPES, true)) {
             throw new RuntimeException("Jenis mutasi stok tidak dikenal: {$type}");
@@ -69,9 +76,18 @@ class MedicineStockService
             throw new RuntimeException("Jenis saldo stok tidak dikenal: {$stockState}");
         }
 
+        if ($idempotencyKey !== null) {
+            $existing = MedicineStockMovement::where('idempotency_key', $idempotencyKey)->first();
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         return DB::transaction(function () use (
             $medicine, $quantity, $type, $reason, $medicalRecordId, $userId,
-            $batchId, $stockState, $transactionId
+            $batchId, $stockState, $transactionId, $dispensationItemId,
+            $referenceType, $referenceId, $idempotencyKey,
+            $reversalOfMovementId, $movementKind, $notes
         ) {
             // Kunci baris: dua permintaan bersamaan tidak boleh memakai saldo
             // yang sama (mis. dua rekam medis mengurangi obat sekaligus).
@@ -140,6 +156,13 @@ class MedicineStockService
                 'stock_after' => max(0, $after),
                 'reason' => $reason,
                 'medical_record_id' => $medicalRecordId,
+                'dispensation_item_id' => $dispensationItemId,
+                'reference_type' => $referenceType,
+                'reference_id' => $referenceId,
+                'idempotency_key' => $idempotencyKey,
+                'reversal_of_movement_id' => $reversalOfMovementId,
+                'movement_kind' => $movementKind,
+                'notes' => $notes,
                 'created_by' => $userId ?? auth()->id(),
             ]);
         });

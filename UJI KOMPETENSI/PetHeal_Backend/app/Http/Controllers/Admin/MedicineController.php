@@ -696,6 +696,11 @@ class MedicineController extends Controller
             'price' => 'nullable|numeric|min:0',
             'expiry_date' => 'nullable|date',
             'manufacturer' => 'nullable|string|max:255',
+            'registration_number' => 'nullable|string|max:80',
+            'registration_status' => 'nullable|in:registered,not_registered,unknown,expired,withdrawn',
+            'registration_expires_at' => 'nullable|date',
+            'approved_species' => 'nullable|string|max:255',
+            'withdrawal_period' => 'nullable|string|max:80',
             'notes' => 'nullable|string|max:2000',
             'is_active' => 'nullable|boolean',
         ]);
@@ -703,6 +708,7 @@ class MedicineController extends Controller
         $validated['min_stock'] = (float) ($validated['min_stock'] ?? 0);
         $validated['price'] = (float) ($validated['price'] ?? 0);
         $validated['is_active'] = (bool) ($validated['is_active'] ?? false);
+        $validated['registration_status'] = $validated['registration_status'] ?? Medicine::REGISTRATION_UNKNOWN;
 
         return $validated;
     }

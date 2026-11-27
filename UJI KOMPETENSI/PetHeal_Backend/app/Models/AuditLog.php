@@ -15,6 +15,15 @@ class AuditLog extends Model
         'description',
         'ip_address',
         'user_agent',
+        'clinic_id',
+        'request_id',
+        'result',
+        'reason',
+        'metadata',
+    ];
+
+    protected $casts = [
+        'metadata' => 'array',
     ];
 
     public function user()

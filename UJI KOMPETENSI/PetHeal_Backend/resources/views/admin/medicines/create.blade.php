@@ -85,6 +85,8 @@
                         @error('manufacturer') <p class="admin-error">{{ $message }}</p> @enderror
                     </div>
 
+                    @include('admin.medicines.partials.registration-fields', ['medicine' => null])
+
                     <div>
                         <label for="notes" class="admin-label">{{ __('admin.notes') }}</label>
                         <textarea name="notes" id="notes" rows="3" class="admin-input">{{ old('notes') }}</textarea>

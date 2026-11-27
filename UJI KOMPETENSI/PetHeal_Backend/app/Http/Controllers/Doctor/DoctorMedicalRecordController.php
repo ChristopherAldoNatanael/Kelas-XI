@@ -11,6 +11,9 @@ use App\Services\MedicalRecordAttachmentService;
 use App\Services\MedicalRecordRevisionService;
 use App\Services\PrescriptionService;
 use App\Services\QueueService;
+use App\Services\MedicalRecordLifecycleService;
+use App\Services\RecordLinkService;
+use App\Services\VitalMeasurementService;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -31,7 +34,10 @@ class DoctorMedicalRecordController extends DoctorPortalController
 {
     public function __construct(
         private readonly FCMService $fcmService,
-        private readonly QueueService $queueService
+        private readonly QueueService $queueService,
+        private readonly RecordLinkService $recordLinks,
+        private readonly MedicalRecordLifecycleService $lifecycle,
+        private readonly VitalMeasurementService $vitals
     ) {
     }
 
@@ -189,7 +195,6 @@ class DoctorMedicalRecordController extends DoctorPortalController
         }
 
         $record = new MedicalRecord([
-            'booking_id' => $booking->id,
             'pet_id' => $booking->pet_id,
             'doctor_id' => $booking->doctor_id,
             'clinic_id' => $booking->clinic_id,
@@ -223,6 +228,9 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 // foreign key NOT NULL ke medical_records. Tanpa ini, dokter
                 // yang mengisi resep saat membuat rekam medis baru kena 500.
                 $record->save();
+
+                // Relasi booking hanya ditulis oleh RecordLinkService.
+                $this->recordLinks->linkBooking($record, $booking);
 
                 $this->persistVitals($record, $request);
 
@@ -266,7 +274,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
 
         $revisions = app(MedicalRecordRevisionService::class);
         $revisions->record($record, 'create', [], $revisions->snapshot($record), 'Rekam medis dibuat oleh dokter');
-        $record->finalize(auth()->id());
+        $this->lifecycle->finalize($record, auth()->user());
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
@@ -447,6 +455,12 @@ class DoctorMedicalRecordController extends DoctorPortalController
                 $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
                 $record->save();
 
+                // Backfill/rekonsiliasi relasi untuk record lama yang belum
+                // punya encounter. Untuk record baru ini idempoten.
+                if ($record->booking) {
+                    $this->recordLinks->linkBooking($record, $record->booking);
+                }
+
                 $this->persistVitals($record, $request);
 
                 // Hapus lampiran yang dicentang dokter. Lewat service agar
@@ -474,7 +488,7 @@ class DoctorMedicalRecordController extends DoctorPortalController
             $request->input('change_reason')
         );
 
-        $record->finalize(auth()->id());
+        $this->lifecycle->finalize($record, auth()->user());
 
         $this->forgetDashboardCaches($record->clinic_id ?: $doctor->clinic_id);
 
@@ -558,21 +572,6 @@ class DoctorMedicalRecordController extends DoctorPortalController
             return;
         }
 
-        $record->vitals()->updateOrCreate(
-            ['medical_record_id' => $record->id],
-            [
-                'temperature_c' => $input['temperature_c'] ?? null,
-                'heart_rate' => $input['heart_rate'] ?? null,
-                'respiratory_rate' => $input['respiratory_rate'] ?? null,
-                'crt_seconds' => $input['crt_seconds'] ?? null,
-                'mucosa' => $input['mucosa'] ?? null,
-                'hydration' => $input['hydration'] ?? null,
-                'bcs' => $input['bcs'] ?? null,
-                'pain_score' => $input['pain_score'] ?? null,
-                'weight_kg' => $input['weight_kg'] ?? null,
-                'notes' => $input['notes'] ?? null,
-                'measured_at' => now(),
-            ]
-        );
+        $this->vitals->recordForRecord($record, $input, auth()->user());
     }
 }

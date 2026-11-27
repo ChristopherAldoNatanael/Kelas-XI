@@ -26,6 +26,11 @@ use RuntimeException;
  */
 class MedicalRecordAttachmentService
 {
+    public function __construct(
+        private readonly MedicalRecordFileEncryptionService $encryption
+    ) {
+    }
+
     /** Batas ukuran per berkas (KB). Sama dengan aturan validasi form. */
     public const MAX_KB = 5120;
 
@@ -69,21 +74,32 @@ class MedicalRecordAttachmentService
         $directory = 'medical-records/' . $record->id;
         $name = Str::ulid()->toBase32();
 
+        $disk = Storage::disk($this->disk());
+
         if (str_starts_with($mime, 'image/')) {
             $relativePath = $directory . '/' . $name . '.jpg';
 
             // Max 1600px: cukup untuk membaca hasil rontgen tanpa file raksasa.
             $path = ImageService::process($file, $relativePath, 1600, 82, $this->disk());
             $storedMime = 'image/jpeg';
+            $plaintext = (string) $disk->get($path);
         } else {
             // PDF: simpan asli, jangan diubah isinya (dokumen medis).
             $relativePath = $directory . '/' . $name . '.pdf';
-            Storage::disk($this->disk())->putFileAs($directory, $file, basename($relativePath));
             $path = $relativePath;
             $storedMime = 'application/pdf';
+            $plaintext = (string) $file->get();
         }
 
-        $fullPath = Storage::disk($this->disk())->path($path);
+        $hash = hash('sha256', $plaintext);
+        $encryptedVersion = null;
+
+        if ($this->encryption->enabled()) {
+            $disk->put($path, $this->encryption->encrypt($plaintext));
+            $encryptedVersion = MedicalRecordFileEncryptionService::VERSION;
+        } elseif (! str_starts_with($mime, 'image/')) {
+            $disk->put($path, $plaintext);
+        }
 
         return MedicalRecordAttachment::create([
             'medical_record_id' => $record->id,
@@ -91,10 +107,26 @@ class MedicalRecordAttachmentService
             'original_name' => $file->getClientOriginalName(),
             'caption' => $caption,
             'mime_type' => $storedMime,
-            'size_bytes' => (int) ($file->getSize() ?: 0),
-            'sha256' => is_file($fullPath) ? hash_file('sha256', $fullPath) : null,
+            'size_bytes' => strlen($plaintext),
+            'sha256' => $hash,
+            'encryption_version' => $encryptedVersion,
             'uploaded_by' => $uploadedBy,
         ]);
+    }
+
+    /**
+     * Baca isi asli lampiran. Berkas lama tanpa header PHRM1 dikembalikan
+     * apa adanya; berkas terenkripsi diautentikasi dan didekripsi.
+     */
+    public function read(MedicalRecordAttachment $attachment): string
+    {
+        $disk = Storage::disk($this->disk());
+
+        if (! $attachment->path || ! $disk->exists($attachment->path)) {
+            throw new RuntimeException('Berkas lampiran tidak ditemukan.');
+        }
+
+        return $this->encryption->decrypt((string) $disk->get($attachment->path));
     }
 
     /**

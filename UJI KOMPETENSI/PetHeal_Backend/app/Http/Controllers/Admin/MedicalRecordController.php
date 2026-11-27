@@ -13,6 +13,9 @@ use App\Services\FCMService;
 use App\Services\MedicalRecordAttachmentService;
 use App\Services\MedicalRecordRevisionService;
 use App\Services\PrescriptionService;
+use App\Services\MedicalRecordLifecycleService;
+use App\Services\RecordLinkService;
+use App\Services\VitalMeasurementService;
 use Dompdf\Dompdf;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
@@ -28,17 +31,26 @@ class MedicalRecordController extends Controller
     protected MedicalRecordAttachmentService $attachments;
     protected PrescriptionService $prescriptions;
     protected MedicalRecordRevisionService $revisions;
+    protected RecordLinkService $recordLinks;
+    protected MedicalRecordLifecycleService $lifecycle;
+    protected VitalMeasurementService $vitals;
 
     public function __construct(
         FCMService $fcmService,
         MedicalRecordAttachmentService $attachments,
         PrescriptionService $prescriptions,
-        MedicalRecordRevisionService $revisions
+        MedicalRecordRevisionService $revisions,
+        RecordLinkService $recordLinks,
+        MedicalRecordLifecycleService $lifecycle,
+        VitalMeasurementService $vitals
     ) {
         $this->fcmService = $fcmService;
         $this->attachments = $attachments;
         $this->prescriptions = $prescriptions;
         $this->revisions = $revisions;
+        $this->recordLinks = $recordLinks;
+        $this->lifecycle = $lifecycle;
+        $this->vitals = $vitals;
     }
 
     /**
@@ -281,8 +293,10 @@ class MedicalRecordController extends Controller
                 ->with('error', __('admin.medical_record_exists'));
         }
 
+        $adminCannotFinalize = config('medical_records.lifecycle_enforcement_enabled', false)
+            && auth()->user()?->role !== 'doctor';
+
         $record = new MedicalRecord([
-            'booking_id' => $booking->id,
             'pet_id' => $booking->pet_id,
             'doctor_id' => $booking->doctor_id,
             'subjective' => $request->input('soap.subjective'),
@@ -299,11 +313,11 @@ class MedicalRecordController extends Controller
             'treatment_cost' => $this->normalizeMoneyInput($request, 'treatment_cost'),
             'medicine_cost' => $this->normalizeMoneyInput($request, 'medicine_cost'),
             'clinic_id' => $booking->clinic_id,
-            'status' => MedicalRecord::STATUS_FINAL,
+            'status' => $adminCannotFinalize ? MedicalRecord::STATUS_DRAFT : MedicalRecord::STATUS_FINAL,
             'created_by' => auth()->id(),
             'updated_by' => auth()->id(),
-            'finalized_at' => now(),
-            'finalized_by' => auth()->id(),
+            'finalized_at' => $adminCannotFinalize ? null : now(),
+            'finalized_by' => $adminCannotFinalize ? null : auth()->id(),
             'outcome' => $request->input('outcome'),
             'cause_of_death' => $request->input('cause_of_death'),
             'euthanasia_reason' => $request->input('euthanasia_reason'),
@@ -319,6 +333,9 @@ class MedicalRecordController extends Controller
                 // syncForRecord() pada record yang belum disimpan dulu selalu
                 // gagal (500) begitu admin memilih obat di form create.
                 $record->save();
+
+                // Relasi booking hanya ditulis oleh RecordLinkService.
+                $this->recordLinks->linkBooking($record, $booking);
 
                 $this->persistVitals($record, $request);
 
@@ -376,7 +393,9 @@ class MedicalRecordController extends Controller
             'Rekam medis dibuat'
         );
 
-        $record->finalize(auth()->id());
+        if (! $adminCannotFinalize) {
+            $this->lifecycle->finalize($record, auth()->user());
+        }
 
         AuditLog::log(
             'medical_record.created',
@@ -466,6 +485,14 @@ class MedicalRecordController extends Controller
                 ->with('error', 'Rekam medis yang sudah dibatalkan tidak dapat diubah.');
         }
 
+        $adminCannotFinalize = config('medical_records.lifecycle_enforcement_enabled', false)
+            && auth()->user()?->role !== 'doctor';
+
+        if ($adminCannotFinalize && $record->status === MedicalRecord::STATUS_FINAL) {
+            return redirect()->route('admin.medical-records.show', $record->id)
+                ->with('error', 'Rekam medis final tidak dapat diubah admin. Ajukan amendment klinis.');
+        }
+
         $this->validateClinicalPayload($request, $clinicId);
 
         $request->validate([
@@ -526,6 +553,12 @@ class MedicalRecordController extends Controller
                 $record->recalculatePaymentState((float) ($record->booking?->paid_amount ?? 0));
                 $record->save();
 
+                // Backfill/rekonsiliasi relasi untuk record lama yang belum
+                // punya encounter. Untuk record baru ini idempoten.
+                if ($record->booking) {
+                    $this->recordLinks->linkBooking($record, $record->booking);
+                }
+
                 $this->persistVitals($record, $request);
 
                 // Lampiran: hapus yang dicentang dulu, lalu simpan yang baru.
@@ -552,7 +585,9 @@ class MedicalRecordController extends Controller
             $request->input('change_reason')
         );
 
-        $record->finalize(auth()->id());
+        if (! $adminCannotFinalize) {
+            $this->lifecycle->finalize($record, auth()->user());
+        }
 
         AuditLog::log(
             'medical_record.updated',
@@ -818,8 +853,13 @@ class MedicalRecordController extends Controller
             null
         );
 
-        return Storage::disk(MedicalRecordAttachment::DISK)
-            ->download($model->path, $model->original_name ?: basename($model->path));
+        $contents = $this->attachments->read($model);
+        $fileName = $model->original_name ?: basename($model->path);
+
+        return response($contents, 200, [
+            'Content-Type' => $model->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="' . addslashes($fileName) . '"',
+        ]);
     }
 
     /**
@@ -897,22 +937,7 @@ class MedicalRecordController extends Controller
             return;
         }
 
-        $record->vitals()->updateOrCreate(
-            ['medical_record_id' => $record->id],
-            [
-                'temperature_c' => $input['temperature_c'] ?? null,
-                'heart_rate' => $input['heart_rate'] ?? null,
-                'respiratory_rate' => $input['respiratory_rate'] ?? null,
-                'crt_seconds' => $input['crt_seconds'] ?? null,
-                'mucosa' => $input['mucosa'] ?? null,
-                'hydration' => $input['hydration'] ?? null,
-                'bcs' => $input['bcs'] ?? null,
-                'pain_score' => $input['pain_score'] ?? null,
-                'weight_kg' => $input['weight_kg'] ?? null,
-                'notes' => $input['notes'] ?? null,
-                'measured_at' => now(),
-            ]
-        );
+        $this->vitals->recordForRecord($record, $input, auth()->user());
     }
 
     private function isDuplicateBookingRecord(QueryException $e): bool
