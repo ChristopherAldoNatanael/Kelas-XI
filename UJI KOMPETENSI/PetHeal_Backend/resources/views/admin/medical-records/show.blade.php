@@ -43,6 +43,8 @@
         </div>
     @endif
 
+    @include('medical-records.partials.emergency-panel', ['routeBase' => 'admin.medical-records'])
+
     <div class="grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_0.95fr]">
         <div class="space-y-6">
             <x-admin.panel :title="__('admin.col_clinical_summary')" :subtitle="__('admin.documentation_clinical')">

@@ -240,6 +240,14 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">groups</span>
                     <span class="sidebar-text">{{ __('menu.queue') }}</span>
                 </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.walk-ins.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.walk-ins.index') }}" @if(request()->routeIs('admin.walk-ins.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.walk-ins.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">emergency</span>
+                    <span class="sidebar-text">Walk-in & Darurat</span>
+                </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.service-requests.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.service-requests.index') }}" @if(request()->routeIs('admin.service-requests.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.service-requests.*'))

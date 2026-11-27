@@ -24,9 +24,12 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use App\Http\Controllers\Concerns\ManagesEmergencyRecord;
 
 class MedicalRecordController extends Controller
 {
+    use ManagesEmergencyRecord;
+
     protected FCMService $fcmService;
     protected MedicalRecordAttachmentService $attachments;
     protected PrescriptionService $prescriptions;
@@ -437,6 +440,7 @@ class MedicalRecordController extends Controller
             // Resep & lampiran dirender di halaman detail; tanpa eager load
             // ini setiap baris memicu query sendiri.
             'prescriptionItems', 'attachments', 'vitals', 'revisions.changedBy',
+            'encounter', 'treatmentConsents',
         ])->where('id', $id);
         if ($clinicId) {
             $query->where('clinic_id', $clinicId);
@@ -444,6 +448,16 @@ class MedicalRecordController extends Controller
         $record = $query->firstOrFail();
 
         return view('admin.medical-records.show', compact('record'));
+    }
+
+    protected function resolveEmergencyRecord(int $id): MedicalRecord
+    {
+        $clinicId = currentClinicId();
+
+        return MedicalRecord::with(['encounter', 'booking', 'pet', 'doctor', 'clinic', 'treatmentConsents'])
+            ->whereKey($id)
+            ->when($clinicId, fn ($query) => $query->where('clinic_id', $clinicId))
+            ->firstOrFail();
     }
 
     /**

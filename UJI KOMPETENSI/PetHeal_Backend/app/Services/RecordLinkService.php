@@ -52,13 +52,21 @@ class RecordLinkService
             if ($encounter) {
                 $this->assertEncounterBelongsTo($encounter, $lockedBooking, $lockedRecord);
             } else {
+                $encounterType = match ($lockedBooking->service_type) {
+                    'emergency' => ClinicalEncounter::TYPE_EMERGENCY,
+                    'walk_in' => ClinicalEncounter::TYPE_WALK_IN,
+                    default => ClinicalEncounter::TYPE_BOOKING,
+                };
+
                 $encounter = ClinicalEncounter::create(array_merge([
                     'clinic_id' => $lockedBooking->clinic_id,
                     'pet_id' => $lockedBooking->pet_id,
                     'booking_id' => $lockedBooking->id,
-                    'type' => ClinicalEncounter::TYPE_BOOKING,
+                    'type' => $encounterType,
                     'status' => ClinicalEncounter::STATUS_IN_PROGRESS,
                     'attending_doctor_id' => $lockedBooking->doctor_id,
+                    'triage_level' => $lockedBooking->triage_level,
+                    'chief_complaint' => $lockedBooking->notes,
                     'opened_at' => now(),
                     'created_by' => auth()->id(),
                     'updated_by' => auth()->id(),

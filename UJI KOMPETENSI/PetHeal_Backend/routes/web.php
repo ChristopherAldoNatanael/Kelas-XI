@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PrivacyRequestController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\WalkInController;
 use App\Http\Controllers\Doctor\DoctorAuthController;
 use App\Http\Controllers\Doctor\DoctorBookingController;
 use App\Http\Controllers\Doctor\DoctorDashboardController;
@@ -145,6 +146,11 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::post('/queue/{id}/check-in', [\App\Http\Controllers\Admin\QueueController::class, 'checkIn'])->name('queue.check-in');
     Route::post('/queue/{id}/status', [\App\Http\Controllers\Admin\QueueController::class, 'updateStatus'])->name('queue.status');
 
+    // Pendaftaran pasien datang langsung / darurat tanpa aplikasi.
+    Route::get('/walk-ins', [WalkInController::class, 'index'])->name('walk-ins.index');
+    Route::get('/walk-ins/owners', [WalkInController::class, 'searchOwners'])->name('walk-ins.owners');
+    Route::post('/walk-ins', [WalkInController::class, 'store'])->name('walk-ins.store');
+
     // Permintaan layanan: pengajuan pemilik → evaluasi dokter → penawaran admin.
     // Didaftarkan sebelum pola lain agar `/service-requests/{id}` tidak bentrok.
     Route::get('/service-requests', [\App\Http\Controllers\Admin\ServiceRequestController::class, 'index'])->name('service-requests.index');
@@ -186,6 +192,9 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/medical-records/{id}/resume', [MedicalRecordController::class, 'resumePdf'])->name('medical-records.resume');
     Route::post('/medical-records/{id}/allergies', [MedicalRecordController::class, 'storeAllergy'])->name('medical-records.allergies.store');
     Route::delete('/medical-records/{id}/allergies/{allergy}', [MedicalRecordController::class, 'destroyAllergy'])->name('medical-records.allergies.destroy');
+    Route::post('/medical-records/{id}/emergency/consent', [MedicalRecordController::class, 'emergencyConsent'])->name('medical-records.emergency.consent');
+    Route::post('/medical-records/{id}/emergency/triage', [MedicalRecordController::class, 'emergencyTriage'])->name('medical-records.emergency.triage');
+    Route::post('/medical-records/{id}/emergency/close', [MedicalRecordController::class, 'emergencyClose'])->name('medical-records.emergency.close');
     Route::delete('/medical-records/{id}', [MedicalRecordController::class, 'destroy'])->name('medical-records.destroy');
 
     // Permintaan PDP (UU 27/2022): verifikasi, proses, selesai, atau tolak.
@@ -378,6 +387,9 @@ Route::prefix('doctor')->name('doctor.')->group(function () {
         Route::get('/medical-records', [DoctorMedicalRecordController::class, 'index'])->name('medical-records.index');
         Route::get('/medical-records/create/{bookingId}', [DoctorMedicalRecordController::class, 'create'])->name('medical-records.create');
         Route::post('/medical-records', [DoctorMedicalRecordController::class, 'store'])->name('medical-records.store');
+        Route::post('/medical-records/{id}/emergency/consent', [DoctorMedicalRecordController::class, 'emergencyConsent'])->name('medical-records.emergency.consent');
+        Route::post('/medical-records/{id}/emergency/triage', [DoctorMedicalRecordController::class, 'emergencyTriage'])->name('medical-records.emergency.triage');
+        Route::post('/medical-records/{id}/emergency/close', [DoctorMedicalRecordController::class, 'emergencyClose'])->name('medical-records.emergency.close');
         Route::get('/medical-records/{id}', [DoctorMedicalRecordController::class, 'show'])->name('medical-records.show');
         Route::get('/medical-records/{id}/edit', [DoctorMedicalRecordController::class, 'edit'])->name('medical-records.edit');
         Route::put('/medical-records/{id}', [DoctorMedicalRecordController::class, 'update'])->name('medical-records.update');

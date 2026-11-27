@@ -2534,6 +2534,13 @@ batas halaman Home/Doctors. Lihat `docs/p4/P4_8_GLOBAL_PERFORMA.md` dan indeks
 `docs/p4/README.md`. Cache masih HTTP-level, bukan model cache Room; ETag, prefetch, dan audit layar
 lain belum dibuat; full regression belum dijalankan.
 
+Status implementasi P4.9: **selesai pada web admin untuk pendaftaran walk-in
+dan darurat** — pencarian/pembuatan pemilik, hewan, triage, nomor antrian
+otomatis, panel encounter di rekam medis, consent darurat, update triage, dan
+penutupan encounter. Lihat `docs/admin/WALK_IN_DAN_DARURAT.md`. Android tidak
+diubah; unggah bukti consent, pencabutan consent, pasien anonymous, dan uji
+browser manual belum dibuat.
+
 Dependensi: P0.2 dan P0.3 wajib selesai sebelum P1. P1.1 dan P1.2 tidak boleh
 dijalankan bersamaan tanpa service boundary yang jelas. P2.1 bergantung pada
 P1.3. P3 bergantung pada P1.1 dan P2.1. P4 berjalan berkelanjutan.

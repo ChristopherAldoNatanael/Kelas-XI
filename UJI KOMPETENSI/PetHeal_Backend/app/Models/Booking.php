@@ -37,6 +37,7 @@ class Booking extends Model
         'confirmed_at',
         'completed_at',
         'service_type',
+        'triage_level',
         // Tautan administratif ke rekam medis yang merekomendasikan kontrol.
         'medical_record_id',
         'clinic_id',

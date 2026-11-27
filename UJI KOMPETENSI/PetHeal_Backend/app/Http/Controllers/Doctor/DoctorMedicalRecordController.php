@@ -19,6 +19,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
+use App\Http\Controllers\Concerns\ManagesEmergencyRecord;
 use Illuminate\Validation\Rule;
 use Dompdf\Dompdf;
 
@@ -32,6 +33,8 @@ use Dompdf\Dompdf;
  */
 class DoctorMedicalRecordController extends DoctorPortalController
 {
+    use ManagesEmergencyRecord;
+
     public function __construct(
         private readonly FCMService $fcmService,
         private readonly QueueService $queueService,
@@ -310,12 +313,23 @@ class DoctorMedicalRecordController extends DoctorPortalController
         $record = MedicalRecord::with([
             'pet', 'pet.allergies', 'booking.user', 'doctor', 'vitals',
             'prescriptionItems', 'attachments', 'clinic', 'revisions.changedBy',
+            'encounter', 'treatmentConsents',
         ])
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $doctor->clinic_id)
             ->findOrFail($id);
 
         return view('doctor.medical-records.show', compact('doctor', 'record'));
+    }
+
+    protected function resolveEmergencyRecord(int $id): MedicalRecord
+    {
+        $doctor = $this->doctor();
+
+        return MedicalRecord::with(['encounter', 'booking', 'pet', 'doctor', 'clinic', 'treatmentConsents'])
+            ->where('doctor_id', $doctor->id)
+            ->where('clinic_id', $doctor->clinic_id)
+            ->findOrFail($id);
     }
 
     public function edit($id)
