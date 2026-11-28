@@ -72,7 +72,7 @@ class QueueController extends Controller
         // di-check-in maupun dipanggil di tanggal booking sebenarnya.
         $notCheckedIn = Booking::with(['pet', 'doctor', 'user'])
             ->where('clinic_id', $clinicId)
-            ->whereDate('booking_date', $date)
+            ->where('booking_date', $date)
             ->where(function ($q) use ($date) {
                 $q->whereNull('queue_number')
                     ->orWhereDate('queue_date', '!=', $date);
@@ -92,7 +92,7 @@ class QueueController extends Controller
         $history = \App\Models\AuditLog::with('user')
             ->where('clinic_id', $clinicId)
             ->whereIn('action', ['queue.check_in', 'queue.check_in.patient', 'queue.status', 'queue.call_next', 'doctor.queue.called', 'doctor.queue.in_service', 'doctor.queue.no_show'])
-            ->whereDate('created_at', $date)
+            ->whereBetween('created_at', [\Illuminate\Support\Carbon::parse($date)->startOfDay(), \Illuminate\Support\Carbon::parse($date)->endOfDay()])
             ->latest()
             ->limit(20)
             ->get();

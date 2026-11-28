@@ -40,7 +40,7 @@
             <x-admin.panel title="{{ __('doctor.practice_identity') }}" :subtitle="($doctor->clinic->name ?? null) ? (__('doctor.shown_as_doctor_at') . ' ' . $doctor->clinic->name) : null">
                 <div class="flex items-center gap-4">
                     @if($doctor->photo_url)
-                        <img id="avatarPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}"
+                        <img id="avatarPreview" src="{{ \App\Support\ImageVariant::url($doctor->photo, 320) }}" decoding="async" alt="{{ $doctor->name }}"
                              class="h-20 w-20 flex-shrink-0 rounded-2xl object-cover ring-2 ring-slate-100 dark:ring-slate-700">
                     @else
                         <span id="avatarPreview" class="flex h-20 w-20 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600 ring-2 ring-slate-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-slate-700">
@@ -230,7 +230,7 @@
                     <div class="flex items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4 dark:border-slate-600 dark:bg-slate-800/30">
                         <label for="photo" class="group relative cursor-pointer">
                             @if($doctor->photo_url)
-                                <img id="photoPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ __('doctor.current_photo') }}"
+                                <img id="photoPreview" src="{{ \App\Support\ImageVariant::url($doctor->photo, 320) }}" decoding="async" alt="{{ __('doctor.current_photo') }}"
                                      class="h-16 w-16 flex-shrink-0 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700">
                             @else
                                 <span id="photoPreview" class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800">

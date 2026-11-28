@@ -184,6 +184,20 @@
             line-height: 1.55; margin-bottom: 1.25rem;
         }
         .error-box ul { margin: 0.25rem 0 0 1.1rem; }
+        .session-box {
+            background: #FFF7ED; border: 1px solid #FED7AA; color: #9A3412;
+            padding: 0.9rem 1rem; border-radius: 12px; font-size: 0.8125rem;
+            line-height: 1.6; margin-bottom: 1.25rem;
+        }
+        .session-box strong { display: block; color: #7C2D12; margin-bottom: 0.2rem; }
+        .session-box .session-action {
+            margin-top: 0.6rem; display: inline-flex; align-items: center; gap: 0.4rem;
+            border: 1px solid #FDBA74; background: #fff; color: #9A3412;
+            font: inherit; font-weight: 700; padding: 0.45rem 0.7rem;
+            border-radius: 8px; cursor: pointer;
+        }
+        .session-box .session-action:hover { background: #FFEDD5; }
+        .session-box .session-note { margin-top: 0.55rem; color: #9A3412; opacity: 0.85; }
         .field-error { font-size: 0.75rem; color: #DC2626; margin-top: 0.35rem; }
         .input-wrap.invalid input { border-color: #FCA5A5; background: #FEF2F2; }
         .input-wrap.invalid input:focus { border-color: #DC2626; box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1); }
@@ -417,6 +431,25 @@
             @if(session('success'))
                 <div class="success-box">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 11.1V12a10 10 0 1 1-5.9-9.1"/><polyline points="22 4 12 14 9 11"/></svg><span>{{ session('success') }}</span>
+                </div>
+            @endif
+
+            @if($adminSession ?? null)
+                <div class="session-box">
+                    <strong>Sesi admin masih aktif</strong>
+                    Anda sedang masuk sebagai <strong style="display:inline">{{ $adminSession->name }}</strong>.
+                    Portal dokter memakai sesi terpisah, jadi halaman ini tidak bisa langsung membuka dasbor dokter.
+                    <form method="POST" action="{{ route('admin.logout') }}" style="margin:0">
+                        @csrf
+                        <input type="hidden" name="redirect" value="doctor.login">
+                        <button type="submit" class="session-action">
+                            Keluar dari akun admin
+                        </button>
+                    </form>
+                    <p class="session-note">
+                        Setelah sesi admin ditutup, masuk dengan akun dokter. Jika langsung memasukkan akun dokter,
+                        sesi admin akan diganti. Untuk membuka keduanya bersamaan, gunakan jendela privat.
+                    </p>
                 </div>
             @endif
 

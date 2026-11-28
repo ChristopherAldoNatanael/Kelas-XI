@@ -818,6 +818,14 @@ class AdminAuthController extends Controller
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
+
+        // Tombol "Buka portal dokter" mengakhiri sesi admin lalu membuka
+        // login dokter. Redirect hanya diterima untuk nilai yang dikenal.
+        if ($request->input('redirect') === 'doctor.login') {
+            return redirect()->route('doctor.login')
+                ->with('success', 'Sesi admin ditutup. Silakan masuk dengan akun dokter.');
+        }
+
         return redirect()->route('admin.login');
     }
 

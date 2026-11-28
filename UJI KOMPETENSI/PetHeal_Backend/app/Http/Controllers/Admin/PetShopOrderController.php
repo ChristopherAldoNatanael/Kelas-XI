@@ -49,8 +49,8 @@ class PetShopOrderController extends Controller
                         ->orWhere('customer_phone', 'like', '%' . $search . '%');
                 });
             })
-            ->when($request->filled('from'), fn ($q) => $q->whereDate('created_at', '>=', $request->input('from')))
-            ->when($request->filled('to'), fn ($q) => $q->whereDate('created_at', '<=', $request->input('to')))
+            ->when($request->filled('from'), fn ($q) => $q->where('created_at', '>=', \Illuminate\Support\Carbon::parse($request->input('from'))->startOfDay()))
+            ->when($request->filled('to'), fn ($q) => $q->where('created_at', '<=', \Illuminate\Support\Carbon::parse($request->input('to'))->endOfDay()))
             ->orderByDesc('created_at')
             ->paginate(15)
             ->withQueryString();

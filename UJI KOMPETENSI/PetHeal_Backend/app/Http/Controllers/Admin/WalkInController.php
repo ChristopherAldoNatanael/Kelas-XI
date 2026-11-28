@@ -41,7 +41,7 @@ class WalkInController extends Controller
 
         $visits = Booking::with(['pet', 'doctor', 'user'])
             ->where('clinic_id', $clinicId)
-            ->whereDate('booking_date', $date)
+            ->where('booking_date', $date)
             ->whereIn('service_type', ['walk_in', 'emergency'])
             ->orderByDesc('created_at')
             ->get();

@@ -1,0 +1,16 @@
+[Unit]
+Description=PetHeal queue worker
+After=network.target mysql.service
+
+[Service]
+User=www-data
+Group=www-data
+Restart=always
+RestartSec=5
+WorkingDirectory=/var/www/petheal/current
+ExecStart=/usr/bin/php /var/www/petheal/current/artisan queue:work --sleep=1 --tries=3 --timeout=90 --max-time=3600
+KillSignal=SIGTERM
+TimeoutStopSec=3600
+
+[Install]
+WantedBy=multi-user.target

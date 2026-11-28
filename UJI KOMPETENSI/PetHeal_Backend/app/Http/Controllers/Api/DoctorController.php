@@ -203,7 +203,7 @@ class DoctorController extends Controller
         // date rail Android bisa menandai hari libur tanpa request tambahan.
         // Additive — klien lama mengabaikan key yang tidak dikenal.
         $doctor->load(['scheduleExceptions' => function ($query) {
-            $query->whereDate('date', '>=', today())
+            $query->where('date', '>=', today()->toDateString())
                 ->orderBy('date')
                 ->limit(30);
         }]);

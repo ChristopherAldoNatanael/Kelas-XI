@@ -44,7 +44,10 @@
             <x-admin.panel>
                 <div class="text-center">
                     @if($doctor->photo_url)
-                        <img class="mx-auto h-32 w-32 rounded-full object-cover" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
+                        <img class="mx-auto h-32 w-32 rounded-full object-cover"
+                             src="{{ \App\Support\ImageVariant::url($doctor->photo, 320) }}"
+                             srcset="{{ \App\Support\ImageVariant::url($doctor->photo, 160) }} 1x, {{ \App\Support\ImageVariant::url($doctor->photo, 320) }} 2x"
+                             sizes="128px" width="128" height="128" decoding="async" alt="{{ $doctor->name }}">
                     @else
                         <span class="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800">
                             <span class="material-symbols-outlined text-5xl" aria-hidden="true">person</span>
@@ -121,10 +124,13 @@
                     </div>
 
                     <div class="mt-4 flex flex-col gap-2">
-                        <a href="{{ route('doctor.login') }}" class="admin-btn-secondary justify-center">
+                        <a href="{{ route('doctor.login', ['from_admin' => 1]) }}" class="admin-btn-secondary justify-center">
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">open_in_new</span>
-                            Buka halaman login dokter
+                            Buka portal dokter
                         </a>
+                        <p class="-mt-1 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
+                            Portal dokter memakai akun dokter, bukan sesi admin. Keluar dari sesi admin dulu bila ingin masuk sebagai dokter.
+                        </p>
 
                         <form method="POST" action="{{ route('admin.doctors.revoke-account', $doctor->id) }}"
                               onsubmit="return confirm('Cabut akses portal dokter ini? Profil praktik, jadwal, dan rekam medis tetap tersimpan, tetapi dokter tidak bisa masuk lagi sampai diundang ulang.')">

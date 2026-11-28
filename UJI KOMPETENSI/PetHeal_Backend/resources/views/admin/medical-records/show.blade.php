@@ -213,7 +213,7 @@
                 <div class="space-y-3">
                     <div class="flex items-center gap-3 rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
                         @if($record->pet?->photo_url)
-                            <img class="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200" src="{{ $record->pet->photo_url }}" alt="{{ $record->pet->name }}">
+                            <img class="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200" src="{{ \App\Support\ImageVariant::url($record->pet->photo, 96) }}" width="48" height="48" decoding="async" alt="{{ $record->pet->name }}">
                         @else
                             <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">
                                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">pets</span>
@@ -241,7 +241,7 @@
 
                     <div class="flex items-center gap-3 rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
                         @if($record->doctor?->photo_url)
-                            <img class="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200" src="{{ $record->doctor->photo_url }}" alt="{{ $record->doctor->name }}">
+                            <img class="h-12 w-12 rounded-xl object-cover ring-1 ring-slate-200" src="{{ \App\Support\ImageVariant::url($record->doctor->photo, 96) }}" width="48" height="48" decoding="async" alt="{{ $record->doctor->name }}">
                         @else
                             <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600 dark:bg-violet-900/30">
                                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">stethoscope</span>

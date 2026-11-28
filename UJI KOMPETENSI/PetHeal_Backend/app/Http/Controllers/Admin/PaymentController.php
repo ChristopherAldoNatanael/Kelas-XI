@@ -546,11 +546,11 @@ class PaymentController extends Controller
             ->with(['pet.user', 'doctor', 'service']);
 
         if ($request->filled('from')) {
-            $query->whereDate('updated_at', '>=', $request->input('from'));
+            $query->where('updated_at', '>=', \Illuminate\Support\Carbon::parse($request->input('from'))->startOfDay());
         }
 
         if ($request->filled('to')) {
-            $query->whereDate('updated_at', '<=', $request->input('to'));
+            $query->where('updated_at', '<=', \Illuminate\Support\Carbon::parse($request->input('to'))->endOfDay());
         }
 
         // Export exactly the rows the list would show: the old unconditional

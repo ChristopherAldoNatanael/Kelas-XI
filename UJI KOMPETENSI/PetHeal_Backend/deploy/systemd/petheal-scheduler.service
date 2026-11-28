@@ -1,0 +1,10 @@
+[Unit]
+Description=PetHeal scheduler
+After=network.target mysql.service
+
+[Service]
+Type=oneshot
+User=www-data
+Group=www-data
+WorkingDirectory=/var/www/petheal/current
+ExecStart=/usr/bin/php /var/www/petheal/current/artisan schedule:run

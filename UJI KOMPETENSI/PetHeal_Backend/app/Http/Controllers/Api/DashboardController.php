@@ -32,7 +32,7 @@ class DashboardController extends Controller
             $upcomingBookings = Booking::with(['pet', 'doctor'])
                 ->whereHas('pet', fn($q) => $q->where('user_id', $user->id))
                 ->whereIn('status', ['pending', 'confirmed'])
-                ->whereDate('booking_date', '>=', now())
+                ->where('booking_date', '>=', today()->toDateString())
                 ->orderBy('booking_date')
                 ->orderBy('booking_time')
                 ->limit(5)
@@ -87,8 +87,8 @@ class DashboardController extends Controller
             // vaccination overdue alerts and visit history.
             $followUpDueCount = MedicalRecord::whereHas('pet', fn($q) => $q->where('user_id', $user->id))
                 ->whereNotNull('next_visit_date')
-                ->whereDate('next_visit_date', '>=', now()->toDateString())
-                ->whereDate('next_visit_date', '<=', now()->addDays(14))
+                ->where('next_visit_date', '>=', now()->toDateString())
+                ->where('next_visit_date', '<=', now()->addDays(14)->toDateString())
                 ->count();
             
             // Vaccination alerts

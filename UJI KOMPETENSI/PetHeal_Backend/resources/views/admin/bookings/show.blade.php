@@ -99,7 +99,7 @@
                         <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.pet') }}</p>
                         <div class="mt-2 flex items-center gap-3">
                             @if($booking->pet?->photo_url)
-                                <img src="{{ $booking->pet->photo_url }}" alt="" class="h-12 w-12 rounded-full object-cover">
+                                <img src="{{ \App\Support\ImageVariant::url($booking->pet->photo, 96) }}" width="48" height="48" decoding="async" alt="" class="h-12 w-12 rounded-full object-cover">
                             @else
                                 <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">
                                     <span class="material-symbols-outlined text-[22px]" aria-hidden="true">pets</span>

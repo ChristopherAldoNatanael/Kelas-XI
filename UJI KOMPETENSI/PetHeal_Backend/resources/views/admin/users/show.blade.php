@@ -37,7 +37,7 @@
         <x-admin.panel :title="__('admin.user_info')">
             <div class="flex items-center gap-4">
                 @if($user->photo_url)
-                    <img src="{{ $user->photo_url }}" alt="{{ $user->name }}" class="h-16 w-16 rounded-full object-cover">
+                    <img src="{{ \App\Support\ImageVariant::url($user->photo, 192) }}" width="64" height="64" decoding="async" alt="{{ $user->name }}" class="h-16 w-16 rounded-full object-cover">
                 @else
                     <span class="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-2xl font-bold text-emerald-600 dark:bg-emerald-900/30">
                         {{ mb_substr($user->name, 0, 1) }}
@@ -91,7 +91,7 @@
                 @foreach($user->pets as $pet)
                     <div class="flex items-center gap-3 rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
                         @if($pet->photo_url)
-                            <img class="h-10 w-10 rounded-full object-cover" src="{{ $pet->photo_url }}" alt="{{ $pet->name }}">
+                            <img class="h-10 w-10 rounded-full object-cover" src="{{ \App\Support\ImageVariant::url($pet->photo, 96) }}" width="40" height="40" loading="lazy" decoding="async" alt="{{ $pet->name }}">
                         @else
                             <span class="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30">
                                 <span class="material-symbols-outlined text-[20px]" aria-hidden="true">pets</span>

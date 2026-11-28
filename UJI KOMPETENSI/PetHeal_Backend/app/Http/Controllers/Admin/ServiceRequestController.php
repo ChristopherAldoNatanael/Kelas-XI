@@ -274,7 +274,7 @@ class ServiceRequestController extends Controller
 
                     $slotTaken = \App\Models\Booking::where('doctor_id', $offerDoctor->id)
                         ->where('clinic_id', $serviceRequest->clinic_id)
-                        ->whereDate('booking_date', $validated['offer_schedule_date'])
+                        ->where('booking_date', $validated['offer_schedule_date'])
                         ->where('booking_time', $validated['offer_schedule_time'])
                         ->whereIn('status', ['pending', 'confirmed'])
                         ->exists();

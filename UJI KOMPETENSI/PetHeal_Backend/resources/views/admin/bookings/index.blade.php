@@ -101,7 +101,7 @@
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-2.5">
                                     @if($booking->pet?->photo_url)
-                                        <img class="h-8 w-8 rounded-full object-cover" src="{{ $booking->pet->photo_url }}" alt="">
+                                        <img class="h-8 w-8 rounded-full object-cover" src="{{ \App\Support\ImageVariant::url($booking->pet->photo, 64) }}" width="32" height="32" loading="lazy" decoding="async" alt="">
                                     @else
                                         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30"
                                               aria-hidden="true">

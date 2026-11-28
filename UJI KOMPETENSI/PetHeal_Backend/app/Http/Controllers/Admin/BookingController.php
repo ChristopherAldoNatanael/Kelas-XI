@@ -50,7 +50,7 @@ class BookingController extends Controller
         // supaya form yang belum diisi tidak mengosongkan hasil.
         $date = trim((string) $request->input('date'));
         if ($date !== '') {
-            $query->whereDate('booking_date', $date);
+            $query->where('booking_date', $date);
         }
 
         // Pencarian bebas: nomor booking, nama pemilik, nama hewan, nama
@@ -109,7 +109,7 @@ class BookingController extends Controller
             ->get();
 
         $bookings = Booking::with(['user', 'pet', 'doctor', 'service'])
-            ->whereDate('booking_date', $selectedDate)
+            ->where('booking_date', $selectedDate)
             ->when($clinicId, fn ($q) => $q->where('clinic_id', $clinicId))
             ->when(!empty($validated['doctor_id']), fn ($q) => $q->where('doctor_id', $validated['doctor_id']))
             ->orderBy('booking_time')
@@ -131,7 +131,7 @@ class BookingController extends Controller
         // badge "cuti" dan slot picker Android tidak mungkin berbeda.
         $dayExceptions = DoctorScheduleException::query()
             ->where('clinic_id', $clinicId)
-            ->whereDate('date', $selectedDate)
+            ->where('date', $selectedDate)
             ->get()
             ->keyBy('doctor_id');
 
@@ -469,15 +469,15 @@ class BookingController extends Controller
         }
 
         if (!empty($validated['date'])) {
-            $query->whereDate('booking_date', $validated['date']);
+            $query->where('booking_date', $validated['date']);
         }
 
         if (!empty($validated['from'])) {
-            $query->whereDate('booking_date', '>=', $validated['from']);
+            $query->where('booking_date', '>=', $validated['from']);
         }
 
         if (!empty($validated['to'])) {
-            $query->whereDate('booking_date', '<=', $validated['to']);
+            $query->where('booking_date', '<=', $validated['to']);
         }
 
         // Kata kunci yang sama dengan layar daftar, supaya berkas yang diunduh

@@ -139,7 +139,7 @@ $roleBadges = [
                                 <td class="px-5 py-3">
                                     <div class="flex items-center gap-3">
                                         @if($user->photo_url)
-                                            <img src="{{ $user->photo_url }}" alt="" class="h-9 w-9 rounded-full object-cover" loading="lazy">
+                                            <img src="{{ \App\Support\ImageVariant::url($user->photo, 96) }}" width="36" height="36" alt="" class="h-9 w-9 rounded-full object-cover" loading="lazy" decoding="async">
                                         @else
                                             <span class="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                                   aria-hidden="true">

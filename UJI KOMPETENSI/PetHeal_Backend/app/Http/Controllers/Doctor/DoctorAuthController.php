@@ -21,9 +21,14 @@ use Illuminate\Support\Facades\Hash;
  */
 class DoctorAuthController extends Controller
 {
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
-        if (Auth::check()) {
+        // Tautan dari halaman admin memakai ?from_admin=1. Tanpa penanda ini,
+        // admin yang masih login akan langsung dilempar ke dasbor admin dan
+        // mengira tombol portal dokter rusak.
+        $fromAdmin = $request->boolean('from_admin');
+
+        if (Auth::check() && !$fromAdmin) {
             if (Auth::user()->role === 'doctor' && Auth::user()->doctor) {
                 return redirect()->route('doctor.dashboard');
             }
@@ -33,7 +38,10 @@ class DoctorAuthController extends Controller
             }
         }
 
-        return view('admin.auth.login', ['portal' => 'doctor']);
+        return view('admin.auth.login', [
+            'portal' => 'doctor',
+            'adminSession' => Auth::check() ? Auth::user() : null,
+        ]);
     }
 
     public function login(Request $request)

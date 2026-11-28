@@ -139,11 +139,11 @@ class MedicineStockController extends Controller
         }
 
         if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->query('from'));
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::parse($request->query('from'))->startOfDay());
         }
 
         if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->query('to'));
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::parse($request->query('to'))->endOfDay());
         }
 
         $stockTerm = trim((string) ($request->query('search') ?? $request->query('q') ?? ''));

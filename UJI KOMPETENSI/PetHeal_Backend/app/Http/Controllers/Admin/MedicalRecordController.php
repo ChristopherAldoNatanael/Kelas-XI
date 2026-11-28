@@ -141,11 +141,11 @@ class MedicalRecordController extends Controller
             ->when($clinicId, fn($q) => $q->where('clinic_id', $clinicId));
 
         if ($request->filled('from')) {
-            $query->whereDate('created_at', '>=', $request->input('from'));
+            $query->where('created_at', '>=', \Illuminate\Support\Carbon::parse($request->input('from'))->startOfDay());
         }
 
         if ($request->filled('to')) {
-            $query->whereDate('created_at', '<=', $request->input('to'));
+            $query->where('created_at', '<=', \Illuminate\Support\Carbon::parse($request->input('to'))->endOfDay());
         }
 
         if ($request->filled('doctor_id')) {

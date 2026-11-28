@@ -473,7 +473,7 @@
                                 </td>
                                 <td class="px-5 py-3">
                                     @if($booking->doctor->photo_url)
-                                        <img class="h-8 w-8 rounded-full object-cover" src="{{ $booking->doctor->photo_url }}" alt="{{ $booking->doctor->name }}">
+                                        <img class="h-8 w-8 rounded-full object-cover" src="{{ \App\Support\ImageVariant::url($booking->doctor->photo, 96) }}" width="32" height="32" loading="lazy" decoding="async" alt="{{ $booking->doctor->name }}">
                                     @else
                                         <span class="flex h-8 w-8 items-center justify-center rounded-full border border-blue-100 bg-blue-50 text-[10px] font-bold text-blue-700 dark:border-blue-900/60 dark:bg-blue-900/30 dark:text-blue-400">
                                             {{ \Illuminate\Support\Str::substr($booking->doctor->name, 0, 1) }}
@@ -783,3 +783,7 @@
     });
 </script>
 @endsection
+
+@push('scripts')
+    @vite('resources/js/dashboard.js')
+@endpush

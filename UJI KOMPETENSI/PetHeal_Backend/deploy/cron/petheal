@@ -1,0 +1,3 @@
+# Pasang dengan: sudo cp deploy/cron/petheal /etc/cron.d/petheal
+# Ganti user www-data dan path aplikasi bila berbeda.
+* * * * * www-data cd /var/www/petheal/current && /usr/bin/php artisan schedule:run >> /dev/null 2>&1

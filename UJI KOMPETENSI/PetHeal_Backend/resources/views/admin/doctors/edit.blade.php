@@ -95,7 +95,7 @@
                         <div class="flex items-center gap-4">
                             <div class="admin-photo-slot">
                                 @if($doctor->photo_url)
-                                    <img id="photo-preview" class="h-full w-full object-cover" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
+                                    <img id="photo-preview" class="h-full w-full object-cover" src="{{ \App\Support\ImageVariant::url($doctor->photo, 320) }}" decoding="async" alt="{{ $doctor->name }}">
                                 @else
                                     <img id="photo-preview" class="hidden h-full w-full object-cover" alt="">
                                     <span id="photo-placeholder" class="admin-photo-slot__placeholder">

@@ -12,11 +12,24 @@ class AppSetting extends Model
         'value',
     ];
 
+    /**
+     * Semua setting diambil sekali per window cache. Sebelumnya satu halaman
+     * Medicines bisa melakukan 18 query app_settings saat cache dingin.
+     *
+     * @return array<string, string|null>
+     */
+    public static function allValues(): array
+    {
+        return Cache::remember('app_settings_all_v1', 3600, function () {
+            return static::query()->pluck('value', 'key')->all();
+        });
+    }
+
     public static function getValue(string $key, ?string $default = null): ?string
     {
-        return Cache::remember("app_setting_{$key}", 3600, function () use ($key) {
-            return static::query()->where('key', $key)->value('value');
-        }) ?? $default;
+        $values = static::allValues();
+
+        return array_key_exists($key, $values) ? $values[$key] : $default;
     }
 
     public static function setValue(string $key, ?string $value): void
@@ -26,6 +39,7 @@ class AppSetting extends Model
             ['value' => $value]
         );
 
+        Cache::forget('app_settings_all_v1');
         Cache::forget("app_setting_{$key}");
     }
 }

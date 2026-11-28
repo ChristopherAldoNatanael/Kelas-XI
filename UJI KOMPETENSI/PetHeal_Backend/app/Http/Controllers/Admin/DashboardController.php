@@ -68,32 +68,42 @@ class DashboardController extends Controller
         $cacheKey = 'dashboard_stats_v4_c' . ($clinicId ?: 'all') . '_all';
 
         $buildDashboardStats = function () use ($startDate, $endDate, $hasDateFilter, $clinicId) {
-            // Revenue statistics — clinic scoped
-            $todayRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
-                ->whereDate('created_at', today())
-                ->value('total') ?? 0;
-
-            $monthlyRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
-                ->where('created_at', '>=', Carbon::now()->startOfMonth())
-                ->value('total') ?? 0;
-
-            // Honest comparisons. "MTD" is compared with the same number of
-            // days in the previous month, not the full previous month, so the
-            // badge does not lie early in the month.
+            // Empat periode pendapatan dihitung dalam SATU query dengan
+            // conditional aggregation. Rentang tanggal eksplisit (bukan
+            // whereDate) agar index created_at tetap terpakai.
+            $revenueExpr = 'COALESCE(cost, 0) + COALESCE(treatment_cost, 0) + COALESCE(medicine_cost, 0)';
+            $todayStart = Carbon::today()->startOfDay();
+            $todayEnd = Carbon::today()->endOfDay();
+            $monthStart = Carbon::now()->startOfMonth();
             $previousMonthStart = Carbon::now()->subMonthNoOverflow()->startOfMonth();
             $previousMonthDay = min(Carbon::now()->day, $previousMonthStart->daysInMonth);
             $previousMonthEnd = $previousMonthStart->copy()->addDays($previousMonthDay - 1)->endOfDay();
-            $previousMonthRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
-                ->whereBetween('created_at', [$previousMonthStart, $previousMonthEnd])
-                ->value('total') ?? 0;
+            $yesterdayStart = Carbon::yesterday()->startOfDay();
+            $yesterdayEnd = Carbon::yesterday()->endOfDay();
 
-            $yesterdayRevenue = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
-                ->selectRaw('COALESCE(SUM(cost), 0) + COALESCE(SUM(treatment_cost), 0) + COALESCE(SUM(medicine_cost), 0) as total')
-                ->whereDate('created_at', Carbon::yesterday())
-                ->value('total') ?? 0;
+            $revenueRow = MedicalRecord::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
+                ->selectRaw(
+                    "COALESCE(SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$revenueExpr} ELSE 0 END), 0) as today_total",
+                    [$todayStart, $todayEnd]
+                )
+                ->selectRaw(
+                    "COALESCE(SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$revenueExpr} ELSE 0 END), 0) as month_total",
+                    [$monthStart, Carbon::now()->endOfDay()]
+                )
+                ->selectRaw(
+                    "COALESCE(SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$revenueExpr} ELSE 0 END), 0) as previous_month_total",
+                    [$previousMonthStart, $previousMonthEnd]
+                )
+                ->selectRaw(
+                    "COALESCE(SUM(CASE WHEN created_at BETWEEN ? AND ? THEN {$revenueExpr} ELSE 0 END), 0) as yesterday_total",
+                    [$yesterdayStart, $yesterdayEnd]
+                )
+                ->first();
+
+            $todayRevenue = (float) ($revenueRow->today_total ?? 0);
+            $monthlyRevenue = (float) ($revenueRow->month_total ?? 0);
+            $previousMonthRevenue = (float) ($revenueRow->previous_month_total ?? 0);
+            $yesterdayRevenue = (float) ($revenueRow->yesterday_total ?? 0);
 
             $monthlyRevenueGrowth = $previousMonthRevenue > 0
                 ? round((($monthlyRevenue - $previousMonthRevenue) / $previousMonthRevenue) * 100, 1)
@@ -111,12 +121,22 @@ class DashboardController extends Controller
             $baseBooking = fn() => Booking::when($clinicId, fn($q) => $q->where('clinic_id', $clinicId))
                 ->when($hasDateFilter, fn($q) => $q->whereBetween('created_at', [$startDate, $endDate]));
 
-            $unpaidBookings = (clone $baseBooking())->where('payment_status', 'unpaid')->count();
-            $pendingPayment = (clone $baseBooking())->where('payment_status', 'pending')->count();
-            $dpPendingBookings = (clone $baseBooking())->where('payment_status', 'dp_pending')->count();
-            $dpPaidBookings = (clone $baseBooking())->where('payment_status', 'dp_paid')->count();
-            $paidInFull = (clone $baseBooking())->where('payment_status', 'paid')->count();
-            $failedPayments = (clone $baseBooking())->where('payment_status', 'failed')->count();
+            // Enam status pembayaran dihitung dalam satu query.
+            $paymentCounts = (clone $baseBooking())
+                ->selectRaw("SUM(CASE WHEN payment_status = 'unpaid' THEN 1 ELSE 0 END) as unpaid")
+                ->selectRaw("SUM(CASE WHEN payment_status = 'pending' THEN 1 ELSE 0 END) as pending")
+                ->selectRaw("SUM(CASE WHEN payment_status = 'dp_pending' THEN 1 ELSE 0 END) as dp_pending")
+                ->selectRaw("SUM(CASE WHEN payment_status = 'dp_paid' THEN 1 ELSE 0 END) as dp_paid")
+                ->selectRaw("SUM(CASE WHEN payment_status = 'paid' THEN 1 ELSE 0 END) as paid")
+                ->selectRaw("SUM(CASE WHEN payment_status = 'failed' THEN 1 ELSE 0 END) as failed")
+                ->first();
+
+            $unpaidBookings = (int) ($paymentCounts->unpaid ?? 0);
+            $pendingPayment = (int) ($paymentCounts->pending ?? 0);
+            $dpPendingBookings = (int) ($paymentCounts->dp_pending ?? 0);
+            $dpPaidBookings = (int) ($paymentCounts->dp_paid ?? 0);
+            $paidInFull = (int) ($paymentCounts->paid ?? 0);
+            $failedPayments = (int) ($paymentCounts->failed ?? 0);
 
             // Formula yang sama dengan PaymentController::paymentStats():
             // seluruh paid_amount dikurangi refund. Tanpa pengurangan refund,

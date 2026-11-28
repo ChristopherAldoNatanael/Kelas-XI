@@ -65,7 +65,10 @@
                                 <div class="flex items-center gap-3">
                                     @if($doctor->photo_url)
                                         <img class="h-10 w-10 flex-shrink-0 rounded-full object-cover ring-2 ring-slate-100 dark:ring-slate-700"
-                                             src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
+                                             src="{{ \App\Support\ImageVariant::url($doctor->photo, 96) }}"
+                                             srcset="{{ \App\Support\ImageVariant::url($doctor->photo, 96) }} 1x, {{ \App\Support\ImageVariant::url($doctor->photo, 192) }} 2x"
+                                             sizes="40px" width="40" height="40" loading="lazy" decoding="async"
+                                             alt="{{ $doctor->name }}">
                                     @else
                                         <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-2 ring-slate-100 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-slate-700"
                                               aria-hidden="true">

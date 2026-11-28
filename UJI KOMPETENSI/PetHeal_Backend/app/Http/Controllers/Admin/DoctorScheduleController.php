@@ -50,7 +50,7 @@ class DoctorScheduleController extends Controller
         $exceptions = DoctorScheduleException::query()
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $clinicId)
-            ->whereDate('date', '>=', $today->toDateString())
+            ->where('date', '>=', $today->toDateString())
             ->orderBy('date')
             ->limit(30)
             ->get();
@@ -64,7 +64,7 @@ class DoctorScheduleController extends Controller
         $upcomingBookings = \App\Models\Booking::query()
             ->where('doctor_id', $doctor->id)
             ->where('clinic_id', $clinicId)
-            ->whereDate('booking_date', '>=', $today->toDateString())
+            ->where('booking_date', '>=', $today->toDateString())
             ->whereIn('status', ['pending', 'confirmed'])
             ->orderBy('booking_date')
             ->orderBy('booking_time')

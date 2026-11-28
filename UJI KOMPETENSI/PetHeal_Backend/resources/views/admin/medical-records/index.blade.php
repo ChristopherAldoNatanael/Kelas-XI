@@ -133,7 +133,9 @@ $currency = static fn ($amount) => format_rupiah($amount);
                                 <div class="flex items-start gap-3">
                                     @if($record->pet?->photo_url)
                                         <img class="h-10 w-10 flex-shrink-0 rounded-xl object-cover ring-1 ring-slate-200"
-                                             src="{{ $record->pet->photo_url }}"
+                                             src="{{ \App\Support\ImageVariant::url($record->pet->photo, 96) }}"
+                                             srcset="{{ \App\Support\ImageVariant::url($record->pet->photo, 96) }} 1x, {{ \App\Support\ImageVariant::url($record->pet->photo, 192) }} 2x"
+                                             sizes="40px" width="40" height="40" loading="lazy" decoding="async"
                                              alt="{{ $record->pet->name }}">
                                     @else
                                         <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 ring-1 ring-emerald-200/70 dark:bg-emerald-900/30 dark:text-emerald-400"
