@@ -98,12 +98,12 @@
             {{-- Stok tidak diedit di form: diubah lewat dua aksi yang tercatat. --}}
             <x-admin.panel :title="__('admin.medicine_stock')" :subtitle="__('admin.medicine_stock_desc')">
                 <div class="rounded-2xl border border-slate-200/70 p-5 dark:border-slate-700">
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.medicine_stock_current') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.medicine_stock_current') }}</p>
                     <p class="mt-1 text-3xl font-bold tabular-nums {{ $medicine->isLowStock() ? 'text-rose-600 dark:text-rose-400' : 'text-slate-900 dark:text-white' }}">
                         {{ format_qty((float) $medicine->stock) }}
                         <span class="text-sm font-medium text-slate-500">{{ $medicine->unit }}</span>
                     </p>
-                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.medicine_available_stock') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.medicine_available_stock') }}</p>
                     @if((float) $medicine->quarantined_stock > 0)
                         <div class="mt-3 flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-3.5 py-2.5 dark:border-orange-900/60 dark:bg-orange-900/20">
                             <span class="text-xs font-semibold text-orange-800 dark:text-orange-300">{{ __('inventory.medicine_quarantine_stock') }}</span>
@@ -132,7 +132,7 @@
                                 ? 'border-amber-200 bg-amber-50 dark:border-amber-900/60 dark:bg-amber-900/20'
                                 : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-900/60') }}">
                         <div class="flex items-start gap-2.5">
-                            <span class="material-symbols-outlined text-[20px] {{ $expiryStatus === 'expired' ? 'text-rose-600 dark:text-rose-400' : ($expiryStatus === 'expiring' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400') }}" aria-hidden="true">event_busy</span>
+                            <span class="material-symbols-outlined text-[20px] {{ $expiryStatus === 'expired' ? 'text-rose-600 dark:text-rose-400' : ($expiryStatus === 'expiring' ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500') }}" aria-hidden="true">event_busy</span>
                             <div class="min-w-0">
                                 <p class="text-sm font-semibold {{ $expiryStatus === 'expired' ? 'text-rose-700 dark:text-rose-300' : ($expiryStatus === 'expiring' ? 'text-amber-800 dark:text-amber-300' : 'text-slate-700 dark:text-slate-300') }}">
                                     @if($expiryStatus === 'expired')
@@ -207,7 +207,7 @@
                         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
                             <span class="material-symbols-outlined text-[18px] text-emerald-600 dark:text-emerald-400" aria-hidden="true">add_box</span>
                             {{ __('admin.medicine_stock_in') }}
-                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-400 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-500 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
                         </summary>
                 <form method="POST" action="{{ route('admin.medicines.stock-in', $medicine->id) }}" class="space-y-3 px-3 pb-3">
                     @csrf
@@ -242,7 +242,7 @@
                         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-800 dark:text-slate-200">
                             <span class="material-symbols-outlined text-[18px] text-sky-600 dark:text-sky-400" aria-hidden="true">published_with_changes</span>
                             {{ __('admin.medicine_adjust') }}
-                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-400 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+                            <span class="ml-auto material-symbols-outlined text-[18px] text-slate-500 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
                         </summary>
                 <form method="POST" action="{{ route('admin.medicines.adjust', $medicine->id) }}" class="space-y-3 px-3 pb-3">
                     @csrf
@@ -265,7 +265,7 @@
                     </details>
 
                     <p class="flex items-start gap-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
-                        <span class="material-symbols-outlined text-[15px] text-slate-400" aria-hidden="true">info</span>
+                        <span class="material-symbols-outlined text-[15px] text-slate-500" aria-hidden="true">info</span>
                         {{ __('admin.medicine_mutations_link_hint') }}
                         <a href="{{ route('admin.medicines.mutations.create') }}" class="font-semibold text-primary hover:underline">
                             {{ __('menu.medicine_mutations_item') }}
@@ -354,7 +354,7 @@
                                 · {{ $movement->stockStateLabel() }}
                             </p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $movement->reason ?: '—' }}</p>
-                            <p class="text-[11px] text-slate-400">{{ $movement->created_at?->format('d M Y H:i') }}</p>
+                            <p class="text-[11px] text-slate-500">{{ $movement->created_at?->format('d/m/Y H:i') }}</p>
                         </div>
                         <p class="whitespace-nowrap text-sm font-bold tabular-nums {{ (float) $movement->quantity >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">
                             {{ (float) $movement->quantity >= 0 ? '+' : '' }}{{ format_qty((float) $movement->quantity) }}

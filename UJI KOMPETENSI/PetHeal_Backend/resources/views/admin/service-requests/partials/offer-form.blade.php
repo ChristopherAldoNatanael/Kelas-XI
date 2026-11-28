@@ -25,7 +25,7 @@
 
             <div>
                 <label for="offer_service_id" class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Layanan katalog <span class="font-normal text-slate-400">(opsional)</span>
+                    Layanan katalog <span class="font-normal text-slate-500">(opsional)</span>
                 </label>
                 <select name="offer_service_id" id="offer_service_id" class="admin-input">
                     <option value="">— Layanan khusus / belum ada di katalog —</option>
@@ -66,7 +66,7 @@
                         Harga (Rp) <span class="text-rose-500">*</span>
                     </label>
                     <div class="relative">
-                        <span class="pointer-events-none absolute left-3 flex items-center text-xs font-medium text-slate-400" style="top: 50%; transform: translateY(-50%);">Rp</span>
+                        <span class="pointer-events-none absolute left-3 flex items-center text-xs font-medium text-slate-500" style="top: 50%; transform: translateY(-50%);">Rp</span>
                         <input type="number" step="1000" min="0" max="1000000000" name="offer_price" id="offer_price" required
                                value="{{ old('offer_price', $request->offer_price) }}"
                                class="admin-input" style="padding-left: 2.25rem;" placeholder="0">
@@ -83,7 +83,7 @@
                 </div>
                 <div class="col-span-2">
                     <label for="offer_duration_minutes" class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                        Durasi <span class="font-normal text-slate-400">(menit, opsional)</span>
+                        Durasi <span class="font-normal text-slate-500">(menit, opsional)</span>
                     </label>
                     <input type="number" min="5" max="1440" step="5" name="offer_duration_minutes" id="offer_duration_minutes"
                            value="{{ old('offer_duration_minutes', $request->offer_duration_minutes) }}"
@@ -118,15 +118,15 @@
             <div id="offer_doctor_schedule" class="hidden rounded-xl border border-slate-200 bg-slate-50/80 px-4 py-3 text-[11.5px] leading-5 text-slate-600 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-300">
                 <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px] text-slate-400" aria-hidden="true">calendar_month</span>
+                        <span class="material-symbols-outlined text-[15px] text-slate-500" aria-hidden="true">calendar_month</span>
                         <span id="offer_doctor_days">—</span>
                     </span>
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px] text-slate-400" aria-hidden="true">schedule</span>
+                        <span class="material-symbols-outlined text-[15px] text-slate-500" aria-hidden="true">schedule</span>
                         <span id="offer_doctor_hours">—</span>
                     </span>
                     <span class="inline-flex items-center gap-1.5">
-                        <span class="material-symbols-outlined text-[15px] text-slate-400" aria-hidden="true">local_hospital</span>
+                        <span class="material-symbols-outlined text-[15px] text-slate-500" aria-hidden="true">local_hospital</span>
                         <span id="offer_clinic_info">—</span>
                     </span>
                 </div>
@@ -161,7 +161,7 @@
             </div>
 
             <div class="rounded-xl border border-slate-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-900/40">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ringkasan penawaran</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ringkasan penawaran</p>
                 <dl class="mt-2 space-y-1.5 text-[12px] leading-5">
                     <div class="flex gap-2">
                         <dt class="w-16 shrink-0 text-slate-500 dark:text-slate-400">Layanan</dt>
@@ -194,7 +194,7 @@
 
             <div>
                 <label for="offer_valid_until" class="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                    Berlaku sampai <span class="font-normal text-slate-400">(opsional)</span>
+                    Berlaku sampai <span class="font-normal text-slate-500">(opsional)</span>
                 </label>
                 <input type="datetime-local" name="offer_valid_until" id="offer_valid_until"
                        value="{{ old('offer_valid_until', $request->offer_valid_until?->format('Y-m-d\TH:i')) }}"

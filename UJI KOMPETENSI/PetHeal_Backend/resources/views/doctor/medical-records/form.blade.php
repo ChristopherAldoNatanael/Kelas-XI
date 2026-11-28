@@ -39,31 +39,31 @@
     <x-admin.panel :title="__('doctor.booking_info')">
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pasien</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pasien</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->pet->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pemilik</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pemilik</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->user->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.species_breed') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.species_breed') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
                     {{ ucfirst($booking->pet->species ?? '—') }}{{ $booking->pet->breed ? ' · ' . $booking->pet->breed : '' }}
                 </p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Layanan</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Layanan</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->service->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tanggal</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
                     {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                 </p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jam</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Jam</p>
                 <p class="mt-1 text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200">
                     {{ substr((string) $booking->booking_time, 0, 5) }} WIB
                 </p>
@@ -72,7 +72,7 @@
 
         @if($booking->notes)
             <div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.owner_notes') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.owner_notes') }}</p>
                 <p class="mt-1 whitespace-pre-line rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">{{ $booking->notes }}</p>
             </div>
         @endif
@@ -182,7 +182,7 @@
 
             @if($isEdit)
                 <div class="border-t border-slate-100 pt-6 dark:border-slate-800">
-                    <label for="change_reason" class="admin-label">Alasan koreksi <span class="font-normal text-slate-400">(opsional)</span></label>
+                    <label for="change_reason" class="admin-label">Alasan koreksi <span class="font-normal text-slate-500">(opsional)</span></label>
                     <input type="text" name="change_reason" id="change_reason" maxlength="255"
                            value="{{ old('change_reason') }}" class="admin-input"
                            placeholder="Contoh: koreksi dosis setelah konsultasi lanjutan">

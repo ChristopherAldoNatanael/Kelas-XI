@@ -60,6 +60,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // menunjuk loopback (mis. dibuka lewat ngrok).
         $middleware->append(\App\Http\Middleware\UseRequestAssetOrigin::class);
         $middleware->append(\App\Http\Middleware\CacheStaticAssets::class);
+        $middleware->append(\App\Http\Middleware\SecurityHeaders::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Midtrans Server Key tidak boleh ikut ter-flash ke session saat

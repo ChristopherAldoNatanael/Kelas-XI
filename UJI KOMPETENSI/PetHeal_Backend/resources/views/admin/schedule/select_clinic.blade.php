@@ -48,7 +48,7 @@
                                     <p class="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">{{ $clinic->address }}</p>
                                 @endif
                                 @if($clinic->phone || $clinic->email)
-                                    <p class="mt-2 text-[10px] text-slate-400">
+                                    <p class="mt-2 text-[10px] text-slate-500">
                                         {{ collect([$clinic->phone, $clinic->email])->filter()->join(' · ') }}
                                     </p>
                                 @endif

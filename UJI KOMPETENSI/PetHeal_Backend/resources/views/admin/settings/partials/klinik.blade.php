@@ -21,7 +21,7 @@
 
             {{-- Identitas --}}
             <fieldset class="space-y-4">
-                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('admin.clinic_identity_section') }}</legend>
+                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{{ __('admin.clinic_identity_section') }}</legend>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
@@ -35,7 +35,7 @@
                         <label for="clinic_slug" class="admin-label">{{ __('admin.slug_app_label') }}</label>
                         <input id="clinic_slug" type="text" value="{{ $clinic->slug }}" disabled
                                class="admin-input cursor-not-allowed bg-slate-50 font-mono text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-                        <p class="mt-1.5 text-[11px] text-slate-400">{{ __('clinics.slug_locked') }}</p>
+                        <p class="mt-1.5 text-[11px] text-slate-500">{{ __('clinics.slug_locked') }}</p>
                     </div>
                 </div>
 
@@ -56,14 +56,14 @@
 
             {{-- Kontak --}}
             <fieldset class="space-y-4 border-t border-slate-100 pt-6 dark:border-slate-800">
-                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('admin.clinic_contact_section') }}</legend>
+                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{{ __('admin.clinic_contact_section') }}</legend>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label for="clinic_phone" class="admin-label">{{ __('clinics.phone') }}</label>
                         <input id="clinic_phone" type="text" name="phone" value="{{ old('phone', $clinic->phone) }}" placeholder="{{ __('clinics.phone_placeholder') }}"
                                class="admin-input">
-                        <p class="mt-1.5 text-[11px] text-slate-400">{{ __('admin.whatsapp_hint') }}</p>
+                        <p class="mt-1.5 text-[11px] text-slate-500">{{ __('admin.whatsapp_hint') }}</p>
                     </div>
                     <div>
                         <label for="clinic_email" class="admin-label">{{ __('clinics.email') }}</label>
@@ -87,27 +87,27 @@
                         @error('license_expiry') <p class="admin-error">{{ $message }}</p> @enderror
                     </div>
                 </div>
-                <p class="text-[11px] leading-5 text-slate-400">
+                <p class="text-[11px] leading-5 text-slate-500">
                     Nomor izin dan masa berlaku dicetak pada resume medis. Isi sebelum klinik melayani pasien nyata.
                 </p>
             </fieldset>
 
             {{-- Lokasi & jam operasional (multi-clinic discovery) --}}
             <fieldset class="space-y-5 border-t border-slate-100 pt-6 dark:border-slate-800">
-                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('clinics.location_title') }}</legend>
+                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{{ __('clinics.location_title') }}</legend>
                 @include('admin.clinics.partials.location-fields', ['clinic' => $clinic])
             </fieldset>
 
             {{-- Branding --}}
             <fieldset class="space-y-4 border-t border-slate-100 pt-6 dark:border-slate-800">
-                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('admin.clinic_branding_section') }}</legend>
+                <legend class="mb-3 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{{ __('admin.clinic_branding_section') }}</legend>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
                         <label for="clinic_logo" class="admin-label">{{ __('clinics.logo_upload') }}</label>
                         <input id="clinic_logo" type="file" name="logo" accept="image/jpeg,image/png,image/webp"
                                class="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:file:bg-slate-800 dark:file:text-slate-200">
-                        <p class="mt-1.5 text-[11px] text-slate-400">{{ __('admin.logo_keep_hint') }}</p>
+                        <p class="mt-1.5 text-[11px] text-slate-500">{{ __('admin.logo_keep_hint') }}</p>
                     </div>
                     <div>
                         <label for="clinic_color" class="admin-label">
@@ -138,7 +138,7 @@
         {{-- Live preview --}}
         <aside class="space-y-4">
             <div class="overflow-hidden rounded-xl border border-slate-200/70 dark:border-slate-800">
-                <p class="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:border-slate-800 dark:bg-slate-800/50">
+                <p class="border-b border-slate-100 bg-slate-50 px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 dark:border-slate-800 dark:bg-slate-800/50">
                     {{ __('clinics.preview_sidebar') }}
                 </p>
                 <div class="bg-emerald-950 p-4">
@@ -164,7 +164,7 @@
             </div>
 
             <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800">
-                <p class="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">{{ __('clinics.preview_card') }}</p>
+                <p class="mb-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">{{ __('clinics.preview_card') }}</p>
                 <div class="flex items-center gap-3">
                     <img id="preview_card_img" src="{{ $clinic->logo_url ?? '' }}" alt=""
                          class="h-12 w-12 rounded-xl border border-slate-200 object-cover {{ $clinic->logo_url ? '' : 'hidden' }}">
@@ -173,7 +173,7 @@
                           style="background-color: {{ $color }}">{{ $initials }}</span>
                     <div class="min-w-0">
                         <p id="preview_card_name" class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $clinic->name }}</p>
-                        <p class="truncate font-mono text-[10px] text-slate-400">{{ $clinic->slug }}</p>
+                        <p class="truncate font-mono text-[10px] text-slate-500">{{ $clinic->slug }}</p>
                     </div>
                 </div>
                 <div class="mt-3 flex items-center gap-2">

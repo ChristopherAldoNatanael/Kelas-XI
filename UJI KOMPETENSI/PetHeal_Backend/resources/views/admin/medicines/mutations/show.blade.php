@@ -43,11 +43,11 @@
 
                 <dl class="grid grid-cols-1 gap-x-6 gap-y-4 text-sm sm:grid-cols-2">
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.col_medicine') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.col_medicine') }}</dt>
                         <dd class="mt-1 font-semibold text-slate-800 dark:text-slate-200">{{ $transaction->medicine?->name ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.col_batch') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.col_batch') }}</dt>
                         <dd class="mt-1 font-mono text-xs font-semibold text-slate-800 dark:text-slate-200">
                             {{ $transaction->batch?->batch_number ?? '—' }}
                             <span class="font-sans font-normal text-slate-500">
@@ -56,23 +56,23 @@
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.col_quantity') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.col_quantity') }}</dt>
                         <dd class="mt-1 text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                             {{ format_qty($quantity) }}
                             <span class="text-xs font-medium text-slate-500">{{ $unit }}</span>
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_destination') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_destination') }}</dt>
                         <dd class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->destination ?: '—' }}</dd>
                     </div>
                     <div class="sm:col-span-2">
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_reason') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_reason') }}</dt>
                         <dd class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->reason }}</dd>
                     </div>
                     @if($transaction->notes)
                         <div class="sm:col-span-2">
-                            <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_notes') }}</dt>
+                            <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_notes') }}</dt>
                             <dd class="mt-1 whitespace-pre-line text-slate-700 dark:text-slate-300">{{ $transaction->notes }}</dd>
                         </div>
                     @endif
@@ -88,11 +88,11 @@
                 <div class="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
                     @if($transaction->type === \App\Models\MedicineStockTransaction::TYPE_RETURN_SUPPLIER)
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_supplier') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_supplier') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->supplier_name ?: '—' }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_return_date') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_return_date') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">{{ format_tanggal($transaction->return_date, 'date', '—') }}</p>
                         </div>
                         @if($transaction->document_path)
@@ -108,17 +108,17 @@
 
                     @if($transaction->type === \App\Models\MedicineStockTransaction::TYPE_DISPOSAL)
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_destruction_date') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_destruction_date') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">{{ format_tanggal($transaction->destruction_date, 'date', '—') }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_destruction_method') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_destruction_method') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">
                                 {{ $transaction->destruction_method ? __('inventory.method_' . $transaction->destruction_method) : '—' }}
                             </p>
                         </div>
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_witness') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_witness') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->witness_name ?: '—' }}</p>
                         </div>
                         @if($transaction->minutes_path)
@@ -134,14 +134,14 @@
 
                     @if($transaction->type === \App\Models\MedicineStockTransaction::TYPE_QUARANTINE)
                         <div class="sm:col-span-2">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_quarantine_location') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_quarantine_location') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">{{ $transaction->quarantine_location ?: '—' }}</p>
                         </div>
                     @endif
 
                     @if($transaction->type === \App\Models\MedicineStockTransaction::TYPE_ADJUSTMENT)
                         <div class="sm:col-span-2">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('inventory.field_direction') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('inventory.field_direction') }}</p>
                             <p class="mt-1 text-slate-700 dark:text-slate-300">
                                 {{ $transaction->direction === 'in' ? __('inventory.direction_in') : __('inventory.direction_out') }}
                             </p>
@@ -188,7 +188,7 @@
                                         {{ format_qty((float) $movement->stock_after) }}
                                     </td>
                                     <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                        {{ $movement->created_at?->format('d M Y H:i') }}
+                                        {{ $movement->created_at?->format('d/m/Y H:i') }}
                                     </td>
                                 </tr>
                             @empty
@@ -231,15 +231,15 @@
                         <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-primary"></span>
                         <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ __('inventory.timeline_created') }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
-                            {{ $transaction->created_at?->format('d M Y H:i') }}
+                            {{ $transaction->created_at?->format('d/m/Y H:i') }}
                             · {{ $transaction->creator?->name ?? __('inventory.officer_system') }}
                         </p>
                     </li>
                     <li>
                         <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full {{ $transaction->processed_at ? 'bg-sky-500' : 'bg-slate-300 dark:bg-slate-600' }}"></span>
-                        <p class="text-sm font-semibold {{ $transaction->processed_at ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400' }}">{{ __('inventory.timeline_processed') }}</p>
+                        <p class="text-sm font-semibold {{ $transaction->processed_at ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500' }}">{{ __('inventory.timeline_processed') }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
-                            {{ $transaction->processed_at?->format('d M Y H:i') ?? __('inventory.timeline_waiting') }}
+                            {{ $transaction->processed_at?->format('d/m/Y H:i') ?? __('inventory.timeline_waiting') }}
                             @if($transaction->processor)
                                 · {{ $transaction->processor->name }}
                             @endif
@@ -250,7 +250,7 @@
                             <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full bg-slate-400"></span>
                             <p class="text-sm font-semibold text-slate-700 dark:text-slate-300">{{ __('inventory.timeline_cancelled') }}</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400">
-                                {{ $transaction->cancelled_at?->format('d M Y H:i') }}
+                                {{ $transaction->cancelled_at?->format('d/m/Y H:i') }}
                                 · {{ $transaction->canceller?->name ?? __('inventory.officer_system') }}
                             </p>
                             @if($transaction->cancel_reason)
@@ -260,9 +260,9 @@
                     @else
                         <li>
                             <span class="absolute -left-[5px] mt-1.5 h-2.5 w-2.5 rounded-full {{ $transaction->completed_at ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-600' }}"></span>
-                            <p class="text-sm font-semibold {{ $transaction->completed_at ? 'text-slate-800 dark:text-slate-200' : 'text-slate-400' }}">{{ __('inventory.timeline_completed') }}</p>
+                            <p class="text-sm font-semibold {{ $transaction->completed_at ? 'text-slate-800 dark:text-slate-200' : 'text-slate-500' }}">{{ __('inventory.timeline_completed') }}</p>
                             <p class="text-xs text-slate-500 dark:text-slate-400">
-                                {{ $transaction->completed_at?->format('d M Y H:i') ?? __('inventory.timeline_waiting') }}
+                                {{ $transaction->completed_at?->format('d/m/Y H:i') ?? __('inventory.timeline_waiting') }}
                                 @if($transaction->completer)
                                     · {{ $transaction->completer->name }}
                                 @endif

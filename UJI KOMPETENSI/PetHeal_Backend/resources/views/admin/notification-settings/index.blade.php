@@ -57,7 +57,7 @@
                     <div class="space-y-4 p-5">
                         {{-- Pratinjau pada perangkat user --}}
                         <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-4 dark:border-slate-800 dark:bg-slate-950/40">
-                            <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                            <p class="mb-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                                 {{ __('admin.preview_label') }}
                             </p>
 
@@ -75,7 +75,7 @@
                                 </div>
                             </div>
 
-                            <p class="mt-3 text-[11px] text-slate-400">{{ __('admin.notification_preview_desc') }}</p>
+                            <p class="mt-3 text-[11px] text-slate-500">{{ __('admin.notification_preview_desc') }}</p>
                         </div>
 
                         <div>

@@ -58,7 +58,7 @@
                             @if($clinic->logo_url)
                                 <div class="mb-2">
                                     <img src="{{ $clinic->logo_url }}" alt="{{ __('clinics.current_logo') }}" class="h-10 rounded border border-slate-200">
-                                    <p class="mt-1 text-[10px] text-slate-400">{{ __('clinics.current_logo') }}</p>
+                                    <p class="mt-1 text-[10px] text-slate-500">{{ __('clinics.current_logo') }}</p>
                                 </div>
                             @endif
                             <input type="file" name="logo" id="clinic_logo" accept="image/jpeg,image/png,image/webp"
@@ -106,7 +106,7 @@
             {{-- Sidebar Preview --}}
             <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
                 <div class="p-4 border-b border-slate-100">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_sidebar') }}</p>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ __('clinics.preview_sidebar') }}</p>
                 </div>
                 <div class="bg-emerald-950 p-4">
                     <div class="flex items-center gap-3 mb-6">
@@ -139,7 +139,7 @@
             {{-- Card Preview --}}
             <div class="glass-card rounded-2xl p-6 border border-slate-200/50">
                 <div class="p-4 border-b border-slate-100 -mx-6 -mt-6 mb-4 rounded-t-2xl">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_card') }}</p>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ __('clinics.preview_card') }}</p>
                 </div>
                 <div class="flex items-center gap-4">
                     @if($clinic->logo_url)
@@ -153,7 +153,7 @@
                     @endif
                     <div>
                         <p id="preview_card_name" class="font-bold text-lg text-slate-900">{{ $clinic->name }}</p>
-                        <p id="preview_card_slug" class="text-xs text-slate-400 font-mono">{{ $clinic->slug }}</p>
+                        <p id="preview_card_slug" class="text-xs text-slate-500 font-mono">{{ $clinic->slug }}</p>
                     </div>
                 </div>
                 <div class="mt-4 flex items-center gap-2">

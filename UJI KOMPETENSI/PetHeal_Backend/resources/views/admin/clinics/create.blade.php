@@ -105,7 +105,7 @@
             {{-- Sidebar Preview --}}
             <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
                 <div class="p-4 border-b border-slate-100">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_sidebar') }}</p>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ __('clinics.preview_sidebar') }}</p>
                 </div>
                 <div class="bg-emerald-950 p-4">
                     <div class="flex items-center gap-3 mb-6">
@@ -137,7 +137,7 @@
             {{-- Card Preview --}}
             <div class="glass-card rounded-2xl p-6 border border-slate-200/50">
                 <div class="p-4 border-b border-slate-100 -mx-6 -mt-6 mb-4 rounded-t-2xl">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_card') }}</p>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ __('clinics.preview_card') }}</p>
                 </div>
                 <div class="flex items-center gap-4">
                     <div id="preview_card_avatar" class="h-14 w-14 rounded-xl flex items-center justify-center text-white font-bold text-xl" style="background-color: #18C964">
@@ -145,7 +145,7 @@
                     </div>
                     <div>
                         <p id="preview_card_name" class="font-bold text-lg text-slate-900">Nama Klinik</p>
-                        <p id="preview_card_slug" class="text-xs text-slate-400 font-mono">slug</p>
+                        <p id="preview_card_slug" class="text-xs text-slate-500 font-mono">slug</p>
                     </div>
                 </div>
                 <div class="mt-4 flex items-center gap-2">
@@ -157,7 +157,7 @@
             {{-- Header Preview --}}
             <div class="glass-card rounded-2xl overflow-hidden border border-slate-200/50">
                 <div class="p-4 border-b border-slate-100">
-                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{{ __('clinics.preview_header') }}</p>
+                    <p class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{{ __('clinics.preview_header') }}</p>
                 </div>
                 <div class="bg-white/70 backdrop-blur-xl border-b border-slate-200/50 px-6 py-3 flex items-center justify-between">
                     <h1 class="text-sm font-semibold text-slate-900 tracking-tight">Dashboard</h1>

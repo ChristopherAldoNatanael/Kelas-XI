@@ -71,7 +71,7 @@
                 </div>
 
                 <div>
-                    <label class="admin-label" for="brand">{{ __('petshop.brand') }} <span class="font-normal text-slate-400">({{ __('petshop.optional') }})</span></label>
+                    <label class="admin-label" for="brand">{{ __('petshop.brand') }} <span class="font-normal text-slate-500">({{ __('petshop.optional') }})</span></label>
                     <input id="brand" name="brand" value="{{ old('brand', $product->brand) }}" maxlength="120" class="admin-input">
                 </div>
 
@@ -83,7 +83,7 @@
                 <div>
                     <label class="admin-label" for="image">{{ __('petshop.image') }}</label>
                     <input id="image" type="file" name="image" accept=".jpg,.jpeg,.png,.webp" class="admin-input file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-xs file:font-semibold dark:file:bg-slate-800">
-                    <p class="mt-1.5 text-[11px] text-slate-400">
+                    <p class="mt-1.5 text-[11px] text-slate-500">
                         {{ $isEdit ? __('petshop.image_change_hint') : __('petshop.image_hint') }}
                     </p>
                     @if($isEdit && $product->image_url)
@@ -186,7 +186,7 @@
                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">add</span>
                     {{ __('petshop.add_variant') }}
                 </button>
-                <p class="text-[11px] text-slate-400">{{ __('petshop.variants_hint') }}</p>
+                <p class="text-[11px] text-slate-500">{{ __('petshop.variants_hint') }}</p>
             </div>
         </x-admin.panel>
 

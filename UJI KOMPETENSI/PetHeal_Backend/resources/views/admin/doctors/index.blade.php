@@ -77,7 +77,7 @@
                                            class="block truncate text-sm font-semibold text-slate-800 transition hover:text-primary dark:text-slate-200">
                                             {{ $doctor->name }}
                                         </a>
-                                        <p class="truncate text-[11px] text-slate-400">{{ $doctor->email ?: __('admin.email_empty') }}</p>
+                                        <p class="truncate text-[11px] text-slate-500">{{ $doctor->email ?: __('admin.email_empty') }}</p>
                                         <div class="mt-1">
                                             @if($doctor->user)
                                                 <x-admin.badge label="Portal aktif" tone="primary" dot />
@@ -98,11 +98,11 @@
                                         <span class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">
                                             {{ $doctor->reviews_count > 0 ? number_format((float) $doctor->reviews_avg_rating, 1) : '0.0' }}
                                         </span>
-                                        <span class="text-[11px] text-slate-400">
+                                        <span class="text-[11px] text-slate-500">
                                             ({{ $doctor->reviews_count }} {{ __('admin.col_reviews') }})
                                         </span>
                                     </div>
-                                    <span class="text-[11px] text-slate-400">
+                                    <span class="text-[11px] text-slate-500">
                                         {{ $doctor->completed_bookings_count }} {{ __('admin.col_bookings_done') }}
                                     </span>
                                 </div>
@@ -111,7 +111,7 @@
                                 <p class="text-xs text-slate-600 dark:text-slate-300">
                                     {{ implode(', ', array_slice($doctor->available_days, 0, 3)) }}
                                 </p>
-                                <p class="mt-0.5 text-[11px] text-slate-400">{{ substr((string) $doctor->start_time, 0, 5) }} - {{ substr((string) $doctor->end_time, 0, 5) }}</p>
+                                <p class="mt-0.5 text-[11px] text-slate-500">{{ substr((string) $doctor->start_time, 0, 5) }} - {{ substr((string) $doctor->end_time, 0, 5) }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge

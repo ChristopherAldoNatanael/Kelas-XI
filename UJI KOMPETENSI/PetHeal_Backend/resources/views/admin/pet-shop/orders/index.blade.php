@@ -14,7 +14,7 @@
     <x-admin.panel flush>
         <form method="GET" class="grid gap-2 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-6 dark:border-slate-800">
             <div class="relative lg:col-span-2">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">search</span>
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">search</span>
                 <input type="search" name="search" value="{{ request('search') }}" placeholder="{{ __('petshop.search_order') }}" class="admin-input pl-10">
             </div>
             <select name="status" class="admin-input">
@@ -69,12 +69,12 @@
                                 <a href="{{ route('admin.pet-shop.orders.show', $order) }}" class="font-mono text-xs font-semibold text-emerald-700 hover:underline dark:text-emerald-400">
                                     {{ $order->order_number }}
                                 </a>
-                                <p class="mt-0.5 text-[11px] text-slate-400">{{ $order->pickup_clinic_name }}</p>
+                                <p class="mt-0.5 text-[11px] text-slate-500">{{ $order->pickup_clinic_name }}</p>
                             </td>
                             <td class="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">
                                 {{ $order->customer_name }}
                                 @if($order->customer_phone)
-                                    <p class="text-[11px] text-slate-400">{{ $order->customer_phone }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $order->customer_phone }}</p>
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">
@@ -89,7 +89,7 @@
                             <td class="px-5 py-3"><x-petshop.status-badge :status="$order->payment_status" type="payment" /></td>
                             <td class="px-5 py-3"><x-petshop.status-badge :status="$order->status" /></td>
                             <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                {{ $order->created_at?->format('d M Y H:i') }}
+                                {{ $order->created_at?->format('d/m/Y H:i') }}
                             </td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.pet-shop.orders.show', $order) }}" class="admin-btn-ghost !p-2" title="{{ __('petshop.detail') }}">

@@ -96,7 +96,7 @@
             <x-admin.panel :title="__('admin.visit_summary')">
                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.pet') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.pet') }}</p>
                         <div class="mt-2 flex items-center gap-3">
                             @if($booking->pet?->photo_url)
                                 <img src="{{ $booking->pet->photo_url }}" alt="" class="h-12 w-12 rounded-full object-cover">
@@ -115,7 +115,7 @@
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.owner') }}</p>
                         <div class="mt-2 flex items-center gap-3">
                             <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300" aria-hidden="true">
                                 {{ mb_substr($booking->user->name ?? 'P', 0, 1) }}
@@ -133,13 +133,13 @@
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.doctor') }}</p>
                         <p class="mt-2 text-sm font-bold text-slate-900 dark:text-white">{{ $booking->doctor->name ?? '—' }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">{{ $booking->doctor->specialization ?? __('admin.veterinarian') }}</p>
                     </div>
 
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.booking_date_time') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.booking_date_time') }}</p>
                         <p class="mt-2 text-sm font-bold text-slate-900 dark:text-white">
                             {{ $date->locale(app()->getLocale())->translatedFormat('l, d F Y') }}
                         </p>
@@ -149,7 +149,7 @@
                     </div>
 
                     <div class="sm:col-span-2">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.service_label') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.service_label') }}</p>
                         <div class="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-800/50">
                             <span class="text-sm font-medium text-slate-800 dark:text-slate-200">
                                 {{ $booking->service?->name ?? __('admin.service_not_selected') }}
@@ -162,7 +162,7 @@
 
                     @if($booking->notes)
                         <div class="sm:col-span-2">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner_notes') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.owner_notes') }}</p>
                             <p class="mt-2 rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 dark:bg-slate-800/50 dark:text-slate-300">{{ $booking->notes }}</p>
                         </div>
                     @endif
@@ -210,25 +210,25 @@
 
                     <dl class="mt-5 grid grid-cols-2 gap-4 border-t border-slate-100 pt-4 text-xs dark:border-slate-800">
                         <div>
-                            <dt class="text-slate-400">{{ __('admin.col_method') }}</dt>
+                            <dt class="text-slate-500">{{ __('admin.col_method') }}</dt>
                             <dd class="mt-0.5 font-semibold capitalize text-slate-700 dark:text-slate-300">
                                 {{ $booking->payment_method ?: __('admin.service_not_selected') }}
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-slate-400">{{ __('admin.payment_date_label') }}</dt>
+                            <dt class="text-slate-500">{{ __('admin.payment_date_label') }}</dt>
                             <dd class="mt-0.5 font-semibold text-slate-700 dark:text-slate-300">
                                 {{ $booking->payment_date ? \Carbon\Carbon::parse($booking->payment_date)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') : '—' }}
                             </dd>
                         </div>
                         @if($booking->payment_type === 'dp' && $booking->dp_amount > 0)
                             <div>
-                                <dt class="text-slate-400">{{ __('admin.dp_required') }}</dt>
+                                <dt class="text-slate-500">{{ __('admin.dp_required') }}</dt>
                                 <dd class="mt-0.5 font-semibold tabular-nums text-slate-700 dark:text-slate-300">{{ $currency($booking->dp_amount) }}</dd>
                             </div>
                         @endif
                         <div>
-                            <dt class="text-slate-400">{{ __('admin.invoice_number') }}</dt>
+                            <dt class="text-slate-500">{{ __('admin.invoice_number') }}</dt>
                             <dd class="mt-0.5 font-mono font-semibold text-slate-700 dark:text-slate-300">
                                 INV-{{ str_pad((string) $booking->id, 5, '0', STR_PAD_LEFT) }}
                             </dd>
@@ -293,8 +293,8 @@
                                                     </a>
                                                 @endif
                                             </div>
-                                            <span class="whitespace-nowrap text-[11px] text-slate-400">
-                                                {{ $refund->created_at?->format('d M Y H:i') }}
+                                            <span class="whitespace-nowrap text-[11px] text-slate-500">
+                                                {{ $refund->created_at?->format('d/m/Y H:i') }}
                                             </span>
                                         </li>
                                     @endforeach
@@ -440,22 +440,22 @@
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.diagnosis') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.diagnosis') }}</p>
                             <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->medicalRecord->diagnosis }}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.treatment') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.treatment') }}</p>
                             <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->medicalRecord->treatment }}</p>
                         </div>
                         @if($booking->medicalRecord->medicine)
                             <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.medicine') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.medicine') }}</p>
                                 <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->medicalRecord->medicine }}</p>
                             </div>
                         @endif
                         @if($booking->medicalRecord->next_visit_date)
                             <div>
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.follow_up') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.follow_up') }}</p>
                                 <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">
                                     {{ \Carbon\Carbon::parse($booking->medicalRecord->next_visit_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                                     @if($booking->medicalRecord->next_visit_time)
@@ -466,7 +466,7 @@
                         @endif
                         @if($booking->medicalRecord->notes)
                             <div class="sm:col-span-2">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.booking_notes') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.booking_notes') }}</p>
                                 <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->medicalRecord->notes }}</p>
                             </div>
                         @endif
@@ -483,7 +483,7 @@
                         <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-slate-300" aria-hidden="true"></span>
                         <div>
                             <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ __('admin.status_created') }}</p>
-                            <p class="text-[11px] text-slate-400">{{ $booking->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
+                            <p class="text-[11px] text-slate-500">{{ $booking->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
                         </div>
                     </li>
                     @if($booking->confirmed_at)
@@ -491,7 +491,7 @@
                             <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-sky-400" aria-hidden="true"></span>
                             <div>
                                 <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ __('admin.status_confirmed') }}</p>
-                                <p class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($booking->confirmed_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
+                                <p class="text-[11px] text-slate-500">{{ \Carbon\Carbon::parse($booking->confirmed_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
                             </div>
                         </li>
                     @endif
@@ -500,7 +500,7 @@
                             <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-emerald-400" aria-hidden="true"></span>
                             <div>
                                 <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ __('admin.status_completed') }}</p>
-                                <p class="text-[11px] text-slate-400">{{ \Carbon\Carbon::parse($booking->completed_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
+                                <p class="text-[11px] text-slate-500">{{ \Carbon\Carbon::parse($booking->completed_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
                             </div>
                         </li>
                     @endif
@@ -508,7 +508,7 @@
                         <span class="mt-1 h-2 w-2 flex-shrink-0 rounded-full bg-amber-300" aria-hidden="true"></span>
                         <div>
                             <p class="text-xs font-semibold text-slate-700 dark:text-slate-300">{{ __('admin.last_reminded') }}</p>
-                            <p class="text-[11px] text-slate-400">
+                            <p class="text-[11px] text-slate-500">
                                 {{ $booking->last_reminder_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i') ?? __('admin.not_reminded_yet') }}
                             </p>
                         </div>
@@ -547,12 +547,12 @@
                 <span class="material-symbols-outlined text-amber-500" aria-hidden="true">notifications</span>
                 <div>
                     <h3 id="reminder-modal-title" class="text-sm font-bold text-slate-900 dark:text-white">{{ __('admin.reminder_modal_title') }}</h3>
-                    <p class="text-[11px] text-slate-400">{{ __('admin.reminder_to', ['name' => $booking->user->name ?? __('admin.owner_placeholder')]) }}</p>
+                    <p class="text-[11px] text-slate-500">{{ __('admin.reminder_to', ['name' => $booking->user->name ?? __('admin.owner_placeholder')]) }}</p>
                     <p class="mt-1 max-w-md text-[11px] leading-5 text-slate-500 dark:text-slate-400">{{ __('admin.reminder_modal_desc') }}</p>
                 </div>
             </div>
             <button type="button" onclick="document.getElementById('reminder-modal').style.display='none'"
-                    class="text-slate-400 transition hover:text-slate-600" aria-label="{{ __('common.close') }}">
+                    class="text-slate-500 transition hover:text-slate-600" aria-label="{{ __('common.close') }}">
                 <span class="material-symbols-outlined text-xl" aria-hidden="true">close</span>
             </button>
         </div>

@@ -25,11 +25,11 @@
 
     @if($existing->isNotEmpty())
         <div class="space-y-2">
-            <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Lampiran tersimpan</p>
+            <p class="text-xs font-semibold uppercase tracking-wider text-slate-500">Lampiran tersimpan</p>
 
             @foreach($existing as $attachment)
                 <div class="flex items-center gap-3 rounded-xl border border-slate-200 px-3 py-2 dark:border-slate-700">
-                    <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">
+                    <span class="material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">
                         {{ $attachment->isImage() ? 'image' : 'picture_as_pdf' }}
                     </span>
 

@@ -63,12 +63,12 @@
                     </div>
                     <p class="mt-0.5 truncate text-sm text-slate-600 dark:text-slate-300">
                         {{ $item->pet->name ?? '—' }} · {{ $item->user->name ?? '—' }}
-                        <span class="text-xs text-slate-400">· {{ $item->need_type_label }}</span>
+                        <span class="text-xs text-slate-500">· {{ $item->need_type_label }}</span>
                     </p>
-                    <p class="mt-0.5 truncate text-xs text-slate-400">{{ \Illuminate\Support\Str::limit($item->complaint, 110) }}</p>
+                    <p class="mt-0.5 truncate text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($item->complaint, 110) }}</p>
                 </div>
                 <div class="hidden flex-shrink-0 text-right sm:block">
-                    <p class="text-xs text-slate-400">{{ $item->created_at?->format('d M Y H:i') }}</p>
+                    <p class="text-xs text-slate-500">{{ $item->created_at?->format('d/m/Y H:i') }}</p>
                     @if($item->doctor)
                         <p class="text-xs text-slate-500 dark:text-slate-400">Evaluasi: {{ $item->doctor->name }}</p>
                     @endif

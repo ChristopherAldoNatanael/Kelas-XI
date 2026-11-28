@@ -33,14 +33,14 @@
                         </span>
                         <div class="min-w-0 flex-1">
                             <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
-                            <p class="truncate font-mono text-[11px] text-slate-400">{{ $config?->merchant_id ?: __('petshop.not_configured') }}</p>
+                            <p class="truncate font-mono text-[11px] text-slate-500">{{ $config?->merchant_id ?: __('petshop.not_configured') }}</p>
                         </div>
                         <x-admin.badge :label="$config?->onboarding_status ?: __('petshop.not_configured')" tone="slate" />
                         <x-admin.badge
                             :label="$ready ? __('petshop.ready') : __('petshop.not_ready')"
                             :tone="$ready ? 'primary' : 'amber'"
                             dot />
-                        <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">expand_more</span>
+                        <span class="material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">expand_more</span>
                     </summary>
 
                     <form method="POST" action="{{ route('admin.pet-shop.merchants.update', $clinic) }}"
@@ -82,9 +82,9 @@
                                        class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500">
                                 {{ __('petshop.online_payment_enabled') }}
                             </label>
-                            <p class="text-[11px] text-slate-400">
+                            <p class="text-[11px] text-slate-500">
                                 {{ __('petshop.verified_at') }}:
-                                {{ $config?->verified_at?->format('d M Y H:i') ?? __('petshop.not_verified') }}
+                                {{ $config?->verified_at?->format('d/m/Y H:i') ?? __('petshop.not_verified') }}
                             </p>
                         </div>
                         <div class="sm:col-span-2">

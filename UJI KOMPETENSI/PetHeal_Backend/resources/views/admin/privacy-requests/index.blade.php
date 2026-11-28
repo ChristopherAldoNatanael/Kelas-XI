@@ -103,7 +103,7 @@ $typeLabels = [
                 <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
                     @forelse($privacyRequests as $privacyRequest)
                         <tr class="admin-table-row">
-                            <td class="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-400">#{{ $privacyRequest->id }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-500">#{{ $privacyRequest->id }}</td>
                             <td class="px-5 py-3">
                                 <div class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $privacyRequest->user->name ?? 'Pengguna dihapus' }}</div>
                                 <div class="text-xs text-slate-500">{{ $privacyRequest->user->email ?? '—' }}</div>

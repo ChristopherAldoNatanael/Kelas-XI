@@ -46,7 +46,7 @@
                     @if($doctor->photo_url)
                         <img class="mx-auto h-32 w-32 rounded-full object-cover" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ $doctor->name }}">
                     @else
-                        <span class="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800">
+                        <span class="mx-auto flex h-32 w-32 items-center justify-center rounded-full bg-slate-100 text-slate-500 dark:bg-slate-800">
                             <span class="material-symbols-outlined text-5xl" aria-hidden="true">person</span>
                         </span>
                     @endif
@@ -81,7 +81,7 @@
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">email</span>
                             </span>
                             <div class="min-w-0">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.email') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.email') }}</p>
                                 <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $doctor->email }}</p>
                             </div>
                         </div>
@@ -93,14 +93,14 @@
                                 <span class="material-symbols-outlined text-[16px]" aria-hidden="true">phone</span>
                             </span>
                             <div class="min-w-0">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.phone') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.phone') }}</p>
                                 <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $doctor->phone }}</p>
                             </div>
                         </div>
                     @endif
 
                     @if(!$doctor->email && !$doctor->phone)
-                        <p class="text-sm text-slate-400">{{ __('admin.email_empty') }}</p>
+                        <p class="text-sm text-slate-500">{{ __('admin.email_empty') }}</p>
                     @endif
                 </div>
             </x-admin.panel>
@@ -114,7 +114,7 @@
                         <div class="min-w-0">
                             <p class="text-sm font-bold text-slate-900 dark:text-white">Akun aktif</p>
                             <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">{{ $doctor->user->email }}</p>
-                            <p class="mt-0.5 text-[11px] text-slate-400">
+                            <p class="mt-0.5 text-[11px] text-slate-500">
                                 Dibuat {{ $doctor->user->created_at?->locale(app()->getLocale())->translatedFormat('d M Y') ?? '—' }}
                             </p>
                         </div>
@@ -135,12 +135,12 @@
                         </form>
                     </div>
 
-                    <p class="mt-3 text-[11px] leading-5 text-slate-400">
+                    <p class="mt-3 text-[11px] leading-5 text-slate-500">
                         Cabut akses hanya menghapus akun login. Riwayat medis dan jadwal dokter tetap utuh.
                     </p>
                 @else
                     <div class="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
-                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-slate-400 dark:bg-slate-900">
+                        <span class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white text-slate-500 dark:bg-slate-900">
                             <span class="material-symbols-outlined text-[19px]" aria-hidden="true">person_off</span>
                         </span>
                         <div class="min-w-0">
@@ -174,7 +174,7 @@
                         @endif
 
                         <div class="mt-3 rounded-xl border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Setelah undangan dikirim</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Setelah undangan dikirim</p>
                             <ol class="mt-2 space-y-2 text-[11px] leading-5 text-slate-500 dark:text-slate-400">
                                 <li class="flex gap-2">
                                     <span class="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[9px] font-bold text-white">1</span>
@@ -203,13 +203,13 @@
             <x-admin.panel :title="__('admin.schedule_tab')">
                 <dl class="space-y-4">
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.available_days') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.available_days') }}</dt>
                         <dd class="mt-1 text-sm text-slate-700 dark:text-slate-300">
                             {{ $availableDayLabels->isNotEmpty() ? $availableDayLabels->implode(', ') : '—' }}
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.working_hours') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.working_hours') }}</dt>
                         <dd class="mt-1 text-sm tabular-nums text-slate-700 dark:text-slate-300">
                             {{ substr((string) $doctor->start_time, 0, 5) }} - {{ substr((string) $doctor->end_time, 0, 5) }}
                         </dd>
@@ -244,7 +244,7 @@
                                         <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">
                                             {{ $review->user->name ?? __('common.none') }}
                                         </p>
-                                        <p class="mt-1 text-xs text-slate-400">
+                                        <p class="mt-1 text-xs text-slate-500">
                                             {{ optional($review->booking)?->booking_date ? \Carbon\Carbon::parse($review->booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') : __('admin.completed_booking') }}
                                             @if(optional($review->booking)?->pet?->name)
                                                 • {{ $review->booking->pet->name }}

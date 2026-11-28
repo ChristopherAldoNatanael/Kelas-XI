@@ -328,7 +328,7 @@
         <div class="blob blob-2"></div>
 
         <div class="brand-logo">
-            <span class="logo-badge" style="background: #fff; border-color: rgba(255,255,255,0.4); padding: 4px 8px; width: auto; height: 40px;"><img src="/logo.png" alt="PetHeal — Veterinary Clinic System" style="height: 30px; width: auto; display: block;"></span>
+            <span class="logo-badge" style="background: #fff; border-color: rgba(255,255,255,0.4); padding: 4px 8px; width: auto; height: 40px;"><img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System" style="height: 30px; width: auto; display: block;"></span>
             <span>PetHeal<small>Veterinary Clinic System</small></span>
         </div>
 
@@ -405,7 +405,7 @@
         <div class="form-box">
 
             <div class="mobile-logo">
-                <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" style="height: 38px; width: auto; display: block;">
+                <img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System" style="height: 38px; width: auto; display: block;">
             </div>
 
             <div class="form-header">

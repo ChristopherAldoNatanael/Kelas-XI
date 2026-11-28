@@ -89,7 +89,7 @@ $roleBadges = [
                                     ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-900 dark:text-white'
                                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200' }}">
                         {{ $tab['label'] }}
-                        <span class="rounded bg-slate-100 px-1 text-[10px] font-bold tabular-nums text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                        <span class="rounded bg-slate-100 px-1 text-[10px] font-bold tabular-nums text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                             {{ $tab['count'] }}
                         </span>
                     </a>
@@ -101,7 +101,7 @@ $roleBadges = [
                     <input type="hidden" name="role" value="{{ $role }}">
                 @endif
                 <div class="relative flex-1">
-                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-400" aria-hidden="true">search</span>
+                    <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-slate-500" aria-hidden="true">search</span>
                     <label for="user-search" class="sr-only">{{ __('admin.search') }}</label>
                     <input id="user-search" type="text" name="search" value="{{ request('search') }}"
                            placeholder="{{ __('admin.search_users_placeholder') }}"
@@ -151,19 +151,19 @@ $roleBadges = [
                                                class="block truncate text-sm font-semibold text-slate-800 transition hover:text-primary dark:text-slate-100">
                                                 {{ $user->name }}
                                             </a>
-                                            <p class="text-[10px] text-slate-400">#{{ $user->id }}</p>
+                                            <p class="text-[10px] text-slate-500">#{{ $user->id }}</p>
                                         </div>
                                     </div>
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm text-slate-600 dark:text-slate-300">{{ $user->email }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $user->phone ?: __('admin.no_phone') }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $user->phone ?: __('admin.no_phone') }}</p>
                                 </td>
                                 <td class="px-5 py-3">
                                     @if($user->pets_count > 0)
                                         <x-admin.badge :label="$user->pets_count . ' ' . __('admin.pets_owned')" tone="slate" />
                                     @else
-                                        <span class="text-xs text-slate-400">—</span>
+                                        <span class="text-xs text-slate-500">—</span>
                                     @endif
                                 </td>
                                 <td class="px-5 py-3">

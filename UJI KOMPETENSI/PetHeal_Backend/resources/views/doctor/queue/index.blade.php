@@ -150,7 +150,7 @@
                         </p>
                         <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $booking->user->name ?? '—' }}</p>
                     </div>
-                    <span class="text-[11px] uppercase tracking-wider text-slate-400">{{ $booking->status }}</span>
+                    <span class="text-[11px] uppercase tracking-wider text-slate-500">{{ $booking->status }}</span>
                 </div>
             @empty
                 <div class="px-5 py-6">
@@ -162,10 +162,10 @@
         <x-admin.panel title="{{ __('doctor.finished_and_skipped') }}" flush>
             @forelse($finished as $booking)
                 <div class="flex items-center gap-3 border-b border-slate-100 px-5 py-3 last:border-0 dark:border-slate-800">
-                    <span class="w-9 text-sm font-bold tabular-nums text-slate-400">{{ $booking->queue_number }}</span>
+                    <span class="w-9 text-sm font-bold tabular-nums text-slate-500">{{ $booking->queue_number }}</span>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $booking->pet->name ?? '—' }}</p>
-                        <p class="text-[11px] text-slate-400">
+                        <p class="text-[11px] text-slate-500">
                             {{ $booking->queue_finished_at?->format('H:i') }}
                             @if($booking->queue_note) · {{ $booking->queue_note }} @endif
                         </p>

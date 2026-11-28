@@ -96,6 +96,28 @@ class HealthController extends Controller
                 : 'Public storage directory missing',
         ];
 
+        // Antrean job yang tertahan berarti notifikasi push tidak terkirim.
+        // Hanya jumlah dan umur yang dikirim; payload job tidak pernah bocor.
+        try {
+            $pendingJobs = (int) DB::table('jobs')->count();
+            $oldestAvailable = DB::table('jobs')->min('available_at');
+            $oldestAge = $oldestAvailable ? max(0, now()->timestamp - (int) $oldestAvailable) : 0;
+
+            $checks['queue'] = [
+                'status' => $pendingJobs === 0 || $oldestAge < 900 ? 'ok' : 'warning',
+                'message' => $pendingJobs === 0
+                    ? 'Queue empty'
+                    : "{$pendingJobs} job(s) pending, oldest {$oldestAge}s",
+                'pending' => $pendingJobs,
+                'oldest_age_seconds' => $oldestAge,
+            ];
+        } catch (\Throwable $e) {
+            $checks['queue'] = [
+                'status' => 'warning',
+                'message' => 'Queue table unavailable',
+            ];
+        }
+
         // `register-direct` sudah pensiun (410 use_otp_flow). Menjadikannya
         // syarat health membuat monitoring berteriak saat endpoint itu akhirnya
         // dihapus, padahal tidak ada klien yang memakainya.

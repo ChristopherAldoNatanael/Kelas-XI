@@ -34,12 +34,12 @@
         <div class="border-b border-slate-100 p-4 dark:border-slate-800">
             <form method="GET" action="{{ route('doctor.bookings.index') }}" class="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div class="w-full lg:w-44">
-                    <label for="date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
+                    <label for="date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tanggal</label>
                     <input type="date" id="date" name="date" value="{{ $date }}" class="admin-input">
-                    <p class="mt-1 text-[10px] text-slate-400">{{ __('doctor.clear_for_all_dates') }}</p>
+                    <p class="mt-1 text-[10px] text-slate-500">{{ __('doctor.clear_for_all_dates') }}</p>
                 </div>
                 <div class="w-full lg:w-44">
-                    <label for="status" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Status</label>
+                    <label for="status" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</label>
                     <select id="status" name="status" class="admin-input">
                         <option value="">{{ __('doctor.all_statuses') }}</option>
                         @foreach(['pending', 'confirmed', 'completed', 'cancelled'] as $option)
@@ -50,7 +50,7 @@
                     </select>
                 </div>
                 <div class="w-full flex-1">
-                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.search_patient_owner') }}</label>
+                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.search_patient_owner') }}</label>
                     <input type="search" id="q" name="q" value="{{ $search }}" placeholder="Nama hewan atau pemilik" class="admin-input">
                 </div>
                 <div class="flex items-center gap-2">
@@ -83,14 +83,14 @@
                                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
                                         {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                                     </p>
-                                    <p class="text-[11px] tabular-nums text-slate-400">{{ substr((string) $booking->booking_time, 0, 5) }}</p>
+                                    <p class="text-[11px] tabular-nums text-slate-500">{{ substr((string) $booking->booking_time, 0, 5) }}</p>
                                 </td>
                                 <td class="px-5 py-3">
                                     <a href="{{ route('doctor.bookings.show', $booking->id) }}"
                                        class="block text-sm font-semibold text-slate-800 hover:text-primary dark:text-slate-200">
                                         {{ $booking->pet->name ?? '—' }}
                                     </a>
-                                    <p class="text-[11px] text-slate-400">{{ $booking->user->name ?? '—' }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $booking->user->name ?? '—' }}</p>
                                 </td>
                                 <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">
                                     {{ $booking->service->name ?? '—' }}
@@ -114,7 +114,7 @@
                                             Isi
                                         </a>
                                     @else
-                                        <span class="text-xs text-slate-400">—</span>
+                                        <span class="text-xs text-slate-500">—</span>
                                     @endif
                                 </td>
                                 <td class="px-5 py-3">

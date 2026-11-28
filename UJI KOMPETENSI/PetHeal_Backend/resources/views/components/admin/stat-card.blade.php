@@ -22,7 +22,7 @@
 <div class="rounded-2xl border border-slate-200/70 bg-white p-5 transition-shadow hover:shadow-sm dark:border-slate-800 dark:bg-slate-900">
     <div class="flex items-start justify-between gap-3">
         <div class="min-w-0">
-            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ $label }}</p>
+            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $label }}</p>
             <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">{{ $value }}</p>
         </div>
         <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl {{ $iconTone }}">
@@ -31,7 +31,7 @@
     </div>
 
     @if($hint)
-        <p class="mt-2 text-[11px] leading-5 text-slate-400">{{ $hint }}</p>
+        <p class="mt-2 text-[11px] leading-5 text-slate-500">{{ $hint }}</p>
     @endif
 
     @isset($footer)

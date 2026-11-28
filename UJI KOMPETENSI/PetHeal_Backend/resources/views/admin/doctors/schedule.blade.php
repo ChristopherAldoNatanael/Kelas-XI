@@ -102,7 +102,7 @@
                                     {{ $exceptionDate->locale($locale)->translatedFormat('M') }}
                                 </p>
                                 <p class="text-xl font-bold leading-none text-slate-900 dark:text-white">{{ $exceptionDate->format('d') }}</p>
-                                <p class="mt-1 text-[10px] text-slate-400">{{ $exceptionDate->locale($locale)->translatedFormat('D') }}</p>
+                                <p class="mt-1 text-[10px] text-slate-500">{{ $exceptionDate->locale($locale)->translatedFormat('D') }}</p>
                             </div>
 
                             <div class="min-w-0 flex-1">
@@ -178,10 +178,10 @@
                                 aria-haspopup="dialog" aria-controls="date-modal" aria-expanded="false"
                                 class="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-left transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-slate-700 dark:bg-slate-800">
                             <span class="flex min-w-0 items-center gap-2">
-                                <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">calendar_month</span>
-                                <span id="exception-date-label" class="truncate text-sm {{ $initialDate ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400' }}">{{ $initialDateLabel }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">calendar_month</span>
+                                <span id="exception-date-label" class="truncate text-sm {{ $initialDate ? 'text-slate-800 dark:text-slate-100' : 'text-slate-500' }}">{{ $initialDateLabel }}</span>
                             </span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">expand_more</span>
+                            <span class="material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">expand_more</span>
                         </button>
                         {{-- Nilai asli form tetap format YYYY-MM-DD agar validasi server tidak berubah. --}}
                         <input id="exception-date" type="hidden" name="date" value="{{ $initialDate }}" data-min="{{ now()->toDateString() }}">
@@ -240,7 +240,7 @@
                     <div>
                         <label for="exception-reason" class="admin-label">
                             {{ __('admin.reason_label') }}
-                            <span class="font-normal normal-case text-slate-400">{{ __('admin.reason_optional') }}</span>
+                            <span class="font-normal normal-case text-slate-500">{{ __('admin.reason_optional') }}</span>
                         </label>
                         <textarea id="exception-reason" name="reason" rows="2" maxlength="160"
                                   placeholder="{{ __('admin.reason_placeholder') }}"
@@ -251,7 +251,7 @@
                     </div>
 
                     <div class="flex items-start gap-2 rounded-xl border border-slate-200/70 bg-slate-50 px-3.5 py-3 dark:border-slate-700 dark:bg-slate-800/60">
-                        <span class="material-symbols-outlined text-[17px] text-slate-400" aria-hidden="true">info</span>
+                        <span class="material-symbols-outlined text-[17px] text-slate-500" aria-hidden="true">info</span>
                         <p class="text-[11px] leading-relaxed text-slate-500 dark:text-slate-400">{{ __('admin.no_auto_cancel_note') }}</p>
                     </div>
 
@@ -285,7 +285,7 @@
         </div>
 
         <div id="date-days" class="mt-3">
-            <div id="date-weekdays" class="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400"></div>
+            <div id="date-weekdays" class="mb-1 grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase tracking-wide text-slate-500"></div>
             <div id="date-grid" class="grid grid-cols-7 gap-1"></div>
         </div>
 
@@ -393,7 +393,7 @@
             const date = parseISO(input.value);
             if (!date) {
                 labelEl.textContent = PICK_DATE;
-                labelEl.className = 'text-sm text-slate-400 truncate';
+                labelEl.className = 'text-sm text-slate-500 truncate';
                 return;
             }
             labelEl.textContent = date.toLocaleDateString(LOCALE, { day: 'numeric', month: 'long', year: 'numeric' });
@@ -435,7 +435,7 @@
                 } else if (isDisabled) {
                     className += 'text-slate-300 dark:text-slate-700 cursor-not-allowed';
                 } else if (outside) {
-                    className += 'text-slate-400 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800';
+                    className += 'text-slate-500 dark:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800';
                 } else if (isToday) {
                     className += 'text-primary ring-1 ring-inset ring-primary/40 hover:bg-emerald-50';
                 } else {

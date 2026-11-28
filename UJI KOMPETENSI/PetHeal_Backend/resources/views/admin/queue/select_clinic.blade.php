@@ -27,7 +27,7 @@
                         <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">{{ $clinic->address }}</p>
                     </div>
-                    <span class="material-symbols-outlined text-slate-400" aria-hidden="true">chevron_right</span>
+                    <span class="material-symbols-outlined text-slate-500" aria-hidden="true">chevron_right</span>
                 </button>
             </form>
         @empty

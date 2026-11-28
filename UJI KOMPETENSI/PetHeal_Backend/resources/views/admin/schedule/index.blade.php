@@ -56,7 +56,7 @@
 
             <div class="flex items-center gap-3">
                 <div class="text-right">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">
+                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">
                         {{ $isToday ? __('admin.schedule_today') : __('admin.schedule_selected_date') }}
                     </p>
                     <p class="mt-1 text-lg font-bold text-slate-900 dark:text-white">
@@ -135,7 +135,7 @@
                             </div>
 
                             <div class="mt-3 flex items-start justify-between gap-2">
-                                <p class="mt-0.5 flex items-start gap-1 text-[10px] {{ $isClosed ? 'text-rose-600' : 'text-slate-400' }}">
+                                <p class="mt-0.5 flex items-start gap-1 text-[10px] {{ $isClosed ? 'text-rose-600' : 'text-slate-500' }}">
                                     <span class="material-symbols-outlined text-[13px]" aria-hidden="true">
                                         {{ $isClosed ? 'event_busy' : 'schedule' }}
                                     </span>
@@ -198,7 +198,7 @@
                                                     :label="\App\Support\AdminStatus::paymentLabel($booking->payment_status)"
                                                     :tone="\App\Support\AdminStatus::paymentTone($booking->payment_status)" />
                                                 @if($booking->payment_status !== 'paid' && $booking->remaining_amount > 0)
-                                                    <span class="text-[10px] tabular-nums text-slate-400">
+                                                    <span class="text-[10px] tabular-nums text-slate-500">
                                                         {{ __('admin.remaining_amount_short', ['amount' => number_format($booking->remaining_amount, 0, ',', '.')]) }}
                                                     </span>
                                                 @endif
@@ -235,7 +235,7 @@
                                             <button type="button"
                                                     data-cancel-booking="{{ $booking->id }}"
                                                     data-cancel-pet="{{ $booking->pet->name ?? __('admin.pet_placeholder') }}"
-                                                    class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
+                                                    class="inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-slate-500 transition hover:bg-rose-50 hover:text-rose-600"
                                                     title="{{ __('admin.cancel_booking_action') }}"
                                                     aria-label="{{ __('admin.cancel_booking_action') }} {{ $booking->pet->name ?? '' }}">
                                                 <span class="material-symbols-outlined text-[17px]" aria-hidden="true">cancel</span>
@@ -247,7 +247,7 @@
                                 <div class="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center dark:border-slate-700">
                                     <span class="material-symbols-outlined text-3xl text-slate-300 dark:text-slate-600" aria-hidden="true">event_available</span>
                                     <p class="mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">{{ __('admin.no_visits') }}</p>
-                                    <p class="mt-1 text-[10px] text-slate-400">{{ __('admin.no_visits_desc') }}</p>
+                                    <p class="mt-1 text-[10px] text-slate-500">{{ __('admin.no_visits_desc') }}</p>
                                 </div>
                             @endforelse
                         </div>

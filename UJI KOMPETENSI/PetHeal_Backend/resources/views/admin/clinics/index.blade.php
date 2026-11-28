@@ -82,13 +82,13 @@
                                     @endif
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
-                                        <p class="truncate text-[11px] text-slate-400">{{ $clinic->slug }}</p>
+                                        <p class="truncate text-[11px] text-slate-500">{{ $clinic->slug }}</p>
                                     </div>
                                 </div>
                             </td>
                             <td class="px-5 py-3">
                                 <p class="text-xs text-slate-600 dark:text-slate-400">{{ $clinic->phone ?: '—' }}</p>
-                                <p class="text-[11px] text-slate-400">{{ $clinic->email ?: '—' }}</p>
+                                <p class="text-[11px] text-slate-500">{{ $clinic->email ?: '—' }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex flex-wrap gap-1.5">
@@ -217,7 +217,7 @@
                 </p>
             </div>
             <button type="button" onclick="closeDeleteClinicModal()"
-                    class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     aria-label="{{ __('common.close') }}">
                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">close</span>
             </button>
@@ -242,7 +242,7 @@
                     ] as $key => $label)
                         <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-800 dark:bg-slate-950/30">
                             <p class="text-base font-bold text-slate-800 dark:text-slate-100" data-delete-count="{{ $key }}">0</p>
-                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $label }}</p>
+                            <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ $label }}</p>
                         </div>
                     @endforeach
                 </div>

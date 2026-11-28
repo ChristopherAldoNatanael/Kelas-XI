@@ -32,11 +32,11 @@
         <div class="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
             <div class="flex flex-wrap items-end gap-3">
                 <div class="min-w-[150px]">
-                    <label for="dashboard-start" class="admin-label !mb-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">{{ __('common.from') }}</label>
+                    <label for="dashboard-start" class="admin-label !mb-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">{{ __('common.from') }}</label>
                     <input id="dashboard-start" type="date" name="start_date" value="{{ request('start_date') }}" class="admin-input">
                 </div>
                 <div class="min-w-[150px]">
-                    <label for="dashboard-end" class="admin-label !mb-1 text-[10px] uppercase tracking-[0.16em] text-slate-400">{{ __('common.to') }}</label>
+                    <label for="dashboard-end" class="admin-label !mb-1 text-[10px] uppercase tracking-[0.16em] text-slate-500">{{ __('common.to') }}</label>
                     <input id="dashboard-end" type="date" name="end_date" value="{{ request('end_date') }}" class="admin-input">
                 </div>
                 <button type="submit" class="admin-btn-primary">
@@ -51,7 +51,7 @@
                 @endif
             </div>
 
-            <p class="text-xs text-slate-400">
+            <p class="text-xs text-slate-500">
                 @if(request('start_date') && request('end_date'))
                     {{ \Carbon\Carbon::parse(request('start_date'))->locale(app()->getLocale())->translatedFormat('d M Y') }}
                     &ndash;
@@ -131,7 +131,7 @@
     @php
         $growthBadge = function (?float $value) {
             if ($value === null) {
-                return ['label' => __('dashboard.no_baseline'), 'class' => 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'];
+                return ['label' => __('dashboard.no_baseline'), 'class' => 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'];
             }
             $sign = $value > 0 ? '+' : '';
 
@@ -154,7 +154,7 @@
         <div class="rounded-2xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.revenue_mtd') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('dashboard.revenue_mtd') }}</p>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
                         {{ format_rupiah($monthlyRevenue) }}
                     </p>
@@ -165,16 +165,16 @@
             </div>
             <div class="mt-4 flex h-8 items-end gap-1" aria-hidden="true">
                 @foreach($revenueData as $revenue)
-                    <div class="flex-1 rounded-t bg-emerald-500/25" style="height: {{ max(4, ($revenue / $maxRevenue) * 100) }}%"></div>
+                    <div class="flex-1 rounded-t bg-emerald-600/65" style="height: {{ max(4, ($revenue / $maxRevenue) * 100) }}%"></div>
                 @endforeach
             </div>
-            <p class="mt-3 text-[11px] text-slate-400">{{ __('dashboard.same_day_comparison') }}</p>
+            <p class="mt-3 text-[11px] text-slate-500">{{ __('dashboard.same_day_comparison') }}</p>
         </div>
 
         <div class="rounded-2xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.revenue_daily') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('dashboard.revenue_daily') }}</p>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
                         {{ format_rupiah($todayRevenue) }}
                     </p>
@@ -185,16 +185,16 @@
             </div>
             <div class="mt-4 flex h-8 items-end gap-1" aria-hidden="true">
                 @foreach($dailyData as $revenue)
-                    <div class="flex-1 rounded-t bg-blue-500/25" style="height: {{ max(4, ($revenue / $maxDaily) * 100) }}%"></div>
+                    <div class="flex-1 rounded-t bg-blue-600/65" style="height: {{ max(4, ($revenue / $maxDaily) * 100) }}%"></div>
                 @endforeach
             </div>
-            <p class="mt-3 text-[11px] text-slate-400">{{ __('dashboard.last_7_days') }}</p>
+            <p class="mt-3 text-[11px] text-slate-500">{{ __('dashboard.last_7_days') }}</p>
         </div>
 
         <div class="rounded-2xl border border-slate-200/70 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
             <div class="flex items-start justify-between gap-3">
                 <div>
-                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.collection_rate') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('dashboard.collection_rate') }}</p>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">{{ $collectionRate }}%</p>
                 </div>
                 <span class="rounded-full bg-slate-100 px-2.5 py-1 text-[10px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">
@@ -207,12 +207,12 @@
                      aria-label="{{ __('dashboard.collection_rate') }}">
                     <div class="h-full rounded-full bg-primary transition-all duration-500" style="width: {{ $collectionRate }}%"></div>
                 </div>
-                <div class="mt-2 flex justify-between text-[11px] text-slate-400">
+                <div class="mt-2 flex justify-between text-[11px] text-slate-500">
                     <span>{{ __('dashboard.collected') }}</span>
                     <span class="tabular-nums">{{ __('dashboard.billed') }} {{ format_rupiah($totalBilled) }}</span>
                 </div>
             </div>
-            <p class="mt-3 text-[11px] text-slate-400">
+            <p class="mt-3 text-[11px] text-slate-500">
                 {{ __('dashboard.outstanding_amount') }} {{ format_rupiah($totalOutstanding) }}
             </p>
         </div>
@@ -226,11 +226,11 @@
     <x-admin.panel :title="__('dashboard.income_total')" :subtitle="__('dashboard.income_total_desc')">
         <div class="flex flex-wrap items-end justify-between gap-5">
             <div class="min-w-0">
-                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('dashboard.income_received') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('dashboard.income_received') }}</p>
                 <p class="mt-1 text-3xl font-bold tabular-nums tracking-tight text-slate-900 dark:text-white">
                     {{ format_rupiah($incomeTotal) }}
                 </p>
-                <p class="mt-1 text-[11px] text-slate-400">{{ __('dashboard.income_refund_note') }}</p>
+                <p class="mt-1 text-[11px] text-slate-500">{{ __('dashboard.income_refund_note') }}</p>
                 @if(($refundedTotal ?? 0) > 0)
                     <p class="mt-0.5 text-[11px] font-medium text-rose-600 dark:text-rose-400">
                         {{ __('dashboard.income_refund_line', ['amount' => format_rupiah($refundedTotal)]) }}
@@ -240,7 +240,7 @@
             <div class="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-3">
                 @foreach($incomeBreakdown as $row)
                     <div class="rounded-xl border border-slate-200/70 px-3 py-2 dark:border-slate-800">
-                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{{ $row['label'] }}</p>
+                        <p class="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{{ $row['label'] }}</p>
                         <p class="mt-0.5 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-100">
                             {{ format_rupiah($row['amount']) }}
                         </p>
@@ -309,7 +309,7 @@
                         <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ $tile['label'] }}</p>
                     </div>
                     <p class="mt-1.5 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">{{ $tile['value'] }}</p>
-                    <p class="mt-1 text-[11px] text-slate-400">{{ $tile['hint'] }}</p>
+                    <p class="mt-1 text-[11px] text-slate-500">{{ $tile['hint'] }}</p>
                 </div>
             @endforeach
         </div>
@@ -341,13 +341,13 @@
                             <tr class="admin-table-row">
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $booking->user->name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $booking->pet->name }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $booking->pet->name }}</p>
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
                                         {{ format_rupiah($booking->paid_amount) }}
                                     </p>
-                                    <p class="text-[11px] tabular-nums text-slate-400">
+                                    <p class="text-[11px] tabular-nums text-slate-500">
                                         {{ __('common.of') }} {{ format_rupiah($booking->total_amount) }}
                                     </p>
                                 </td>
@@ -400,7 +400,7 @@
                             <tr class="admin-table-row">
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $booking->user->name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $booking->pet->name }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $booking->pet->name }}</p>
                                 </td>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-bold tabular-nums text-orange-600 dark:text-orange-400">
@@ -467,7 +467,7 @@
                                         </span>
                                         <div class="min-w-0">
                                             <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $booking->pet->name }}</p>
-                                            <p class="text-[11px] text-slate-400">{{ $booking->user->name }}</p>
+                                            <p class="text-[11px] text-slate-500">{{ $booking->user->name }}</p>
                                         </div>
                                     </div>
                                 </td>
@@ -520,7 +520,7 @@
                         </span>
                         <span class="min-w-0">
                             <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">{{ __('dashboard.pending_confirmations') }}</span>
-                            <span class="block text-[11px] text-slate-400">{{ __('dashboard.pending_confirmations_desc') }}</span>
+                            <span class="block text-[11px] text-slate-500">{{ __('dashboard.pending_confirmations_desc') }}</span>
                         </span>
                     </span>
                     <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $pendingBookings }}</span>
@@ -534,7 +534,7 @@
                         </span>
                         <span class="min-w-0">
                             <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">{{ __('dashboard.payments_processing') }}</span>
-                            <span class="block text-[11px] text-slate-400">{{ __('dashboard.payments_processing_desc') }}</span>
+                            <span class="block text-[11px] text-slate-500">{{ __('dashboard.payments_processing_desc') }}</span>
                         </span>
                     </span>
                     <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $pendingPayment }}</span>
@@ -548,7 +548,7 @@
                         </span>
                         <span class="min-w-0">
                             <span class="block text-xs font-semibold text-slate-700 dark:text-slate-200">{{ __('dashboard.failed_payments') }}</span>
-                            <span class="block text-[11px] text-slate-400">{{ __('dashboard.failed_payments_desc') }}</span>
+                            <span class="block text-[11px] text-slate-500">{{ __('dashboard.failed_payments_desc') }}</span>
                         </span>
                     </span>
                     <span class="text-lg font-bold tabular-nums text-slate-900 dark:text-white">{{ $failedPayments }}</span>
@@ -558,7 +558,7 @@
             <div class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
                 <div class="flex items-center justify-between gap-3">
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ __('dashboard.outstanding_balance') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ __('dashboard.outstanding_balance') }}</p>
                         <p class="mt-1 text-sm font-bold tabular-nums text-slate-900 dark:text-white">
                             {{ format_rupiah($totalOutstanding) }}
                         </p>

@@ -120,7 +120,7 @@
                                     @endif
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $clinic->name }}</p>
-                                        <p class="truncate text-[11px] text-slate-400">{{ $clinic->slug }}</p>
+                                        <p class="truncate text-[11px] text-slate-500">{{ $clinic->slug }}</p>
                                     </div>
                                 </div>
                             </td>

@@ -24,34 +24,34 @@
             <x-admin.panel title="{{ __('doctor.patient_info') }}">
                 <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hewan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hewan</p>
                         <p class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $booking->pet->name ?? '—' }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Spesies</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Spesies</p>
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ ucfirst($booking->pet->species ?? '—') }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Ras</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Ras</p>
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ $booking->pet->breed ?: '—' }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pemilik</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pemilik</p>
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ $booking->user->name ?? '—' }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Telepon</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Telepon</p>
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ $booking->user->phone ?: '—' }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Layanan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Layanan</p>
                         <p class="mt-1 text-sm text-slate-700 dark:text-slate-300">{{ $booking->service->name ?? '—' }}</p>
                     </div>
                 </div>
 
                 @if($booking->notes)
                     <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/50">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.owner_notes') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.owner_notes') }}</p>
                         <p class="mt-1.5 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $booking->notes }}</p>
                     </div>
                 @endif

@@ -54,10 +54,10 @@
                                 ? 'border-primary/30 bg-primary/10 text-slate-900 dark:text-white'
                                 : 'border-slate-200/70 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-700 dark:hover:bg-slate-800/60' }}"
                    @if($isActive) aria-current="page" @endif>
-                    <span class="material-symbols-outlined text-[20px] flex-shrink-0 {{ $isActive ? 'text-primary' : 'text-slate-400' }}" aria-hidden="true">{{ $tab['icon'] }}</span>
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0 {{ $isActive ? 'text-primary' : 'text-slate-500' }}" aria-hidden="true">{{ $tab['icon'] }}</span>
                     <span class="min-w-0">
                         <span class="block truncate text-sm font-semibold">{{ $tab['label'] }}</span>
-                        <span class="block truncate text-[10px] font-medium {{ $isActive ? 'text-slate-600 dark:text-slate-300' : 'text-slate-400' }}">{{ $tab['desc'] }}</span>
+                        <span class="block truncate text-[10px] font-medium {{ $isActive ? 'text-slate-600 dark:text-slate-300' : 'text-slate-500' }}">{{ $tab['desc'] }}</span>
                     </span>
                 </a>
             @endforeach

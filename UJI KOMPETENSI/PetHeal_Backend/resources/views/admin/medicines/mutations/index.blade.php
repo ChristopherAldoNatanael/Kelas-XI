@@ -116,7 +116,7 @@
                                 {{ $transaction->creator?->name ?? __('inventory.officer_system') }}
                             </td>
                             <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                {{ $transaction->created_at?->format('d M Y H:i') }}
+                                {{ $transaction->created_at?->format('d/m/Y H:i') }}
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge :label="$transaction->statusLabel()" :tone="$transaction->statusTone()" dot />

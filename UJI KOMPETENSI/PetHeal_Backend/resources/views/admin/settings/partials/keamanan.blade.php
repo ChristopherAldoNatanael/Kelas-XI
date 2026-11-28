@@ -30,14 +30,14 @@
             @if(!$passwordOtp)
                 {{-- Langkah 1: minta kode --}}
                 <div class="rounded-xl border border-slate-200 bg-slate-50/70 p-5 dark:border-slate-700 dark:bg-slate-800/40">
-                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">{{ __('admin.step_1_of_2') }}</p>
+                    <p class="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">{{ __('admin.step_1_of_2') }}</p>
                     <h4 class="mt-1.5 text-sm font-bold text-slate-900 dark:text-white">{{ __('admin.request_access_code') }}</h4>
                     <p class="mt-1.5 text-xs leading-6 text-slate-500 dark:text-slate-400">
                         {{ __('admin.request_access_code_desc') }}
                     </p>
 
                     <div class="mt-4 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2.5 dark:border-slate-700 dark:bg-slate-900">
-                        <span class="material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">mail</span>
+                        <span class="material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">mail</span>
                         <span class="truncate text-sm font-medium text-slate-700 dark:text-slate-300">{{ $me->email }}</span>
                         <span class="ml-auto rounded bg-emerald-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">{{ __('admin.account_email_label') }}</span>
                     </div>
@@ -111,7 +111,7 @@
                             <span class="material-symbols-outlined text-[18px]" aria-hidden="true">lock_reset</span>
                             {{ __('admin.save_new_password') }}
                         </button>
-                        <span class="text-xs text-slate-400">{{ __('admin.password_active_after_code') }}</span>
+                        <span class="text-xs text-slate-500">{{ __('admin.password_active_after_code') }}</span>
                     </div>
                 </form>
 
@@ -120,7 +120,7 @@
                     <form method="POST" action="{{ route('admin.settings.password.otp') }}?tab=keamanan" class="inline">
                         @csrf
                         <button type="submit" id="admin-otp-resend" data-wait="{{ $passwordOtp['resend_wait'] }}"
-                                class="font-semibold text-primary hover:underline disabled:cursor-default disabled:text-slate-400 disabled:no-underline">
+                                class="font-semibold text-primary hover:underline disabled:cursor-default disabled:text-slate-500 disabled:no-underline">
                             {{ $passwordOtp['resend_wait'] > 0
                                 ? __('admin.resend_in_seconds', ['seconds' => $passwordOtp['resend_wait']])
                                 : __('admin.resend_code') }}
@@ -147,7 +147,7 @@
                 <li>{{ __('admin.why_code_2') }}</li>
                 <li>{{ __('admin.why_code_3') }}</li>
             </ul>
-            <p class="mt-3 border-t border-slate-200/70 pt-3 text-[11px] leading-5 text-slate-400 dark:border-slate-700">
+            <p class="mt-3 border-t border-slate-200/70 pt-3 text-[11px] leading-5 text-slate-500 dark:border-slate-700">
                 {{ __('admin.never_ask_code') }}
             </p>
         </aside>

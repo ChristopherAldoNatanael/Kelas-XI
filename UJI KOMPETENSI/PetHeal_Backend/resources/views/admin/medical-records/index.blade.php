@@ -146,7 +146,7 @@ $currency = static fn ($amount) => format_rupiah($amount);
                                         <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">
                                             {{ $record->booking->user->name ?? __('admin.unknown_owner') }}
                                         </p>
-                                        <p class="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-400">
+                                        <p class="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 dark:bg-slate-800 dark:text-slate-400">
                                             <span class="material-symbols-outlined text-[12px]" aria-hidden="true">tag</span>
                                             {{ __('admin.booking_ref', ['id' => $record->booking_id]) }}
                                         </p>
@@ -176,7 +176,7 @@ $currency = static fn ($amount) => format_rupiah($amount);
                             </td>
                             <td class="px-5 py-4">
                                 <p class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ $currency($totalCost) }}</p>
-                                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-400">
+                                <p class="mt-0.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
                                     {{ __('admin.total_medical_cost') }}
                                 </p>
                                 <div class="mt-2 space-y-1.5">
@@ -194,7 +194,7 @@ $currency = static fn ($amount) => format_rupiah($amount);
                                 <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $record->created_at->locale(app()->getLocale())->translatedFormat('d M Y') }}</p>
                                 <p class="mt-0.5 text-[11px] text-slate-500 dark:text-slate-400">{{ $record->created_at->format('H:i') }}</p>
                                 @if($record->updated_at->ne($record->created_at))
-                                    <p class="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-400">
+                                    <p class="mt-2 text-[10px] uppercase tracking-[0.14em] text-slate-500">
                                         {{ __('admin.updated_ago', ['time' => $record->updated_at->diffForHumans()]) }}
                                     </p>
                                 @endif

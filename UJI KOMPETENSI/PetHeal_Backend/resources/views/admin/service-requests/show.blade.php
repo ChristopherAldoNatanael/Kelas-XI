@@ -14,7 +14,7 @@
         :title="$request->code"
         eyebrow="Permintaan Layanan"
         icon="support_agent"
-        :description="ServiceRequest::statusLabel($request->status) . ' · diajukan ' . $request->created_at?->format('d M Y H:i')">
+        :description="ServiceRequest::statusLabel($request->status) . ' · diajukan ' . $request->created_at?->format('d/m/Y H:i')">
         <x-slot:actions>
             <a href="{{ route('admin.service-requests.index') }}" class="admin-btn-secondary">
                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">arrow_back</span>
@@ -39,35 +39,35 @@
             <x-admin.panel title="Pengajuan Pemilik" subtitle="Kebutuhan yang ditulis pemilik hewan">
                 <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <div>
-                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Pemilik</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Pemilik</dt>
                         <dd class="text-sm font-medium text-slate-800 dark:text-slate-200">{{ $request->user->name ?? '—' }}</dd>
                         <dd class="text-xs text-slate-500 dark:text-slate-400">{{ $request->user->email ?? '' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Hewan</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Hewan</dt>
                         <dd class="text-sm font-medium text-slate-800 dark:text-slate-200">
                             {{ $request->pet->name ?? '—' }}
                             <span class="text-xs font-normal text-slate-500">· {{ $request->pet->species ?? '' }}</span>
                         </dd>
                     </div>
                     <div>
-                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Jenis kebutuhan</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Jenis kebutuhan</dt>
                         <dd class="text-sm text-slate-700 dark:text-slate-300">{{ $request->need_type_label }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Preferensi jadwal</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Preferensi jadwal</dt>
                         <dd class="text-sm text-slate-700 dark:text-slate-300">
                             {{ $request->preferred_date ?? 'Fleksibel' }}
                             {{ $request->preferred_time ? '· ' . $request->preferred_time : '' }}
                         </dd>
                     </div>
                     <div class="sm:col-span-2">
-                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Keluhan / penjelasan</dt>
+                        <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Keluhan / penjelasan</dt>
                         <dd class="mt-1 whitespace-pre-line rounded-xl bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700 dark:bg-slate-800/60 dark:text-slate-300">{{ $request->complaint }}</dd>
                     </div>
                     @if($request->medicalRecord)
                         <div class="sm:col-span-2">
-                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Rekam medis rujukan</dt>
+                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Rekam medis rujukan</dt>
                             <dd class="text-sm text-slate-700 dark:text-slate-300">
                                 <a href="{{ route('admin.medical-records.show', $request->medicalRecord->id) }}" class="font-semibold text-primary hover:underline">
                                     Rekam medis #{{ $request->medicalRecord->id }}
@@ -85,7 +85,7 @@
                     @if($request->doctor_notes)
                         <p class="mt-2 whitespace-pre-line border-t border-slate-100 pt-2 text-xs leading-5 text-slate-500 dark:border-slate-800 dark:text-slate-400">{{ $request->doctor_notes }}</p>
                     @endif
-                    <p class="mt-3 text-xs font-semibold {{ $request->needs_follow_up ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400' }}">
+                    <p class="mt-3 text-xs font-semibold {{ $request->needs_follow_up ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500' }}">
                         {{ $request->needs_follow_up ? 'Dokter menilai kontrol lanjutan diperlukan.' : 'Kontrol lanjutan tidak diwajibkan.' }}
                     </p>
                 </x-admin.panel>
@@ -95,14 +95,14 @@
                 <x-admin.panel title="Penawaran Aktif" subtitle="Dikirim {{ format_tanggal($request->offered_at, 'datetime') }}">
                     <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Layanan</dt>
+                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Layanan</dt>
                             <dd class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $request->offer_service_name }}</dd>
                             @if($request->offer_description)
                                 <dd class="text-xs text-slate-500 dark:text-slate-400">{{ $request->offer_description }}</dd>
                             @endif
                         </div>
                         <div>
-                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Harga</dt>
+                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Harga</dt>
                             <dd class="text-sm font-semibold text-slate-800 dark:text-slate-200">
                                 {{ format_rupiah((float) $request->offer_price) }}
                                 <span class="text-[10px] font-bold uppercase {{ $request->offer_price_type === 'estimate' ? 'text-amber-600' : 'text-emerald-600' }}">
@@ -111,15 +111,15 @@
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Dokter & jadwal</dt>
+                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Dokter & jadwal</dt>
                             <dd class="text-sm text-slate-700 dark:text-slate-300">
                                 {{ $request->offerDoctor->name ?? '—' }}<br>
                                 {{ $request->offer_schedule_date ?? '—' }} {{ $request->offer_schedule_time ? '· ' . $request->offer_schedule_time : '' }}
                             </dd>
                         </div>
                         <div>
-                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Berlaku sampai</dt>
-                            <dd class="text-sm text-slate-700 dark:text-slate-300">{{ $request->offer_valid_until?->format('d M Y H:i') ?? 'Tanpa batas' }}</dd>
+                            <dt class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Berlaku sampai</dt>
+                            <dd class="text-sm text-slate-700 dark:text-slate-300">{{ $request->offer_valid_until?->format('d/m/Y H:i') ?? 'Tanpa batas' }}</dd>
                         </div>
                     </dl>
                 </x-admin.panel>

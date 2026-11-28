@@ -38,11 +38,11 @@
                 <p class="whitespace-pre-line text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $request->complaint }}</p>
                 <dl class="mt-4 grid grid-cols-2 gap-3 text-xs">
                     <div>
-                        <dt class="font-bold uppercase tracking-wider text-slate-400">Pemilik</dt>
+                        <dt class="font-bold uppercase tracking-wider text-slate-500">Pemilik</dt>
                         <dd class="text-slate-700 dark:text-slate-300">{{ $request->user->name ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.schedule_preference') }}</dt>
+                        <dt class="font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.schedule_preference') }}</dt>
                         <dd class="text-slate-700 dark:text-slate-300">
                             {{ $request->preferred_date ?? 'Fleksibel' }}
                             {{ $request->preferred_time ? '· ' . $request->preferred_time : '' }}
@@ -64,7 +64,7 @@
                                 · {{ $request->medicalRecord->diagnosis }}
                             </p>
                         </div>
-                        <span class="material-symbols-outlined text-slate-400" aria-hidden="true">chevron_right</span>
+                        <span class="material-symbols-outlined text-slate-500" aria-hidden="true">chevron_right</span>
                     </a>
                 </x-admin.panel>
             @endif
@@ -75,11 +75,11 @@
                        class="flex items-center justify-between border-b border-slate-100 px-5 py-3 last:border-0 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/40">
                         <div class="min-w-0">
                             <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $record->diagnosis }}</p>
-                            <p class="text-[11px] text-slate-400">
+                            <p class="text-[11px] text-slate-500">
                                 {{ format_tanggal($record->created_at) }} · {{ $record->doctor->name ?? '—' }}
                             </p>
                         </div>
-                        <span class="material-symbols-outlined text-slate-400" aria-hidden="true">chevron_right</span>
+                        <span class="material-symbols-outlined text-slate-500" aria-hidden="true">chevron_right</span>
                     </a>
                 @empty
                     <div class="px-5 py-6">
@@ -123,7 +123,7 @@
                         @if($request->doctor_notes)
                             <p class="text-xs leading-5 text-slate-500 dark:text-slate-400">{{ $request->doctor_notes }}</p>
                         @endif
-                        <p class="text-xs text-slate-400">Status: {{ ServiceRequest::statusLabel($request->status) }}</p>
+                        <p class="text-xs text-slate-500">Status: {{ ServiceRequest::statusLabel($request->status) }}</p>
                     </div>
                 </x-admin.panel>
             @endif
@@ -133,7 +133,7 @@
                     <div class="space-y-1 px-5 py-4 text-sm text-slate-700 dark:text-slate-300">
                         <p class="font-semibold">{{ $request->offer_service_name }}</p>
                         <p>{{ format_rupiah((float) $request->offer_price) }}
-                            <span class="text-[10px] font-bold uppercase text-slate-400">{{ $request->offer_price_type }}</span>
+                            <span class="text-[10px] font-bold uppercase text-slate-500">{{ $request->offer_price_type }}</span>
                         </p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
                             {{ $request->offerDoctor->name ?? '—' }} ·

@@ -53,7 +53,7 @@
                     ['label' => __('admin.failed'), 'value' => $summary['failed'] ?? 0, 'class' => ($summary['failed'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-200'],
                 ] as $tile)
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ $tile['label'] }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $tile['label'] }}</p>
                         <p class="mt-1.5 text-2xl font-bold tabular-nums {{ $tile['class'] }}">{{ $tile['value'] }}</p>
                     </div>
                 @endforeach
@@ -85,7 +85,7 @@
                             <td class="px-5 py-3">
                                 <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $service->name }}</p>
                                 @if($service->description)
-                                    <p class="mt-0.5 max-w-xs truncate text-[11px] text-slate-400">{{ $service->description }}</p>
+                                    <p class="mt-0.5 max-w-xs truncate text-[11px] text-slate-500">{{ $service->description }}</p>
                                 @endif
                             </td>
                             <td class="px-5 py-3">
@@ -96,7 +96,7 @@
                                     <x-admin.badge :label="__('clinics.category_no_comparison')" tone="amber" />
                                 @endif
                                 @if($service->category)
-                                    <p class="mt-1 text-[10px] text-slate-400">{{ $service->category }}</p>
+                                    <p class="mt-1 text-[10px] text-slate-500">{{ $service->category }}</p>
                                 @endif
                             </td>
                             <td class="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">
@@ -180,7 +180,7 @@
                 <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ __('admin.import_modal_desc') }}</p>
             </div>
             <button type="button" onclick="closeServicesImportModal()"
-                    class="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    class="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     aria-label="{{ __('common.close') }}">
                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">close</span>
             </button>
@@ -223,11 +223,11 @@
                         <p class="text-sm font-bold text-slate-900 dark:text-white">{{ __('admin.last_import_result') }}</p>
                         <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
                             <div class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('admin.total') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('admin.total') }}</p>
                                 <p class="mt-1 font-semibold text-slate-900 dark:text-white">{{ $summary['total'] ?? 0 }}</p>
                             </div>
                             <div class="rounded-lg bg-slate-50 p-3 dark:bg-slate-800/60">
-                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ __('admin.failed') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ __('admin.failed') }}</p>
                                 <p class="mt-1 font-semibold {{ ($summary['failed'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white' }}">
                                     {{ $summary['failed'] ?? 0 }}
                                 </p>

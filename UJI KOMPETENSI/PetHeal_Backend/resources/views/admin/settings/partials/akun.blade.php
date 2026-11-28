@@ -36,7 +36,7 @@
             <label for="settings-email" class="admin-label">{{ __('auth.email') }}</label>
             <input id="settings-email" type="email" name="email" value="{{ old('email', $me->email) }}" required autocomplete="email"
                    class="admin-input @error('email') admin-input-error @enderror">
-            <p class="mt-1.5 text-[11px] text-slate-400">{{ __('admin.email_login_hint') }}</p>
+            <p class="mt-1.5 text-[11px] text-slate-500">{{ __('admin.email_login_hint') }}</p>
             @error('email') <p class="admin-error">{{ $message }}</p> @enderror
         </div>
 

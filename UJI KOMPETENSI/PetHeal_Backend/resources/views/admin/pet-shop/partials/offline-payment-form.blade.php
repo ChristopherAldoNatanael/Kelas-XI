@@ -33,7 +33,7 @@
     <p data-change-warning class="hidden text-xs font-medium text-rose-600 dark:text-rose-400">
         {{ __('petshop.pickup_change_invalid') }}
     </p>
-    <p class="text-[11px] text-slate-400">{{ __('petshop.pickup_change_hint') }}</p>
+    <p class="text-[11px] text-slate-500">{{ __('petshop.pickup_change_hint') }}</p>
 
     <div>
         <label class="admin-label" for="payment_method">{{ __('petshop.pickup_payment_method') }}</label>

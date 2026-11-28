@@ -2541,6 +2541,13 @@ penutupan encounter. Lihat `docs/admin/WALK_IN_DAN_DARURAT.md`. Android tidak
 diubah; unggah bukti consent, pencabutan consent, pasien anonymous, dan uji
 browser manual belum dibuat.
 
+Status implementasi P4.10: **selesai pada web admin untuk Ruang Klinis dan
+penataan navigasi** — lab, rawat inap, rujukan, penyakit menular, template,
+ekspor, kesejahteraan, serta pengelompokan sidebar admin/dokter/super admin.
+Lihat `docs/admin/RUANG_KLINIS_DAN_NAVIGASI.md`. Form pembuatan lab/rawat
+inap/rujukan/laporan penyakit, halaman detail, pagination, dan uji browser
+manual belum dibuat.
+
 Dependensi: P0.2 dan P0.3 wajib selesai sebelum P1. P1.1 dan P1.2 tidak boleh
 dijalankan bersamaan tanpa service boundary yang jelas. P2.1 bergantung pada
 P1.3. P3 bergantung pada P1.1 dan P2.1. P4 berjalan berkelanjutan.

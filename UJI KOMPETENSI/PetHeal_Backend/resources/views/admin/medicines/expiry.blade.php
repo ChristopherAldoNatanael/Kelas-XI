@@ -150,7 +150,7 @@
                                         </p>
                                     @endif
                                 @else
-                                    <span class="text-slate-400">—</span>
+                                    <span class="text-slate-500">—</span>
                                 @endif
                             </td>
                             <td class="px-5 py-3">

@@ -46,7 +46,7 @@
                                             <div class="min-w-0">
                                                 <p class="truncate text-sm font-semibold text-slate-900 dark:text-white">{{ $category->name }}</p>
                                                 @if($category->description)
-                                                    <p class="truncate text-[11px] text-slate-400">{{ $category->description }}</p>
+                                                    <p class="truncate text-[11px] text-slate-500">{{ $category->description }}</p>
                                                 @endif
                                             </div>
                                         </div>

@@ -51,7 +51,7 @@
                                 <td class="px-5 py-3">
                                     <ul class="space-y-0.5 text-xs text-slate-600 dark:text-slate-300">
                                         @foreach(($handover->items_snapshot ?? []) as $item)
-                                            <li>{{ $item['quantity'] }}× {{ $item['product_name'] }} <span class="text-slate-400">({{ $item['variant_name'] }})</span></li>
+                                            <li>{{ $item['quantity'] }}× {{ $item['product_name'] }} <span class="text-slate-500">({{ $item['variant_name'] }})</span></li>
                                         @endforeach
                                     </ul>
                                 </td>

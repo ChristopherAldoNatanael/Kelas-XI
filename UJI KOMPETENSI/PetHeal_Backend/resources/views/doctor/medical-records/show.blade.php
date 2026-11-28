@@ -54,32 +54,32 @@
             <x-admin.panel title="{{ __('doctor.clinical_summary') }}" subtitle="{{ __('doctor.clinical_summary_hint') }}">
                 <div class="space-y-4">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Diagnosis</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Diagnosis</p>
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->diagnosis ?: '—' }}</p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.treatment') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.treatment') }}</p>
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->treatment ?: '—' }}</p>
                     </div>
 
                     @if($record->medicine)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.prescription') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.prescription') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->medicine }}</p>
                         </div>
                     @endif
 
                     @if($record->notes)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.additional_notes') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.additional_notes') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->notes }}</p>
                         </div>
                     @endif
 
                     @if($record->vitals)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanda vital</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Tanda vital</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">
                                 Suhu {{ $record->vitals->temperature_c ?: '—' }} °C ·
                                 Jantung {{ $record->vitals->heart_rate ?: '—' }}/mnt ·
@@ -92,7 +92,7 @@
 
                     @if($record->prescriptionItems->isNotEmpty())
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resep terstruktur</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Resep terstruktur</p>
                             <ul class="mt-2 space-y-2">
                                 @foreach($record->prescriptionItems as $item)
                                     <li class="text-sm text-slate-700 dark:text-slate-300">
@@ -148,7 +148,7 @@
                             </span>
                         @endif
                         <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Hewan</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Hewan</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $record->pet->name ?? '—' }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">
                                 {{ ucfirst($record->pet->species ?? '—') }}{{ $record->pet->breed ? ' · ' . $record->pet->breed : '' }}
@@ -161,7 +161,7 @@
                             <span class="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
                         </span>
                         <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Pemilik</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Pemilik</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $owner->name ?? '—' }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $owner->phone ?: ($owner->email ?? '—') }}</p>
                         </div>
@@ -172,7 +172,7 @@
             <x-admin.panel title="{{ __('doctor.visit_follow_up') }}">
                 <div class="space-y-3">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Kunjungan</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Kunjungan</p>
                         <p class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
                             {{ \Carbon\Carbon::parse($record->booking?->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                         </p>
@@ -197,7 +197,7 @@
                     @endif
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.note_history') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.note_history') }}</p>
                         <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
                             Dibuat: {{ optional($record->created_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}
                         </p>

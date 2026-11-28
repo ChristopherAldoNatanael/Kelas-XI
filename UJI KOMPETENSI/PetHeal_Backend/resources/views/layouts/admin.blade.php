@@ -2,7 +2,7 @@
     $clinic = currentClinic();
     $clinicName = $clinic?->name ?? 'PetHeal';
     $clinicLogo = $clinic?->logo_url;
-    $clinicColor = $clinic?->primary_color ?? '#10B981';
+    $clinicColor = \App\Support\AccessibleColor::primary($clinic?->primary_color);
     $isSuperAdmin = isSuperAdmin();
     // Satu layout untuk admin & portal dokter. Varian ditentukan oleh route,
     // bukan oleh role saja, supaya tautan admin yang dibuka dokter tetap tampil
@@ -91,18 +91,21 @@
     <div class="flex h-full">
         <!-- Sidebar -->
         <aside id="sidebar"
-               class="flex-shrink-0 flex flex-col border-r border-white/5 h-full overflow-hidden bg-emerald-950"
+               class="app-sidebar flex-shrink-0 flex flex-col h-full overflow-hidden"
                aria-label="{{ __('admin.main_navigation') }}">
             <div class="sidebar-header p-4 pb-4 flex items-center gap-3 flex-shrink-0">
                 <div class="logo-text-wrap flex items-center gap-3 flex-1 min-w-0">
-                    <a href="{{ $homeRoute }}" class="logo-link bg-white p-1.5 rounded-lg block hover:bg-slate-200 transition-colors flex-shrink-0">
+                    <a href="{{ $homeRoute }}" class="logo-link bg-white p-1.5 rounded-xl block transition-colors flex-shrink-0">
                         @if($clinicLogo)
                             <img src="{{ $clinicLogo }}" alt="{{ $clinicName }}" class="h-7 w-auto block rounded" fetchpriority="high" width="158" height="56">
                         @else
-                            <img src="/logo.png" alt="{{ $clinicName }}" class="h-7 w-auto block rounded" fetchpriority="high" width="158" height="56">
+                            <img src="/logo-320.png" alt="{{ $clinicName }}" class="h-7 w-auto block rounded" fetchpriority="high" width="158" height="56">
                         @endif
                     </a>
-                    <span class="sidebar-text font-semibold text-lg text-white tracking-tight truncate">{{ $clinicName }}</span>
+                    <div class="sidebar-text min-w-0 leading-tight">
+                        <p class="sidebar-eyebrow">{{ $isDoctorPortal ? 'Portal Dokter' : ($isSuperAdmin ? 'Super Admin' : 'Ruang Klinik') }}</p>
+                        <p class="sidebar-brand-name font-semibold tracking-tight text-white">{{ $clinicName }}</p>
+                    </div>
                 </div>
 
                 {{-- Desktop: collapse rail. Mobile: close drawer. --}}
@@ -121,12 +124,12 @@
                  tidak tahu klinik mana yang sedang aktif. --}}
             <div class="lg:hidden px-3 pb-3">
                 @if($isSuperAdmin)
-                    <form method="POST" action="{{ route('admin.switch-clinic') }}" class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                    <form method="POST" action="{{ route('admin.switch-clinic') }}" class="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-emerald-900/[0.04] px-3 py-2">
                         @csrf
-                        <span class="material-symbols-outlined text-base text-slate-300" aria-hidden="true">swap_horiz</span>
+                        <span class="material-symbols-outlined text-base text-emerald-700" aria-hidden="true">swap_horiz</span>
                         <label for="clinic-switcher-mobile" class="sr-only">{{ __('admin.choose_clinic') }}</label>
                         <select name="clinic_id" id="clinic-switcher-mobile" onchange="this.form.submit()"
-                                class="w-full bg-transparent text-xs font-semibold text-white outline-none [&>option]:text-slate-900">
+                                class="w-full bg-transparent text-xs font-semibold text-emerald-950 outline-none [&>option]:text-slate-900">
                             <option value="" {{ session('current_clinic_id') ? '' : 'selected' }}>— {{ __('menu.system_overview') }} —</option>
                             @foreach(($allClinics ?? collect()) as $c)
                                 <option value="{{ $c->id }}" {{ ($clinic?->id === $c->id) ? 'selected' : '' }}>{{ $c->name }}</option>
@@ -134,8 +137,8 @@
                         </select>
                     </form>
                 @else
-                    <div class="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/90">
-                        <span class="material-symbols-outlined text-base text-slate-300" aria-hidden="true">local_hospital</span>
+                    <div class="flex items-center gap-2 rounded-xl border border-emerald-900/10 bg-emerald-900/[0.04] px-3 py-2 text-xs font-semibold text-emerald-950/80">
+                        <span class="material-symbols-outlined text-base text-emerald-700" aria-hidden="true">local_hospital</span>
                         <span class="truncate">{{ $clinicName }}</span>
                     </div>
                 @endif
@@ -144,7 +147,9 @@
             <nav class="flex-1 px-3 space-y-0.5 overflow-y-auto custom-scrollbar pb-4">
                 @if($isDoctorPortal)
                 {{-- Navigasi portal dokter: hanya area praktik milik sendiri. --}}
-                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">{{ $clinicName }}</p>
+                @if($isDoctorPortal)
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">Praktik Hari Ini</p>
+                @endif
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('doctor.dashboard') ? 'active-nav-item' : 'font-medium' }} relative"
                    href="{{ route('doctor.dashboard') }}" @if(request()->routeIs('doctor.dashboard')) aria-current="page" @endif>
                     @if(request()->routeIs('doctor.dashboard'))
@@ -153,6 +158,7 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">dashboard</span>
                     <span class="sidebar-text text-sm">{{ __('doctor.nav_today') }}</span>
                 </a>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Praktik</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.bookings.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.bookings.index') }}" @if(request()->routeIs('doctor.bookings.*')) aria-current="page" @endif>
                     @if(request()->routeIs('doctor.bookings.*'))
@@ -177,6 +183,7 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">medical_information</span>
                     <span class="sidebar-text">{{ __('doctor.nav_service_requests') }}</span>
                 </a>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Dokumentasi</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.medical-records.index') }}" @if(request()->routeIs('doctor.medical-records.*')) aria-current="page" @endif>
                     @if(request()->routeIs('doctor.medical-records.*'))
@@ -185,6 +192,7 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">clinical_notes</span>
                     <span class="sidebar-text">{{ __('doctor.nav_records') }}</span>
                 </a>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Jadwal</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('doctor.schedule.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('doctor.schedule.index') }}" @if(request()->routeIs('doctor.schedule.*')) aria-current="page" @endif>
                     @if(request()->routeIs('doctor.schedule.*'))
@@ -223,7 +231,7 @@
                     <span class="sidebar-text text-sm">{{ __('menu.system_overview') }}</span>
                 </a>
                 @else
-                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4 mt-2">{{ $clinicName }}</p>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Ikhtisar</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl {{ request()->routeIs('admin.dashboard') ? 'active-nav-item' : 'font-medium' }} relative"
                    href="{{ route('admin.dashboard') }}" @if(request()->routeIs('admin.dashboard')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.dashboard'))
@@ -232,6 +240,7 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">grid_view</span>
                     <span class="sidebar-text text-sm">{{ __('menu.overview') }}</span>
                 </a>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Operasional</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.queue.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.queue.index') }}" @if(request()->routeIs('admin.queue.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.queue.*'))
@@ -245,7 +254,7 @@
                     @if(request()->routeIs('admin.walk-ins.*'))
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
-                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">emergency</span>
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">health_and_safety</span>
                     <span class="sidebar-text">Walk-in & Darurat</span>
                 </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.service-requests.*') ? 'active-nav-item' : '' }} relative"
@@ -329,6 +338,7 @@
                         </a>
                     </div>
                 </div>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Klinis</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.medical-records.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.medical-records.index') }}" @if(request()->routeIs('admin.medical-records.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.medical-records.*'))
@@ -337,14 +347,23 @@
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">clinical_notes</span>
                     <span class="sidebar-text">{{ __('menu.medical_records') }}</span>
                 </a>
+                <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.clinical.*') ? 'active-nav-item' : '' }} relative"
+                   href="{{ route('admin.clinical.index') }}" @if(request()->routeIs('admin.clinical.*')) aria-current="page" @endif>
+                    @if(request()->routeIs('admin.clinical.*'))
+                    <div class="active-indicator" aria-hidden="true"></div>
+                    @endif
+                    <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">science</span>
+                    <span class="sidebar-text">Ruang Klinis</span>
+                </a>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.privacy-requests.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.privacy-requests.index') }}" @if(request()->routeIs('admin.privacy-requests.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.privacy-requests.*'))
                     <div class="active-indicator" aria-hidden="true"></div>
                     @endif
                     <span class="material-symbols-outlined text-[20px] flex-shrink-0" aria-hidden="true">shield_person</span>
-                    <span class="sidebar-text">Permintaan PDP</span>
+                    <span class="sidebar-text">Permintaan Privasi</span>
                 </a>
+                <p class="section-label sidebar-text px-3 text-[10px] font-bold uppercase tracking-[0.25em] text-slate-400 mb-2 mt-4">Keuangan &amp; Penjualan</p>
                 <a class="nav-link flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium {{ request()->routeIs('admin.payments.*') ? 'active-nav-item' : '' }} relative"
                    href="{{ route('admin.payments.index') }}" @if(request()->routeIs('admin.payments.*')) aria-current="page" @endif>
                     @if(request()->routeIs('admin.payments.*'))
@@ -495,7 +514,7 @@
                     </div>
                     <div class="user-info-text flex-1 min-w-0">
                         <p class="text-xs font-medium text-white/90 truncate">{{ Auth::user()->name ?? 'Admin' }}</p>
-                        <p class="text-[9px] text-slate-500 truncate uppercase tracking-widest font-bold">
+                        <p class="text-[9px] text-slate-400 truncate uppercase tracking-widest font-bold">
                             @if($isSuperAdmin)
                                 Super Admin
                             @elseif($isDoctorPortal)
@@ -522,11 +541,11 @@
                 <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
                     @unless($isDoctorPortal)
                     <button id="commandPaletteTrigger" type="button"
-                            class="flex items-center gap-2 h-9 px-2.5 sm:px-3 rounded-lg text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200 hover:border-slate-300 dark:hover:border-slate-600 transition-colors"
-                            aria-label="{{ __('admin.open_global_search') }}" aria-haspopup="dialog" aria-controls="commandPalette">
+                            class="flex items-center gap-2 h-9 px-2.5 sm:px-3 rounded-lg text-slate-500 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-700 hover:text-slate-700 dark:hover:text-white hover:border-slate-300 dark:hover:border-slate-500 transition-colors"
+                            aria-label="{{ __('admin.search_short') }} Ctrl K — {{ __('admin.open_global_search') }}" aria-haspopup="dialog" aria-controls="commandPalette">
                         <span class="material-symbols-outlined text-lg" aria-hidden="true">search</span>
                         <span class="hidden md:inline text-xs font-semibold">{{ __('admin.search_short') }}</span>
-                        <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-600 text-[9px] font-bold text-slate-500 dark:text-slate-400">Ctrl K</kbd>
+                        <kbd class="hidden lg:inline-flex items-center px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-500 text-[9px] font-bold text-slate-500 dark:text-slate-300">Ctrl K</kbd>
                     </button>
                     @endunless
                     @if($isSuperAdmin)

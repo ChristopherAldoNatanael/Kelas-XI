@@ -52,7 +52,7 @@
                     @forelse($movements as $movement)
                         <tr class="admin-table-row">
                             <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">
-                                {{ $movement->created_at?->format('d M Y H:i') }}
+                                {{ $movement->created_at?->format('d/m/Y H:i') }}
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge

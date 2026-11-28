@@ -57,7 +57,7 @@
                     [__('petshop.import_failed_rows'), $sum['failed'] ?? 0, ($sum['failed'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-500 dark:text-slate-400'],
                 ] as [$label, $value, $tone])
                     <div class="min-w-0">
-                        <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">{{ $label }}</dt>
+                        <dt class="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">{{ $label }}</dt>
                         <dd class="mt-1 text-xl font-bold tabular-nums {{ $tone }}">{{ number_format((int) $value, 0, ',', '.') }}</dd>
                     </div>
                 @endforeach
@@ -90,7 +90,7 @@
     <x-admin.panel flush>
         <form method="GET" class="flex flex-col gap-2 border-b border-slate-100 px-5 py-4 sm:flex-row sm:items-center dark:border-slate-800">
             <div class="relative flex-1">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">search</span>
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">search</span>
                 <input type="search" name="search" value="{{ request('search') }}"
                        placeholder="{{ __('petshop.search_product') }}" class="admin-input pl-10">
             </div>
@@ -138,12 +138,12 @@
                                         @if($product->image_url)
                                             <img src="{{ $product->image_url }}" alt="" class="h-full w-full object-cover">
                                         @else
-                                            <span class="material-symbols-outlined text-[20px] text-slate-400" aria-hidden="true">shopping_bag</span>
+                                            <span class="material-symbols-outlined text-[20px] text-slate-500" aria-hidden="true">shopping_bag</span>
                                         @endif
                                     </span>
                                     <div class="min-w-0">
                                         <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $product->name }}</p>
-                                        <p class="truncate text-[11px] text-slate-400">{{ $product->brand ?: '—' }}</p>
+                                        <p class="truncate text-[11px] text-slate-500">{{ $product->brand ?: '—' }}</p>
                                     </div>
                                 </div>
                             </td>

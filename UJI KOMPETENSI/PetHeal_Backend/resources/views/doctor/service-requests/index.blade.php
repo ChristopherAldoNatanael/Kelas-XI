@@ -48,11 +48,11 @@
                     </div>
                     <p class="mt-0.5 text-sm text-slate-600 dark:text-slate-300">
                         {{ $item->pet->name ?? '—' }} · {{ $item->user->name ?? '—' }}
-                        <span class="text-xs text-slate-400">· {{ $item->need_type_label }}</span>
+                        <span class="text-xs text-slate-500">· {{ $item->need_type_label }}</span>
                     </p>
-                    <p class="mt-0.5 truncate text-xs text-slate-400">{{ \Illuminate\Support\Str::limit($item->complaint, 120) }}</p>
+                    <p class="mt-0.5 truncate text-xs text-slate-500">{{ \Illuminate\Support\Str::limit($item->complaint, 120) }}</p>
                 </div>
-                <span class="material-symbols-outlined mt-1 text-slate-400" aria-hidden="true">chevron_right</span>
+                <span class="material-symbols-outlined mt-1 text-slate-500" aria-hidden="true">chevron_right</span>
             </a>
         @empty
             <div class="px-5 py-10">

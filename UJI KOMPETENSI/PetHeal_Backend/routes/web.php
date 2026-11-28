@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminAuthController;
 use App\Http\Controllers\Admin\BookingController;
+use App\Http\Controllers\Admin\ClinicalWorkspaceController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\MedicalRecordController;
@@ -150,6 +151,13 @@ Route::middleware(['admin.auth'])->prefix('admin')->name('admin.')->group(functi
     Route::get('/walk-ins', [WalkInController::class, 'index'])->name('walk-ins.index');
     Route::get('/walk-ins/owners', [WalkInController::class, 'searchOwners'])->name('walk-ins.owners');
     Route::post('/walk-ins', [WalkInController::class, 'store'])->name('walk-ins.store');
+
+    // Ruang kerja klinis: lab, rawat inap, rujukan, penyakit, template, ekspor.
+    Route::get('/clinical', [ClinicalWorkspaceController::class, 'index'])->name('clinical.index');
+    Route::post('/clinical/inpatient/{id}/discharge', [ClinicalWorkspaceController::class, 'discharge'])->name('clinical.inpatient.discharge');
+    Route::post('/clinical/referrals/{id}/void', [ClinicalWorkspaceController::class, 'voidReferral'])->name('clinical.referrals.void');
+    Route::post('/clinical/templates/clinical', [ClinicalWorkspaceController::class, 'publishClinicalTemplate'])->name('clinical.templates.clinical');
+    Route::post('/clinical/templates/consent', [ClinicalWorkspaceController::class, 'publishConsentTemplate'])->name('clinical.templates.consent');
 
     // Permintaan layanan: pengajuan pemilik → evaluasi dokter → penawaran admin.
     // Didaftarkan sebelum pola lain agar `/service-requests/{id}` tidak bentrok.

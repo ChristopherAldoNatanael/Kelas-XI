@@ -7,7 +7,7 @@
 @endphp
 
 <div class="mb-6">
-    <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+    <p class="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500">
         <span class="material-symbols-outlined text-[14px]" aria-hidden="true">calendar_month</span>
         {{ __('admin.eyebrow_operations') }}
     </p>

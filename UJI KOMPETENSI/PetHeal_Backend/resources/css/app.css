@@ -11,7 +11,7 @@
 
 @theme {
     --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-    --color-primary: #10b981;
+    --color-primary: #047857;
     --color-secondary: #3b82f6;
     --color-background-light: #f8fafc;
     --color-background-dark: #0b0e11;
@@ -386,7 +386,7 @@
     }
 
     .admin-hint {
-        @apply mt-1.5 text-xs leading-5 text-slate-400;
+        @apply mt-1.5 text-xs leading-5 text-slate-500;
     }
 
     .admin-error {
@@ -394,7 +394,7 @@
     }
 
     .admin-btn-primary {
-        @apply inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600;
+        @apply inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800;
     }
 
     /* ── Pemilih titik klinik (admin non-teknis) ───────────────────────────
@@ -478,7 +478,7 @@
     }
 
     .admin-filter-chip--active {
-        @apply border-primary bg-primary text-white shadow-sm hover:border-primary hover:bg-emerald-600 hover:text-white dark:border-primary dark:bg-primary dark:text-white dark:hover:bg-emerald-600;
+        @apply border-primary bg-primary text-white shadow-sm hover:border-primary hover:bg-emerald-600 hover:text-white dark:border-primary dark:bg-primary dark:text-white dark:hover:bg-emerald-800;
     }
 
     .admin-icon-btn {
@@ -486,7 +486,7 @@
     }
 
     .admin-table-head {
-        @apply bg-slate-50/70 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:bg-slate-800/40;
+        @apply bg-slate-50/70 text-[10px] font-bold uppercase tracking-[0.15em] text-slate-500 dark:bg-slate-800/40 dark:text-slate-400;
     }
 
     .admin-table-row {
@@ -699,4 +699,652 @@
 
 .dark .admin-photo-slot .material-symbols-outlined {
     @apply text-slate-500;
+}
+
+/* ── Sidebar: bright clinical workspace ───────────────────────────────────
+   Permukaan hijau mint terang, bukan hitam. Aksen emerald dipakai untuk
+   status aktif, fokus, dan submenu. Tetap rapat dan tenang seperti konsol
+   SaaS perusahaan, bukan template admin yang ramai. */
+.app-sidebar {
+    --sb-text: #4b5f56;
+    --sb-text-strong: #102e23;
+    --sb-muted: #74877d;
+    --sb-line: rgba(6, 78, 59, 0.10);
+    --sb-hover: rgba(5, 150, 105, 0.07);
+    --sb-accent: #059669;
+    position: relative;
+    isolation: isolate;
+    contain: layout paint style;
+    border-right: 1px solid #b7d1c2;
+    background:
+        radial-gradient(110% 34% at 50% -8%, rgba(16, 185, 129, 0.09), transparent 64%),
+        linear-gradient(180deg, #e6f2eb 0%, #dbece2 52%, #d2e6da 100%);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.68);
+    will-change: width;
+    transition:
+        width 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.46s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar::before {
+    display: none;
+}
+
+.app-sidebar .sidebar-header {
+    height: 64px;
+    min-height: 64px;
+    max-height: 64px;
+    overflow: hidden;
+    padding: 0.875rem 0.875rem 0.75rem;
+    border-bottom: 1px solid var(--sb-line);
+}
+
+.app-sidebar .logo-link {
+    padding: 5px !important;
+    border-radius: 9px !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 0 1px rgba(6, 78, 59, 0.10), 0 1px 2px rgba(6, 78, 59, 0.05);
+}
+
+.app-sidebar .logo-link:hover {
+    background: #ffffff !important;
+    box-shadow: 0 0 0 1px rgba(5, 150, 105, 0.22), 0 3px 8px rgba(6, 78, 59, 0.08);
+}
+
+.app-sidebar .logo-link img {
+    height: 24px;
+}
+
+.sidebar-eyebrow {
+    margin: 0 0 1px;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.17em;
+    text-transform: uppercase;
+    color: #4d7c69;
+}
+
+.sidebar-brand-name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+    max-width: 10.1rem;
+    font-size: 12.5px;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.005em;
+    color: var(--sb-text-strong) !important;
+    white-space: normal;
+}
+
+.app-sidebar .sidebar-toggle {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: #466253;
+    transition: color 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .sidebar-toggle:hover {
+    color: #064e3b;
+    background: rgba(5, 150, 105, 0.08);
+    border-color: rgba(5, 150, 105, 0.12);
+}
+
+.app-sidebar .sidebar-text {
+    transition: opacity 0.26s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar nav {
+    padding: 0.75rem 0.625rem 1.5rem;
+    transition: padding 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: #b9d8c8 transparent;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 42px), transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 42px), transparent 100%);
+}
+
+.app-sidebar .section-label {
+    display: block;
+    margin: 1.15rem 0 0.4rem;
+    padding: 0 0.6rem;
+    font-size: 8.5px;
+    font-weight: 700;
+    letter-spacing: 0.155em;
+    text-transform: uppercase;
+    color: #2f5544;
+    font-size: 9px;
+    line-height: 1.2;
+}
+
+.app-sidebar .section-label::after {
+    content: none;
+}
+
+.app-sidebar .nav-link {
+    position: relative;
+    min-height: 36px;
+    gap: 0.625rem;
+    margin: 0 0 1px;
+    padding: 0.45rem 0.6rem;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #355043;
+    font-size: 12.75px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: 0;
+    transform: none;
+    width: 100%;
+    transition:
+        color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+        gap 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+        padding 0.22s cubic-bezier(0.4, 0, 0.2, 1),
+        border-radius 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .nav-link:hover {
+    color: var(--sb-text-strong);
+    background: var(--sb-hover);
+    border-color: transparent;
+    transform: none;
+}
+
+.app-sidebar .nav-link > .material-symbols-outlined {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    border-radius: 0;
+    background: transparent;
+    color: #5f7a6b;
+    font-size: 18px;
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+    transition: color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .nav-link:hover > .material-symbols-outlined {
+    color: #047857;
+    background: transparent;
+}
+
+.app-sidebar .active-nav-item {
+    color: #ffffff;
+    border-color: transparent;
+    background: linear-gradient(90deg, #0f8a68 0%, #12996f 100%);
+    box-shadow: 0 1px 2px rgba(4, 90, 70, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.app-sidebar .active-nav-item:hover {
+    color: #ffffff;
+    border-color: transparent;
+    background: linear-gradient(90deg, #0d7d5e 0%, #108a66 100%);
+}
+
+.app-sidebar .active-nav-item > .material-symbols-outlined {
+    color: #ecfdf5;
+    background: transparent;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.app-sidebar .active-indicator {
+    left: 0;
+    top: 50%;
+    height: 15px;
+    width: 2px;
+    transform: translateY(-50%);
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: none;
+    animation: sidebar-indicator-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes sidebar-indicator-in {
+    from {
+        height: 4px;
+        opacity: 0;
+    }
+    to {
+        height: 15px;
+        opacity: 1;
+    }
+}
+
+.app-sidebar .nav-group-chevron {
+    width: 18px !important;
+    height: 18px !important;
+    flex-basis: 18px !important;
+    margin-left: auto;
+    background: transparent !important;
+    color: #365c4b;
+    font-size: 18px !important;
+    transform: rotate(-90deg);
+    transition: transform 0.34s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .nav-group-chevron.is-open {
+    transform: rotate(0deg);
+}
+
+.app-sidebar .nav-link:hover .nav-group-chevron {
+    color: #047857;
+}
+
+.app-sidebar .sidebar-nav-group {
+    margin: 0 0 1px;
+}
+
+.app-sidebar .sidebar-submenu {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0.125rem 0 0.4rem 1.85rem;
+    padding: 0.15rem 0 0.15rem 0.75rem;
+    border-left: 1px solid #c7e6d6;
+}
+
+/* .hidden berasal dari layer utilitas Tailwind; blok ini unlayered. */
+.app-sidebar .sidebar-submenu.hidden {
+    display: none;
+}
+
+.app-sidebar .sidebar-sublink {
+    position: relative;
+    padding: 0.32rem 0.5rem;
+    border-radius: 5px;
+    color: #315645;
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.35;
+    transition: color 0.28s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .sidebar-sublink::before {
+    content: none;
+}
+
+.app-sidebar .sidebar-sublink:hover {
+    color: #064e3b;
+    background: rgba(5, 150, 105, 0.07);
+}
+
+.app-sidebar .sidebar-sublink.is-active {
+    color: #047857;
+    background: #d9f8e7;
+    font-weight: 700;
+}
+
+.app-sidebar > div:last-child {
+    border-top: 1px solid var(--sb-line);
+    padding: 0.75rem;
+}
+
+.app-sidebar .user-info-card {
+    padding: 0.375rem;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    box-shadow: none;
+    transition: background-color 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.app-sidebar .user-info-card:hover {
+    background: rgba(5, 150, 105, 0.06);
+}
+
+.app-sidebar .user-info-card > div:first-child {
+    position: relative;
+    background: #047857;
+    color: #ecfdf5 !important;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.48);
+}
+
+.app-sidebar .user-info-card > div:first-child::after {
+    content: none;
+}
+
+.app-sidebar .user-info-card p:first-child {
+    color: #163a2d !important;
+}
+
+.app-sidebar .user-info-card p:last-child {
+    color: #466253 !important;
+}
+
+.app-sidebar .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+}
+
+.app-sidebar .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #bddbcc;
+    border-radius: 999px;
+}
+
+.app-sidebar .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: #9dc8b3;
+}
+
+.app-sidebar a:focus-visible,
+.app-sidebar button:focus-visible {
+    outline: 2px solid rgba(5, 150, 105, 0.72);
+    outline-offset: -2px;
+}
+
+@media (min-width: 1024px) {
+    #sidebar.app-sidebar.sidebar-collapsing {
+        width: 4.75rem;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsing nav {
+        padding-left: 7px;
+        padding-right: 7px;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsing .sidebar-text,
+    #sidebar.app-sidebar.sidebar-collapsing .user-info-text {
+        opacity: 0;
+        transition: opacity 0.18s ease;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed {
+        width: 4.75rem;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed nav {
+        padding-left: 7px;
+        padding-right: 7px;
+        scrollbar-gutter: auto;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed nav a.nav-link,
+    #sidebar.app-sidebar.sidebar-collapsed nav button.nav-link {
+        width: 100%;
+        min-height: 38px;
+        padding-left: 0;
+        padding-right: 0;
+        gap: 0;
+        border-radius: 8px;
+        justify-content: center;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .section-label {
+        display: block;
+        width: auto !important;
+        height: 1px;
+        margin: 0.7rem 0.8rem 0.5rem;
+        padding: 0 !important;
+        overflow: hidden;
+        opacity: 1 !important;
+        background: rgba(6, 78, 59, 0.22);
+        color: transparent;
+        font-size: 0;
+        line-height: 0;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed nav .nav-link > .material-symbols-outlined {
+        width: 18px;
+        height: 18px;
+        flex-basis: 18px;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .sidebar-header {
+        flex-direction: column;
+        justify-content: center;
+        gap: 2px;
+        height: 64px;
+        min-height: 64px;
+        max-height: 64px;
+        padding: 6px 0;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .logo-text-wrap {
+        gap: 0;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .logo-link {
+        padding: 3px !important;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .logo-link img {
+        height: 20px;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .sidebar-toggle {
+        display: flex;
+        width: 28px;
+        height: 20px;
+        border-radius: 5px;
+        color: #ffffff;
+        background: #0f8a68;
+        border: 1px solid rgba(4, 90, 70, 0.16);
+        box-shadow: 0 1px 2px rgba(6, 78, 59, 0.10);
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .sidebar-toggle:hover {
+        color: #ffffff;
+        background: #0b8a5f;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .sidebar-toggle-icon {
+        font-size: 16px;
+        transform: rotate(180deg);
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .nav-link:hover {
+        transform: none;
+    }
+
+    #sidebar.app-sidebar.sidebar-collapsed .active-indicator {
+        left: 0;
+    }
+}
+
+@media (max-width: 1023.98px) {
+    .app-sidebar {
+        box-shadow: 24px 0 56px -30px rgba(6, 78, 59, 0.34);
+    }
+}
+
+/* Target sentuh mobile: aksi ikon pada tabel dan tombol utama minimal 44px. */
+@media (max-width: 1023.98px) {
+    #sidebar-open {
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .admin-btn-primary,
+    .admin-btn-secondary,
+    .admin-btn-ghost,
+    .clinical-tab {
+        min-height: 44px;
+    }
+
+    .admin-table-row button,
+    .admin-table-row a.inline-flex {
+        min-width: 44px;
+        min-height: 44px;
+    }
+}
+
+/* Varian gelap sidebar: tetap hijau, tidak berubah menjadi hitam pekat. */
+.dark .app-sidebar {
+    border-right-color: #17352a;
+    background:
+        radial-gradient(110% 34% at 50% -8%, rgba(16, 185, 129, 0.10), transparent 64%),
+        linear-gradient(180deg, #0d2119 0%, #0a1a14 55%, #08150f 100%);
+    box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.03);
+}
+
+.dark .app-sidebar .sidebar-header {
+    border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+
+.dark .sidebar-eyebrow {
+    color: #7fb8a0;
+}
+
+.dark .sidebar-brand-name {
+    color: #e7f5ee !important;
+}
+
+.dark .app-sidebar .sidebar-toggle {
+    color: #9dbbac;
+}
+
+.dark .app-sidebar .sidebar-toggle:hover {
+    color: #ffffff;
+    background: rgba(16, 185, 129, 0.12);
+    border-color: rgba(16, 185, 129, 0.16);
+}
+
+.dark .app-sidebar .section-label {
+    color: #6e9181;
+}
+
+.dark .app-sidebar .nav-link {
+    color: #9db7aa;
+}
+
+.dark .app-sidebar .nav-link:hover {
+    color: #f3faf6;
+    background: rgba(16, 185, 129, 0.10);
+}
+
+.dark .app-sidebar .nav-link > .material-symbols-outlined {
+    color: #739486;
+}
+
+.dark .app-sidebar .nav-link:hover > .material-symbols-outlined {
+    color: #a7f3d0;
+}
+
+.dark .app-sidebar .active-nav-item {
+    color: #ffffff;
+    background: linear-gradient(90deg, #047857 0%, #059669 100%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.dark .app-sidebar .active-nav-item:hover {
+    color: #ffffff;
+    background: linear-gradient(90deg, #036c50 0%, #048a60 100%);
+}
+
+.dark .app-sidebar .active-nav-item > .material-symbols-outlined {
+    color: #ecfdf5;
+}
+
+.dark .app-sidebar .active-indicator {
+    background: rgba(255, 255, 255, 0.86);
+}
+
+.dark .app-sidebar .nav-group-chevron {
+    color: #82a392;
+}
+
+.dark .app-sidebar .sidebar-submenu {
+    border-left-color: #25483a;
+}
+
+.dark .app-sidebar .sidebar-sublink {
+    color: #88a99a;
+}
+
+.dark .app-sidebar .sidebar-sublink:hover {
+    color: #e7f5ee;
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.dark .app-sidebar .sidebar-sublink.is-active {
+    color: #a7f3d0;
+    background: rgba(16, 185, 129, 0.14);
+}
+
+.dark .app-sidebar .user-info-card:hover {
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.dark .app-sidebar .user-info-card > div:first-child {
+    background: #065f46;
+    color: #ecfdf5 !important;
+}
+
+.dark .app-sidebar .user-info-card p:first-child {
+    color: #e7f5ee !important;
+}
+
+.dark .app-sidebar .user-info-card p:last-child {
+    color: #8fae9e !important;
+}
+
+.dark .app-sidebar > div:last-child {
+    border-top-color: rgba(255, 255, 255, 0.07);
+}
+
+.dark .app-sidebar .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #274b3c;
+}
+
+/* Di tema gelap, label sekunder yang semula slate-500 perlu dinaikkan. */
+.dark .text-slate-500 {
+    color: #94a3b8;
+}
+
+.dark .text-slate-600 {
+    color: #a8b6c8;
+}
+
+.dark .app-sidebar .section-label {
+    color: #8fae9e;
+}
+
+.dark .app-sidebar .sidebar-sublink {
+    color: #9bb8a8;
+}
+
+@media (max-width: 1023.98px) {
+    #sidebar-close {
+        min-width: 44px;
+        height: 44px;
+    }
+
+    .app-sidebar .nav-link {
+        min-height: 44px;
+    }
+}
+
+@media (max-width: 1023.98px) {
+    #commandPaletteTrigger,
+    #darkModeToggle {
+        min-height: 44px;
+    }
+
+    .admin-table-row a {
+        min-height: 44px;
+    }
+
+    .admin-table-row a.inline-flex {
+        min-width: 44px;
+    }
+}
+
+@media (max-width: 1023.98px) {
+    #darkModeToggle {
+        min-width: 44px;
+    }
+
+    table a.inline-flex {
+        min-height: 44px;
+    }
 }

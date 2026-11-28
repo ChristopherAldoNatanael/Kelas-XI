@@ -40,7 +40,7 @@
                                 <x-admin.badge :label="\App\Support\AdminStatus::auditActionLabel($log->action)" tone="blue" />
                             </td>
                             <td class="max-w-md px-5 py-3 text-sm text-slate-500">{{ $log->description }}</td>
-                            <td class="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-400">{{ $log->ip_address }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 font-mono text-xs text-slate-500">{{ $log->ip_address }}</td>
                         </tr>
                     @empty
                         <tr>

@@ -25,17 +25,17 @@
     <x-admin.panel :title="__('admin.booking_information')">
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3">
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.pet') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.pet') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->pet->name ?? __('admin.pet_placeholder') }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.owner') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
                     {{ $record->booking?->user?->name ?? __('admin.unknown_owner') }}
                 </p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.doctor') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $record->doctor->name ?? '—' }}</p>
             </div>
         </div>

@@ -61,7 +61,7 @@
                         <div data-scan-idle class="absolute inset-0 flex flex-col items-center justify-center gap-2.5 px-6 text-center">
                             <span data-scan-idle-icon class="material-symbols-outlined text-[40px] text-slate-600" aria-hidden="true">qr_code_scanner</span>
                             <p data-scan-idle-title class="text-sm font-semibold text-white">{{ __('petshop.pickup_scan_idle') }}</p>
-                            <p data-scan-idle-hint class="max-w-[19rem] text-xs leading-5 text-slate-400">{{ __('petshop.pickup_scan_privacy') }}</p>
+                            <p data-scan-idle-hint class="max-w-[19rem] text-xs leading-5 text-slate-500">{{ __('petshop.pickup_scan_privacy') }}</p>
                             <button type="button" data-scan-start class="admin-btn-primary mt-1.5">
                                 <span class="material-symbols-outlined text-[18px]" aria-hidden="true">photo_camera</span>
                                 <span data-scan-start-text>{{ __('petshop.pickup_scan_activate') }}</span>

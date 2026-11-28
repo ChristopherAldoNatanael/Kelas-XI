@@ -21,31 +21,31 @@
     <x-admin.panel :title="__('admin.booking_information')">
         <div class="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.pet') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.pet') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->pet->name ?? __('admin.pet_placeholder') }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.owner') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->user->name ?? __('admin.unknown_owner') }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.doctor') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{{ $booking->doctor->name ?? '—' }}</p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.date') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.date') }}</p>
                 <p class="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">
                     {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                 </p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.time') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.time') }}</p>
                 <p class="mt-1 text-sm font-medium tabular-nums text-slate-800 dark:text-slate-200">
                     {{ \Carbon\Carbon::parse($booking->booking_time)->format('H:i') }} WIB
                 </p>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.col_total_amount') }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.col_total_amount') }}</p>
                 <p class="mt-1 text-sm font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
                     {{ format_rupiah($booking->total_amount ?? 0) }}
                 </p>

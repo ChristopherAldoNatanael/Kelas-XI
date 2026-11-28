@@ -34,7 +34,7 @@
                 </p>
             </div>
             <button type="button" onclick="closeMedicineImportModal()"
-                    class="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                    class="shrink-0 rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                     aria-label="{{ __('common.close') }}">
                 <span class="material-symbols-outlined text-[22px]" aria-hidden="true">close</span>
             </button>
@@ -134,7 +134,7 @@
                             <span class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">
                                 {{ __('admin.medicine_import_columns') }}
                             </span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-400 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
+                            <span class="material-symbols-outlined text-[18px] text-slate-500 transition group-open:rotate-180" aria-hidden="true">expand_more</span>
                         </summary>
                         <dl class="space-y-1.5 px-3.5 pb-3.5">
                             @foreach([

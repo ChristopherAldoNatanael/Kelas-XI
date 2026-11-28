@@ -96,7 +96,7 @@
                                    class="text-sm font-semibold text-slate-800 transition hover:text-primary dark:text-slate-100">
                                     #{{ $booking->id }}
                                 </a>
-                                <p class="mt-0.5 text-[10px] text-slate-400">{{ $booking->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
+                                <p class="mt-0.5 text-[10px] text-slate-500">{{ $booking->created_at?->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <div class="flex items-center gap-2.5">
@@ -127,7 +127,7 @@
                                     {{ $booking->service?->name ?? '—' }}
                                 </span>
                                 @if($booking->service?->price)
-                                    <span class="block text-[11px] tabular-nums text-slate-400">
+                                    <span class="block text-[11px] tabular-nums text-slate-500">
                                         {{ format_rupiah($booking->service->price) }}
                                     </span>
                                 @endif
@@ -136,7 +136,7 @@
                                 <p class="text-sm text-slate-700 dark:text-slate-300">
                                     {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                                 </p>
-                                <p class="text-[11px] tabular-nums text-slate-400">
+                                <p class="text-[11px] tabular-nums text-slate-500">
                                     {{ \Carbon\Carbon::parse($booking->booking_time)->format('H:i') }}
                                 </p>
                             </td>
@@ -158,7 +158,7 @@
                                         @endif
                                     </div>
                                 @else
-                                    <span class="text-xs text-slate-400">—</span>
+                                    <span class="text-xs text-slate-500">—</span>
                                 @endif
                             </td>
                             <td class="px-5 py-3">

@@ -75,7 +75,7 @@
                                                class="block text-sm font-semibold text-slate-800 hover:text-primary dark:text-slate-200">
                                                 {{ $booking->pet->name ?? '—' }}
                                             </a>
-                                            <p class="text-[11px] text-slate-400">{{ $booking->user->name ?? '—' }}</p>
+                                            <p class="text-[11px] text-slate-500">{{ $booking->user->name ?? '—' }}</p>
                                         </td>
                                         <td class="px-5 py-3 text-sm text-slate-600 dark:text-slate-300">
                                             {{ $booking->service->name ?? '—' }}

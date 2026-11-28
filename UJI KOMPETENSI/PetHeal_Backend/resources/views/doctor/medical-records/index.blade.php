@@ -29,15 +29,15 @@
         <div class="border-b border-slate-100 p-4 dark:border-slate-800">
             <form method="GET" action="{{ route('doctor.medical-records.index') }}" class="flex flex-col gap-3 lg:flex-row lg:items-end">
                 <div class="w-full lg:w-44">
-                    <label for="from" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.from_date') }}</label>
+                    <label for="from" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.from_date') }}</label>
                     <input type="date" id="from" name="from" value="{{ request('from') }}" class="admin-input">
                 </div>
                 <div class="w-full lg:w-44">
-                    <label for="to" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.to_date') }}</label>
+                    <label for="to" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.to_date') }}</label>
                     <input type="date" id="to" name="to" value="{{ request('to') }}" class="admin-input">
                 </div>
                 <div class="w-full flex-1">
-                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.search_patient') }}</label>
+                    <label for="q" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.search_patient') }}</label>
                     <input type="search" id="q" name="q" value="{{ request('q') }}" placeholder="Nama hewan" class="admin-input">
                 </div>
                 <div class="flex items-center gap-2">
@@ -67,14 +67,14 @@
                             <tr class="admin-table-row">
                                 <td class="whitespace-nowrap px-5 py-3 text-sm text-slate-600 dark:text-slate-300">
                                     {{ optional($record->created_at)->locale(app()->getLocale())->translatedFormat('d M Y') }}
-                                    <p class="text-[11px] text-slate-400">Booking #{{ $record->booking_id }}</p>
+                                    <p class="text-[11px] text-slate-500">Booking #{{ $record->booking_id }}</p>
                                 </td>
                                 <td class="px-5 py-3">
                                     <a href="{{ route('doctor.medical-records.show', $record->id) }}"
                                        class="block text-sm font-semibold text-slate-800 hover:text-primary dark:text-slate-200">
                                         {{ $record->pet->name ?? '—' }}
                                     </a>
-                                    <p class="text-[11px] text-slate-400">{{ $record->booking->user->name ?? '—' }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $record->booking->user->name ?? '—' }}</p>
                                 </td>
                                 <td class="max-w-[240px] px-5 py-3">
                                     <p class="truncate text-sm text-slate-700 dark:text-slate-300">{{ $record->diagnosis }}</p>

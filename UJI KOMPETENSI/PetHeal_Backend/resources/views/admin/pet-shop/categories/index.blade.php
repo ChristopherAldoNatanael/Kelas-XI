@@ -45,12 +45,12 @@
                             </span>
                             <div class="min-w-0 flex-1">
                                 <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $category->name }}</p>
-                                <p class="text-[11px] text-slate-400">{{ $category->products_count }} {{ __('petshop.product_count') }} · #{{ $category->sort_order }}</p>
+                                <p class="text-[11px] text-slate-500">{{ $category->products_count }} {{ __('petshop.product_count') }} · #{{ $category->sort_order }}</p>
                             </div>
                             <x-admin.badge
                                 :label="$category->is_active ? __('petshop.status_active') : __('petshop.status_inactive')"
                                 :tone="$category->is_active ? 'primary' : 'slate'" />
-                            <span class="material-symbols-outlined text-[18px] text-slate-400 transition-transform group-open:rotate-180" aria-hidden="true">expand_more</span>
+                            <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform group-open:rotate-180" aria-hidden="true">expand_more</span>
                         </summary>
 
                         <div class="border-t border-slate-100 bg-slate-50/60 px-5 py-4 dark:border-slate-800 dark:bg-slate-800/30">

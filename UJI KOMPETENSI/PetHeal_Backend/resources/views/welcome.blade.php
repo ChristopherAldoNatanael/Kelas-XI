@@ -103,7 +103,7 @@
 <header class="sticky top-0 z-50 bg-paper/90 backdrop-blur border-b border-[#E7DFCF]">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center gap-6">
         <a href="/" class="flex items-center">
-            <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" class="h-10 w-auto bg-white rounded-xl px-2 py-1 border border-[#E7DFCF]" fetchpriority="high">
+            <img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System" class="h-10 w-auto bg-white rounded-xl px-2 py-1 border border-[#E7DFCF]" fetchpriority="high">
         </a>
         <nav class="hidden md:flex items-center gap-6 text-[14px] font-medium text-stone-600 ml-4">
             <a href="#alur" class="navlink hover:text-ink">Alur</a>
@@ -473,7 +473,7 @@
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-10 grid md:grid-cols-4 gap-8">
         <div class="md:col-span-2">
             <div class="flex items-center">
-                <img src="/logo.png" alt="PetHeal — Veterinary Clinic System" class="h-9 w-auto bg-white rounded-lg px-2 py-1 border border-[#E7DFCF]" loading="lazy">
+                <img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System" class="h-9 w-auto bg-white rounded-lg px-2 py-1 border border-[#E7DFCF]" loading="lazy">
             </div>
             <p class="mt-3 text-[13.5px] text-stone-600 leading-relaxed max-w-sm">Sistem booking klinik hewan multi-klinik: aplikasi Android (Kotlin, Jetpack Compose) + backend Laravel + panel admin web. Dibuat sebagai bahan Uji Kompetensi — didokumentasikan, diuji, dan bisa didemo.</p>
             <p class="mt-4 font-mono text-[12px] text-stone-500">{{ $baseUrl }}/ · /admin · /api/health</p>

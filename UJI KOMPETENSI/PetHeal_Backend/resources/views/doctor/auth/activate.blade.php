@@ -256,7 +256,7 @@
     <div class="brand-panel">
         <div>
             <div class="brand-logo">
-                <span class="logo-badge"><img src="/logo.png" alt="PetHeal — Veterinary Clinic System"></span>
+                <span class="logo-badge"><img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System"></span>
                 <span>PetHeal<small>Portal Dokter</small></span>
             </div>
             <div class="brand-content">
@@ -305,7 +305,7 @@
         <div class="form-box">
 
             <div class="mobile-logo">
-                <img src="/logo.png" alt="PetHeal — Veterinary Clinic System">
+                <img src="/logo-320.png" alt="PetHeal — Veterinary Clinic System">
             </div>
 
             <div class="form-header">

@@ -43,7 +43,7 @@
 
                     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div>
-                            <label for="date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Tanggal</label>
+                            <label for="date" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Tanggal</label>
                             <input type="date" id="date" name="date" required
                                    min="{{ now()->toDateString() }}"
                                    value="{{ old('date', $prefillDate) }}"
@@ -52,7 +52,7 @@
                         </div>
 
                         <div>
-                            <label for="reason" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.reason_optional') }}</label>
+                            <label for="reason" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.reason_optional') }}</label>
                             <input type="text" id="reason" name="reason" maxlength="160"
                                    value="{{ old('reason') }}"
                                    placeholder="{{ __('doctor.reason_placeholder') }}"
@@ -62,7 +62,7 @@
                     </div>
 
                     <div>
-                        <p class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.exception_type') }}</p>
+                        <p class="mb-2 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.exception_type') }}</p>
                         <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <label class="mode-card flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 p-3.5 transition dark:border-slate-700">
                                 <input type="radio" name="mode" value="closed" class="mt-0.5" @checked(old('mode', 'closed') === 'closed')>
@@ -95,18 +95,18 @@
 
                     <div class="time-group grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-800/40">
                         <div>
-                            <label for="start_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Mulai</label>
+                            <label for="start_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Mulai</label>
                             <input type="time" id="start_time" name="start_time" value="{{ old('start_time', '09:00') }}"
                                    class="admin-input @error('start_time') admin-input-error @enderror">
                             @error('start_time')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
                         <div>
-                            <label for="end_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">Selesai</label>
+                            <label for="end_time" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">Selesai</label>
                             <input type="time" id="end_time" name="end_time" value="{{ old('end_time', '17:00') }}"
                                    class="admin-input @error('end_time') admin-input-error @enderror">
                             @error('end_time')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
-                        <p class="time-hint hidden text-[11px] leading-5 text-slate-400 sm:col-span-2">
+                        <p class="time-hint hidden text-[11px] leading-5 text-slate-500 sm:col-span-2">
                             Kolom jam diabaikan saat memilih cuti sehari penuh.
                         </p>
                     </div>
@@ -152,7 +152,7 @@
                                             <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">
                                                 {{ \Carbon\Carbon::parse($exception->date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                                             </p>
-                                            <p class="text-[11px] text-slate-400">
+                                            <p class="text-[11px] text-slate-500">
                                                 {{ \Carbon\Carbon::parse($exception->date)->locale(app()->getLocale())->translatedFormat('l') }}
                                             </p>
                                         </td>
@@ -172,9 +172,9 @@
                                         <td class="px-5 py-3">
                                             @if($conflicts > 0)
                                                 <x-admin.badge :label="$conflicts . ' booking di luar jadwal'" tone="amber" />
-                                                <p class="mt-1 text-[11px] text-slate-400">{{ __('doctor.not_cancelled_automatically') }}</p>
+                                                <p class="mt-1 text-[11px] text-slate-500">{{ __('doctor.not_cancelled_automatically') }}</p>
                                             @else
-                                                <span class="text-xs text-slate-400">{{ __('doctor.no_conflict') }}</span>
+                                                <span class="text-xs text-slate-500">{{ __('doctor.no_conflict') }}</span>
                                             @endif
                                         </td>
                                         <td class="px-5 py-3">
@@ -228,7 +228,7 @@
                                     <span class="rounded-full bg-slate-900 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-white dark:bg-slate-100 dark:text-slate-900">{{ __('doctor.today') }}</span>
                                 @endif
                             </div>
-                            <span class="flex-shrink-0 text-[11px] font-semibold tabular-nums {{ $isPractice ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-400 dark:text-slate-500' }}">
+                            <span class="flex-shrink-0 text-[11px] font-semibold tabular-nums {{ $isPractice ? 'text-emerald-700 dark:text-emerald-300' : 'text-slate-500 dark:text-slate-500' }}">
                                 {{ $isPractice ? $practiceLabel : 'Libur' }}
                             </span>
                         </li>
@@ -236,7 +236,7 @@
                 </ul>
 
                 <x-slot:footer>
-                    <p class="text-[11px] leading-5 text-slate-400">
+                    <p class="text-[11px] leading-5 text-slate-500">
                         {{ $practiceCount }} hari praktik · {{ $practiceLabel }}
                     </p>
                 </x-slot:footer>
@@ -258,7 +258,7 @@
                                        class="block truncate text-sm font-semibold text-slate-800 hover:text-primary dark:text-slate-200">
                                         {{ $booking->pet->name ?? '—' }}
                                     </a>
-                                    <p class="truncate text-[11px] text-slate-400">
+                                    <p class="truncate text-[11px] text-slate-500">
                                         {{ \Carbon\Carbon::parse($booking->booking_date)->locale(app()->getLocale())->translatedFormat('d M') }}
                                         · {{ substr((string) $booking->booking_time, 0, 5) }}
                                         · {{ $booking->user->name ?? '—' }}

@@ -55,15 +55,15 @@
 
             <dl class="mt-5 space-y-3">
                 <div>
-                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.email') }}</dt>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.email') }}</dt>
                     <dd class="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{{ $user->email }}</dd>
                 </div>
                 <div>
-                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('common.phone') }}</dt>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('common.phone') }}</dt>
                     <dd class="mt-0.5 text-sm text-slate-800 dark:text-slate-200">{{ $user->phone ?? __('admin.no_phone') }}</dd>
                 </div>
                 <div>
-                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Firebase UID</dt>
+                    <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Firebase UID</dt>
                     <dd class="mt-0.5 inline-block rounded-lg bg-slate-100 px-2 py-1 font-mono text-xs text-slate-700 dark:bg-slate-800 dark:text-slate-300">
                         {{ $user->firebase_uid ?? __('admin.local_user') }}
                     </dd>
@@ -76,7 +76,7 @@
                 <div class="space-y-2">
                     @foreach($firebaseData as $key => $value)
                         <div>
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $key }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $key }}</p>
                             <p class="text-sm text-slate-800 dark:text-slate-200">{{ is_array($value) ? json_encode($value) : $value }}</p>
                         </div>
                     @endforeach
@@ -148,7 +148,7 @@
         @endif
     </x-admin.panel>
 
-    <p class="text-xs text-slate-400">
+    <p class="text-xs text-slate-500">
         {{ __('admin.registered_at') }}: {{ optional($user->created_at)->locale(app()->getLocale())->translatedFormat('d F Y, H:i') }}
         @if($user->updated_at && $user->updated_at->ne($user->created_at))
             · {{ __('common.updated_at') }}: {{ $user->updated_at->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}

@@ -27,7 +27,7 @@
     <x-admin.panel flush>
         <form method="GET" class="grid gap-2 border-b border-slate-100 px-5 py-4 sm:grid-cols-2 lg:grid-cols-6 dark:border-slate-800">
             <div class="relative lg:col-span-2">
-                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-400" aria-hidden="true">search</span>
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-[18px] text-slate-500" aria-hidden="true">search</span>
                 <input type="search" name="search" value="{{ request('search') }}" placeholder="{{ __('petshop.order_number') }}" class="admin-input pl-10">
             </div>
             <input type="date" name="from" value="{{ request('from') }}" class="admin-input" aria-label="{{ __('petshop.date_from') }}">
@@ -67,7 +67,7 @@
                             <td class="px-5 py-3 text-sm text-slate-500 dark:text-slate-400">{{ $order->items->sum('quantity') }} item</td>
                             <td class="px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ __('petshop.payment_method.' . $order->payment_method) }}</td>
                             <td class="px-5 py-3 text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ format_rupiah($order->total_amount) }}</td>
-                            <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $order->completed_at?->format('d M Y H:i') }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $order->completed_at?->format('d/m/Y H:i') }}</td>
                             <td class="px-5 py-3 text-right">
                                 <a href="{{ route('admin.pet-shop.orders.show', $order) }}" class="admin-btn-ghost !p-2">
                                     <span class="material-symbols-outlined text-[18px]" aria-hidden="true">chevron_right</span>

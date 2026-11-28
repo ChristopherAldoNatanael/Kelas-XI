@@ -54,7 +54,7 @@
                             <tr>
                                 <td class="px-5 py-3">
                                     <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $item->product_name }}</p>
-                                    <p class="text-[11px] text-slate-400">{{ $item->variant_name }}</p>
+                                    <p class="text-[11px] text-slate-500">{{ $item->variant_name }}</p>
                                 </td>
                                 <td class="px-5 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{{ $item->sku }}</td>
                                 <td class="px-5 py-3 text-right text-sm tabular-nums text-slate-700 dark:text-slate-300">
@@ -104,7 +104,7 @@
                     </div>
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.created_at') }}</span>
-                        <span class="text-slate-700 dark:text-slate-300">{{ $order->created_at?->format('d M Y H:i') }}</span>
+                        <span class="text-slate-700 dark:text-slate-300">{{ $order->created_at?->format('d/m/Y H:i') }}</span>
                     </div>
                     @if($order->reservation_expires_at)
                         <div class="flex items-center justify-between gap-3">
@@ -182,9 +182,9 @@
                     @if($order->pickup_clinic_phone)
                         <p class="text-slate-500 dark:text-slate-400">{{ $order->pickup_clinic_phone }}</p>
                     @endif
-                    <p class="pt-3 text-xs text-slate-400">{{ __('petshop.customer') }}: {{ $order->customer_name }}</p>
+                    <p class="pt-3 text-xs text-slate-500">{{ __('petshop.customer') }}: {{ $order->customer_name }}</p>
                     @if($order->customer_phone)
-                        <p class="text-xs text-slate-400">{{ $order->customer_phone }}</p>
+                        <p class="text-xs text-slate-500">{{ $order->customer_phone }}</p>
                     @endif
                     @if($order->notes)
                         <p class="pt-2 text-xs italic text-slate-500 dark:text-slate-400">“{{ $order->notes }}”</p>
@@ -194,12 +194,12 @@
                 {{-- Pickup pass: hanya tampil setelah pesanan siap diambil. --}}
                 @if($order->pickupPass && $order->pickupPass->isUsable())
                     <div class="mt-4 rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.pickup_pass') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.pickup_pass') }}</p>
                         <p class="mt-1 font-mono text-base font-bold tracking-widest text-slate-900 dark:text-white">
                             {{ substr($order->pickupPass->manual_code, 0, 4) }}-{{ substr($order->pickupPass->manual_code, 4) }}
                         </p>
                         <p class="text-xs text-slate-500 dark:text-slate-400">
-                            {{ __('petshop.pickup_pass_expires', ['date' => $order->pickupPass->expires_at?->format('d M Y H:i') ?? '-']) }}
+                            {{ __('petshop.pickup_pass_expires', ['date' => $order->pickupPass->expires_at?->format('d/m/Y H:i') ?? '-']) }}
                         </p>
                         <a href="{{ route('admin.pet-shop.pickups.index', ['code' => substr($order->pickupPass->manual_code, 0, 4) . '-' . substr($order->pickupPass->manual_code, 4)]) }}"
                            class="admin-btn-secondary mt-3 w-full justify-center">{{ __('petshop.pickup_open_verification') }}</a>
@@ -298,12 +298,12 @@
                     @endif
                     <div class="flex items-center justify-between gap-3">
                         <span class="text-slate-500 dark:text-slate-400">{{ __('petshop.date') }}</span>
-                        <span class="text-xs text-slate-600 dark:text-slate-300">{{ $payment->paid_at?->format('d M Y H:i') ?? $payment->created_at?->format('d M Y H:i') }}</span>
+                        <span class="text-xs text-slate-600 dark:text-slate-300">{{ $payment->paid_at?->format('d/m/Y H:i') ?? $payment->created_at?->format('d/m/Y H:i') }}</span>
                     </div>
 
                     @if($payment->refunds->isNotEmpty())
                         <div class="mt-3 space-y-3 border-t border-slate-100 pt-3 dark:border-slate-800">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.refunds') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.refunds') }}</p>
                             @foreach($payment->refunds as $refund)
                                 <div class="rounded-xl border border-slate-200 p-3 dark:border-slate-700">
                                     <div class="flex items-center justify-between gap-2">
@@ -312,7 +312,7 @@
                                     </div>
                                     <p class="mt-1 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">{{ format_rupiah($refund->amount) }}</p>
                                     @if($refund->note)
-                                        <p class="mt-1 text-[11px] text-slate-400">{{ $refund->note }}</p>
+                                        <p class="mt-1 text-[11px] text-slate-500">{{ $refund->note }}</p>
                                     @endif
 
                                     @if(in_array($refund->status, ['requested','pending'], true))
@@ -344,8 +344,8 @@
                         <p class="text-sm font-medium text-slate-800 dark:text-slate-200">
                             {{ __('petshop.status.' . $history->to_status) }}
                         </p>
-                        <p class="text-[11px] text-slate-400">
-                            {{ $history->created_at?->format('d M Y H:i') }}
+                        <p class="text-[11px] text-slate-500">
+                            {{ $history->created_at?->format('d/m/Y H:i') }}
                             · {{ $history->source }}
                             @if($history->note)
                                 · {{ $history->note }}

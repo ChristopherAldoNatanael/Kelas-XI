@@ -80,7 +80,7 @@
                     ['label' => __('admin.medicine_import_failed'), 'value' => $sum['failed'] ?? 0, 'class' => ($sum['failed'] ?? 0) > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-700 dark:text-slate-200'],
                 ] as $tile)
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-800">
-                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-400">{{ $tile['label'] }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{{ $tile['label'] }}</p>
                         <p class="mt-1.5 text-2xl font-bold tabular-nums {{ $tile['class'] }}">{{ $tile['value'] }}</p>
                     </div>
                 @endforeach
@@ -276,7 +276,7 @@
                                             </p>
                                         @endif
                                     @else
-                                        <span class="text-slate-400">{{ __('admin.medicine_expiry_none') }}</span>
+                                        <span class="text-slate-500">{{ __('admin.medicine_expiry_none') }}</span>
                                     @endif
                                 </td>
                                 <td class="px-5 py-3">
@@ -327,7 +327,7 @@
 
             {{-- Tabel lebar butuh geser horizontal di layar kecil; beri tahu
                  supaya kolom kedaluwarsa/aksi tidak dianggap hilang. --}}
-            <p class="px-5 pb-3 text-[11px] text-slate-400 md:hidden">
+            <p class="px-5 pb-3 text-[11px] text-slate-500 md:hidden">
                 {{ __('admin.medicine_table_scroll_hint') }}
             </p>
 

@@ -50,12 +50,12 @@
             <x-admin.panel :title="__('admin.col_clinical_summary')" :subtitle="__('admin.documentation_clinical')">
                 <div class="space-y-4">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.diagnosis') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.diagnosis') }}</p>
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->diagnosis }}</p>
                     </div>
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.treatment') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.treatment') }}</p>
                         <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->treatment }}</p>
                     </div>
 
@@ -69,7 +69,7 @@
                     ] as $soapKey => $soapLabel)
                         @if(filled($record->{$soapKey}))
                             <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $soapLabel }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $soapLabel }}</p>
                                 <p class="mt-2 text-sm leading-6 whitespace-pre-line text-slate-700 dark:text-slate-300">{{ $record->{$soapKey} }}</p>
                             </div>
                         @endif
@@ -77,11 +77,11 @@
 
                     @if($record->attachments->isNotEmpty())
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Lampiran pemeriksaan</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Lampiran pemeriksaan</p>
                             <ul class="mt-2 space-y-1.5">
                                 @foreach($record->attachments as $attachment)
                                     <li class="flex items-center gap-2 text-sm">
-                                        <span class="material-symbols-outlined text-[16px] text-slate-400" aria-hidden="true">
+                                        <span class="material-symbols-outlined text-[16px] text-slate-500" aria-hidden="true">
                                             {{ $attachment->isImage() ? 'image' : 'picture_as_pdf' }}
                                         </span>
                                         @if($attachment->url)
@@ -102,7 +102,7 @@
 
                     @if($record->prescriptionItems->isNotEmpty())
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Resep obat</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Resep obat</p>
                             <ul class="mt-2 space-y-1.5">
                                 @foreach($record->prescriptionItems as $item)
                                     <li class="flex items-baseline justify-between gap-3 text-sm">
@@ -134,14 +134,14 @@
 
                     @if($record->medicine)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.medicine') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.medicine') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->medicine }}</p>
                         </div>
                     @endif
 
                     @if($record->notes)
                         <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.additional_notes') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.additional_notes') }}</p>
                             <p class="mt-2 text-sm leading-6 text-slate-700 dark:text-slate-300">{{ $record->notes }}</p>
                         </div>
                     @endif
@@ -163,7 +163,7 @@
                             'Berat' => $record->vitals->weight_kg ? $record->vitals->weight_kg . ' kg' : '—',
                         ] as $label => $value)
                             <div class="rounded-xl border border-slate-200/70 p-3 dark:border-slate-700">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $label }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $label }}</p>
                                 <p class="mt-1 font-semibold text-slate-900 dark:text-white">{{ $value }}</p>
                             </div>
                         @endforeach
@@ -191,13 +191,13 @@
 
                         <div class="grid gap-3 sm:grid-cols-2">
                             <div class="rounded-xl border border-white/80 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.extra_payment_required') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.extra_payment_required') }}</p>
                                 <p class="mt-1 text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                                     {{ $currency($record->extra_payment_amount ?? 0) }}
                                 </p>
                             </div>
                             <div class="rounded-xl border border-white/80 bg-white/80 px-4 py-3 dark:border-slate-700 dark:bg-slate-900">
-                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.extra_paid') }}</p>
+                                <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.extra_paid') }}</p>
                                 <p class="mt-1 text-lg font-bold tabular-nums text-slate-900 dark:text-white">
                                     {{ $currency($record->extra_payment_paid_amount ?? 0) }}
                                 </p>
@@ -220,7 +220,7 @@
                             </span>
                         @endif
                         <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.pet') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.pet') }}</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $record->pet->name ?? __('admin.pet_placeholder') }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">
                                 {{ $record->pet->species ?? __('admin.pet_placeholder') }}{{ $record->pet->breed ? ' · ' . $record->pet->breed : '' }}
@@ -233,7 +233,7 @@
                             <span class="material-symbols-outlined text-[22px]" aria-hidden="true">person</span>
                         </span>
                         <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.owner') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.owner') }}</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $owner->name ?? __('admin.unknown_owner') }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $owner->email ?? '—' }}</p>
                         </div>
@@ -248,7 +248,7 @@
                             </span>
                         @endif
                         <div class="min-w-0">
-                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.doctor') }}</p>
+                            <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.doctor') }}</p>
                             <p class="truncate text-sm font-bold text-slate-900 dark:text-white">{{ $record->doctor->name ?? '—' }}</p>
                             <p class="truncate text-xs text-slate-500 dark:text-slate-400">{{ $record->doctor->specialization ?? __('admin.veterinarian') }}</p>
                             @if($record->doctor->str_number || $record->doctor->sip_number)
@@ -265,7 +265,7 @@
             <x-admin.panel :title="__('admin.visit_timeline')" :subtitle="__('admin.appointment_and_followup')">
                 <div class="space-y-3">
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.booking_date') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.booking_date') }}</p>
                         <p class="mt-1 text-sm font-bold text-slate-900 dark:text-white">
                             {{ \Carbon\Carbon::parse($record->booking?->booking_date)->locale(app()->getLocale())->translatedFormat('d M Y') }}
                         </p>
@@ -291,7 +291,7 @@
                     @endif
 
                     <div class="rounded-xl border border-slate-200/70 p-4 dark:border-slate-700">
-                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('admin.audit_trail') }}</p>
+                        <p class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('admin.audit_trail') }}</p>
                         <p class="mt-1 text-xs text-slate-600 dark:text-slate-300">
                             {{ __('common.created_at') }}: {{ optional($record->created_at)->locale(app()->getLocale())->translatedFormat('d M Y, H:i') }}
                         </p>

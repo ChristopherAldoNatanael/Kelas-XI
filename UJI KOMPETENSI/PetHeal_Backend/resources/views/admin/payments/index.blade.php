@@ -155,16 +155,16 @@
                                 <p class="font-mono text-sm font-semibold text-slate-700 dark:text-slate-300">
                                     INV-{{ str_pad((string) $payment->id, 5, '0', STR_PAD_LEFT) }}
                                 </p>
-                                <p class="mt-0.5 text-[10px] text-slate-400">#{{ $payment->id }}</p>
+                                <p class="mt-0.5 text-[10px] text-slate-500">#{{ $payment->id }}</p>
                             </td>
                             <td class="px-5 py-3">
                                 <p class="text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $payment->user->name }}</p>
-                                <p class="text-[11px] text-slate-400">{{ $payment->pet->name }}</p>
+                                <p class="text-[11px] text-slate-500">{{ $payment->pet->name }}</p>
                             </td>
                             <td class="px-5 py-3 text-sm font-semibold tabular-nums text-slate-800 dark:text-slate-200">
                                 {{ format_rupiah($payment->total_amount) }}
                             </td>
-                            <td class="px-5 py-3 text-sm font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                            <td class="px-5 py-3 text-sm font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                 {{ format_rupiah($payment->paid_amount) }}
                             </td>
                             <td class="px-5 py-3">
@@ -173,14 +173,14 @@
                                         {{ format_rupiah($payment->remaining_amount) }}
                                     </p>
                                 @else
-                                    <span class="text-xs text-slate-400">—</span>
+                                    <span class="text-xs text-slate-500">—</span>
                                 @endif
                             </td>
                             <td class="px-5 py-3">
                                 <x-admin.badge
                                     :label="\App\Support\AdminStatus::paymentTypeLabel($payment->payment_type)"
                                     :tone="\App\Support\AdminStatus::paymentTypeTone($payment->payment_type)" />
-                                <p class="mt-1 text-[10px] text-slate-400">
+                                <p class="mt-1 text-[10px] text-slate-500">
                                     {{ $payment->payment_method ?: __('admin.not_selected') }}
                                 </p>
                             </td>

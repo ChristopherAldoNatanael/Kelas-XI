@@ -168,9 +168,9 @@
                                     </div>
                                 @elseif($request->reviewedBy)
                                     <p class="text-[11px] text-slate-500 dark:text-slate-400">{{ $request->reviewedBy->name }}</p>
-                                    <p class="text-[10px] text-slate-400">{{ $request->reviewed_at?->locale(app()->getLocale())->translatedFormat('d M Y H:i') }}</p>
+                                    <p class="text-[10px] text-slate-500">{{ $request->reviewed_at?->locale(app()->getLocale())->translatedFormat('d M Y H:i') }}</p>
                                 @else
-                                    <span class="text-[11px] text-slate-400">—</span>
+                                    <span class="text-[11px] text-slate-500">—</span>
                                 @endif
                             </td>
                         </tr>

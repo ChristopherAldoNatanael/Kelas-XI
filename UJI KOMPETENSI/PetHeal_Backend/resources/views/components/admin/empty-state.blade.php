@@ -13,7 +13,7 @@
         'amber' => 'bg-amber-50 text-amber-500 dark:bg-amber-900/30 dark:text-amber-400',
         'rose' => 'bg-rose-50 text-rose-500 dark:bg-rose-900/30 dark:text-rose-400',
         'violet' => 'bg-violet-50 text-violet-500 dark:bg-violet-900/30 dark:text-violet-400',
-        'slate' => 'bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500',
+        'slate' => 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-500',
     ];
     $iconTone = $tones[$tone] ?? $tones['slate'];
 @endphp

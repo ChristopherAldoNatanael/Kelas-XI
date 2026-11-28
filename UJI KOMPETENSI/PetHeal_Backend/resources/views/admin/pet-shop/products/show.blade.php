@@ -41,23 +41,23 @@
                 </div>
                 <dl class="grid flex-1 grid-cols-2 gap-4 text-sm">
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.category') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.category') }}</dt>
                         <dd class="mt-1 text-slate-700 dark:text-slate-300">{{ $product->category?->name ?? '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.brand') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.brand') }}</dt>
                         <dd class="mt-1 text-slate-700 dark:text-slate-300">{{ $product->brand ?: '—' }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.variants_count') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.variants_count') }}</dt>
                         <dd class="mt-1 tabular-nums text-slate-700 dark:text-slate-300">{{ $product->variants->count() }}</dd>
                     </div>
                     <div>
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.available_stock') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.available_stock') }}</dt>
                         <dd class="mt-1 font-semibold tabular-nums {{ $totalAvailable > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400' }}">{{ number_format($totalAvailable, 0, ',', '.') }}</dd>
                     </div>
                     <div class="col-span-2">
-                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('petshop.description') }}</dt>
+                        <dt class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('petshop.description') }}</dt>
                         <dd class="mt-1 whitespace-pre-line text-slate-600 dark:text-slate-400">{{ $product->description ?: '—' }}</dd>
                     </div>
                 </dl>
@@ -116,7 +116,7 @@
                             <td class="px-5 py-3 text-sm tabular-nums text-slate-700 dark:text-slate-300">
                                 @if($variant->hasDiscount())
                                     <span class="font-semibold text-emerald-600 dark:text-emerald-400">{{ format_rupiah($variant->effectivePrice()) }}</span>
-                                    <span class="block text-[10px] text-slate-400 line-through">{{ format_rupiah($variant->price) }}</span>
+                                    <span class="block text-[10px] text-slate-500 line-through">{{ format_rupiah($variant->price) }}</span>
                                 @else
                                     {{ format_rupiah($variant->price) }}
                                 @endif
@@ -168,7 +168,7 @@
                 <tbody class="divide-y divide-slate-100/60 dark:divide-slate-800/60">
                     @forelse($movements as $movement)
                         <tr class="admin-table-row">
-                            <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $movement->created_at?->format('d M Y H:i') }}</td>
+                            <td class="whitespace-nowrap px-5 py-3 text-xs text-slate-500 dark:text-slate-400">{{ $movement->created_at?->format('d/m/Y H:i') }}</td>
                             <td class="px-5 py-3 text-sm text-slate-700 dark:text-slate-300">{{ $movement->variant?->name ?? '—' }}</td>
                             <td class="px-5 py-3">
                                 <x-admin.badge :label="__('petshop.movement_types.' . $movement->type)" tone="slate" />

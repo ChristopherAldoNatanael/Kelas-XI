@@ -63,7 +63,7 @@
                 @foreach($chart as $day)
                     @php($height = $day['total'] > 0 ? max(6, (int) round($day['total'] / $maxTotal * 100)) : 2)
                     <div class="flex flex-1 flex-col items-center gap-2">
-                        <span class="text-[10px] font-semibold tabular-nums text-slate-400">
+                        <span class="text-[10px] font-semibold tabular-nums text-slate-500">
                             {{ $day['total'] > 0 ? format_rupiah($day['total']) : '—' }}
                         </span>
                         <div class="flex w-full flex-1 items-end">
@@ -71,12 +71,12 @@
                                  style="height: {{ $height }}%"
                                  title="{{ $day['date'] }} — {{ format_rupiah($day['total']) }}"></div>
                         </div>
-                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ $day['label'] }}</span>
+                        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ $day['label'] }}</span>
                     </div>
                 @endforeach
             </div>
             @if($chart->sum('total') === 0)
-                <p class="mt-4 text-center text-xs text-slate-400">{{ __('petshop.sales_chart_empty') }}</p>
+                <p class="mt-4 text-center text-xs text-slate-500">{{ __('petshop.sales_chart_empty') }}</p>
             @endif
         </x-admin.panel>
 
@@ -87,7 +87,7 @@
                     <a href="{{ route('admin.pet-shop.orders.index', ['status' => $status]) }}"
                        class="flex items-center justify-between rounded-xl border border-slate-100 px-3 py-2.5 text-sm transition-colors hover:border-slate-200 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800/50">
                         <span class="flex items-center gap-2 text-slate-600 dark:text-slate-300">
-                            <span class="material-symbols-outlined text-[17px] text-slate-400" aria-hidden="true">{{ $meta['icon'] }}</span>
+                            <span class="material-symbols-outlined text-[17px] text-slate-500" aria-hidden="true">{{ $meta['icon'] }}</span>
                             {{ __('petshop.status.' . $status) }}
                         </span>
                         <x-admin.badge :label="(string) ($statusCounts[$status] ?? 0)" :tone="$meta['tone']" />
@@ -106,11 +106,11 @@
                     </span>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $product->product_name }}</p>
-                        <p class="truncate text-[11px] text-slate-400">{{ $product->variant_name }}</p>
+                        <p class="truncate text-[11px] text-slate-500">{{ $product->variant_name }}</p>
                     </div>
                     <div class="text-right">
                         <p class="text-sm font-bold tabular-nums text-slate-800 dark:text-slate-200">{{ (int) $product->sold }} {{ __('petshop.sold') }}</p>
-                        <p class="text-[11px] tabular-nums text-slate-400">{{ format_rupiah((int) $product->revenue) }}</p>
+                        <p class="text-[11px] tabular-nums text-slate-500">{{ format_rupiah((int) $product->revenue) }}</p>
                     </div>
                 </div>
             @empty
@@ -126,7 +126,7 @@
                     </span>
                     <div class="min-w-0 flex-1">
                         <p class="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{{ $variant->product?->name ?? '—' }}</p>
-                        <p class="truncate text-[11px] text-slate-400">{{ $variant->name }} · {{ $variant->sku }}</p>
+                        <p class="truncate text-[11px] text-slate-500">{{ $variant->name }} · {{ $variant->sku }}</p>
                     </div>
                     <x-admin.badge :label="$variant->availableStock() . ' ' . __('petshop.available_stock')" tone="amber" />
                 </div>

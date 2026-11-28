@@ -80,7 +80,7 @@
                                     @endforeach
                                 </div>
                             @else
-                                <span class="text-slate-400">—</span>
+                                <span class="text-slate-500">—</span>
                             @endif
                         </dd>
                     </div>
@@ -130,7 +130,7 @@
                         @method('PUT')
 
                         <div>
-                            <label for="doctor-otp-digit-1" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.verification_code') }}</label>
+                            <label for="doctor-otp-digit-1" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.verification_code') }}</label>
                             <div class="flex gap-2" data-doctor-otp>
                                 @for($i = 0; $i < 6; $i++)
                                     <input id="doctor-otp-digit-{{ $i + 1 }}"
@@ -161,7 +161,7 @@
                         <form method="POST" action="{{ route('doctor.profile.password.otp') }}" class="inline">
                             @csrf
                             <button type="submit" id="passwordResend" data-wait="{{ $passwordOtp['resend_wait'] }}"
-                                    class="font-semibold text-primary hover:underline disabled:cursor-default disabled:text-slate-400 disabled:no-underline">
+                                    class="font-semibold text-primary hover:underline disabled:cursor-default disabled:text-slate-500 disabled:no-underline">
                                 {{ $passwordOtp['resend_wait'] > 0
                                     ? 'Kirim ulang dalam ' . $passwordOtp['resend_wait'] . ' detik'
                                     : 'Kirim ulang kode' }}
@@ -193,14 +193,14 @@
                         </div>
 
                         <div>
-                            <label for="password" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.new_password') }}</label>
+                            <label for="password" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.new_password') }}</label>
                             <input type="password" id="password" name="password" required autocomplete="new-password" minlength="8"
                                    class="admin-input @error('password') admin-input-error @enderror">
                             @error('password')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div>
-                            <label for="password_confirmation" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.repeat_new_password') }}</label>
+                            <label for="password_confirmation" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.repeat_new_password') }}</label>
                             <input type="password" id="password_confirmation" name="password_confirmation" required autocomplete="new-password"
                                    class="admin-input @error('password_confirmation') admin-input-error @enderror">
                             @error('password_confirmation')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
@@ -226,14 +226,14 @@
                 @method('PUT')
 
                 <div>
-                    <label for="photo" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.profile_photo') }}</label>
+                    <label for="photo" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.profile_photo') }}</label>
                     <div class="flex items-center gap-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 p-4 dark:border-slate-600 dark:bg-slate-800/30">
                         <label for="photo" class="group relative cursor-pointer">
                             @if($doctor->photo_url)
                                 <img id="photoPreview" src="{{ $doctor->photo_url }}?t={{ time() }}" alt="{{ __('doctor.current_photo') }}"
                                      class="h-16 w-16 flex-shrink-0 rounded-xl object-cover ring-1 ring-slate-200 dark:ring-slate-700">
                             @else
-                                <span id="photoPreview" class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+                                <span id="photoPreview" class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-500 dark:bg-slate-800">
                                     <span class="material-symbols-outlined text-[28px]" aria-hidden="true">add_a_photo</span>
                                 </span>
                             @endif
@@ -244,23 +244,23 @@
                         <div class="min-w-0 flex-1">
                             <input type="file" id="photo" name="photo" accept="image/png,image/jpeg,image/webp"
                                    class="block w-full text-xs text-slate-600 file:mr-3 file:rounded-lg file:border file:border-emerald-200 file:bg-emerald-50 file:px-3 file:py-2 file:text-xs file:font-bold file:text-emerald-700 hover:file:bg-emerald-100 dark:text-slate-300 dark:file:border-emerald-900/50 dark:file:bg-emerald-900/30 dark:file:text-emerald-300">
-                            <p class="mt-1.5 text-[11px] text-slate-400">{{ __('doctor.photo_hint') }}</p>
+                            <p class="mt-1.5 text-[11px] text-slate-500">{{ __('doctor.photo_hint') }}</p>
                             @error('photo')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
                         </div>
                     </div>
                 </div>
 
                 <div>
-                    <label for="name" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.full_name') }}</label>
+                    <label for="name" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.full_name') }}</label>
                     <input type="text" id="name" name="name" required maxlength="255"
                            value="{{ old('name', $doctor->name) }}"
                            class="admin-input @error('name') admin-input-error @enderror">
                     @error('name')<p class="mt-1 text-xs text-rose-600">{{ $message }}</p>@enderror
-                    <p class="mt-1 text-[11px] text-slate-400">{{ __('doctor.name_hint') }}</p>
+                    <p class="mt-1 text-[11px] text-slate-500">{{ __('doctor.name_hint') }}</p>
                 </div>
 
                 <div>
-                    <label for="phone" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-400">{{ __('doctor.phone') }}</label>
+                    <label for="phone" class="mb-1 block text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ __('doctor.phone') }}</label>
                     <input type="tel" id="phone" name="phone" maxlength="20"
                            value="{{ old('phone', $doctor->phone) }}"
                            placeholder="08xxxxxxxxxx"
@@ -271,9 +271,9 @@
 
                 <div class="grid grid-cols-1 gap-4 rounded-xl border border-slate-200 bg-slate-50/70 p-4 sm:grid-cols-2 dark:border-slate-700 dark:bg-slate-800/40">
                     <div>
-                        <label class="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <label class="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                             Email
-                            <span class="inline-flex items-center gap-0.5 normal-case text-[9px] font-bold text-slate-400">
+                            <span class="inline-flex items-center gap-0.5 normal-case text-[9px] font-bold text-slate-500">
                                 <span class="material-symbols-outlined text-[11px]" aria-hidden="true">lock</span>
                                 dikelola admin
                             </span>
@@ -282,9 +282,9 @@
                                class="admin-input cursor-not-allowed bg-white text-slate-500 dark:bg-slate-900 dark:text-slate-400">
                     </div>
                     <div>
-                        <label class="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        <label class="mb-1 flex items-center justify-between gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">
                             Spesialisasi
-                            <span class="inline-flex items-center gap-0.5 normal-case text-[9px] font-bold text-slate-400">
+                            <span class="inline-flex items-center gap-0.5 normal-case text-[9px] font-bold text-slate-500">
                                 <span class="material-symbols-outlined text-[11px]" aria-hidden="true">lock</span>
                                 dikelola admin
                             </span>

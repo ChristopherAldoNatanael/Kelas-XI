@@ -83,11 +83,78 @@ function initSidebar() {
         }
     };
 
-    const setCollapsed = (collapsed) => {
-        sidebar.classList.toggle('sidebar-collapsed', collapsed);
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let sidebarAnimationTimer = null;
+
+    const applySidebarTitles = (collapsed) => {
+        // Saat rail diciutkan label hilang; tooltip native memberi nama menu
+        // tanpa menambah library atau markup baru.
+        sidebar.querySelectorAll('.nav-link').forEach((link) => {
+            if (collapsed) {
+                const label = link.querySelector('.sidebar-text:not(.material-symbols-outlined)');
+                const text = label ? label.textContent.trim() : '';
+                if (text) {
+                    link.setAttribute('title', text);
+                }
+            } else {
+                link.removeAttribute('title');
+            }
+        });
+    };
+
+    const finishCollapse = () => {
+        sidebar.classList.remove('sidebar-collapsing');
+        sidebar.classList.add('sidebar-collapsed');
+        applySidebarTitles(true);
         if (toggleBtn) {
-            toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            toggleBtn.setAttribute('aria-expanded', 'false');
         }
+    };
+
+    const setCollapsed = (collapsed, animate = true) => {
+        const collapsing = sidebar.classList.contains('sidebar-collapsing');
+        const isCollapsed = sidebar.classList.contains('sidebar-collapsed') || collapsing;
+
+        if (sidebarAnimationTimer) {
+            window.clearTimeout(sidebarAnimationTimer);
+            sidebarAnimationTimer = null;
+        }
+
+        if (collapsed === isCollapsed) {
+            if (collapsed) finishCollapse();
+            return;
+        }
+
+        const instant = !animate || reducedMotion.matches;
+
+        if (instant) {
+            sidebar.classList.remove('sidebar-collapsing');
+            sidebar.classList.toggle('sidebar-collapsed', collapsed);
+            applySidebarTitles(collapsed);
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', String(!collapsed));
+            }
+        } else if (collapsed) {
+            // Lebar disusutkan dulu; tata letak rail baru dipasang setelah
+            // animasi selesai agar ikon tidak melompat ke tengah.
+            sidebar.classList.remove('sidebar-collapsed');
+            sidebar.classList.add('sidebar-collapsing');
+            applySidebarTitles(false);
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'false');
+            }
+            sidebarAnimationTimer = window.setTimeout(finishCollapse, 520);
+        } else {
+            // Membuka: tata letak penuh dipasang lebih dulu, lalu lebar
+            // tumbuh. Urutan ini menjaga ikon tetap dekat tepi kiri.
+            finishCollapse();
+            sidebar.classList.remove('sidebar-collapsed');
+            applySidebarTitles(false);
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-expanded', 'true');
+            }
+        }
+
         try {
             localStorage.setItem('sidebar-collapsed', String(collapsed));
         } catch (error) {
@@ -96,7 +163,7 @@ function initSidebar() {
     };
 
     try {
-        setCollapsed(localStorage.getItem('sidebar-collapsed') === 'true');
+        setCollapsed(localStorage.getItem('sidebar-collapsed') === 'true', false);
     } catch (error) {
         // abaikan
     }
@@ -106,9 +173,56 @@ function initSidebar() {
     if (backdrop) backdrop.addEventListener('click', () => setDrawer(false));
     if (toggleBtn) {
         toggleBtn.addEventListener('click', () => {
-            setCollapsed(!sidebar.classList.contains('sidebar-collapsed'));
+            const isCollapsed = sidebar.classList.contains('sidebar-collapsed')
+                || sidebar.classList.contains('sidebar-collapsing');
+            setCollapsed(!isCollapsed);
         });
     }
+
+    // Tinggi submenu dianimasikan dengan Web Animations API. Ini menghindari
+    // lompatan layout saat daftar anak dibuka/ditutup.
+    const animateSubmenu = (submenu, open) => {
+        submenu.getAnimations().forEach((animation) => animation.cancel());
+
+        if (reducedMotion.matches) {
+            submenu.classList.toggle('hidden', !open);
+            submenu.style.height = '';
+            submenu.style.overflow = '';
+            return;
+        }
+
+        if (open) {
+            submenu.classList.remove('hidden');
+            const height = submenu.scrollHeight;
+            submenu.style.overflow = 'hidden';
+            const animation = submenu.animate(
+                [
+                    { height: '0px', opacity: 0 },
+                    { height: `${height}px`, opacity: 1 },
+                ],
+                { duration: 280, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+            );
+            animation.onfinish = () => {
+                submenu.style.height = '';
+                submenu.style.overflow = '';
+            };
+        } else {
+            const height = submenu.scrollHeight;
+            submenu.style.overflow = 'hidden';
+            const animation = submenu.animate(
+                [
+                    { height: `${height}px`, opacity: 1 },
+                    { height: '0px', opacity: 0 },
+                ],
+                { duration: 240, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' }
+            );
+            animation.onfinish = () => {
+                submenu.classList.add('hidden');
+                submenu.style.height = '';
+                submenu.style.overflow = '';
+            };
+        }
+    };
 
     sidebar.querySelectorAll('[data-nav-group-toggle]').forEach((button) => {
         const group = button.closest('[data-nav-group]');
@@ -124,11 +238,14 @@ function initSidebar() {
             if (sidebar.classList.contains('sidebar-collapsed')) {
                 setCollapsed(false);
                 submenu.classList.remove('hidden');
-            } else {
-                submenu.classList.toggle('hidden');
+                button.setAttribute('aria-expanded', 'true');
+                button.querySelector('.nav-group-chevron')?.classList.add('is-open');
+                return;
             }
 
-            const open = !submenu.classList.contains('hidden');
+            const open = submenu.classList.contains('hidden');
+            animateSubmenu(submenu, open);
+
             button.setAttribute('aria-expanded', String(open));
             button.querySelector('.nav-group-chevron')?.classList.toggle('is-open', open);
         });
