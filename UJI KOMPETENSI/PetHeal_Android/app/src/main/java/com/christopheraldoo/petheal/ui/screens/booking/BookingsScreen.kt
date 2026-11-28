@@ -637,17 +637,19 @@ private fun BkHeroStat(label: String, value: String, modifier: Modifier = Modifi
     ) {
         Text(
             text = label,
-            color = Color.White.copy(alpha = 0.80f),
-            fontSize = 10.sp,
+            color = Color.White.copy(alpha = 0.88f),
+            fontSize = 9.5.sp,
             fontWeight = FontWeight.Medium,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
         Text(
             text = value,
             color = Color.White,
-            fontSize = 13.sp,
+            fontSize = 15.sp,
             fontWeight = FontWeight.Bold,
-            maxLines = 1
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
     }
 }
@@ -662,7 +664,7 @@ private fun BookingTabRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(Color.White.copy(alpha = 0.16f))
+            .background(Color.White.copy(alpha = 0.22f))
             .padding(4.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
@@ -695,7 +697,7 @@ private fun BookingTabItem(
         targetValue = if (selected) Color.White else Color.Transparent,
         animationSpec = tween(180)
     )
-    val contentColor = if (selected) Brand.primaryDeep else Color.White.copy(alpha = 0.88f)
+    val contentColor = if (selected) Brand.primaryDeep else Color.White.copy(alpha = 0.98f)
 
     Box(
         modifier = modifier
@@ -1371,6 +1373,7 @@ private data class QueueTone(
     val hint: String,
     val accent: Color,
     val container: Color,
+    val textColor: Color = accent,
 )
 
 /**
@@ -1389,7 +1392,8 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
             label = "Menunggu",
             hint = "Nomor antrian sudah terbit. Tunggu panggilan dokter.",
             accent = Brand.primary,
-            container = Brand.primary.copy(alpha = 0.08f)
+            container = Brand.primary.copy(alpha = 0.08f),
+            textColor = Brand.primaryDeep
         )
         "called" -> QueueTone(
             label = "Dipanggil",
@@ -1399,13 +1403,15 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
                 "Giliran Anda. Silakan menuju ruang dokter."
             },
             accent = Tertiary,
-            container = TertiaryLight
+            container = TertiaryLight,
+            textColor = Brand.amberText
         )
         "in_service" -> QueueTone(
             label = "Sedang diperiksa dokter",
             hint = "Pemeriksaan sedang berlangsung.",
             accent = InfoStrong,
-            container = InfoSoft
+            container = InfoSoft,
+            textColor = Brand.skyDeep
         )
         "done" -> QueueTone(
             label = "Selesai",
@@ -1423,7 +1429,8 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
             label = "Menunggu",
             hint = "Nomor antrian sudah terbit. Tunggu panggilan dokter.",
             accent = Brand.primary,
-            container = Brand.primary.copy(alpha = 0.08f)
+            container = Brand.primary.copy(alpha = 0.08f),
+            textColor = Brand.primaryDeep
         )
     }
 
@@ -1460,7 +1467,7 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
                     }
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("Nomor antrian", fontSize = 11.sp, color = textSecondary)
-                        Text(tone.label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tone.accent)
+                        Text(tone.label, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = tone.textColor)
                     }
                 }
 
@@ -1471,7 +1478,7 @@ private fun QueueStrip(booking: Booking, textSecondary: Color) {
                             if (position == 0) "Giliran Anda" else "$position antrian lagi",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold,
-                            color = tone.accent
+                            color = tone.textColor
                         )
                     }
                 }

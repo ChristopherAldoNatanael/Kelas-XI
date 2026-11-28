@@ -149,7 +149,7 @@ fun NotificationsScreen(
                     Column(modifier = Modifier.weight(1f)) {
                         Text("Pusat Notifikasi", color = Brand.textPrimary, fontSize = 19.sp, fontWeight = FontWeight.Bold)
                         Text(
-                            text = if (uiState.notifications.isEmpty()) "Tidak ada pembaruan baru" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
+                            text = if (uiState.notifications.isEmpty()) "Pemberitahuan booking, pembayaran, dan perawatan" else "${uiState.notifications.size} notifikasi / $unreadCount belum dibaca",
                             color = TextSecondary,
                             fontSize = 12.sp
                         )

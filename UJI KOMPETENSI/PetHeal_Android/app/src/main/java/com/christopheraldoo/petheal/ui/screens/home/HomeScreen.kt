@@ -85,6 +85,7 @@ import com.christopheraldoo.petheal.data.model.MedicalRecord
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.location.LocationPermissionStatus
 import com.christopheraldoo.petheal.ui.location.rememberLocationPermission
+import com.christopheraldoo.petheal.ui.theme.AccentViolet
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.Brand
 import com.christopheraldoo.petheal.ui.theme.ClinicTheme
@@ -635,8 +636,8 @@ private fun QuickActionsCard(
             QuickActionTile(
                 icon = Icons.Filled.Article,
                 label = "Rekam",
-                iconBg = Brand.cardAlt,
-                iconTint = TextMuted,
+                iconBg = AccentViolet.copy(alpha = 0.12f),
+                iconTint = AccentViolet,
                 onClick = onNavigateToMedicalRecords,
                 modifier = Modifier.weight(1f)
             )

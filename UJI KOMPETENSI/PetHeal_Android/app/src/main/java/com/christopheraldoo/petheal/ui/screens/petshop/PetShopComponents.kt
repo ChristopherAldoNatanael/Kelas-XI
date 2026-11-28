@@ -56,6 +56,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -422,7 +423,7 @@ fun ShopCategoryTile(
 
     Column(
         modifier = modifier
-            .width(72.dp)
+            .width(86.dp)
             .clip(RoundedCornerShape(ShopTheme.innerRadius))
             .clickable(onClick = onClick)
             .padding(vertical = 6.dp),
@@ -448,7 +449,10 @@ fun ShopCategoryTile(
             fontSize = 10.5.sp,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             color = if (selected) Primary else TextSecondary,
-            maxLines = 1,
+            maxLines = 2,
+            minLines = 2,
+            lineHeight = 12.sp,
+            textAlign = TextAlign.Center,
             overflow = TextOverflow.Ellipsis
         )
     }

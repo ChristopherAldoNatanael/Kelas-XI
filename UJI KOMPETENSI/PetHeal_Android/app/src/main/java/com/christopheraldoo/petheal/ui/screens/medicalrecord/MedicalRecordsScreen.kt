@@ -96,6 +96,7 @@ import com.christopheraldoo.petheal.data.model.MedicalRecordAttachment
 import com.christopheraldoo.petheal.data.model.PrivacyRequest
 import com.christopheraldoo.petheal.ui.components.Dimens
 import com.christopheraldoo.petheal.ui.components.PaymentReceiptSheet
+import com.christopheraldoo.petheal.ui.components.PetHealTopAppBar
 import com.christopheraldoo.petheal.ui.theme.Background
 import com.christopheraldoo.petheal.ui.theme.ErrorSoft
 import com.christopheraldoo.petheal.ui.theme.ErrorStrong
@@ -135,6 +136,7 @@ import com.christopheraldoo.petheal.ui.theme.Brand
 fun MedicalRecordsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToRecordDetail: (Int) -> Unit,
+    onBookAppointment: () -> Unit = {},
     onTabSelected: (com.christopheraldoo.petheal.ui.components.PetHealTab) -> Unit = {},
     viewModel: MedicalRecordsViewModel = hiltViewModel()
 ) {
@@ -166,7 +168,10 @@ fun MedicalRecordsScreen(
                 // filter kosong tetap menampilkan hero + chip filter agar
                 // pengguna bisa kembali ke "Semua".
                 state.records.isEmpty() -> {
-                    MedicalRecordEmptyState(onNavigateBack = onNavigateBack)
+                    MedicalRecordEmptyState(
+                        onNavigateBack = onNavigateBack,
+                        onBookAppointment = onBookAppointment
+                    )
                 }
 
                 else -> {
@@ -1907,13 +1912,23 @@ private fun FilteredRecordsEmptyState(
 }
 
 @Composable
-private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 28.dp),
-        contentAlignment = Alignment.Center
-    ) {
+private fun MedicalRecordEmptyState(
+    onNavigateBack: () -> Unit,
+    onBookAppointment: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        PetHealTopAppBar(
+            title = "Rekam Medis",
+            onNavigateBack = onNavigateBack
+        )
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .padding(horizontal = 28.dp)
+                .padding(bottom = 100.dp),
+            contentAlignment = Alignment.Center
+        ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1942,13 +1957,17 @@ private fun MedicalRecordEmptyState(onNavigateBack: () -> Unit) {
                 textAlign = TextAlign.Center
             )
             Button(
-                onClick = onNavigateBack,
+                onClick = onBookAppointment,
                 modifier = Modifier.heightIn(min = Dimens.MinTouchTarget),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Brand.primary, contentColor = Color.White)
             ) {
-                Text("Kembali", fontWeight = FontWeight.SemiBold)
+                Text("Buat Jadwal", fontWeight = FontWeight.SemiBold)
             }
+            TextButton(onClick = onNavigateBack) {
+                Text("Kembali ke Beranda", color = Brand.textSecondary, fontWeight = FontWeight.Medium)
+            }
+        }
         }
     }
 }

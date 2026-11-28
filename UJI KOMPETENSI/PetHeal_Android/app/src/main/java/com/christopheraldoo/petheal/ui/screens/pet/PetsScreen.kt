@@ -252,20 +252,6 @@ fun PetsScreen(
             }
         }
 
-        // ── FAB ────────────────────────────────────────────────────────
-        FloatingActionButton(
-            onClick = onNavigateToAddPet,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .navigationBarsPadding()
-                .padding(end = 24.dp, bottom = 120.dp),
-            containerColor = Brand.primary,
-            contentColor = Color.White,
-            shape = CircleShape,
-            elevation = FloatingActionButtonDefaults.elevation(6.dp)
-        ) {
-            Icon(Icons.Filled.Add, contentDescription = "Tambah hewan", modifier = Modifier.size(28.dp))
-        }
         // ── Bottom Nav (unified floating, PHASE 9) ─────────────────────
         com.christopheraldoo.petheal.ui.components.PetHealFloatingBottomNav(
             selected = com.christopheraldoo.petheal.ui.components.PetHealTab.Pets,
@@ -576,7 +562,7 @@ private fun AddNewPetCard(onClick: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(46.dp)
-                    .clip(RoundedCornerShape(14.dp))
+                    .clip(CircleShape)
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
@@ -599,11 +585,19 @@ private fun AddNewPetCard(onClick: () -> Unit) {
                 )
             }
 
-            Icon(
-                Icons.Filled.ChevronRight, null,
-                tint = Brand.primaryDeep,
-                modifier = Modifier.size(18.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .size(30.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.72f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    Icons.Filled.ChevronRight, null,
+                    tint = Brand.primaryDeep,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
         }
     }
 }

@@ -47,11 +47,13 @@ import com.christopheraldoo.petheal.ui.theme.OnBackground
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.OutlineStrong
 import com.christopheraldoo.petheal.ui.theme.Primary
+import com.christopheraldoo.petheal.ui.theme.PrimaryDark
 import com.christopheraldoo.petheal.ui.theme.PrimaryWash
 import com.christopheraldoo.petheal.ui.theme.Secondary
 import com.christopheraldoo.petheal.ui.theme.SuccessDeep
 import com.christopheraldoo.petheal.ui.theme.SuccessSoft
 import com.christopheraldoo.petheal.ui.theme.Surface
+import com.christopheraldoo.petheal.ui.theme.SurfaceMuted
 import com.christopheraldoo.petheal.ui.theme.TextSecondary
 import com.christopheraldoo.petheal.ui.util.collectAsStateLifecycleAware
 import com.google.android.gms.auth.api.signin.GoogleSignIn
@@ -66,6 +68,7 @@ import kotlinx.coroutines.tasks.await
 internal val AuthPrimary       = Primary
 internal val AuthBg            = Background
 internal val AuthTextSecondary = TextSecondary
+internal val AuthLink          = PrimaryDark
 
 @Composable
 fun LoginScreen(
@@ -74,11 +77,9 @@ fun LoginScreen(
     onNavigateToCompleteSetup: () -> Unit = {},
     /** Akun tanpa nomor WhatsApp melengkapi nomornya dulu (lihat [PhoneSetupScreen]). */
     onNavigateToPhoneSetup: () -> Unit = {},
-    viewModel: LoginViewModel = hiltViewModel(),
-    pickerViewModel: ClinicPickerViewModel = hiltViewModel()
+    viewModel: LoginViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateLifecycleAware()
-    val pickerState by pickerViewModel.uiState.collectAsStateLifecycleAware()
     val bgColor = AuthBg
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
@@ -92,10 +93,7 @@ fun LoginScreen(
     val resetDoneBanner = stringResource(R.string.reset_done_banner)
     // PHASE 7: tenant hint HANYA untuk login email. Login Google selalu
     // mengirim null (klinik ikut akun, backend yang menentukan).
-    var showClinicPicker by rememberSaveable { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
-
-    LaunchedEffect(Unit) { pickerViewModel.load() }
 
     // Google Sign-In client
     val googleSignInClient = remember {
@@ -193,14 +191,14 @@ fun LoginScreen(
                 .imePadding()
                 .navigationBarsPadding()
                 .padding(horizontal = 20.dp)
-                .padding(top = 20.dp, bottom = 28.dp)
+                .padding(top = 20.dp, bottom = 48.dp)
         ) {
 
             // ── Top app bar ───────────────────────────────────────────
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp, top = 8.dp),
+                    .padding(bottom = 20.dp, top = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -224,7 +222,7 @@ fun LoginScreen(
                             listOf(Color.White, PrimaryWash)
                         )
                     )
-                    .padding(horizontal = 24.dp, vertical = 28.dp)
+                    .padding(horizontal = 24.dp, vertical = 22.dp)
                     .padding(bottom = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -252,7 +250,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // ── Email ─────────────────────────────────────────────────
             AuthFieldLabel("Alamat Email")
@@ -275,7 +273,7 @@ fun LoginScreen(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }),
             )
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // ── Password ──────────────────────────────────────────────
             AuthFieldLabel("Kata Sandi")
@@ -327,36 +325,7 @@ fun LoginScreen(
                         "Lupa Kata Sandi?",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = AuthPrimary
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // ── Klinik (HANYA untuk login email — tombol Google di bawah
-            // mengabaikan pilihan ini dan memakai klinik milik akun) ──
-            val pickedName = pickerState.clinics
-                .firstOrNull { it.slug == pickerState.selectedSlug }?.name
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = if (pickedName != null) "Klinik (login email): $pickedName" else "Klinik (login email): belum dipilih",
-                    fontSize = 13.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.weight(1f)
-                )
-                TextButton(onClick = { showClinicPicker = true }) {
-                    Text(
-                        if (pickedName != null) "Ganti" else "Pilih",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = AuthPrimary
+                        color = AuthLink
                     )
                 }
             }
@@ -367,12 +336,16 @@ fun LoginScreen(
             Button(
                 onClick = {
                     focusManager.clearFocus()
-                    viewModel.loginWithEmailPassword(email.trim(), password, pickerState.selectedSlug)
+                    viewModel.loginWithEmailPassword(email.trim(), password, null)
                 },
                 modifier = Modifier.fillMaxWidth().height(58.dp),
                 shape = RoundedCornerShape(18.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = AuthPrimary, contentColor = Color.White),
+                    containerColor = AuthPrimary,
+                    contentColor = Color.White,
+                    disabledContainerColor = SurfaceMuted,
+                    disabledContentColor = OnBackground.copy(alpha = 0.76f)
+                ),
                 enabled = !uiState.isLoading && email.isNotBlank() && password.isNotBlank(),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
             ) {
@@ -407,7 +380,7 @@ fun LoginScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // ── Google button ─────────────────────────────────────────
             OutlinedButton(
@@ -477,7 +450,7 @@ fun LoginScreen(
             }
 
             // ── Footer ────────────────────────────────────────────────
-            Spacer(modifier = Modifier.height(40.dp))
+            Spacer(modifier = Modifier.height(24.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center,
@@ -492,7 +465,7 @@ fun LoginScreen(
                 ) {
                     Text("Daftar Sekarang",
                         fontSize = 13.sp, fontWeight = FontWeight.Bold,
-                        color = AuthPrimary)
+                        color = AuthLink)
                 }
             }
         }
@@ -509,14 +482,6 @@ fun LoginScreen(
             )
         }
 
-
-        if (showClinicPicker) {
-            ClinicPickerSheet(
-                onDismiss = { showClinicPicker = false },
-                onClinicSelected = { showClinicPicker = false },
-                viewModel = pickerViewModel
-            )
-        }
     }
 }
 

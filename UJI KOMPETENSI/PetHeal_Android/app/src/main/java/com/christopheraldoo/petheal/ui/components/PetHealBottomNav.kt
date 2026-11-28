@@ -6,12 +6,14 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,16 +33,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.christopheraldoo.petheal.ui.navigation.PetHealMotion
 import com.christopheraldoo.petheal.ui.navigation.Screen
+import com.christopheraldoo.petheal.ui.theme.Brand
 import com.christopheraldoo.petheal.ui.theme.OnSurface
 import com.christopheraldoo.petheal.ui.theme.Outline
 import com.christopheraldoo.petheal.ui.theme.PetHealRadius
@@ -135,30 +144,49 @@ fun PetHealFloatingBottomNav(
     onSelect: (PetHealTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .navigationBarsPadding()
-            .padding(bottom = 12.dp),
-        shape = RoundedCornerShape(PetHealRadius.xxl),
-        color = Surface,
-        shadowElevation = 8.dp,
-        border = BorderStroke(1.dp, Outline)
-    ) {
-        Row(
+    Box(modifier = modifier.fillMaxWidth().zIndex(2f), contentAlignment = Alignment.BottomCenter) {
+        // Scrim tipis di belakang navigasi mengapung. Tanpa ini, konten yang
+        // sedang digulir terlihat "terpotong" tepat di bawah bilah navigasi.
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 6.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            PetHealTab.entries.forEach { tab ->
-                PetHealTabItem(
-                    tab = tab,
-                    selected = tab == selected,
-                    onClick = { onSelect(tab) }
+                .height(176.dp)
+                .background(
+                    Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            0.45f to Brand.page.copy(alpha = 0.90f),
+                            0.72f to Brand.page,
+                            1f to Brand.page
+                        )
+                    )
                 )
+        )
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(PetHealRadius.xxl),
+            color = Surface,
+            shadowElevation = 8.dp,
+            border = BorderStroke(1.dp, Outline)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                PetHealTab.entries.forEach { tab ->
+                    PetHealTabItem(
+                        tab = tab,
+                        selected = tab == selected,
+                        onClick = { onSelect(tab) }
+                    )
+                }
             }
         }
     }
@@ -200,6 +228,10 @@ private fun PetHealTabItem(
             .defaultMinSize(minWidth = 56.dp)
             .heightIn(min = 48.dp)
             .clip(RoundedCornerShape(PetHealRadius.lg))
+            .semantics {
+                this.selected = selected
+                role = Role.Tab
+            }
             .clickable(onClick = onClick)
             .padding(horizontal = 6.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,

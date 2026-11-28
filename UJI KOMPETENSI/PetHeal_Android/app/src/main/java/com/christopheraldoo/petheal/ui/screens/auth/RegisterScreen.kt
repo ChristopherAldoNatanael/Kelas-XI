@@ -411,33 +411,6 @@ fun RegisterScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // ── Info: akun global, klinik dipilih saat booking ────────
-            // MULTI-CLINIC DISCOVERY: pemilihan klinik DIHAPUS dari form.
-            // Satu akun bisa mencari, membandingkan, lalu booking di klinik
-            // berbeda; klinik dipilih pada langkah booking.
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(AuthBg)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.Top
-            ) {
-                Icon(
-                    Icons.Filled.LocalHospital, null,
-                    tint = AuthTextSecondary, modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    "Satu akun untuk semua klinik. Klinik dipilih saat Anda booking.",
-                    fontSize = 12.5.sp,
-                    lineHeight = 18.sp,
-                    color = AuthTextSecondary
-                )
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
             // ── Register button ───────────────────────────────────────
             Button(
                 onClick = {

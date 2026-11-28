@@ -673,7 +673,12 @@ fun ProfileScreen(
                     ProfileInfoRow(
                         icon = Icons.Outlined.Shield,
                         label = "Tipe Akun",
-                        value = state.user?.role?.replaceFirstChar { it.uppercaseChar() } ?: "User"
+                        value = when (state.user?.role?.lowercase()) {
+                            "doctor" -> "Dokter"
+                            "admin", "clinic_admin" -> "Admin Klinik"
+                            "super_admin" -> "Super Admin"
+                            else -> "Pemilik Hewan"
+                        }
                     )
                 }
 

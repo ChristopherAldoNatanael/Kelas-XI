@@ -624,7 +624,7 @@ fun PaymentResultDialog(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center, modifier = Modifier.padding(top = 8.dp)) {
                     CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(16.dp), color = textSecondary.copy(alpha = 0.5f))
                     Spacer(Modifier.width(8.dp))
-                    Text(text = "Returning automatically...", fontSize = 11.sp, color = textSecondary.copy(alpha = 0.7f))
+                    Text(text = "Kembali otomatis...", fontSize = 11.sp, color = textSecondary.copy(alpha = 0.7f))
                 }
             }
         }

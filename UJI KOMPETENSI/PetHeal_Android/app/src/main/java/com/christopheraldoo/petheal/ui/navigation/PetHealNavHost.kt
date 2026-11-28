@@ -648,6 +648,9 @@ fun PetHealNavHost(
                 onNavigateToRecordDetail = { recordId ->
                     goTo(Screen.MedicalRecordDetail.createRoute(recordId))
                 },
+                onBookAppointment = {
+                    goTo(Screen.BookingStart.createRoute())
+                },
                 onTabSelected = navigateTab
             )
         }

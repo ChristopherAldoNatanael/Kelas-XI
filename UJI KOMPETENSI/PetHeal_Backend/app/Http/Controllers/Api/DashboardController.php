@@ -149,23 +149,23 @@ class DashboardController extends Controller
         $parts = [];
         
         if ($pets > 0) {
-            $parts[] = "You have {$pets} pet" . ($pets > 1 ? 's' : '');
+            $parts[] = "{$pets} hewan terdaftar";
         }
-        
+
         if ($upcomingBookings > 0) {
-            $parts[] = "{$upcomingBookings} upcoming appointment" . ($upcomingBookings > 1 ? 's' : '');
+            $parts[] = "{$upcomingBookings} jadwal mendatang";
         }
-        
+
         if ($vaccinationAlerts > 0) {
-            $parts[] = "{$vaccinationAlerts} vaccination alert" . ($vaccinationAlerts > 1 ? 's' : '');
+            $parts[] = "{$vaccinationAlerts} pengingat vaksinasi";
         }
 
         if ($paymentAttentionCount > 0) {
-            $parts[] = "{$paymentAttentionCount} payment item" . ($paymentAttentionCount > 1 ? 's need' : ' needs') . ' attention';
+            $parts[] = "{$paymentAttentionCount} pembayaran perlu diperiksa";
         }
-        
-        return empty($parts) 
-            ? 'Welcome to PetHeal!' 
-            : implode(', ', $parts) . '.';
+
+        return empty($parts)
+            ? 'Selamat datang di PetHeal.'
+            : ucfirst(implode(', ', $parts)) . '.';
     }
 }
